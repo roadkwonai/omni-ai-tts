@@ -1,39 +1,42 @@
 {
-  "name": "tts-pilot-app",
-  "private": true,
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
-  "type": "module",
-  "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "check-types": "turbo run check-types",
-    "dev:web": "turbo run dev -F web --",
-    "db:push": "turbo run db:push -F @tts-pilot-app/db --",
-    "db:studio": "turbo run db:studio -F @tts-pilot-app/db --",
-    "db:generate": "turbo run db:generate -F @tts-pilot-app/db --",
-    "db:migrate": "turbo run db:migrate -F @tts-pilot-app/db --",
-    "db:start": "turbo run db:start -F @tts-pilot-app/db --",
-    "db:watch": "turbo run db:watch -F @tts-pilot-app/db --",
-    "db:stop": "turbo run db:stop -F @tts-pilot-app/db --",
-    "db:down": "turbo run db:down -F @tts-pilot-app/db --",
-    "env:generate": "varlock codegen --path ./apps/web/ && varlock codegen --path ./packages/db/",
-    "postinstall": "varlock codegen --path ./apps/web/ && varlock codegen --path ./packages/db/",
-    "auth:generate": "cd apps/web && pnpm run auth:generate",
-    "check": "biome check --write ."
-  },
-  "dependencies": {
-    "zod": "catalog:"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^2.5.12",
-    "@tts-pilot-app/config": "workspace:*",
-    "@types/node": "catalog:",
-    "turbo": "^2.10.12",
-    "typescript": "catalog:",
-    "varlock": "catalog:"
-  },
-  "packageManager": "pnpm@12.6.0"
+	"name": "tts-pilot-app",
+	"private": true,
+	"workspaces": [
+		"apps/*",
+		"packages/*"
+	],
+	"type": "module",
+	"scripts": {
+		"dev": "turbo run dev",
+		"build": "turbo run build",
+		"check-types": "turbo run check-types",
+		"dev:web": "turbo run dev -F web --",
+		"db:push": "turbo run db:push -F @tts-pilot-app/db --",
+		"db:studio": "turbo run db:studio -F @tts-pilot-app/db --",
+		"db:generate": "turbo run db:generate -F @tts-pilot-app/db --",
+		"db:migrate": "turbo run db:migrate -F @tts-pilot-app/db --",
+		"db:start": "turbo run db:start -F @tts-pilot-app/db --",
+		"db:watch": "turbo run db:watch -F @tts-pilot-app/db --",
+		"db:stop": "turbo run db:stop -F @tts-pilot-app/db --",
+		"db:down": "turbo run db:down -F @tts-pilot-app/db --",
+		"env:generate": "varlock codegen --path ./apps/web/ && varlock codegen --path ./packages/db/",
+		"postinstall": "varlock codegen --path ./apps/web/ && varlock codegen --path ./packages/db/",
+		"auth:generate": "cd apps/web && pnpm run auth:generate",
+		"check": "biome check --write .",
+		"dev-cycle": "node scripts/dev-cycle.mjs",
+		"agents:sync": "node scripts/sync-agents.mjs",
+		"agents:check": "node scripts/sync-agents.mjs --check"
+	},
+	"dependencies": {
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.12",
+		"@tts-pilot-app/config": "workspace:*",
+		"@types/node": "catalog:",
+		"turbo": "^2.10.12",
+		"typescript": "catalog:",
+		"varlock": "catalog:"
+	},
+	"packageManager": "pnpm@12.6.0"
 }

@@ -56,3 +56,8 @@ coverage
 .cache
 tmp
 temp
+
+# dev-cycle 증거 파일 (스크린샷 등)
+tasks/evidence/
+.neon
+.neon
