@@ -61,3 +61,6 @@ temp
 tasks/evidence/
 .neon
 .neon
+
+# oh-my-claudecode 런타임 상태
+.omc/
