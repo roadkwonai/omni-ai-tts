@@ -209,7 +209,7 @@
       "source": "vercel/turborepo",
       "sourceType": "github",
       "skillPath": "skills/turborepo/SKILL.md",
-      "computedHash": "9ced49eba872730912bdccf6bf5bb621f6e1572ad3fef8c58cc2a1ae333775d9"
+      "computedHash": "c83a6ff75c62092f71da91408164ed3426f11749b032fd23ecc855e27c2fb538"
     },
     "using-git-worktrees": {
       "source": "obra/superpowers",
