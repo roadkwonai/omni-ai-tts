@@ -13,7 +13,7 @@ description: >-
 정본은 `PRODUCT.md`(제품 맥락)와 `DESIGN.md`(시각 시스템)다. 토큰은 `packages/ui/src/styles/globals.css`, 컴포넌트는 `packages/ui/src/components`(shadcn)에 있다.
 
 ## 시작할 때마다
-프로젝트 루트에서 `.agents/skills/impeccable/scripts/impeccable context`를 한 번 실행한다(Windows에서 `sh`가 없으면 `impeccable.cmd`). 대상이 정해져 있으면 `--target <경로>`를 붙인다. 출력의 지시를 따른다. 실행이 실패하면 `PRODUCT.md`와 `DESIGN.md`를 직접 읽고 없는 내용을 지어내지 않는다.
+프로젝트 루트에서 `.agents/skills/impeccable/scripts/impeccable context`를 한 번 실행한다. 대상이 정해져 있으면 `--target <경로>`를 붙인다. 출력의 지시를 따른다. 실행이 실패하면 `PRODUCT.md`와 `DESIGN.md`를 직접 읽고 없는 내용을 지어내지 않는다.
 
 그다음 요청이 어느 쪽인지 정한다. 이 판정이 코드를 언제 쓸 수 있는지를 정한다.
 - **새 작업**: 새 화면, 새 흐름, "새로 디자인", 리디자인, 화면 전체의 모양을 바꾸는 요청. 내용이 거의 없는 BTS 기본 화면을 제품 화면으로 채우거나 다시 구성하는 요청도 새 작업이다.
@@ -31,7 +31,7 @@ description: >-
 | 기획 (프로젝트당 1회) | 새 작업을 시작할 때 `PRODUCT.md`가 없으면 먼저 만든다(좁은 개선은 init 없이 진행) | `init` |
 | 시각 방향 (1회, 리디자인 때 다시) | 첫 새 작업에서 시각 세계를 정하고, 만든 화면을 바탕으로 마감 때 `DESIGN.md`를 기록한다. 시작 전에 `DESIGN.md`를 먼저 만들지 않는다. BTS 기본 shadcn 룩은 출발점일 뿐 정체성이 아니다 | new-work → 마감에서 `document` |
 | 설계 (새 화면과 흐름마다) | 코드 없이 브리프를 만들고 사용자 확인을 받는다 | `shape <기능>` |
-| 개발 | 편집 직전에 impeccable의 `reference/craft-floor.md`를 읽는다. 브리프에 따라 필요할 때만 `layout`, `typeset`, `clarify`, `harden`, `onboard`, `adapt` | new-work |
+| 개발 | 편집 직전에 impeccable의 `reference/craft-floor.md`를 읽는다. 브리프에 따라 필요할 때만 `layout`, `typeset`, `clarify`, `harden`, `onboard`, `adapt`, `animate`. 화면 전환과 공유 요소 애니메이션은 React `<ViewTransition>`으로 만들고 `vercel-react-view-transitions` 스킬(선택 묶음 `motion`)을 따른다 | new-work |
 | 리뷰 | 메인 세션에서 실행한다. 서브에이전트 안에서 실행하지 않는다. `web-design-guidelines` 스킬로 코드도 검사해 결과를 별도 절로 보고한다 | `critique`, `audit` + `web-design-guidelines` |
 | 마감 | 수정을 한 번에 모아 적용하고 재확인은 1회만 한다 | `polish` |
 | 정본 갱신 | 토큰이나 컴포넌트가 바뀌었을 때. 덮어쓰기 전에 사용자에게 묻는다 | `document` |
@@ -42,7 +42,7 @@ description: >-
 - 새 작업은 `shape` 브리프가 확정되기 전에 코드를 쓰지 않는다. 좁은 개선만 브리프 없이 진행하고, 대조표에 `N/A: 좁은 개선(버튼 간격)`처럼 적는다.
 - 리뷰만 요청받으면 코드를 고치지 않는다. 보고에는 critique 점수와 P0~P3, audit 총점과 접근성 점수, `web-design-guidelines` 위반(`file:line`)을 넣는다. 독립 평가자를 띄울 수 없는 환경이면 축소 모드로 했다고 밝힌다.
 - 색, 간격, 반경, 그림자는 토큰으로만 쓴다. 원시 hex 값이나 임의 Tailwind 값(`bg-[#123456]`, `mt-[13px]`)을 새로 넣지 않는다.
-- shadcn 프리미티브는 `packages/ui`의 것을 쓴다. 새 컴포넌트가 필요하면 `shadcn` 스킬 절차로 `packages/ui`에 추가한다.
-- 통과 기준: critique의 P0와 P1은 해결하거나 사유를 적고 보류한다. audit 총점은 `.dev-cycle.json`의 `ui.auditMin`(기본 16/20) 이상, 접근성 점수는 `ui.a11yMin`(기본 3/4) 이상이다.
-- 편집 중 자동 검사: 개발자마다 한 번 `hooks on`을 실행하면(Codex `$impeccable hooks on`, Claude Code는 `impeccable` 스킬 인자 `hooks on`) UI 파일을 고칠 때마다 detector가 결과를 알려 준다. Codex에서는 `/hooks`에서 신뢰를 확인한다.
+- shadcn 프리미티브는 `packages/ui`의 것을 쓴다. 새 컴포넌트가 필요하면 `shadcn` 스킬 절차로 `packages/ui`에 추가한다. shadcn CLI는 `pnpm --filter @<프로젝트>/ui exec shadcn <명령>`(예: `info --json`)으로 `packages/ui`에 설치된 버전을 실행한다. `shadcn` 스킬 예시처럼 루트에서 `npx shadcn@latest info`를 실행하면 `monorepo_root` 오류가 난다.
+- 통과 기준: critique의 P0와 P1은 해결하거나 사유를 적고 보류한다. audit 총점은 `.dev-cycle.json`의 `ui.auditMin`(기본 16/20) 이상, 접근성 점수는 `ui.a11yMin`(기본 3/4) 이상이다. 재확인 뒤에도 기준에 못 미치면 완료로 보고하지 않는다. 점수와 남은 지적을 보고하고 추가 polish를 할지 사용자에게 묻는다. 그대로 두자고 하면 재확인 행에 `기준 미달 수용(사용자, <날짜>): audit 15/20`처럼 적는다.
+- 편집 중 자동 검사: 개발자마다 한 번 프로젝트 루트에서 `.agents/skills/impeccable/scripts/impeccable hooks on`을 실행하면 UI 파일을 고칠 때마다 detector가 결과를 알려 준다. 스킬 호출(`$impeccable hooks on`, Claude Code의 `impeccable` 스킬 인자 `hooks on`)로 켜지 않는다. 개인(전역) impeccable 스킬이 따로 있으면 Claude Code가 그쪽을 불러오고, 그 스크립트는 이 프로젝트의 impeccable에 없는 `scripts/hook.mjs`를 훅 명령으로 적는다. 그러면 Stop 훅과 편집 훅이 매번 `MODULE_NOT_FOUND`로 실패한다. 켠 뒤 `.claude/settings.local.json`의 훅 명령이 `…/scripts/impeccable" hook`인지 확인한다. Codex에서는 `/hooks`에서 신뢰를 확인한다.
 - 데이터 상태(loading, empty, error, 비인가)의 모양과 문구는 `bts-web`과 함께 설계한다.

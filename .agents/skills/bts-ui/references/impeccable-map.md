@@ -15,7 +15,7 @@ impeccable은 화면마다 모드를 고른다. 앱 화면(대시보드, 목록,
 | 리뷰 | `web-design-guidelines` 스킬 | Vercel Web Interface Guidelines 위반 목록 (`file:line`) | 규칙을 원격에서 받아 온다. 받지 못하면 그렇다고 적는다 |
 | 마감 | `polish <대상>` | 정리된 코드 | critique 결과를 입력으로 쓴다. 검증은 한 번 모아서 하고 재확인은 1회 |
 | 정본 갱신 | `document` | `DESIGN.md` 갱신 | refresh, overwrite, merge 중 무엇을 할지 사용자에게 묻는다 |
-| 관리 | `hooks on`, `hooks status`, `doctor` | 편집 detector, 설정 점검 | `CONTEXT_STALE` 안내는 보고만 하고 사용자가 요청할 때 고친다 |
+| 관리 | `hooks on`, `hooks status`, `doctor` | 편집 detector, 설정 점검 | `CONTEXT_STALE` 안내는 보고만 하고 사용자가 요청할 때 고친다. `hooks`는 스킬 호출 대신 `.agents/skills/impeccable/scripts/impeccable hooks <동작>`으로 실행한다(`bts-ui` 규칙) |
 
 Claude Code에서는 `impeccable` 스킬을 부르고 인자로 명령을 준다(예: 스킬 인자 `critique apps/web/src/app/todos`). Codex에서는 `$impeccable critique apps/web/src/app/todos`처럼 부른다.
 
@@ -26,7 +26,7 @@ Claude Code에서는 `impeccable` 스킬을 부르고 인자로 명령을 준다
 | shape 브리프 확정 | `shape → docs/briefs/todos.md (사용자 확인 2026-10-01)` 또는 `N/A: 버튼 간격만 조정` |
 | 구현 | `apps/web/src/app/todos/*.tsx 3개, packages/ui 토큰 1개` |
 | 타입·린트·빌드 | `pnpm check-types → exit 0, pnpm exec biome check . → exit 0, pnpm build → exit 0` |
-| 스크린샷 | `tasks/evidence/todo-list/desktop.png, mobile.png` |
+| 런타임·스크린샷 | `next-dev-loop /todos → get_errors 0, tasks/evidence/todo-list/desktop.png, mobile.png` |
 | critique | `Design Health 31/40, P0 0, P1 2 (빈 상태 문구, 대비)` |
 | audit | `audit 15/20, 접근성 3/4 → 기준 미달, polish에서 해결` |
 | 수정과 polish | `P1 2건 반영, 대비 토큰 조정` |

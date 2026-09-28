@@ -21,7 +21,7 @@
 		},
 		{
 			"case": "H",
-			"match": "^(\\.agents/skills/|\\.claude/(agents|skills)/|\\.codex/agents/|skills-lock\\.json$|scripts/(dev-cycle|sync-agents)\\.mjs$|\\.dev-cycle\\.json$|docs/dev-workflow\\.md$)",
+			"match": "^(\\.agents/skills/|\\.claude/(agents|skills)/|\\.claude/settings\\.json$|\\.codex/(agents|skills|prompts)/|skills-lock\\.json$|skills\\.manifest\\.json$|scripts/(dev-cycle|sync-agents|skills-setup|vercel-deploy)\\.mjs$|\\.dev-cycle\\.json$|\\.vercelignore$|docs/dev-workflow\\.md$)",
 			"why": "하네스"
 		}
 	],

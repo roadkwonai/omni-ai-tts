@@ -25,7 +25,12 @@
 		"check": "biome check --write .",
 		"dev-cycle": "node scripts/dev-cycle.mjs",
 		"agents:sync": "node scripts/sync-agents.mjs",
-		"agents:check": "node scripts/sync-agents.mjs --check"
+		"agents:check": "node scripts/sync-agents.mjs --check",
+		"skills:setup": "node scripts/skills-setup.mjs",
+		"skills:check": "node scripts/skills-setup.mjs --check",
+		"skills:update": "node scripts/skills-setup.mjs --update",
+		"vercel:deploy": "node scripts/vercel-deploy.mjs",
+		"release": "node scripts/release.mjs"
 	},
 	"dependencies": {
 		"zod": "catalog:"

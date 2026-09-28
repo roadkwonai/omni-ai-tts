@@ -7,10 +7,11 @@ import {
 	existsSync,
 	mkdirSync,
 	readFileSync,
+	realpathSync,
 	writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 const DEFAULTS = {
 	todoPath: "tasks/todo.md",
@@ -199,7 +200,7 @@ export function buildRows(workflow, caseKey, cls) {
 				for (const k of item.include) rows.push(...expand(k, [...stack, key]));
 			} else if (item.inherit) {
 				const src = cls.pathCase;
-				if (src !== "A" && src !== key) {
+				if (src !== key) {
 					rows.push(
 						...expand(src, [...stack, key]).filter((r) =>
 							item.inherit.includes(r.tag),
@@ -330,8 +331,12 @@ export function writeTable(
 		const old = new Map(active.rows.map((r) => [r.text, r.evidence]));
 		for (const r of rows) r.evidence = old.get(r.text) ?? "";
 		const kept = new Set(rows.map((r) => r.text));
-		for (const r of active.rows)
-			if (!kept.has(r.text)) rows.push({ text: r.text, evidence: r.evidence });
+		// 새 케이스에 없는 이전 행(직접 추가한 행 포함)은 끝의 사용자 확인 행 앞에 둔다.
+		const at = rows.findIndex((r) => r.tag === "confirm");
+		const carried = active.rows
+			.filter((r) => !kept.has(r.text))
+			.map((r) => ({ text: r.text, evidence: r.evidence }));
+		rows.splice(at < 0 ? rows.length : at, 0, ...carried);
 	}
 	const meta = {
 		case: key,
@@ -354,8 +359,14 @@ export function writeTable(
 
 const PLACEHOLDERS = new Set(["✓", "✔", "-", "ok", "done", "todo", "tbd"]);
 
+// 증거를 `blocked: x`처럼 따옴표·백틱으로 감싸도 같은 표시로 읽는다.
+const bare = (e) =>
+	String(e ?? "")
+		.trim()
+		.replace(/^[`'"]+/, "");
+
 export function evidenceProblem(e) {
-	const v = String(e ?? "").trim();
+	const v = bare(e);
 	if (!v) return "증거 칸이 비어 있다";
 	if (/^n\/a(?![a-z])/i.test(v))
 		return /^n\/a\s*:\s*\S/i.test(v) ? null : "N/A에 사유가 없다 (N/A: 사유)";
@@ -367,6 +378,20 @@ export function evidenceProblem(e) {
 		return "형식만 채운 증거다";
 	return null;
 }
+
+// 사용자 확인 행([confirm])은 N/A·PASS·blocked·미실행·대기 같은 건너뛰기 표시로 채울 수 없다.
+// 사용자가 결과를 확인해야 라운드를 닫는다(close --partial로도 넘기지 못한다).
+const SKIP_RE =
+	/^(?:(?:n\s*\/?\s*a|pass|blocked|todo|tbd|pending)(?![a-z])|skip|미실행|생략|해당\s*없|대기)|대기(?:\s*중)?$/i;
+
+export function confirmProblem(row) {
+	if (!/^\[confirm\]/i.test(row.text)) return null;
+	return SKIP_RE.test(bare(row.evidence).replace(/^[*_(\s]+/, ""))
+		? "사용자 확인 행은 N/A·PASS·blocked·미실행으로 넘길 수 없다 (사용자가 확인한 내용과 날짜)"
+		: null;
+}
+
+const rowProblem = (r) => confirmProblem(r) ?? evidenceProblem(r.evidence);
 
 export function audit(root, config) {
 	const md = readTodo(root, config);
@@ -380,7 +405,7 @@ export function audit(root, config) {
 		};
 	const problems = [];
 	active.rows.forEach((r, i) => {
-		const p = evidenceProblem(r.evidence);
+		const p = rowProblem(r);
 		if (p) problems.push(`#${i + 1} ${r.text}: ${p}`);
 	});
 	const X = active.meta.case;
@@ -426,9 +451,8 @@ export function status(root, config) {
 			line: '활성 라운드 없음 — pnpm dev-cycle case로 판정한 뒤 pnpm dev-cycle table <케이스> --write --title "<요약>"으로 연다 (케이스는 요청 기준, 아직 diff가 없으면 판정은 A)',
 		};
 	}
-	const filled = active.rows.filter((r) => !evidenceProblem(r.evidence)).length;
-	const next =
-		active.rows.find((r) => evidenceProblem(r.evidence))?.text ?? null;
+	const filled = active.rows.filter((r) => !rowProblem(r)).length;
+	const next = active.rows.find(rowProblem)?.text ?? null;
 	const line = `라운드 ${active.meta.case} "${active.title}" — ${filled}/${active.rows.length}칸 — 다음: ${next ?? "audit 후 close"}`;
 	return {
 		active: true,
@@ -440,12 +464,29 @@ export function status(root, config) {
 	};
 }
 
-export function close(root, config, now = new Date()) {
+export function close(
+	root,
+	config,
+	now = new Date(),
+	{ partial = false } = {},
+) {
 	const res = audit(root, config);
 	if (!res.ok) return res;
 	const todoPath = join(root, config.todoPath);
 	const md = readFileSync(todoPath, "utf8");
 	const active = parseActive(md);
+	// blocked·미실행은 audit이 채운 칸으로 보지만 완료는 아니다. 사용자가 그대로 닫자고 할 때만 --partial로 닫는다.
+	const count = (re) =>
+		active.rows.filter((r) => re.test(bare(r.evidence))).length;
+	const blocked = count(/^blocked\s*:/i);
+	const skipped = count(/^미실행\s*:/);
+	if ((blocked || skipped) && !partial)
+		return {
+			ok: false,
+			problems: [
+				`부분 완료(blocked ${blocked}건, 미실행 ${skipped}건) — 사용자에게 보고하고, 그대로 닫자고 하면 pnpm dev-cycle close --partial`,
+			],
+		};
 	const day = now.toISOString().slice(0, 10);
 	const archivePath = join(root, config.archiveDir, `${day.slice(0, 7)}.md`);
 	const archived = md
@@ -468,7 +509,7 @@ export function close(root, config, now = new Date()) {
 }
 
 const USAGE =
-	"사용법: dev-cycle <case | table [CASE] [--write] [--upgrade] [--title 제목] | status | audit | close> [--json]";
+	"사용법: dev-cycle <case | table [CASE] [--write] [--upgrade] [--title 제목] | status | audit | close [--partial]> [--json]";
 
 export function main(argv, root = process.cwd()) {
 	const [cmd, ...rest] = argv;
@@ -511,7 +552,29 @@ export function main(argv, root = process.cwd()) {
 		}
 		case "status": {
 			const s = status(root, config);
-			print(s, s.line);
+			// 새 라운드를 열기 전에 외부 스킬 새 버전을 하루 한 번 확인한다(bts-skills-update).
+			// 옛 skills-setup.mjs는 모르는 옵션을 무시하고 설치를 해 버리므로 --if-due를 아는 판만 부른다.
+			const upd = join(root, "scripts/skills-setup.mjs");
+			if (
+				!s.active &&
+				existsSync(upd) &&
+				readFileSync(upd, "utf8").includes('"--if-due"')
+			) {
+				const r = spawnSync(process.execPath, [upd, "--update", "--if-due"], {
+					cwd: root,
+					encoding: "utf8",
+					timeout: 60_000,
+				});
+				const failed = r.error || r.status !== 0;
+				const why = `${r.error?.message ?? r.stderr ?? ""}`
+					.trim()
+					.split("\n")[0];
+				const notice = failed
+					? `CHECK_FAILED skills:update --if-due: ${why || `exit ${r.status}`}`
+					: r.stdout?.trim();
+				if (notice) s.skillsUpdate = notice.split("\n");
+			}
+			print(s, [s.line, ...(s.skillsUpdate ?? [])].join("\n"));
 			return 0;
 		}
 		case "audit": {
@@ -525,15 +588,14 @@ export function main(argv, root = process.cwd()) {
 			return r.ok ? 0 : 1;
 		}
 		case "close": {
-			const r = close(root, config);
+			const r = close(root, config, new Date(), {
+				partial: rest.includes("--partial"),
+			});
 			print(
 				r,
 				r.ok
 					? `라운드를 닫았다 → ${r.archivePath}`
-					: [
-							"close 거부 — audit 실패:",
-							...r.problems.map((p) => `  ❌ ${p}`),
-						].join("\n"),
+					: ["close 거부:", ...r.problems.map((p) => `  ❌ ${p}`)].join("\n"),
 			);
 			return r.ok ? 0 : 1;
 		}
@@ -543,10 +605,15 @@ export function main(argv, root = process.cwd()) {
 	}
 }
 
-if (
-	process.argv[1] &&
-	import.meta.url === pathToFileURL(process.argv[1]).href
-) {
+// 실재 경로로 비교한다. 심볼릭 링크 경로(macOS /tmp 등)로 실행하면 argv와 import.meta.url이 달라진다.
+const isMain = () => {
+	try {
+		return realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
+	} catch {
+		return false;
+	}
+};
+if (isMain()) {
 	try {
 		process.exitCode = main(process.argv.slice(2));
 	} catch (e) {

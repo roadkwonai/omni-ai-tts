@@ -23,6 +23,8 @@ description: >-
 | 컬럼 타입, 제약, 인덱스, 쿼리 작성과 튜닝 | `supabase-postgres-best-practices` (서비스와 무관한 Postgres 규칙) |
 | 연결(pooled와 direct), 마이그레이션 운영, 검색 | `neon-postgres` (먼저 상위 `neon`) |
 | 병합 전 검증용 브랜치 만들기와 리셋 | `neon-postgres-branches` |
+| DB 비용, 데이터 전송량(egress), 과다 조회 점검 | `neon-postgres-egress-optimizer` (운영 DB 통계 조회와 `pg_stat_statements` 설치·초기화는 사용자가 요청할 때만 한다) |
+| Neon 부가 기능: 오래 도는 함수, 파일 저장, LLM 호출 | `neon-functions`, `neon-object-storage`, `neon-ai-gateway` (선택 묶음 `ops`. 새 서비스 의존이 생기므로 도입 전에 사용자에게 묻고 `docs/adr/`에 남긴다) |
 
 ## 스키마 변경 절차
 1. 스키마 파일을 고친다. 새 테이블은 `schema/index.ts`에서 export한다.
@@ -35,7 +37,7 @@ description: >-
 ## 금지
 - 공유 브랜치(main, production)에 `db:push`를 쓰지 않는다. `db:push`는 로컬 DB나 버릴 개인 브랜치에서 실험할 때만 쓴다.
 - `packages/db`의 DB 드라이버를 `@neondatabase/serverless`(neon-http)로 바꾸지 않는다. 로컬 Postgres에 붙지 않는다.
-- 이미 적용된 마이그레이션 파일을 고치지 않는다. 고칠 일이 있으면 새 마이그레이션을 만든다.
+- 이미 적용된 마이그레이션 파일을 고치지 않는다. 고칠 일이 있으면 새 마이그레이션을 만든다. drizzle 스냅샷(`snapshot.json`)을 손으로 고치거나 마이그레이션 폴더를 직접 만들지 않는다. 스키마 파일을 고치고 `dbGenerate`로 만든다(`--custom`이 만든 빈 `migration.sql`에 SQL을 쓰는 것은 된다).
 - 운영 DB, 실제 사용자 데이터, 연결 문자열의 비밀번호는 사용자의 명시적 요청 없이 다루지 않는다.
 
 ## 설계 규칙
@@ -44,7 +46,7 @@ description: >-
 - 조회 조건과 정렬에 쓰는 컬럼에는 인덱스를 둔다. 여러 컬럼 조건이면 복합 인덱스를 검토한다.
 - 파괴적 변경(컬럼 삭제, 이름 변경, 타입 축소)은 expand와 contract 두 단계로, 각각 별도 마이그레이션과 별도 라운드로 나눈다. 예는 [references/migration-flow.md](references/migration-flow.md).
 - Neon에서는 앱이 pooled 연결 문자열, 마이그레이션이 direct 연결 문자열을 쓴다 (`neon-postgres`의 연결 절). 로컬 컨테이너에는 구분이 없다.
-- 새 도메인 용어는 `CONTEXT.md`에, 되돌리기 어려운 구조 결정은 `docs/adr/`에 남긴다 (`domain-modeling`).
+- 새 도메인 용어는 `CONTEXT.md`에, 되돌리기 어려운 구조 결정은 `docs/adr/`에 남긴다 (`domain-modeling`). 테이블을 더하거나 바꾸면 `docs/domain/project.md` 데이터 모델 표의 `용어` 칸까지 고친다.
 
 ## 예: 사용자 소유 테이블
 ```ts

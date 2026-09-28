@@ -9,6 +9,7 @@
 - 행 형식은 `- [태그] 단계 → 증거 형식`이다. `verify`·`review` 태그 행은 C 케이스가 상속한다.
 - `@include X Y`는 다른 케이스의 행을 그 자리에 펼친다. `@inherit verify review`는 경로로 판정된 케이스에서 해당 태그 행만 가져온다. 같은 문구의 행은 한 번만 들어간다.
 - 인증 민감 경로(`.dev-cycle.json`의 `authPaths`)를 건드리면 러너가 `[review] bts-reviewer(security)` 행을 자동으로 붙인다.
+- `[confirm]` 행(사용자 확인)은 증거 칸을 N/A·PASS·blocked·미실행·대기 같은 건너뛰기 표시로 채울 수 없다. audit이 거부하고 `close --partial`로도 닫히지 않는다. 라운드를 닫은 뒤의 커밋·push, 릴리스, 배포는 `bts-dev-cycle`의 "5. 종료"를 따른다.
 
 ## 케이스
 
@@ -20,7 +21,7 @@
 - impeccable shape 브리프 확정 (좁은 개선이면 N/A: 사유) → 브리프 경로
 - 구현 (bts-ui, bts-web) → 변경 파일 요약
 - [verify] 타입·린트·빌드 → 명령과 결과
-- [verify] ego-browser(없으면 agent-browser)로 desktop·mobile 스크린샷 → tasks/evidence/ 경로
+- [verify] next-dev-loop 런타임 확인과 ego-browser(없으면 agent-browser)로 desktop·mobile 스크린샷 → 확인한 경로와 오류 수, tasks/evidence/ 경로
 - [review] impeccable critique → Design Health 점수, P0/P1 목록
 - [review] impeccable audit → 점수(/20), 접근성 점수
 - 수정과 impeccable polish를 한 번에 → 반영 내역
@@ -42,13 +43,14 @@
 
 ### E. DB
 - 스키마 수정 + dbGenerate, 생성 SQL 검토 (bts-db) → 마이그레이션 파일 경로와 요약
+- [verify] 타입·린트 검사 (commands.typecheck, commands.lint) → 명령과 결과 요약
 - [verify] 로컬 개발 DB에 dbMigrate 적용 → 호스트:포트와 출력 요약
 - [verify] 병합 전 Neon 개발 브랜치에 dbMigrate 적용 → 브랜치 이름과 출력 요약 또는 N/A: Neon 미연결(.neon 없음)
 - 파괴적 변경 여부 판단 → 없음 또는 2단계 계획
 - [review] bts-reviewer(db) → verdict, max_severity, 반영·기각 내역
 
 ### F. 신규 기능
-- 스펙 작성 (brainstorming, 선택: /grill-with-docs, UI가 있으면 impeccable shape 브리프 링크) → 사용한 스킬과 스펙 경로
+- 스펙 작성 (brainstorming, 새 용어는 domain-modeling으로 CONTEXT.md에 바로 기록, 선택: /grill-with-docs, UI가 있으면 impeccable shape 브리프 링크) → 사용한 스킬, 스펙 경로, 추가·변경한 용어
 - 구현 계획 (writing-plans) → 사용한 스킬과 계획 경로
 - [review] 계획 리뷰 (plan-eng-review, UI가 있으면 plan-design-review) → 결과 요약 또는 N/A: 사유
 - 구현 방식 (subagent-driven-development + test-driven-development) → 사용한 스킬과 위임 내역
@@ -59,8 +61,10 @@
 
 ### H. 하네스
 - [verify] pnpm agents:check → 출력
+- [verify] pnpm skills:check → 출력
 - [verify] pnpm dev-cycle case·status 실행 확인 → 출력 요약
 - 스킬을 바꿨으면 skill-creator eval 재실행 → 벤치마크 경로 또는 N/A: 사유
 
 ### 공통
 - 문서 영향 확인 (CONTEXT.md, docs/adr/, docs/domain/project.md) → 갱신 내역 또는 N/A: 사유
+- [confirm] 사용자 확인 (결과를 사용자에게 보여 주고 사용자가 직접 보거나 써 본 뒤 확인한다. N/A 불가) → 확인한 내용과 날짜

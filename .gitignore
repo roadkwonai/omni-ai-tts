@@ -64,3 +64,21 @@ tasks/evidence/
 
 # oh-my-claudecode 런타임 상태
 .omc/
+
+# OMC·OMX 런타임 상태
+.omx/
+
+# 환경별 .env (비밀값). 배포 환경변수는 Vercel에 둔다
+.env.*
+!.env.schema
+!.env.example
+.omx-state-locks/
+.omx-state-locks.identity.json
+.codex/*
+!.codex/agents/
+!.codex/agents/**
+!.codex/skills/
+!.codex/skills/**
+.codex/skills/.system/**
+!.codex/prompts/
+!.codex/prompts/**

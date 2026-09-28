@@ -28,7 +28,16 @@
 			"!**/.source",
 			"!**/convex/_generated",
 			"!.agents/skills",
-			"!skills-lock.json"
+			"!skills-lock.json",
+			"!**/.omc",
+			"!**/.omx",
+			"!**/.impeccable",
+			"!.claude",
+			"!.codex",
+			"!packages/db/src/migrations",
+			"!packages/db/src/schema/auth.ts",
+			"!apps/web/src/env.ts",
+			"!packages/db/src/env.ts"
 		]
 	},
 	"formatter": {
@@ -81,5 +90,22 @@
 		"parser": {
 			"tailwindDirectives": true
 		}
-	}
+	},
+	"overrides": [
+		{
+			"includes": [
+				"packages/ui/src/components/label.tsx",
+				"packages/ui/src/components/input-group.tsx"
+			],
+			"linter": {
+				"rules": {
+					"a11y": {
+						"noLabelWithoutControl": "off",
+						"useKeyWithClickEvents": "off",
+						"useSemanticElements": "off"
+					}
+				}
+			}
+		}
+	]
 }

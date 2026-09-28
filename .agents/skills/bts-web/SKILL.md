@@ -22,9 +22,11 @@ description: >-
 | 컴포넌트와 훅 작성, 리렌더, 번들 크기, 요청 워터폴 | `vercel-react-best-practices` |
 | props가 불어나는 컴포넌트, 합성 설계 | `vercel-composition-patterns` |
 | `use cache`와 Cache Components 도입 또는 점검 | `next-cache-components-adoption`, `next-cache-components-optimizer` |
-| 링크 프리패치 전략 | `next-partial-prefetching-adoption` |
+| 링크 프리패치 전략: Partial Prefetching 도입, 도입 뒤 링크별 조정 | `next-partial-prefetching-adoption`, `next-partial-prefetching-optimizer` |
 | 바꾼 동작이 실제 앱에서 도는지 확인 | `next-dev-loop` (절차는 `bts-verify`) |
 | turbo 태스크와 패키지 의존 | `turborepo` |
+
+이 스킬들의 지침이 번들 문서(`apps/web/node_modules/next/dist/docs/`)와 다르면 번들 문서를 따르고, 어긋난 곳을 보고에 적는다. 외부 스킬은 설치한 Next 버전보다 늦게 갱신될 수 있다.
 
 ## 규칙
 - Server Component가 기본이다. `"use client"`는 상태, 이벤트, 브라우저 API가 필요한 가장 작은 컴포넌트에만 붙인다.
@@ -35,6 +37,7 @@ description: >-
 - UI 프리미티브는 `packages/ui`의 shadcn 컴포넌트를 쓴다. 새 UI 라이브러리나 상태관리 라이브러리는 근거 없이 추가하지 않는다.
 - 새 화면이나 새 흐름(페이지 추가 포함)은 코드 전에 `bts-ui`의 shape 브리프 게이트를 먼저 통과한다. 이 스킬의 예시는 브리프가 확정된 뒤의 구현 방식이다.
 - API 계약이 바뀌면 `bts-api`를, 화면 모양이 바뀌면 `bts-ui`를 함께 읽는다.
+- 페이지를 더하거나 URL·보호 여부를 바꾸면 `docs/domain/project.md`의 화면과 URL 표를, 사용자 흐름이 바뀌면 주요 흐름을 같은 작업에서 고친다.
 
 ## 예: 로그인 사용자 전용 목록 페이지
 ```tsx
