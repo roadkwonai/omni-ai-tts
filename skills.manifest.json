@@ -190,8 +190,8 @@
 		{
 			"name": "agent-browser CLI(0.31.1 이상)",
 			"check": "v=$(agent-browser --version 2>/dev/null | awk '{print $2}') && [ \"$(printf '%s\\n' 0.31.1 \"$v\" | sort -V | head -n1)\" = 0.31.1 ]",
-			"install": "npm install -g agent-browser@latest && agent-browser install",
-			"hint": "npm install -g agent-browser@latest && agent-browser install (0.31.1 미만이 npm 밖(brew 등)에 있으면 그 설치 방식으로 올린다)",
+			"install": "npm install -g agent-browser@0.31.1 && agent-browser install",
+			"hint": "npm install -g agent-browser@0.31.1 && agent-browser install (0.31.1 미만이 npm 밖(brew 등)에 있으면 그 설치 방식으로 올린다)",
 			"auto": true
 		},
 		{

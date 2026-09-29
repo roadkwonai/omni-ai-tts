@@ -56,7 +56,7 @@ Vercel CLI의 일반 사용법(설치, 로그인, 토큰, `vercel env`·`domains
    - develop 고정 주소는 `<프로젝트>-develop.vercel.app`처럼 정한다. `*.vercel.app` 이름은 모든 계정이 함께 쓰므로 이미 쓰인 이름이면 배포의 alias 단계가 실패한다. 그러면 다른 이름으로 바꾼다.
    - production 도메인은 첫 production 배포 때 붙는다. 보통 `<프로젝트>.vercel.app`이고, 이미 쓰인 이름이면 접미사가 붙는다. 실제 주소가 다르면 스크립트가 배포 뒤 경고한다. 그러면 `--force`로 값을 고치고 다시 배포한다. 커스텀 도메인을 쓰면 그 주소를 넣는다.
    - 값을 만드는 명령을 `vercel env add`에 바로 파이프로 넘기면, 명령이 느릴 때 값이 비어 `missing_value`로 실패한다. 셸 변수에 먼저 담고 `printf '%s' "$url" | vercel env add …`로 넘긴다.
-   - `.env.schema`에 변수를 더하면 두 환경에도 넣는다. 빠진 변수는 스크립트가 알려 준다. 비밀값을 `--value`로 넘기지 않는다(셸 기록에 남는다). `vercel env pull`은 쓰지 않는다(값을 파일로 받는다).
+   - `.env.schema`에 변수를 더하면 두 환경에도 넣는다. 빠진 변수는 스크립트가 알려 준다. 바로 위 주석에 `@optional`(또는 `@required=false`)을 단 변수는 스크립트가 필수로 세지 않는다. 그 기능을 쓰는 환경에만 넣고, Preview에는 production 키 대신 사용량을 제한한 별도 키를 쓴다. 비밀값을 `--value`로 넘기지 않는다(셸 기록에 남는다). `vercel env pull`은 쓰지 않는다(값을 파일로 받는다).
    - 배포 값을 `.env.development`·`.env.production` 같은 파일에 두지 않는다. 배포에 올라가지 않고(`.vercelignore`), varlock이 이 파일을 `NODE_ENV`로 고르는데 Vercel은 Preview도 production으로 빌드하므로 두 환경을 나누지 못한다.
 5. **릴리스 준비**: GitHub `origin` 원격과 `gh auth status`. 원격 저장소 생성과 `gh auth login`은 사용자가 한다(원격 생성은 요청할 때만).
 6. `pnpm vercel:deploy production --check`로 확인한다. 릴리스 항목은 첫 배포 때 해결한다. `develop --check`는 첫 production 배포 뒤에 통과한다.

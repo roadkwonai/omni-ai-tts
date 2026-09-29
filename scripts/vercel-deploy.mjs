@@ -37,13 +37,21 @@ const LOCAL_ENV_FILES = [
 ];
 
 // apps/web/.env.schema에서 값이 비어 있는 변수는 배포 환경이 채워야 한다(@defaultRequired=true). 스키마가 없으면 null.
-// ponytail: 변수별 데코레이터(@required=false 등)는 보지 않는다. 선택 변수는 스키마에 기본값을 둔다.
+// 바로 위 주석 줄에 @optional(@optional=false는 필수)이나 @required=false가 있는 변수는 뺀다(아직 쓰지 않는 유료 API 키를 모든 환경에 넣게 하지 않는다).
+// ponytail: 파일 머리의 @defaultRequired=false는 보지 않는다(BTS 스키마는 true).
 export function requiredEnv(root) {
 	const p = join(root, "apps/web/.env.schema");
 	if (!existsSync(p)) return null;
 	return [
-		...readFileSync(p, "utf8").matchAll(/^([A-Z][A-Z0-9_]*)=[ \t]*\r?$/gm),
-	].map((m) => m[1]);
+		...readFileSync(p, "utf8").matchAll(
+			/((?:^#.*\r?\n)*)^([A-Z][A-Z0-9_]*)=[ \t]*\r?$/gm,
+		),
+	]
+		.filter(
+			(m) =>
+				!/@optional\b(?!\s*=\s*false\b)|@required\s*=\s*false\b/.test(m[1]),
+		)
+		.map((m) => m[2]);
 }
 
 export function main(argv, root = process.cwd()) {

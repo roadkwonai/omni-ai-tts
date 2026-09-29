@@ -64,6 +64,12 @@ description: >-
 6. `[confirm]` 행: 업데이트한 스킬 목록, 스킬별 바뀐 줄 수, 2번과 4번에서 본 주의점(뺀 스킬 포함)을 보여 주고 확인받는다.
 7. `bts-dev-cycle` 5절대로 닫고 커밋한다. 커밋 제목 예: `chore: 외부 스킬 업데이트 (next-dev-loop, shadcn)`. 앱 코드는 바뀌지 않았으므로 마무리 질문에서 배포는 필요 없다고 함께 알린다.
 
+## turbo와 turborepo 스킬
+`turborepo` 스킬은 지침을 설치된 `turbo` 패키지의 번들 문서(`node_modules/turbo/docs/`, turbo 2.11.5부터 들어 있다)로 넘긴다. 그래서 turbo 버전이 스킬 내용을 정하고, 이 문서는 `skills-lock.json`의 비교 대상이 아니다.
+- turbo가 2.11.5 미만이면 새 스킬이 가리키는 문서가 없다. 알리고, turbo는 사용자가 요청할 때 올린다. `pnpm add -D -w turbo@<버전>`이 `pnpm-workspace.yaml`에 최소 릴리스 경과 기간 예외(`minimumReleaseAgeExclude`)를 더하면 그 목록을 보고한다.
+- turbo를 올릴 때는 올리기 전 `node_modules/turbo/docs`를 스크래치 디렉터리에 복사해 두고, 올린 뒤 `diff -r`로 바뀐 페이지를 2절 4번처럼 에이전트 지시로 보고 훑는다. 문서의 `npx skills add` 같은 설치 안내는 따르지 않는다(`AGENTS.md`의 스킬 설치 규칙).
+- turbo 2.11.5 이상은 AI 에이전트가 turbo를 실행하면 루트 `AGENTS.md`에 `BEGIN/END:turborepo-agent-rules` 블록을 쓰고 커밋해 두라고 지시한다. 루트 `turbo.json`에 `"agentGuidance": false`가 없으면 넣고, 생긴 블록은 지운다. 2.11.4 이하는 이 키를 모르는 키로 거부하므로 turbo를 올린 뒤에 넣는다(설치기도 지원하는 turbo에서만 넣는다).
+
 ## 대상이 아닌 것
 - `bts-*` 스킬: 템플릿 저장소(bts-template)의 새 버전으로 갱신한다. 그 저장소 `AGENTS.md`의 "기존 프로젝트에 템플릿 갱신 반영" 절차를 따른다.
 - 매니페스트에 없는 스킬(`npx skills add`로 직접 더한 것): 확인하지 않는다. 계속 쓸 스킬이면 `skills.manifest.json`에 더한다(H 라운드).

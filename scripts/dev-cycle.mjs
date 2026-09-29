@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-// dev-cycle 경량 러너: case | table | status | audit | close
+// dev-cycle 경량 러너: case | table | status | audit | close | secrets
 // 절차 정본은 docs/dev-workflow.md, 판정 규칙은 .dev-cycle.json이다.
 import { execFileSync, spawnSync } from "node:child_process";
 import {
 	appendFileSync,
 	existsSync,
 	mkdirSync,
+	readdirSync,
 	readFileSync,
 	realpathSync,
 	writeFileSync,
@@ -44,6 +45,8 @@ function git(root, args) {
 		cwd: root,
 		encoding: "utf8",
 		stdio: ["ignore", "pipe", "ignore"],
+		// 기본 1MB를 넘는 diff(secrets의 스테이징 변경)에서 ENOBUFS로 멈추지 않게 한다.
+		maxBuffer: 256 * 1024 * 1024,
 	});
 }
 
@@ -508,8 +511,96 @@ export function close(
 	return { ok: true, archivePath };
 }
 
+// 커밋 전 검사: 스테이징한 변경에 로컬 .env의 비밀값이나 흔한 키 형식이 들어 있는지 본다. 값은 출력하지 않는다.
+// 루트·apps/web·packages/db의 .env와 .env.* 파일을 읽는다. 커밋하는 .env.schema·.env.example은 뺀다.
+const ENV_DIRS = ["", "apps/web", "packages/db"];
+const ENV_FILE_RE = /^\.env(\.(?!schema$|example$)[\w.-]+)?$/;
+// 이름이 비밀처럼 보이는 변수만 본다. 로컬 기본값(localhost 주소 등)은 비밀이 아니고 문서에도 흔히 나온다.
+const SECRET_NAME_RE =
+	/(SECRET|TOKEN|PASSWORD|KEY|DATABASE_URL\w*|POSTGRES_URL\w*|DIRECT_URL)$/;
+// ponytail: 흔한 형식 몇 개만 본다. 더 넓게 잡으려면 gitleaks 같은 전용 도구를 쓴다.
+const SECRET_PATTERNS = [
+	["개인 키", /-----BEGIN [A-Z ]*PRIVATE KEY-----/],
+	["sk- 형식 API 키", /\bsk-[A-Za-z0-9_-]{20,}/],
+	["GitHub 토큰", /\bgh[pousr]_[A-Za-z0-9]{30,}/],
+	["AWS 액세스 키", /\bAKIA[0-9A-Z]{16}\b/],
+	["비밀번호가 든 DB 주소", /postgres(?:ql)?:\/\/[^:@\s/]+:[^@\s]{12,}@/],
+];
+
+function envSecrets(root) {
+	const out = [];
+	for (const dir of ENV_DIRS) {
+		const d = join(root, dir);
+		if (!existsSync(d)) continue;
+		for (const f of readdirSync(d, { withFileTypes: true })) {
+			if (!(f.isFile() || f.isSymbolicLink()) || !ENV_FILE_RE.test(f.name))
+				continue;
+			const rel = dir ? `${dir}/${f.name}` : f.name;
+			// 줄 안에서만 맞춘다(\s는 줄바꿈을 넘어 빈 값 다음 줄을 값으로 삼킨다).
+			const re =
+				/^[ \t]*(?:export[ \t]+)?([A-Za-z_][A-Za-z0-9_]*)[ \t]*=[ \t]*(.*?)[ \t]*\r?$/gm;
+			const text = readFileSync(join(d, f.name), "utf8");
+			for (const [, name, raw] of text.matchAll(re)) {
+				// 따옴표 값은 따옴표 안만, 따옴표 없는 값은 " #" 뒤 주석을 뺀다.
+				const value =
+					raw.match(/^(['"`])(.*?)\1/)?.[2] ?? raw.replace(/[ \t]+#.*$/, "");
+				if (
+					SECRET_NAME_RE.test(name) &&
+					value.length >= 8 &&
+					// ponytail: 소문자로만 된 값(changeme, development 등)은 자리표시자로 보고 넘긴다.
+					// 소문자 암구호(correct-horse-battery-staple 같은)도 함께 넘기는 한계가 있다.
+					!/^[a-z._-]+$/.test(value) &&
+					!/localhost|127\.0\.0\.1/.test(value)
+				)
+					out.push({ name: `${rel}의 ${name}`, value });
+			}
+		}
+	}
+	return out;
+}
+
+export function stagedSecrets(root) {
+	const env = envSecrets(root);
+	const hits = new Set();
+	let file = null;
+	let inHunk = false;
+	// 사용자 git 설정(noprefix, mnemonicPrefix, quotePath, textconv)과 관계없이 같은 형식으로 읽는다.
+	// --text: -diff 속성이나 NUL 바이트로 바이너리 취급되는 파일도 내용을 본다.
+	const diff = git(root, [
+		"-c",
+		"core.quotePath=false",
+		"diff",
+		"--cached",
+		"--no-color",
+		"--no-ext-diff",
+		"--no-textconv",
+		"--text",
+		"--src-prefix=a/",
+		"--dst-prefix=b/",
+		"-U0",
+	]);
+	for (const line of diff.split("\n")) {
+		// "+++ " 머리줄은 파일마다 첫 @@ 앞에만 온다. 그 뒤의 "+++ "는 "++ "로 시작하는 추가 줄이다.
+		if (line.startsWith("diff --git ")) inHunk = false;
+		else if (line.startsWith("@@")) inHunk = true;
+		else if (!inHunk && line.startsWith("+++ "))
+			file = line
+				.slice(4)
+				.replace(/\t$/, "")
+				.replace(/^"(.*)"$/, "$1")
+				.replace(/^b\//, "");
+		else if (inHunk && line.startsWith("+")) {
+			for (const e of env)
+				if (line.includes(e.value)) hits.add(`${file}: ${e.name} 값`);
+			for (const [label, re] of SECRET_PATTERNS)
+				if (re.test(line)) hits.add(`${file}: ${label}`);
+		}
+	}
+	return [...hits];
+}
+
 const USAGE =
-	"사용법: dev-cycle <case | table [CASE] [--write] [--upgrade] [--title 제목] | status | audit | close [--partial]> [--json]";
+	"사용법: dev-cycle <case | table [CASE] [--write] [--upgrade] [--title 제목] | status | audit | close [--partial] | secrets> [--json]";
 
 export function main(argv, root = process.cwd()) {
 	const [cmd, ...rest] = argv;
@@ -598,6 +689,31 @@ export function main(argv, root = process.cwd()) {
 					: ["close 거부:", ...r.problems.map((p) => `  ❌ ${p}`)].join("\n"),
 			);
 			return r.ok ? 0 : 1;
+		}
+		case "secrets": {
+			let hits;
+			try {
+				// 하위 폴더에서 실행해도 저장소 루트의 .env를 읽는다.
+				hits = stagedSecrets(
+					git(root, ["rev-parse", "--show-toplevel"]).trim(),
+				);
+			} catch (e) {
+				// exit 1(비밀값 발견)과 구분한다.
+				console.error(
+					`비밀값 검사를 실행하지 못했다(비밀값 발견 아님): ${e.message.split("\n")[0]}`,
+				);
+				return 2;
+			}
+			print(
+				{ ok: hits.length === 0, hits },
+				hits.length
+					? [
+							"비밀값으로 보이는 것이 스테이징되어 있다 — 커밋·push하지 말고 스테이징에서 빼고 보고한다(값은 출력하지 않는다):",
+							...hits.map((h) => `  ❌ ${h}`),
+						].join("\n")
+					: "비밀값 검사 통과 (스테이징한 변경)",
+			);
+			return hits.length ? 1 : 0;
 		}
 		default:
 			console.error(USAGE);
