@@ -142,7 +142,7 @@
 		@apply border-border outline-ring/50;
 	}
 	body {
-		@apply font-sans bg-background text-foreground;
+		@apply font-sans bg-background text-foreground break-keep wrap-break-word;
 	}
 	html {
 		@apply font-sans;

@@ -24,7 +24,8 @@ export default function RootLayout({
 }>) {
 	return (
 		<html lang="ko" className={pretendard.variable} suppressHydrationWarning>
-			<body className="antialiased">
+			{/* 브라우저 확장이 수화 전에 body에 넣는 속성(ap-style 등)만 무시한다. 자식은 그대로 검사된다 */}
+			<body className="antialiased" suppressHydrationWarning>
 				<Providers>{children}</Providers>
 			</body>
 		</html>

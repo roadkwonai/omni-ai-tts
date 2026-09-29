@@ -15,6 +15,14 @@
 			"dependsOn": ["^check-types"],
 			"outputs": ["dist/**"]
 		},
+		"web#check-types": {
+			"dependsOn": ["^check-types"],
+			"outputs": []
+		},
+		"@tts-pilot-app/ui#check-types": {
+			"dependsOn": ["^check-types"],
+			"outputs": []
+		},
 		"test": {
 			"cache": false
 		},

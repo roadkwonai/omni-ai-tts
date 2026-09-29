@@ -21,11 +21,12 @@
 - impeccable shape 브리프 확정 (좁은 개선이면 N/A: 사유) → 브리프 경로
 - 구현 (bts-ui, bts-web) → 변경 파일 요약
 - [verify] 타입·린트·빌드 → 명령과 결과
-- [verify] next-dev-loop 런타임 확인과 ego-browser(없으면 agent-browser)로 desktop·mobile 스크린샷 → 확인한 경로와 오류 수, tasks/evidence/ 경로
+- [verify] next-dev-loop 런타임 확인과 ego-browser(없으면 agent-browser)로 desktop·mobile 스크린샷 → 확인한 경로, 오류 예산(콘솔·개발 오버레이·get_errors·서버 로그, 환경 탓도 빼지 않음) 수, tasks/evidence/ 경로
 - [review] impeccable critique → Design Health 점수, P0/P1 목록
 - [review] impeccable audit → 점수(/20), 접근성 점수
 - 수정과 impeccable polish를 한 번에 → 반영 내역
 - [verify] 재확인 1회 → 스크린샷 경로와 점수
+- [review] bts-reviewer(code) → verdict, max_severity, 반영·기각 내역
 - DESIGN.md 갱신 여부 (impeccable document) → 갱신 내역 또는 N/A: 사유
 
 ### C. 버그
@@ -50,14 +51,16 @@
 - [review] bts-reviewer(db) → verdict, max_severity, 반영·기각 내역
 
 ### F. 신규 기능
-- 스펙 작성 (brainstorming + ponytail 사다리로 범위 줄이기, 스펙에 '만들지 않는 것' 절, 새 용어는 domain-modeling으로 CONTEXT.md에 바로 기록, 선택: /grill-with-docs, UI가 있으면 impeccable shape 브리프 링크) → 사용한 스킬, 스펙 경로, 추가·변경한 용어
+- 스펙 작성 (brainstorming + ponytail 사다리로 범위 줄이기, 스펙에 '만들지 않는 것' 절과 인수 조건·테스트 시나리오 절(정상·빈·오류·경계 상태, 너비·테마·키보드), 새 용어는 domain-modeling으로 CONTEXT.md에 바로 기록, 선택: /grill-with-docs, UI가 있으면 impeccable shape 브리프 링크) → 사용한 스킬, 스펙 경로, 추가·변경한 용어
 - 구현 계획 (writing-plans) → 사용한 스킬과 계획 경로
 - [review] 계획 리뷰 (plan-eng-review, UI가 있으면 plan-design-review, ponytail-review로 계획의 과설계 확인) → 결과 요약, ponytail-review 반영·기각 또는 N/A: 사유
 - 구현 방식 (subagent-driven-development + test-driven-development, ponytail 모드) → 사용한 스킬과 위임 내역
 - @include E D B
 - [verify] next-dev-loop 통합 런타임 확인 → 확인한 경로와 결과
+- 공통화·리팩토링·최적화 점검 (이번 라운드가 바꾼 파일과 같은 디렉터리에 ponytail-review, 한쪽이 이번 diff인 반복 코드·UI는 공통 모듈·packages/ui로 뽑고 나머지는 백로그로, 한 번만 쓰는 추상화는 걷어 냄, 빌드 출력의 라우트 크기와 새 의존성·글꼴·이미지 확인) → 반영 내역, 재확인(타입·린트·테스트·화면) 결과, 미룬 항목과 기록 위치
 - [review] bts-reviewer(code) 전체 diff 최종 리뷰 → verdict, max_severity, 반영·기각 내역
-- [verify] 사용자 흐름 QA (ego-browser(없으면 agent-browser), 보고만) → 확인한 흐름과 결과 요약
+- [verify] 사용자 흐름 QA (스펙의 테스트 시나리오 전부를 ego-browser(없으면 agent-browser)로, 오류 예산은 깨끗한 프로필(agent-browser)로도, 보고만) → 시나리오별 통과·실패, 오류 예산 수
+- QA 발견 수정과 재QA (문제와 개선점을 고친 뒤 타입·린트·빌드·테스트를 다시 돌리고, 수정 diff에 bts-reviewer(code)와 ponytail-review를 받고, 실패한 시나리오와 오류 예산을 다시 확인. 발견이 없으면 N/A: 사유) → 수정 내역, 재검사·재리뷰·재QA 결과
 
 ### H. 하네스
 - [verify] pnpm agents:check → 출력
@@ -66,5 +69,5 @@
 - 스킬을 바꿨으면 skill-creator eval 재실행 → 벤치마크 경로 또는 N/A: 사유
 
 ### 공통
-- 문서 영향 확인 (CONTEXT.md, docs/adr/, docs/domain/project.md) → 갱신 내역 또는 N/A: 사유
+- 문서 영향 확인 (CONTEXT.md, docs/adr/, docs/domain/project.md, 미룬 지적은 tasks/todo.md 백로그로) → 갱신 내역 또는 N/A: 사유
 - [confirm] 사용자 확인 (결과를 사용자에게 보여 주고 사용자가 직접 보거나 써 본 뒤 확인한다. N/A 불가) → 확인한 내용과 날짜

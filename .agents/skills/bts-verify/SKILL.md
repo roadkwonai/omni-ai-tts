@@ -34,6 +34,7 @@ description: >-
 - `ego-browser` 명령이 없거나(macOS 외, CI, Codex 샌드박스) 창을 띄울 수 없으면 `agent-browser`(0.31.1 이상)와 `next-dev-loop`의 브라우저 절차로 바꾸고, 증거에 `대안: agent-browser (ego-browser 없음)` 또는 `대안: agent-browser (ego-browser 창 표시 불가)`를 적는다. 기록 없이 도구를 바꾸지 않는다. 둘 다 쓸 수 없으면 `blocked: 브라우저 도구 없음(ego-browser·agent-browser)` 또는 `blocked: ego-browser 창 표시 불가, agent-browser 없음`. Linux·WSL에서 agent-browser의 Chrome이 `error while loading shared libraries`로 뜨지 않으면 사용자에게 `agent-browser install --with-deps`(sudo)를 요청하고, 그 전까지는 `blocked: agent-browser Chrome 시스템 라이브러리 없음`으로 적는다.
 - 스크린샷은 `tasks/evidence/<라운드 제목>/`에 저장하고 경로를 증거로 적는다. desktop(1440px)과 mobile(390px)을 함께 찍는다.
 - Next MCP 진단(프레임워크의 시각)과 화면 확인(사용자의 시각)은 다른 증거다. 하나로 다른 하나를 대신하지 않는다.
+- **오류 예산은 0이다.** 확인한 화면마다 브라우저 콘솔의 오류와 경고, 개발 오버레이의 Issues, `/_next/mcp`의 `get_errors`, 개발 서버 로그의 오류를 센다. 서버를 새로 띄운 뒤의 첫 로드도 본다. 느린 첫 컴파일 때만 나는 수화 오류가 있기 때문이다. 브라우저 확장이나 자동화 도구 탓으로 보이는 항목도 빼지 않는다. 깨끗한 프로필(agent-browser)에서 재현해 원인을 가르고, 사용자 브라우저(ego-browser)에서 보이면 고친다. 예를 들어 확장이 수화 전에 `<body>`에 넣는 속성은 `<body suppressHydrationWarning>`로 막는다. 고칠 수 없으면 `[confirm]` 보고에 알려진 문제로 적는다. 결함에서 빼는 것은 하나뿐이다. 시나리오가 일부러 보낸 요청(없는 주소, 권한 없는 호출)이 받은 4xx에 브라우저가 남기는 `Failed to load resource` 줄과 그 거절의 서버 로그다. 이것도 경로와 상태를 따로 적는다. F의 QA는 ego-browser와 agent-browser 양쪽에서 센다.
 
 ## 테스트 러너
 - 테스트 러너가 없으면 첫 D·E 라운드나 서버·DB 코드를 고치는 C 라운드에서 vitest를 도입한다. 대조표에 `vitest 도입(최초 1회)` 행을 추가하고, 루트 `test` 스크립트와 `.dev-cycle.json`의 `commands.test`를 함께 등록한다. 절차는 `.agents/skills/bts-api/references/ownership-test.md`에 있다.
