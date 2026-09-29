@@ -1,0 +1,817 @@
+/* 문단 작업실: paragraph-studio.js가 그리는 영역. styles.css :root 토큰만 쓴다. */
+.ps-root {
+	display: grid;
+	gap: var(--space-4);
+}
+.ps-root :is(button, [tabindex="-1"]):focus-visible,
+.ps-dialog button:focus-visible {
+	outline: var(--focus-outline);
+	outline-offset: 2px;
+}
+.ps-root [aria-disabled="true"],
+.ps-dialog [aria-disabled="true"],
+.ps-root button:disabled {
+	cursor: not-allowed;
+}
+.ps-root :is(.button, .mini-button)[aria-disabled="true"],
+.ps-dialog .button[aria-disabled="true"] {
+	border-color: var(--line);
+	background: var(--surface-muted);
+	color: var(--text-faint);
+}
+.ps-dialog .button-primary[aria-disabled="true"] {
+	border-color: transparent;
+	background: var(--blue-disabled);
+	color: var(--on-accent-disabled);
+}
+.ps-root .text-button[aria-disabled="true"],
+.ps-root .icon-button[aria-disabled="true"],
+.ps-root .icon-button:disabled {
+	background: transparent;
+	color: var(--line-strong);
+}
+
+.ps-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2) var(--space-3);
+}
+.ps-title {
+	margin-right: auto;
+	font-size: 18px;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+}
+.ps-title:focus {
+	outline: 0;
+}
+.ps-note {
+	flex-basis: 100%;
+	color: var(--text-muted);
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+/* 일괄 막대: 데스크톱은 목록 위에 붙어 따라온다. */
+.ps-batch {
+	position: sticky;
+	z-index: 4;
+	top: 0;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2) var(--space-5);
+	padding: var(--space-3) var(--space-4);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+}
+.ps-batch-top,
+.ps-batch-panel,
+.ps-batch-settings,
+.ps-batch-actions,
+.ps-batch-group {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+}
+.ps-batch-panel,
+.ps-batch-settings {
+	gap: var(--space-2) var(--space-5);
+}
+.ps-batch-panel {
+	flex: 1 1 520px;
+}
+.ps-batch-count {
+	min-width: 76px;
+	font-weight: 650;
+	font-variant-numeric: tabular-nums;
+}
+.ps-batch-hint {
+	flex-basis: 100%;
+	color: var(--text-muted);
+	font-size: 12px;
+}
+/* 선택이 없으면 전체 선택·개수·안내·되돌리기만 보인다. */
+.ps-batch:not(.has-selection) .ps-batch-panel {
+	display: none;
+}
+.ps-batch:not(.has-selection) .ps-batch-top {
+	flex: 1 1 auto;
+}
+.ps-batch-empty {
+	flex: 1 1 16rem;
+	color: var(--text-muted);
+	font-size: 13px;
+}
+.ps-sheet-head {
+	display: none;
+}
+:where(.ps-root) .mini-button {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+}
+:where(.ps-root) .mini-button svg {
+	width: 16px;
+	height: 16px;
+}
+.ps-danger:not([aria-disabled="true"]) {
+	color: var(--red);
+}
+.ps-check {
+	display: inline-grid;
+	place-items: center;
+	min-width: 32px;
+	min-height: 32px;
+	cursor: pointer;
+}
+.ps-check-all {
+	display: inline-flex;
+	gap: var(--space-2);
+	font-weight: 650;
+}
+.ps-check input {
+	width: 18px;
+	height: 18px;
+	margin: 0;
+	accent-color: var(--blue-fg);
+}
+
+/* 문단 카드 */
+.ps-list {
+	display: grid;
+	gap: var(--space-3);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.ps-card {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: var(--space-3) var(--space-4);
+	padding: var(--space-4);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+	transition:
+		border-color 0.16s,
+		background-color 0.16s;
+}
+.ps-card,
+.ps-card :is(button, input, select, textarea) {
+	scroll-margin-top: calc(var(--ps-bar-height, 96px) + var(--space-3));
+	scroll-margin-bottom: calc(var(--workbar-height, 72px) + var(--space-3));
+}
+.ps-card.is-selected {
+	border-color: var(--selected-line);
+	background: var(--surface-selected);
+}
+.ps-card.is-playing {
+	border-color: var(--blue);
+}
+.ps-card.has-error {
+	border-color: var(--red);
+}
+.ps-card-main {
+	display: grid;
+	gap: var(--space-3);
+	min-width: 0;
+}
+.ps-card-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+}
+.ps-num {
+	display: inline-grid;
+	place-items: center;
+	min-width: 28px;
+	height: 24px;
+	padding: 0 var(--space-2);
+	border-radius: var(--radius-pill);
+	background: var(--surface-muted);
+	color: var(--text-muted);
+	font-size: 12px;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+}
+.ps-card.is-playing .ps-num {
+	background: var(--blue);
+	color: var(--on-accent);
+}
+.ps-voice {
+	position: relative;
+	min-width: 0;
+}
+.ps-voice-button {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	max-width: 100%;
+	min-height: 32px;
+	padding: 0 var(--space-2) 0 10px;
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-sm);
+	background: var(--surface);
+	color: var(--text);
+	font-weight: 650;
+}
+.ps-voice-button:hover,
+.ps-voice-button[aria-expanded="true"] {
+	background: var(--surface-muted);
+}
+.ps-voice-button svg {
+	flex: none;
+	width: 16px;
+	height: 16px;
+	color: var(--text-muted);
+}
+.ps-voice-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.ps-voice-provider {
+	color: var(--text-muted);
+	font-size: 12px;
+	font-weight: 550;
+	white-space: nowrap;
+}
+.ps-role {
+	min-height: 32px;
+	padding: 0 var(--space-3);
+	border: 0;
+	border-radius: var(--radius-pill);
+	background: var(--blue-subtle);
+	color: var(--blue-fg);
+	font-size: 13px;
+	font-weight: 650;
+}
+.ps-role:hover {
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+.ps-move {
+	display: flex;
+	gap: 2px;
+	margin-left: auto;
+}
+.ps-icon-button {
+	width: 32px;
+	height: 32px;
+}
+.ps-icon-button svg {
+	width: 18px;
+	height: 18px;
+}
+
+.ps-text {
+	display: block;
+	width: 100%;
+	min-height: 64px;
+	padding: 10px 12px;
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-sm);
+	background: var(--surface);
+	color: var(--text);
+	font-size: 15px;
+	line-height: 1.6;
+	overflow-wrap: anywhere;
+	resize: vertical;
+	field-sizing: content;
+}
+.ps-text[aria-invalid="true"] {
+	border-color: var(--red);
+}
+.ps-meta {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	gap: var(--space-1) var(--space-3);
+	margin-top: 6px;
+	color: var(--text-muted);
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+}
+.ps-estimate {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-1) var(--space-3);
+}
+.ps-estimate-tag {
+	padding: 0 6px;
+	border-radius: var(--radius-pill);
+	background: var(--surface-muted);
+	font-weight: 650;
+}
+.ps-problem {
+	margin-top: 6px;
+	color: var(--orange);
+	font-size: 12px;
+	font-weight: 600;
+}
+.ps-problem.is-error {
+	color: var(--red);
+}
+.ps-card-body .mini-button {
+	margin-top: var(--space-2);
+}
+
+.ps-controls {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: var(--space-3) var(--space-4);
+}
+.ps-field {
+	display: grid;
+	align-content: start;
+	gap: var(--space-1);
+	min-width: 0;
+}
+.ps-field-label {
+	color: var(--text-muted);
+	font-size: 12px;
+	font-weight: 600;
+}
+.ps-field-speed,
+.ps-field-pause {
+	width: 108px;
+}
+.ps-field-emotion {
+	width: 132px;
+}
+.ps-field-instruction {
+	flex: 1 1 280px;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: end;
+}
+.ps-field-instruction > :not(.ps-field-label, .ps-chip-toggle) {
+	grid-column: 1 / -1;
+}
+/* 모바일 44px 높이에서도 글자는 라벨과 같은 줄(아래)에 둔다. */
+.ps-chip-toggle {
+	align-items: flex-end;
+	padding: 0;
+	font-size: 12px;
+}
+.ps-field-error {
+	color: var(--red);
+	font-size: 12px;
+}
+.ps-field-note {
+	color: var(--text-muted);
+	font-size: 12px;
+}
+.ps-input,
+.ps-select {
+	width: 100%;
+	min-height: 36px;
+	padding: 0 10px;
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-sm);
+	background: var(--surface);
+	color: var(--text);
+	font-variant-numeric: tabular-nums;
+}
+.ps-batch-group .ps-select {
+	width: 168px;
+}
+.ps-batch-group .ps-input {
+	width: 76px;
+}
+.ps-input::placeholder,
+.ps-text::placeholder {
+	color: var(--text-faint);
+}
+.ps-input[aria-invalid="true"],
+.ps-select[aria-invalid="true"] {
+	border-color: var(--red);
+}
+.ps-intensity {
+	display: inline-flex;
+	gap: 2px;
+	padding: 2px;
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-sm);
+	background: var(--surface-muted);
+}
+.ps-segment-button {
+	min-width: 56px;
+	min-height: 30px;
+	padding: 0 var(--space-2);
+	border: 0;
+	border-radius: calc(var(--radius-sm) - 2px);
+	background: transparent;
+	color: var(--text-muted);
+	font-size: 13px;
+	font-weight: 600;
+}
+.ps-segment-button[aria-pressed="true"] {
+	background: var(--surface);
+	color: var(--blue-fg);
+	font-weight: 750;
+}
+.ps-segment-button:disabled {
+	color: var(--text-faint);
+}
+/* 접힌 칩도 포커스는 받는다. display: none이면 입력 칸에서 Tab으로 넘어가는 순간 포커스를 잃는다. */
+.ps-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	height: 0;
+	overflow: clip;
+}
+.ps-field-instruction:is(.show-chips, :has(.ps-input:focus, .ps-chips :focus))
+	.ps-chips {
+	height: auto;
+	margin-top: 6px;
+	overflow: visible;
+}
+.ps-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	min-height: 32px;
+	padding: 0 10px 0 var(--space-2);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-pill);
+	background: var(--surface);
+	color: var(--text-muted);
+	font-size: 12px;
+	font-weight: 600;
+}
+.ps-chip svg {
+	width: 14px;
+	height: 14px;
+}
+.ps-chip:hover {
+	border-color: var(--selected-line);
+	color: var(--blue-fg);
+}
+.ps-card-actions {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+}
+.ps-footer {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-3);
+}
+.ps-footer-count {
+	color: var(--text-muted);
+	font-size: 13px;
+	font-variant-numeric: tabular-nums;
+}
+
+/* 성우 빠른 메뉴: 모달이 아닌 제자리 팝오버 */
+.ps-menu {
+	position: absolute;
+	z-index: 6;
+	top: calc(100% + var(--space-1));
+	left: 0;
+	width: min(340px, calc(100vw - 32px));
+	max-height: min(420px, 60vh);
+	overflow: auto;
+	overscroll-behavior: contain;
+	padding: var(--space-2);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+	box-shadow: var(--shadow-dialog);
+}
+.ps-menu-search {
+	margin-bottom: var(--space-2);
+}
+.ps-menu-section + .ps-menu-section {
+	margin-top: var(--space-2);
+	padding-top: var(--space-2);
+	border-top: 1px solid var(--line);
+}
+.ps-menu-heading {
+	margin-bottom: var(--space-1);
+	padding: 0 var(--space-2);
+	color: var(--text-muted);
+	font-size: 12px;
+	font-weight: 650;
+}
+.ps-menu-item {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	column-gap: var(--space-2);
+	width: 100%;
+	min-height: 40px;
+	padding: 6px var(--space-2);
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: var(--text);
+	text-align: left;
+}
+.ps-menu-item:hover {
+	background: var(--surface-muted);
+}
+.ps-menu-item[aria-pressed="true"] {
+	background: var(--blue-subtle);
+	color: var(--blue-fg);
+}
+.ps-menu-name {
+	font-weight: 650;
+}
+.ps-menu-meta {
+	grid-column: 1;
+	color: var(--text-muted);
+	font-size: 12px;
+}
+.ps-menu-count {
+	grid-row: 1 / span 2;
+	grid-column: 2;
+	align-self: center;
+	color: var(--text-muted);
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+}
+.ps-menu-empty {
+	padding: 0 var(--space-2) var(--space-2);
+	color: var(--text-muted);
+	font-size: 12px;
+}
+.ps-menu-item:focus-visible {
+	outline: var(--focus-outline);
+	outline-offset: -2px;
+}
+
+/* 역할·분할 대화상자 */
+.dialog.ps-dialog {
+	width: min(640px, calc(100vw - 32px));
+}
+.ps-dialog-inner {
+	padding: 22px;
+}
+.ps-dialog-body {
+	display: grid;
+	gap: var(--space-4);
+}
+.ps-role-progress,
+.ps-split-summary {
+	font-size: 15px;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+}
+.ps-role-list {
+	display: grid;
+	border-top: 1px solid var(--line);
+}
+.ps-role-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(200px, 260px);
+	align-items: center;
+	gap: var(--space-1) var(--space-3);
+	padding: var(--space-3) 0;
+	border-bottom: 1px solid var(--line);
+}
+.ps-role-info {
+	display: grid;
+	gap: 2px;
+}
+.ps-role-info span,
+.ps-role-hint {
+	color: var(--text-muted);
+	font-size: 12px;
+}
+.ps-role-hint {
+	grid-column: 2;
+}
+.ps-split-modes {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+.ps-split-modes legend {
+	margin-bottom: var(--space-2);
+	padding: 0;
+	font-weight: 650;
+}
+.ps-radio {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 36px;
+	padding: 0 var(--space-3);
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-pill);
+	cursor: pointer;
+}
+.ps-radio input {
+	margin: 0;
+	accent-color: var(--blue-fg);
+}
+.ps-radio:has(input:checked) {
+	border-color: var(--blue-fg);
+	background: var(--blue-subtle);
+	color: var(--blue-fg);
+	font-weight: 650;
+}
+.ps-radio:has(input:focus-visible) {
+	outline: var(--focus-outline);
+	outline-offset: 2px;
+}
+.ps-radio input:focus-visible {
+	outline: 0;
+}
+.ps-split-chars {
+	max-width: 200px;
+}
+.ps-split-editors {
+	display: grid;
+	gap: var(--space-4);
+}
+.ps-split-editor {
+	display: grid;
+	justify-items: start;
+	gap: var(--space-1);
+}
+.ps-split-editor .ps-field {
+	width: 100%;
+}
+.ps-error {
+	color: var(--red);
+	font-size: 13px;
+	font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ps-card {
+		transition: none;
+	}
+}
+
+/* 모바일: 일괄 작업은 선택이 있을 때 작업 바 위 시트가 된다. */
+@media (max-width: 767px) {
+	.ps-batch {
+		position: static;
+		padding: var(--space-2) var(--space-3);
+	}
+	.ps-batch-empty {
+		order: 1;
+		flex-basis: 100%;
+	}
+	.ps-undo {
+		margin-left: auto;
+	}
+	.ps-batch.has-selection .ps-batch-panel {
+		position: fixed;
+		z-index: 12;
+		right: 0;
+		bottom: var(--workbar-height, 72px);
+		left: 0;
+		display: grid;
+		gap: var(--space-2);
+		max-height: min(60vh, 420px);
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		padding: var(--space-3) var(--space-4);
+		border-radius: var(--radius-md) var(--radius-md) 0 0;
+		background: var(--surface);
+		box-shadow: var(--shadow-dialog);
+	}
+	.ps-sheet-head {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+	.ps-sheet-count {
+		margin-right: auto;
+		font-variant-numeric: tabular-nums;
+	}
+	.ps-batch-settings {
+		display: none;
+	}
+	.ps-batch.is-open .ps-batch-settings {
+		display: grid;
+		gap: var(--space-2);
+	}
+	.ps-batch-group {
+		display: grid;
+		grid-template-columns: 56px minmax(0, 1fr) auto;
+	}
+	.ps-batch-group .ps-select,
+	.ps-batch-group .ps-input {
+		width: 100%;
+	}
+	.ps-batch-group .ps-reset {
+		grid-column: 2 / -1;
+		justify-self: start;
+	}
+	.ps-batch-group .mini-button {
+		min-width: 44px;
+	}
+	.ps-batch-actions {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+	.ps-batch-actions .button {
+		padding: 0 var(--space-2);
+	}
+	.ps-root.has-selection {
+		padding-bottom: calc(var(--ps-sheet-height, 180px) + var(--space-4));
+	}
+	.ps-root :is(button, input:not([type="checkbox"]), select, .ps-check),
+	.ps-dialog
+		:is(
+			button,
+			input:not([type="checkbox"], [type="radio"]),
+			select,
+			.ps-radio
+		) {
+		min-height: 44px;
+	}
+	.ps-check input {
+		width: 24px;
+		height: 24px;
+	}
+	.ps-check,
+	.ps-icon-button {
+		min-width: 44px;
+	}
+	.ps-icon-button {
+		width: 44px;
+		height: 44px;
+	}
+	.ps-card {
+		grid-template-columns: minmax(0, 1fr);
+		padding: var(--space-3);
+	}
+	.ps-card,
+	.ps-card :is(button, input, select, textarea) {
+		scroll-margin-top: var(--space-3);
+		scroll-margin-bottom: calc(
+			var(--workbar-height, 72px) +
+			var(--ps-sheet-height, 0px) +
+			var(--space-3)
+		);
+	}
+	.ps-voice {
+		order: 5;
+		flex-basis: 100%;
+	}
+	.ps-voice-button {
+		width: 100%;
+	}
+	.ps-voice-name {
+		margin-right: auto;
+	}
+	.ps-menu {
+		right: 0;
+		width: auto;
+	}
+	.ps-controls {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: var(--space-3);
+	}
+	.ps-field-speed,
+	.ps-field-pause,
+	.ps-field-emotion {
+		width: auto;
+	}
+	.ps-field-instruction {
+		grid-column: 1 / -1;
+	}
+	.ps-intensity {
+		display: flex;
+	}
+	.ps-segment-button {
+		flex: 1;
+		min-width: 0;
+	}
+	.ps-card-actions {
+		flex-direction: row;
+		justify-content: flex-end;
+		padding-top: var(--space-2);
+		border-top: 1px solid var(--line);
+	}
+	.ps-role-row {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.ps-role-hint {
+		grid-column: 1;
+	}
+}
+/* 320px대에서는 강도 버튼 3개가 반 칸에 들어가지 않아 한 줄을 다 쓴다. */
+@media (max-width: 374px) {
+	.ps-field-intensity {
+		grid-column: 1 / -1;
+	}
+}

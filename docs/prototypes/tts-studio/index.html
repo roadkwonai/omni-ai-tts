@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#ffffff" />
+    <script>
+      try {
+        const theme = JSON.parse(localStorage.getItem("tts-pilot.prototype.theme.v1"));
+        if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+      } catch {}
+    </script>
+    <link rel="preload" href="../../../apps/web/src/app/fonts/PretendardVariable.woff2" as="font" type="font/woff2" crossorigin />
+    <meta name="description" content="TTS Pilot 음성 작업실 UI/UX 프로토타입" />
+    <title>TTS Pilot — 음성 작업실 프로토타입</title>
+    <link rel="stylesheet" href="voice-classification.css" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="production-tools.css" />
+    <link rel="stylesheet" href="voice-tools.css" />
+    <link rel="stylesheet" href="script-tools.css" />
+    <link rel="stylesheet" href="paragraph-studio.css" />
+    <link rel="stylesheet" href="project-tools.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+    <div class="app-shell">
+      <aside class="side-nav" aria-label="주요 메뉴">
+        <a class="brand" href="#studio" data-nav="studio" aria-label="TTS Pilot 작업실">
+          <span class="brand-mark" aria-hidden="true">T</span><span>TTS Pilot</span>
+        </a>
+        <nav class="nav-list" aria-label="작업 영역">
+          <a class="nav-item is-active" aria-label="음성 작업실" href="#studio" data-nav="studio"><svg aria-hidden="true"><use href="#i-wand" /></svg><span>음성 작업실</span></a>
+          <a class="nav-item" aria-label="성우 보관함" href="#voices" data-nav="voices"><svg aria-hidden="true"><use href="#i-voice" /></svg><span>성우 보관함</span></a>
+          <a class="nav-item" aria-label="대본 보관함" href="#scripts" data-nav="scripts"><svg aria-hidden="true"><use href="#i-script" /></svg><span>대본 보관함</span></a>
+          <button type="button" id="mobile-more-toggle" class="nav-item mobile-only" aria-expanded="false" aria-label="더보기 메뉴"><svg aria-hidden="true"><use href="#i-more" /></svg><span>더보기</span></button>
+          <a class="nav-item nav-extra" aria-label="프로젝트" href="#projects" data-nav="projects"><svg aria-hidden="true"><use href="#i-folder" /></svg><span>프로젝트</span></a>
+          <a class="nav-item nav-extra" aria-label="프리셋" href="#presets" data-nav="presets"><svg aria-hidden="true"><use href="#i-sliders" /></svg><span>프리셋</span></a>
+          <a class="nav-item nav-extra" aria-label="채널 · 분류" href="#library" data-nav="library"><svg aria-hidden="true"><use href="#i-tag" /></svg><span>채널 · 분류</span></a>
+          <a class="nav-item nav-extra" aria-label="내 보이스" href="#mine" data-nav="mine"><svg aria-hidden="true"><use href="#i-mic" /></svg><span>내 보이스</span></a>
+          <a class="nav-item nav-extra" aria-label="연결 상태" href="#connections" data-nav="connections"><svg aria-hidden="true"><use href="#i-link" /></svg><span>연결 상태</span></a>
+        </nav>
+        <div class="nav-footer"><span class="nav-status"><span class="dot dot-muted" aria-hidden="true"></span><span>시연 모드</span></span><button type="button" class="icon-button theme-toggle" id="theme-toggle" aria-label="테마: 시스템 설정 · 눌러서 라이트로" title="테마: 시스템 설정 · 눌러서 라이트로"><svg aria-hidden="true"><use href="#i-monitor" /></svg></button></div>
+      </aside>
+      <main id="main-content" class="main-content" tabindex="-1">
+        <div id="live-region" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+        <section id="studio-view" class="view is-active" aria-labelledby="studio-title">
+          <header class="workspace-header">
+            <div class="title-wrap">
+              <div class="crumb"><span>경제 한 입</span><span aria-hidden="true">/</span><button type="button" class="text-button" id="rename-project">오늘의 경제 브리핑</button></div>
+              <h1 id="studio-title">음성 작업실</h1>
+            </div>
+            <div class="header-actions">
+              <span id="save-status" class="save-status" role="status"><span class="dot dot-muted" aria-hidden="true"></span>저장 전</span>
+              <button type="button" class="button button-secondary" id="open-guide" title="사용법"><svg aria-hidden="true"><use href="#i-help" /></svg><span class="button-label">사용법</span></button>
+              <button type="button" class="button button-secondary" id="start-new" title="새로 시작"><svg aria-hidden="true"><use href="#i-refresh" /></svg><span class="button-label">새로 시작</span></button>
+              <button type="button" class="button button-secondary" id="save-project" title="프로젝트 저장"><svg aria-hidden="true"><use href="#i-save" /></svg><span class="button-label">프로젝트 저장</span></button>
+              <button type="button" class="button button-secondary" id="open-preset-dialog" title="프리셋"><svg aria-hidden="true"><use href="#i-sliders" /></svg><span class="button-label">프리셋</span></button>
+            </div>
+          </header>
+
+          <section class="studio-tools" id="studio-tools" aria-labelledby="production-tools-title">
+            <div class="production-tools-heading"><h2 id="production-tools-title">제작 도구</h2><span class="tool-demo-label">HTML 시연 · 음성 API 연결 전</span></div>
+            <nav id="production-tools-nav" class="production-tools-nav" aria-label="제작 도구"></nav>
+            <div id="production-tool-workspace" hidden>
+              <div class="production-tools-actions"><button type="button" class="button button-secondary" id="close-production-tool">도구 닫기 · 대본으로 돌아가기</button></div>
+              <div id="studio-tools-content"></div>
+            </div>
+          </section>
+          <div class="mobile-workspace-tools mobile-only"><button type="button" class="button button-secondary" id="mobile-voice-toggle" aria-expanded="false" aria-controls="voice-picker-panel"><svg aria-hidden="true"><use href="#i-voice" /></svg>성우 선택 · 변경</button><span>대본은 그대로 유지돼요</span></div>
+          <div class="studio-layout">
+            <aside id="voice-picker-panel" class="voice-panel" aria-labelledby="voice-panel-title">
+              <div class="panel-heading">
+                <div><h2 id="voice-panel-title">성우 선택</h2><p>시연용 가상 성우 목록</p></div>
+                <button type="button" class="icon-button" id="open-voice-library" aria-label="성우 보관함 열기"><svg aria-hidden="true"><use href="#i-arrow-up-right" /></svg></button>
+              </div>
+              <label class="search-field"><svg aria-hidden="true"><use href="#i-search" /></svg><span class="sr-only">성우 검색</span><input id="voice-search" type="search" placeholder="이름·분위기·목소리 ID 검색" autocomplete="off" /></label>
+              <fieldset class="filter-row">
+                <legend class="sr-only">성우 필터</legend>
+                <button type="button" class="filter-chip is-selected" data-provider="all" aria-pressed="true">전체</button>
+                <button type="button" class="filter-chip" data-provider="Typecast" aria-pressed="false">Typecast</button>
+                <button type="button" class="filter-chip" data-provider="ElevenLabs" aria-pressed="false">ElevenLabs</button>
+                <button type="button" class="filter-chip" data-provider="Fish Audio" aria-pressed="false">Fish Audio</button>
+
+              </fieldset>
+              <div class="voice-panel-selects">
+                <label class="studio-voice-view">보기<select id="studio-voice-view"><option value="all">전체 성우</option><option value="favorites">즐겨찾기</option><option value="frequent">자주 사용</option></select></label>
+                <label class="studio-voice-view">정렬<select id="voice-sort"><option value="default">기본</option><option value="recent">최근 사용</option><option value="favorites">즐겨찾기 먼저</option></select></label>
+              </div>
+              <details class="studio-filter-details" id="voice-facets"><summary>상세 조건 <span id="voice-facet-count" class="facet-count"></span></summary><div id="voice-facet-groups" class="voice-facet-groups"></div></details>
+              <details class="studio-filter-details"><summary>채널·분류로 찾기</summary><div id="studio-classification-filters"></div></details>
+              <p id="voice-result-count" class="voice-result-count"></p>
+              <div id="voice-list" class="voice-list" aria-live="polite"></div>
+              <div class="voice-panel-footer"><button type="button" class="text-button" id="show-empty-voices">빈 목록 보기</button><button type="button" class="text-button" id="reset-voice-filters" hidden>필터 초기화</button></div>
+            </aside>
+
+            <section class="editor-panel" aria-label="대본 편집과 발음 검수">
+              <div class="editor-topbar">
+                <div class="selected-voice"><span id="selected-initial" class="avatar">민</span><div><span class="field-label">선택한 성우</span><strong id="selected-voice-name">민서</strong><span id="selected-voice-meta">Typecast · 차분한 정보성</span></div></div>
+                <div class="model-picker"><label for="model-select">모델</label><select id="model-select" aria-label="음성 모델"><option value="typecast-ssfm-v30">Typecast ssfm-v30</option><option value="eleven_v3">Eleven v3</option></select></div>
+              </div>
+              <section class="generation-settings" aria-labelledby="generation-settings-title">
+                <div class="settings-summary-row">
+                  <div><h2 id="generation-settings-title">생성 설정</h2><p id="settings-summary">모델을 확인하는 중입니다.</p></div>
+                  <div class="settings-actions"><button type="button" class="text-button" id="reset-settings">모델 기본값</button><button type="button" class="button button-secondary" id="toggle-settings" aria-expanded="false" aria-controls="settings-inline"><svg aria-hidden="true"><use href="#i-sliders" /></svg>설정 펼치기</button></div>
+                </div>
+                <div id="settings-inline" class="settings-inline" hidden><div id="model-settings"></div><p class="settings-internal-note">API 키, 인증 헤더, 요청 기록과 사용량 정책은 서버에서만 처리합니다. 이 시연에서는 실제 요청을 보내지 않습니다.</p></div>
+              </section>
+              <div class="editor-tabs" role="tablist" aria-label="대본 보기">
+                <button type="button" class="tab is-active" role="tab" aria-selected="true" aria-controls="source-panel" id="source-tab">원문</button>
+                <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="pronunciation-panel" id="pronunciation-tab">발음용 대본 <span id="review-count" class="count-badge">6</span></button>
+              </div>
+              <div id="source-panel" class="script-workspace" role="tabpanel" aria-labelledby="source-tab">
+                <div class="script-toolbar"><button type="button" class="text-button" id="load-script"><svg aria-hidden="true"><use href="#i-folder" /></svg>저장 대본</button><button type="button" class="text-button" id="open-import-tool">대본 가져오기</button><span id="single-mode-tools" class="single-mode-tools"><button type="button" class="text-button" id="split-paragraphs"><svg aria-hidden="true"><use href="#i-split" /></svg>문단으로 나누기</button><button type="button" class="text-button toggle-button" id="speaker-detect" aria-pressed="true" title="대화 대본을 붙여 넣으면 화자를 찾아 문단으로 나눌지 물어봐요">화자 자동 감지<span class="toggle-state" aria-hidden="true">켬</span></button></span><span id="script-length" class="char-count">0 / 2,000자</span></div>
+                <div id="paragraph-mode-notice" class="paragraph-mode-notice" hidden><p id="paragraph-mode-text">문단 작업 중이에요. 이 칸은 문단을 이어 붙인 읽기 전용 보기이고, 수정은 아래 문단 카드에서 해요.</p><button type="button" class="button button-secondary" id="unsplit-paragraphs"><svg aria-hidden="true"><use href="#i-merge" /></svg>문단 해제하고 직접 편집</button></div>
+                <label class="sr-only" for="script-editor">원문 대본</label>
+                <textarea id="script-editor" spellcheck="false">2026년 9월 26일, 하루 3분으로 시작하는 경제 이야기입니다. 커피 한 잔은 4,500원. 지난달보다 12.5% 올랐습니다. 오늘은 3가지 변화를 살펴볼게요.</textarea>
+                <p id="readonly-more" class="readonly-more" hidden></p>
+                <div class="editor-footer"><p id="editor-help">수정하면 이전 발음 교정이 다시 검토 대상으로 바뀝니다.</p><button type="button" class="button button-secondary" id="save-script"><svg aria-hidden="true"><use href="#i-save" /></svg>대본 저장</button></div>
+              </div>
+              <div id="pronunciation-panel" class="pronunciation-workspace" role="tabpanel" aria-labelledby="pronunciation-tab" hidden>
+                <div class="review-intro"><div><h2 id="editor-title">숫자 발음 검수</h2><p>원문과 발음용 대본의 차이를 확인해 주세요.</p></div><button type="button" class="text-button" id="revert-review"><svg aria-hidden="true"><use href="#i-reset" /></svg>모두 되돌리기</button></div>
+                <div id="review-bulk-actions" class="review-bulk-actions"></div>
+                <div id="review-list" class="review-list"></div>
+                <div class="final-script"><div><span class="field-label">생성에 사용할 발음용 대본</span><p id="final-script-text"></p></div><button type="button" class="button button-secondary" id="copy-final-script">복사</button></div>
+              </div>
+            </section>
+          </div>
+          <section id="segment-plan" class="segment-plan" aria-label="문단 작업" hidden></section>
+          <section id="generation-result" class="generation-result" aria-labelledby="result-title">
+            <div class="result-icon"><svg aria-hidden="true"><use href="#i-wave" /></svg></div><div class="result-copy"><h2 id="result-title">공통 결과 플레이어 · 시연 대기</h2><p>실제 오디오는 재생하지 않습니다. 음성을 만들면 결과 상태와 다운로드 동선을 검토할 수 있어요.</p></div>
+          </section>
+          <section id="workbar" class="workbar" aria-label="생성 작업 바">
+            <div class="workbar-summary"><button type="button" class="workbar-summary-button" id="workbar-summary" popovertarget="workbar-summary-panel"><span id="workbar-summary-text">요약을 계산하는 중입니다</span><span class="estimate-tag">추정</span></button></div>
+            <fieldset class="workbar-player"><legend class="sr-only">전체 재생 · 소리 없는 시연</legend>
+              <button type="button" class="icon-button" id="player-prev" aria-label="이전 문단" disabled><svg aria-hidden="true"><use href="#i-prev" /></svg></button>
+              <button type="button" class="icon-button player-toggle" id="player-toggle" aria-label="전체 재생 · 소리 없는 시연" disabled><svg aria-hidden="true"><use href="#i-play" /></svg></button>
+              <button type="button" class="icon-button" id="player-next" aria-label="다음 문단" disabled><svg aria-hidden="true"><use href="#i-next" /></svg></button>
+              <span class="player-time"><span id="player-time">00:00 / 00:00</span><span id="player-note" class="player-note">음성을 만든 뒤 재생할 수 있어요</span></span>
+            </fieldset>
+            <div class="workbar-actions">
+              <button type="button" class="button button-secondary" id="post-edit" disabled title="자막·무음 편집은 P2 범위입니다"><svg aria-hidden="true"><use href="#i-edit" /></svg><span class="button-label">생성 후 편집</span><span class="scope-tag">P2</span></button>
+              <button type="button" class="button button-secondary" id="workbar-download" popovertarget="workbar-download-menu"><svg aria-hidden="true"><use href="#i-download" /></svg><span class="button-label">내려받기</span></button>
+              <button type="button" class="button button-primary" id="make-audio"><svg aria-hidden="true"><use href="#i-wand" /></svg>음성 만들기 · 시연<span id="make-audio-usage" class="usage-chip"></span></button>
+            </div>
+            <div id="workbar-summary-panel" class="workbar-popover" popover></div>
+            <div id="workbar-download-menu" class="workbar-popover workbar-menu" popover></div>
+          </section>
+        </section>
+
+        <section id="voices-view" class="view" aria-labelledby="voices-title" hidden></section>
+        <section id="scripts-view" class="view" aria-labelledby="scripts-title" hidden></section>
+        <section id="presets-view" class="view" aria-labelledby="presets-title" hidden></section>
+        <section id="library-view" class="view" aria-labelledby="library-title" hidden></section>
+        <section id="mine-view" class="view" aria-labelledby="mine-title" hidden></section>
+        <section id="connections-view" class="view" aria-labelledby="connections-title" hidden></section>
+        <section id="projects-view" class="view" aria-labelledby="projects-title" hidden></section>
+      </main>
+    </div>
+
+    <dialog id="preset-dialog" class="dialog" aria-labelledby="preset-dialog-title"><form method="dialog"><div class="dialog-header"><div><h2 id="preset-dialog-title">프리셋 불러오기</h2><p>적용할 성우와 설정을 먼저 확인해 주세요.</p></div><button type="submit" class="icon-button" value="cancel" aria-label="닫기"><svg aria-hidden="true"><use href="#i-close" /></svg></button></div><div id="preset-dialog-list" class="dialog-list"></div><div class="dialog-actions"><button type="submit" class="button button-secondary" value="cancel">취소</button></div></form></dialog>
+    <dialog id="script-dialog" class="dialog" aria-labelledby="script-dialog-title"><form method="dialog"><div class="dialog-header"><div><h2 id="script-dialog-title">저장 대본</h2><p>삽입하면 현재 커서 위치에 더하고, 교체하면 현재 대본을 바꿉니다.</p></div><button type="submit" class="icon-button" value="cancel" aria-label="닫기"><svg aria-hidden="true"><use href="#i-close" /></svg></button></div><div id="script-dialog-list" class="dialog-list"></div><div class="dialog-actions"><button type="submit" class="button button-secondary" value="cancel">닫기</button></div></form></dialog>
+    <dialog id="confirm-dialog" class="dialog dialog-small" aria-labelledby="confirm-title"><form method="dialog"><div class="dialog-header"><div><h2 id="confirm-title">확인</h2><p id="confirm-message"></p></div></div><div class="dialog-actions"><button type="submit" class="button button-secondary" value="cancel">취소</button><button type="submit" class="button button-primary" id="confirm-action" value="confirm">확인</button></div></form></dialog>
+    <dialog id="choice-dialog" class="dialog dialog-small" aria-labelledby="choice-title" aria-describedby="choice-message"><form method="dialog"><div class="dialog-header"><div><h2 id="choice-title">확인</h2><p id="choice-message"></p></div><button type="submit" class="icon-button" value="cancel" aria-label="닫기"><svg aria-hidden="true"><use href="#i-close" /></svg></button></div><div id="choice-actions" class="dialog-actions"></div></form></dialog>
+
+    <svg class="icon-sprite" aria-hidden="true" focusable="false"><symbol id="i-wand" viewBox="0 0 24 24"><path d="m15 4 5 5M4 20l12-12M6 4l1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3ZM18 14l.7 2.3L21 17l-2.3.7L18 20l-.7-2.3L15 17l2.3-.7L18 14Z"/></symbol><symbol id="i-voice" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z M5 11a7 7 0 0 0 14 0M12 18v4M8 22h8"/></symbol><symbol id="i-script" viewBox="0 0 24 24"><path d="M6 2h9l4 4v16H6zM15 2v5h5M9 12h6M9 16h6"/></symbol><symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h3M11 17h9M14 4v6M8 14v6"/></symbol><symbol id="i-tag" viewBox="0 0 24 24"><path d="M20 13 13 20 4 11V4h7l9 9ZM8 8h.01"/></symbol><symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z M5 11a7 7 0 0 0 14 0M12 18v4M8 22h8"/></symbol><symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/></symbol><symbol id="i-arrow-up-right" viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9"/></symbol><symbol id="i-search" viewBox="0 0 24 24"><path d="m21 21-4.3-4.3M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z"/></symbol><symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3 14.78 8.63 21 9.54 16.5 13.92 17.56 20.11 12 17.19 6.44 20.11 7.5 13.92 3 9.54 9.22 8.63 12 3Z"/></symbol><symbol id="i-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z"/></symbol><symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol><symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v11H3z"/></symbol><symbol id="i-save" viewBox="0 0 24 24"><path d="M5 3h12l3 3v15H5zM8 3v6h8V3M8 21v-7h8v7"/></symbol><symbol id="i-reset" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></symbol><symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol><symbol id="i-wave" viewBox="0 0 24 24"><path d="M3 12v2M7 8v8M11 5v14M15 8v8M19 10v4"/></symbol><symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19v2h16v-2"/></symbol><symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol><symbol id="i-more" viewBox="0 0 24 24"><path d="M6 12h.01M12 12h.01M18 12h.01"/></symbol><symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></symbol><symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></symbol><symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol><symbol id="i-split" viewBox="0 0 24 24"><path d="M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8.1 7.9 20 20M8.1 16.1 20 4"/></symbol><symbol id="i-merge" viewBox="0 0 24 24"><path d="M7 3v5a5 5 0 0 0 5 5 5 5 0 0 0 5-5V3M12 13v8M9 18l3 3 3-3"/></symbol><symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"/></symbol><symbol id="i-prev" viewBox="0 0 24 24"><path d="M19 5 9 12l10 7zM5 5v14"/></symbol><symbol id="i-next" viewBox="0 0 24 24"><path d="m5 5 10 7-10 7zM19 5v14"/></symbol><symbol id="i-help" viewBox="0 0 24 24"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM9.5 9.2a2.6 2.6 0 1 1 3.6 2.4c-.7.3-1.1.9-1.1 1.6v.6M12 17h.01"/></symbol><symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></symbol><symbol id="i-sun" viewBox="0 0 24 24"><path d="M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10ZM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol><symbol id="i-monitor" viewBox="0 0 24 24"><path d="M3 4h18v12H3zM8 20h8M12 16v4"/></symbol><symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></symbol><symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4"/></symbol><symbol id="i-copy" viewBox="0 0 24 24"><path d="M9 9h11v11H9zM5 15H4V4h11v1"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol><symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol></svg>
+    <script src="generation-settings.js"></script>
+    <script src="prototype-media.js"></script>
+    <script src="voice-tools.js"></script>
+    <script src="script-tools.js"></script>
+    <script src="studio-tools.js"></script>
+    <script src="voice-classification.js"></script>
+    <script src="paragraph-studio.js"></script>
+    <script src="project-tools.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

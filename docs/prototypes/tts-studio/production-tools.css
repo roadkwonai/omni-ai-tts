@@ -1,0 +1,313 @@
+.prototype-media {
+	display: grid;
+	gap: var(--space-3);
+	padding: var(--space-4);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-md);
+}
+.prototype-media h3,
+.prototype-media p {
+	margin: 0;
+}
+.prototype-media-controls {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-3);
+	align-items: end;
+}
+.prototype-media-controls label {
+	display: grid;
+	gap: var(--space-2);
+	min-width: 0;
+	flex: 1 1 240px;
+}
+.prototype-media-controls input {
+	min-height: 44px;
+	min-width: 0;
+	width: 100%;
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-sm);
+	padding: var(--space-2);
+}
+.prototype-media-preview {
+	display: grid;
+	gap: var(--space-2);
+	overflow-wrap: anywhere;
+}
+.prototype-media-preview audio {
+	width: 100%;
+}
+.prototype-media-error {
+	color: var(--red);
+}
+.segment-plan {
+	padding: var(--space-5);
+	border-top: 1px solid var(--line);
+}
+.segment-plan-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: var(--space-3);
+	flex-wrap: wrap;
+}
+.segment-plan-list {
+	display: grid;
+	gap: var(--space-3);
+	margin-top: var(--space-4);
+}
+.segment-plan-row {
+	display: grid;
+	grid-template-columns: minmax(120px, 0.4fr) minmax(0, 1fr);
+	gap: var(--space-3);
+	padding: var(--space-3);
+	border-bottom: 1px solid var(--line);
+}
+.segment-plan-row p {
+	margin: 0;
+	overflow-wrap: anywhere;
+	white-space: pre-wrap;
+}
+.segment-plan-note {
+	color: var(--text-muted);
+	font-size: 13px;
+}
+.production-tools-nav {
+	display: flex;
+	gap: var(--space-4);
+	flex-wrap: wrap;
+}
+.production-tools-nav fieldset {
+	border: 0;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+.production-tools-nav legend {
+	padding: 0;
+	margin-bottom: var(--space-2);
+	font-size: 13px;
+	color: var(--text-muted);
+}
+.production-tools-actions {
+	display: flex;
+	justify-content: flex-end;
+	margin-block: var(--space-4);
+}
+.production-tools-nav .button {
+	min-height: 44px;
+}
+.production-tools-note {
+	flex-basis: 100%;
+	color: var(--text-muted);
+	font-size: 12px;
+}
+.production-tools-nav [aria-expanded="true"] {
+	color: var(--blue-fg);
+	background: var(--blue-subtle);
+}
+@media (max-width: 767px) {
+	.production-tools-nav {
+		display: grid;
+		grid-template-columns: 1fr;
+	}
+	.production-tools-nav .button {
+		flex: 1;
+	}
+	.production-tools-heading {
+		flex-wrap: wrap;
+		gap: var(--space-2);
+	}
+	.segment-plan {
+		padding: var(--space-4);
+	}
+	.segment-plan-row {
+		grid-template-columns: 1fr;
+	}
+	.prototype-media-controls > * {
+		flex-basis: 100%;
+	}
+}
+
+.script-toolbar {
+	flex-wrap: wrap;
+	gap: var(--space-3);
+}
+.segment-result {
+	flex-basis: 100%;
+	width: 100%;
+	overflow-wrap: anywhere;
+}
+.generation-result:has(.segment-result) {
+	flex-wrap: wrap;
+}
+
+.prototype-media-file {
+	display: grid;
+	gap: var(--space-2);
+	flex: 1 1 240px;
+	min-width: 0;
+}
+.prototype-media-filename,
+.script-tool-source-label {
+	color: var(--text-muted);
+	overflow-wrap: anywhere;
+}
+.voice-tool-select,
+.voice-tool-radio {
+	min-height: 44px;
+}
+.voice-tool-status:focus-visible {
+	outline: var(--focus-outline);
+	outline-offset: 2px;
+}
+@media (max-width: 767px) {
+	.header-actions #open-production-tools {
+		display: inline-flex;
+		width: auto;
+		padding: var(--space-2) var(--space-3);
+		font-size: 13px;
+	}
+}
+
+.prototype-media-recorder {
+	display: flex;
+	flex: 1 1 100%;
+	flex-wrap: wrap;
+	align-items: end;
+	gap: var(--space-2) var(--space-3);
+}
+.prototype-media-device {
+	display: grid;
+	gap: var(--space-2);
+	flex: 0 1 280px;
+	min-width: 0;
+}
+.prototype-media-device select {
+	width: 100%;
+	min-height: 44px;
+	padding: 0 var(--space-2);
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-sm);
+	background: var(--surface);
+	color: var(--text);
+}
+.prototype-media-recorder small {
+	flex-basis: 100%;
+	color: var(--text-muted);
+	font-size: 12px;
+}
+.prototype-media-level {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	font-size: 13px;
+	font-weight: 650;
+}
+.prototype-media-level[hidden] {
+	display: none;
+}
+.prototype-media-level meter {
+	flex: 1;
+	height: 12px;
+}
+.prototype-media-level meter::-webkit-meter-bar {
+	border: 1px solid var(--line);
+	border-radius: var(--radius-pill);
+	background: var(--surface-muted);
+}
+.prototype-media-level meter::-webkit-meter-optimum-value {
+	border-radius: var(--radius-pill);
+	background: var(--green);
+}
+.prototype-media-level meter::-webkit-meter-suboptimum-value {
+	border-radius: var(--radius-pill);
+	background: var(--orange);
+}
+.prototype-media-level meter::-moz-meter-bar {
+	border-radius: var(--radius-pill);
+	background: var(--green);
+}
+.recording-guide {
+	border: 1px solid var(--line);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+}
+.recording-guide summary {
+	display: flex;
+	align-items: center;
+	min-height: 44px;
+	padding: 0 var(--space-4);
+	font-weight: 650;
+	cursor: pointer;
+}
+.recording-guide summary:focus-visible,
+.recording-guide-script:focus-visible {
+	border-radius: var(--radius-sm);
+	outline: var(--focus-outline);
+	outline-offset: 2px;
+}
+.recording-guide-body {
+	display: grid;
+	gap: var(--space-3);
+	padding: 0 var(--space-4) var(--space-4);
+}
+.recording-guide-rules,
+.recording-guide-tips {
+	margin: 0;
+	padding-left: var(--space-5);
+	color: var(--text-muted);
+	font-size: 13px;
+	line-height: 1.55;
+}
+.recording-guide-toggle {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+.recording-guide-chip {
+	min-height: 32px;
+}
+.recording-guide-chip[aria-pressed="true"] {
+	border-color: var(--selected-line);
+	background: var(--blue-subtle);
+	color: var(--blue-fg);
+}
+.recording-guide-time {
+	margin: 0;
+	font-size: 13px;
+	font-variant-numeric: tabular-nums;
+}
+.recording-guide-script {
+	max-height: 280px;
+	overflow: auto;
+	padding: var(--space-3) var(--space-4);
+	border-radius: var(--radius-sm);
+	background: var(--surface-muted);
+	font-size: 15px;
+	line-height: 1.8;
+}
+.recording-guide-script p {
+	max-width: 65ch;
+	margin: 0 0 var(--space-3);
+}
+.recording-guide-script p:last-child {
+	margin-bottom: 0;
+}
+.recording-guide h4 {
+	margin: 0;
+	font-size: 13px;
+}
+@media (max-width: 767px) {
+	.recording-guide-chip {
+		min-height: 44px;
+	}
+	.prototype-media-device {
+		flex-basis: 100%;
+	}
+	.prototype-media-recorder > .button {
+		flex: 1 1 0;
+	}
+}
