@@ -316,7 +316,16 @@
 			invalidate(section);
 			render();
 		});
-		return labelledInput(id, "결과 시연", select);
+		const details = node("details", "voice-tool-demo-settings");
+		details.open = Boolean(section.demoOpen);
+		details.addEventListener("toggle", () => {
+			section.demoOpen = details.open;
+		});
+		details.append(
+			node("summary", "", "시연 설정"),
+			labelledInput(id, "시연 결과(검토용)", select),
+		);
+		return details;
 	}
 
 	function focusResult(key, section) {
@@ -537,7 +546,6 @@
 			labelledInput("voice-tool-recommend-provider", "공급자", provider),
 			labelledInput("voice-tool-recommend-category", "카테고리", category),
 			labelledInput("voice-tool-recommend-type", "타입", type),
-			outcomeSelect("voice-tool-recommend-outcome", section, render),
 		);
 		panel.append(filters, inputError);
 		const actions = node("div", "voice-tool-actions");
@@ -599,6 +607,9 @@
 				renderCompare(section, section.results, render),
 			);
 		}
+		panel.append(
+			outcomeSelect("voice-tool-recommend-outcome", section, render),
+		);
 		host.append(panel);
 	}
 
@@ -703,7 +714,6 @@
 			actions.append(stop);
 		}
 		panel.append(
-			outcomeSelect("voice-tool-discovery-outcome", section, render),
 			error,
 			actions,
 			renderResultState(section, "검색", () => discovery(host)),
@@ -721,6 +731,9 @@
 				renderCandidates(section, section.results, render),
 				renderCompare(section, section.results, render),
 			);
+		panel.append(
+			outcomeSelect("voice-tool-discovery-outcome", section, render),
+		);
 		host.append(panel);
 	}
 
@@ -808,7 +821,6 @@
 			),
 			labelledInput("voice-tool-changer-format", "결과 형식", format),
 			labelledInput("voice-tool-changer-denoise", "노이즈 처리", denoise),
-			outcomeSelect("voice-tool-changer-outcome", section, render),
 		);
 		const consent = node("label", "voice-tool-consent");
 		const checkbox = document.createElement("input");
@@ -866,6 +878,7 @@
 			renderResultState(section, "변환", () => changer(host)),
 			changerComparison(section, elevenVoices),
 		);
+		panel.append(outcomeSelect("voice-tool-changer-outcome", section, render));
 		host.append(panel);
 	}
 

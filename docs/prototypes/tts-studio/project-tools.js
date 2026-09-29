@@ -71,10 +71,8 @@
 			dateStyle: "medium",
 			timeStyle: "short",
 		});
-	const paragraphLabel = (work) =>
-		work.segments?.length
-			? `문단 ${work.segments.length}개`
-			: `한 덩어리 대본 · ${work.sourceText.length.toLocaleString("ko-KR")}자`;
+	// 한 덩어리로 저장된 예전 작업은 문단 1개로 불러온다.
+	const paragraphLabel = (work) => `문단 ${work.segments?.length || 1}개`;
 	const mainVoice = (work) => {
 		const counts = new Map();
 		for (const part of work.segments || [])
@@ -227,9 +225,9 @@
 				modelId: current.modelId,
 			},
 			null,
-			"새 작업을 시작했어요. 원문 칸에 대본을 입력해 주세요.",
+			"새 작업을 시작했어요. 문단 카드에 대본을 입력해 주세요.",
 		);
-		$("#script-editor")?.focus();
+		$("#segment-plan textarea")?.focus();
 	};
 
 	const renameInline = (row, project) => {
@@ -446,76 +444,69 @@
 		view.append(header, content);
 	};
 
+	// 첫 진입을 막지 않도록 모달 대신 작업 영역 맨 위 배너로 알린다.
+	const mountNotice = (notice) => {
+		$("#draft-notice")?.remove();
+		$("#main-content")?.prepend(notice);
+	};
+	const deleteDraft = async (draft, notice) => {
+		const choice = await host.bridge.choose({
+			title: "임시 작업을 삭제할까요?",
+			message: `‘${draft.title || "제목 없음"}’ 임시 작업을 지워요. 삭제하면 되돌릴 수 없어요.`,
+			actions: [
+				{ label: "취소", value: "cancel" },
+				{ label: "삭제", value: "delete", variant: "danger" },
+			],
+		});
+		if (choice !== "delete") return;
+		write(DRAFT_KEY, null);
+		heldDraft = null;
+		notice.remove();
+		noteChange();
+		host.bridge.toast("임시 작업을 삭제했어요.");
+		$("#save-project")?.focus();
+	};
 	const openRecovery = (draft) => {
-		const dialog = el("dialog", "dialog dialog-small");
-		dialog.id = "recovery-dialog";
-		dialog.setAttribute("aria-labelledby", "recovery-title");
-		const form = el("form");
-		form.method = "dialog";
-		const heading = el("h2", "", "저장하지 않은 최근 작업이 있어요");
+		const notice = el("section", "draft-notice draft-recovery");
+		notice.id = "draft-notice";
+		notice.setAttribute("aria-labelledby", "recovery-title");
+		const copy = el("div", "draft-copy");
+		const heading = el("strong", "", "저장하지 않은 최근 작업이 있어요");
 		heading.id = "recovery-title";
-		const facts = el("dl", "recovery-facts");
-		[
-			["작업 이름", draft.title || "제목 없음"],
-			["임시 저장 시각", draft.savedAt ? when(draft.savedAt) : "알 수 없음"],
-			["보관 내용", `${paragraphLabel(draft)} · 음성 파일 없음`],
-		].forEach(([term, value]) => {
-			const row = el("div");
-			row.append(el("dt", "", term), el("dd", "", value));
-			facts.append(row);
-		});
-		const actions = el("div", "dialog-actions recovery-actions");
-		const remove = button("임시 작업 삭제", "button button-danger");
-		const later = button("나중에", "button button-secondary");
-		later.type = "submit";
-		later.value = "later";
-		const load = button("임시 작업 불러오기", "button button-primary");
-		load.type = "submit";
-		load.value = "load";
-		load.autofocus = true;
-		remove.addEventListener("click", async () => {
-			const choice = await host.bridge.choose({
-				title: "임시 작업을 삭제할까요?",
-				message: `‘${draft.title || "제목 없음"}’ 임시 작업을 지워요. 삭제하면 되돌릴 수 없어요.`,
-				actions: [
-					{ label: "취소", value: "cancel" },
-					{ label: "삭제", value: "delete", variant: "danger" },
-				],
-			});
-			if (choice !== "delete") return;
-			write(DRAFT_KEY, null);
-			dialog.close("deleted");
-			host.bridge.toast("임시 작업을 삭제했어요.");
-		});
-		actions.append(remove, later, load);
-		form.append(
+		copy.append(
 			heading,
 			el(
 				"p",
-				"recovery-copy",
-				"이 브라우저에 자동으로 임시 저장된 작업이에요. 불러오면 지금 화면의 예시 대본을 바꿔요.",
+				"",
+				`‘${draft.title || "제목 없음"}’ · ${draft.savedAt ? when(draft.savedAt) : "저장 시각 모름"} 임시 저장 · ${paragraphLabel(draft)}. 불러오면 지금 화면의 예시 대본을 바꿔요.`,
 			),
-			facts,
-			actions,
 		);
-		dialog.append(form);
-		dialog.addEventListener("close", () => {
-			if (dialog.returnValue === "load") loadDraft(draft);
-			else if (dialog.returnValue !== "deleted") {
-				heldDraft = draft;
-				showDraftNotice();
-			}
-			dialog.remove();
+		const actions = el("div", "draft-actions");
+		const load = button("불러오기", "button button-primary");
+		const later = button("나중에", "button button-secondary");
+		const remove = button("삭제", "button button-secondary");
+		load.addEventListener("click", () => {
+			notice.remove();
+			loadDraft(draft);
 		});
-		document.body.append(dialog);
-		dialog.showModal();
+		later.addEventListener("click", () => {
+			heldDraft = draft;
+			showDraftNotice();
+			noteChange();
+			$("#draft-notice .mini-button")?.focus();
+		});
+		remove.addEventListener("click", () => deleteDraft(draft, notice));
+		actions.append(load, later, remove);
+		notice.append(copy, actions);
+		mountNotice(notice);
 	};
+	// "나중에"를 누른 뒤에도 보관 중인 임시 작업을 불러올 수 있게 작은 알림을 남긴다.
 	const showDraftNotice = () => {
 		$("#draft-notice")?.remove();
 		if (!heldDraft) return;
-		const notice = el("div", "draft-notice");
+		const notice = el("section", "draft-notice");
 		notice.id = "draft-notice";
-		notice.setAttribute("role", "status");
+		notice.setAttribute("aria-label", "보관 중인 임시 작업");
 		const text = el(
 			"p",
 			"",
@@ -538,7 +529,7 @@
 			$("#save-project")?.focus();
 		});
 		notice.append(text, load, close);
-		$(".workspace-header")?.after(notice);
+		mountNotice(notice);
 	};
 
 	const renameProjectInline = () => {
@@ -582,37 +573,32 @@
 	const guideSteps = [
 		{
 			title: "성우 고르기",
-			text: "성우 목록에서 이름·분위기·목소리 ID로 검색하고, 상세 조건으로 언어·성별·연령·용도를 좁혀요.",
+			text: "문단 카드의 성우 칩을 눌러 성우를 고르고, 빠른 메뉴 아래 ‘전체 성우에서 찾기’에서 검색·필터·샘플을 써요. 새 문단의 기본 성우는 오른쪽 작업 설정의 ‘바꾸기’에서 정해요.",
 			view: "studio",
-			prepare: () => {
-				if (!visible($("#voice-search"))) $("#mobile-voice-toggle")?.click();
-			},
-			targets: ["#voice-search"],
+			targets: ["#segment-plan .ps-voice-button", "#change-default-voice"],
+			fallback: "#open-settings-drawer",
 		},
 		{
 			title: "대본 쓰기",
-			text: "원문 칸에 대본을 입력하거나 붙여 넣어요. 저장 대본과 대본 가져오기로 불러올 수도 있어요.",
+			text: "문단 카드의 본문에 대본을 쓰거나 붙여 넣어요. 저장 대본과 대본 가져오기로 불러올 수도 있어요.",
 			view: "studio",
-			targets: ["#script-editor"],
+			targets: ["#segment-plan textarea"],
 		},
 		{
-			title: "문단으로 나누기",
-			text: "문단으로 나누면 문단마다 성우·속도·간격·감정을 정해요. 화자 자동 감지를 켜 두면 대화 대본을 붙여 넣을 때 나눌지 물어봐요.",
+			title: "문단 나누기",
+			text: "여러 줄을 붙여 넣으면 나눌지 물어봐요. 왼쪽 일괄 작업의 ‘분할’은 선택한 문단을, 선택이 없으면 전체를 나눠요. 화자 자동 감지를 켜 두면 대화 대본에서 화자별로 나눠요.",
 			view: "studio",
-			targets: ["#split-paragraphs", "#segment-plan button"],
+			targets: ["#speaker-detect"],
 		},
 		{
 			title: "일괄 작업",
 			text: "문단 카드를 여러 개 고르면 성우·속도·간격 변경, 분할, 합치기, 삭제를 한 번에 하고 되돌릴 수 있어요.",
 			view: "studio",
-			targets: ["#segment-plan input[type='checkbox']", "#segment-plan button"],
-			missing:
-				"일괄 작업은 문단으로 나눈 뒤에 나타나요. 먼저 ‘문단으로 나누기’를 눌러 주세요.",
-			fallback: "#split-paragraphs",
+			targets: ["#segment-plan input[type='checkbox']", "#batch-rail button"],
 		},
 		{
 			title: "발음 검수",
-			text: "발음용 대본 탭에서 숫자 읽기를 항목별로 적용하거나 원문 그대로 둬요. 대본이나 문단을 고치면 다시 검수해요.",
+			text: "발음용 대본 탭에서 숫자 읽기를 항목별로 적용하거나 원문 그대로 둬요. 오른쪽 작업 요약의 ‘발음 검수 남은 N건’으로도 바로 가요.",
 			view: "studio",
 			prepare: () => $("#pronunciation-tab")?.click(),
 			targets: ["#pronunciation-tab"],
@@ -621,6 +607,7 @@
 			title: "생성과 재생",
 			text: "아래 작업 바에서 예상 길이와 사용량을 확인하고 ‘음성 만들기’를 눌러요. 만든 뒤 전체 재생으로 문단을 차례로 확인해요(소리 없는 시연).",
 			view: "studio",
+			prepare: () => $("#paragraph-tab")?.click(),
 			targets: ["#make-audio"],
 		},
 		{
@@ -628,7 +615,8 @@
 			text: "음성을 만든 뒤 작업 바의 내려받기에서 MP3·WAV를 골라요. 이 시연에서는 파일을 만들지 않아요.",
 			view: "studio",
 			targets: ["#workbar-download"],
-			missing: "좁은 화면에서는 음성을 만든 뒤 내려받기가 작업 바에 나타나요.",
+			missing:
+				"좁은 화면에서는 작업 바의 ⋯ 메뉴 안에 내려받기가 있어요. 음성을 만든 뒤 열어 주세요.",
 			fallback: "#make-audio",
 		},
 		{
@@ -647,10 +635,10 @@
 			targets: ["#clone-name", "#mine-view .page-header .button"],
 		},
 		{
-			title: "제작 도구",
-			text: "대본 가져오기, 감정 자동화, 맞춤 성우 추천 같은 도구를 작업실 위쪽에서 열어요.",
+			title: "AI 보이스 도구",
+			text: "왼쪽 AI 보이스 도구에서 맞춤 성우 추천, 목소리 찾기, 보이스 디자인 같은 도구를 열어요. 좁은 화면에서는 툴바의 ‘AI 도구’ 버튼을 써요.",
 			view: "studio",
-			targets: ["#production-tools-nav button", "#production-tools-nav a"],
+			targets: ["#tool-rail .tool-tile-main", "#open-tools-menu"],
 		},
 	];
 	const jumpTo = (step) => {
@@ -842,11 +830,25 @@
 		{ id: "light", label: "라이트", to: "라이트로", icon: "sun" },
 		{ id: "dark", label: "다크", to: "다크로", icon: "moon" },
 	];
-	const syncThemeColor = () =>
-		$('meta[name="theme-color"]')?.setAttribute(
-			"content",
-			getComputedStyle($(".side-nav")).backgroundColor,
-		);
+	// theme-color는 브라우저가 보는 색이라 CSS 토큰(light-dark)을 캔버스로 hex로 바꿔 넣는다.
+	const schemeColor = (scheme) => {
+		const probe = el("div");
+		probe.style.cssText = `position:absolute;visibility:hidden;color-scheme:${scheme};background:var(--surface)`;
+		document.body.append(probe);
+		const ctx = document.createElement("canvas").getContext("2d");
+		ctx.fillStyle = getComputedStyle(probe).backgroundColor;
+		probe.remove();
+		ctx.fillRect(0, 0, 1, 1);
+		const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+		return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+	};
+	const syncThemeColor = () => {
+		const manual = document.documentElement.dataset.theme;
+		for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
+			const scheme = manual || (meta.media.includes("dark") ? "dark" : "light");
+			meta.content = schemeColor(scheme);
+		}
+	};
 	const applyTheme = (id) => {
 		const index = Math.max(
 			0,

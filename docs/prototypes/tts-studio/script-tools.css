@@ -454,3 +454,35 @@
 		min-height: 44px;
 	}
 }
+
+/* 드로어 폭(약 500px)에서 문단·감정 행을 좁은 배치로 */
+@container (max-width: 640px) {
+	.script-tool-source-controls,
+	.script-tool-emotion-toolbar,
+	.script-tool-bulk,
+	.script-tool-row-meta,
+	.script-tool-row-controls {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.script-tool-paragraph {
+		grid-template-columns: 1fr;
+	}
+
+	.script-tool-row-meta .script-tool-input,
+	.script-tool-inline-field {
+		width: 100%;
+		min-width: 0;
+	}
+
+	.script-tool-emotion-row {
+		grid-template-columns: auto minmax(0, 1fr);
+		align-items: start;
+	}
+
+	.script-tool-emotion-controls {
+		grid-column: 1 / -1;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 42px;
+	}
+}

@@ -533,7 +533,7 @@
 		choice.append(node("legend", "", "반영 방식"));
 		[
 			["replace", "현재 원문 교체"],
-			["append", "현재 원문 뒤에 삽입"],
+			["append", "선택한 문단 뒤에 추가"],
 		].forEach(([value, label]) => {
 			const item = node("label", "script-tool-radio");
 			const radio = input("radio");

@@ -59,8 +59,7 @@
 		session: "",
 		menu: null,
 		playing: null,
-		batchOpen: false,
-		batchValues: { voice: "", speed: "", pause: "" },
+		batchValues: {},
 		observer: null,
 		listening: false,
 	};
@@ -444,16 +443,6 @@
 			basis: "한국어 초당 약 6.6자 기준 추정. 실제 청구는 연결 후 확인",
 		};
 	};
-	const fillEstimate = (target, segment) => {
-		const result = estimate(segment);
-		const tag = node("span", "ps-estimate-tag", "추정");
-		target.replaceChildren(
-			node("span", "", `예상 길이 약 ${Number(result.seconds).toFixed(1)}초`),
-			node("span", "", `예상 사용량 ${result.usageLabel}`),
-			tag,
-		);
-		target.title = result.basis || "";
-	};
 
 	// ---- 변경, 되돌리기 ----
 	const commit = (next, options = {}) => {
@@ -659,41 +648,6 @@
 			targets.forEach(update);
 		}, options);
 	};
-	const invalid = (control, message) => {
-		control.setAttribute("aria-invalid", "true");
-		control.focus();
-		notify(message);
-	};
-	const batchVoice = (control) => {
-		const voice = voiceOf(control.value);
-		if (!voice) return invalid(control, "적용할 성우를 골라 주세요.");
-		applyToSelected(
-			(segment) => {
-				segment.voiceId = voice.id;
-				segment.provider = voice.provider;
-			},
-			{
-				label: "성우 일괄 변경",
-				focus: ["batch:voice-apply"],
-				message: `선택한 문단 ${state.selected.size}개의 성우를 바꿨어요 · ${voice.name}`,
-			},
-		);
-	};
-	const batchNumber = (control, name, min, max, message, done) => {
-		const value = parseNumber(control, min, max);
-		if (value === undefined || value === null) return invalid(control, message);
-		control.removeAttribute("aria-invalid");
-		applyToSelected(
-			(segment) => {
-				segment[name] = value;
-			},
-			{
-				label: name === "speed" ? "속도 일괄 변경" : "간격 일괄 변경",
-				focus: [`batch:${name}-apply`],
-				message: done(value),
-			},
-		);
-	};
 	const deleteSelected = () => {
 		const ids = new Set(state.selected);
 		mutate(
@@ -797,7 +751,7 @@
 			dialog.remove();
 			if (opener?.isConnected && opener.getClientRects().length) opener.focus();
 			else if (!restoreFocus([openerKey]))
-				state.root?.querySelector(".ps-title")?.focus();
+				state.root?.querySelector(".ps-card-check")?.focus();
 			handle.after?.();
 		});
 		document.body.append(dialog);
@@ -874,7 +828,30 @@
 			});
 			if (role.speaker === focusSpeaker || (!focusSpeaker && index === 0))
 				select.autofocus = true;
-			row.append(info, select, hint);
+			const pick = document.createElement("div");
+			pick.className = "ps-role-pick";
+			pick.append(select);
+			if (typeof api().openVoicePicker === "function") {
+				const find = button("찾기", "mini-button", "search");
+				find.setAttribute("aria-label", `역할 ${role.speaker} 성우 찾기`);
+				find.addEventListener("click", () =>
+					api().openVoicePicker({
+						label: `역할 '${role.speaker}' 대사 ${role.count}개`,
+						currentVoiceId: draft.get(role.speaker),
+						returnFocus: find,
+						onPick: (voiceId) => {
+							if (!voiceOf(voiceId)) return;
+							draft.set(role.speaker, voiceId);
+							if (![...select.options].some((item) => item.value === voiceId))
+								select.append(new Option(voiceName(voiceOf(voiceId)), voiceId));
+							select.value = voiceId;
+							syncProgress();
+						},
+					}),
+				);
+				pick.append(find);
+			}
+			row.append(info, pick, hint);
 			list.append(row);
 		});
 		const apply = button("적용", "button button-primary");
@@ -1157,30 +1134,127 @@
 		});
 	};
 
-	// ---- 성우 빠른 메뉴 (모달 아님) ----
-	const closeMenu = (returnFocus) => {
+	// ---- 칩 문구와 붙여넣기 나누기 (순수 함수) ----
+	const EMOTION_SHORT = {
+		normal: "기본",
+		happy: "밝게",
+		sad: "차분",
+		angry: "강조",
+		whisper: "낮게",
+		toneup: "톤 올림",
+		tonedown: "톤 내림",
+		smart: "문맥",
+	};
+	const speedLabel = (speed) =>
+		speed === null ? "속도 기본" : `속도 ${speed.toFixed(1)}배`;
+	const pauseLabel = (pause) => `뒤 ${pause}초`;
+	const emotionLabel = (segment, noIntensity) => {
+		if (segment.emotion === "normal") return "감정 기본";
+		const short = EMOTION_SHORT[segment.emotion];
+		if (noIntensity || segment.intensity === null) return short;
+		return `${short} · ${INTENSITIES[Math.min(2, Math.max(0, Math.round(segment.intensity)))]}`;
+	};
+	const instructionLabel = (text) => (text.trim() ? "지시 있음" : "지시 +");
+	const initialOf = (voice) => voice?.initial || voice?.name?.[0] || "?";
+	// 빈 줄로 나뉜 덩어리들. 문단이 하나뿐이면 나눌 게 없다.
+	const splitBlank = (text) =>
+		String(text ?? "")
+			.replace(/\r\n?/g, "\n")
+			.split(/\n[ \t]*\n/)
+			.map((part) => part.trim())
+			.filter(Boolean);
+	const roleStats = () => {
+		const roles = roleGroups(read());
+		return {
+			roles: roles.length,
+			assigned: roles.filter((role) => role.voiceId).length,
+		};
+	};
+
+	// ---- 팝오버 (모달 아님): 성우 빠른 메뉴, 칩, ⋯ 메뉴가 함께 쓴다 ----
+	const closeMenu = (returnFocus, flush = true) => {
 		const menu = state.menu;
 		if (!menu) return;
 		state.menu = null;
 		menu.element.remove();
 		menu.trigger.setAttribute("aria-expanded", "false");
+		if (flush) {
+			flushText();
+			state.session = "";
+		}
 		if (returnFocus) menu.trigger.focus();
 	};
-	const openMenu = (wrap, trigger, id, number) => {
+	// build(pop)이 처음 포커스를 받을 요소를 돌려준다.
+	const openPopover = (card, trigger, label, build, className = "") => {
 		closeMenu(false);
 		flushText();
+		const pop = node("div", `ps-menu ps-pop ${className}`.trim());
+		pop.id = nextId("menu");
+		pop.setAttribute("role", "dialog");
+		pop.setAttribute("aria-label", label);
+		pop.addEventListener("keydown", (event) => {
+			if (event.key !== "Escape") return;
+			event.preventDefault();
+			event.stopPropagation();
+			closeMenu(true);
+		});
+		pop.addEventListener("focusout", (event) => {
+			const next = event.relatedTarget;
+			if (next && !pop.contains(next) && next !== trigger) closeMenu(false);
+		});
+		const first = build(pop);
+		// 트리거의 위치 기준 조상(카드, 일괄 막대, 모바일 시트)에 붙인다.
+		const host = trigger.offsetParent || card;
+		host.append(pop);
+		const room = host.clientWidth - pop.offsetWidth;
+		// 작업 바(#workbar)와 일괄 시트 아래로 들어가지 않게, 모자라면 위로 뒤집고 안에서 스크롤한다.
+		const rect = trigger.getBoundingClientRect();
+		const workbar = document.getElementById("workbar")?.getBoundingClientRect();
+		const sheet = Number.parseFloat(
+			document.documentElement.style.getPropertyValue("--ps-sheet-height"),
+		);
+		const floor = Math.min(
+			window.innerHeight,
+			workbar?.height ? workbar.top : window.innerHeight,
+		);
+		const bottom = floor - (sheet || 0) - 8;
+		const toolbar = document
+			.getElementById("work-toolbar")
+			?.getBoundingClientRect();
+		const ceiling = Math.max(8, toolbar?.height ? toolbar.bottom : 0) + 8;
+		const below = bottom - rect.bottom - 4;
+		const above = rect.top - ceiling - 4;
+		const natural = pop.scrollHeight;
+		const flip = natural > below && above > below;
+		const limit = Math.max(120, Math.floor(flip ? above : below));
+		pop.style.maxHeight = `${limit}px`;
+		pop.style.top = flip
+			? `${trigger.offsetTop - Math.min(natural, limit) - 4}px`
+			: `${trigger.offsetTop + trigger.offsetHeight + 4}px`;
+		pop.style.setProperty(
+			"--ps-pop-left",
+			`${Math.max(0, Math.min(trigger.offsetLeft, room))}px`,
+		);
+		trigger.setAttribute("aria-controls", pop.id);
+		trigger.setAttribute("aria-expanded", "true");
+		state.menu = { element: pop, trigger };
+		first?.focus();
+	};
+	const bindPopover = (card, trigger, label, build, className) =>
+		trigger.addEventListener("click", () => {
+			if (state.menu?.trigger === trigger) closeMenu(true);
+			else openPopover(card, trigger, label, build, className);
+		});
+
+	const voiceMenu = (pop, trigger, id, number) => {
+		pop.classList.add("ps-pop-voice");
 		const segments = read();
 		const segment = segments.find((item) => item.id === id);
-		if (!segment) return;
 		const usage = new Map();
 		for (const item of segments)
 			if (item.voiceId)
 				usage.set(item.voiceId, (usage.get(item.voiceId) || 0) + 1);
 		const all = voices();
-		const menu = node("div", "ps-menu");
-		menu.id = nextId("menu");
-		menu.setAttribute("role", "dialog");
-		menu.setAttribute("aria-label", `${number}번 문단 성우 고르기`);
 		const search = document.createElement("input");
 		search.type = "search";
 		search.className = "ps-input ps-menu-search";
@@ -1201,7 +1275,10 @@
 			for (const voice of list) {
 				const item = node("button", "ps-menu-item");
 				item.type = "button";
-				item.setAttribute("aria-pressed", String(voice.id === segment.voiceId));
+				item.setAttribute(
+					"aria-pressed",
+					String(voice.id === segment?.voiceId),
+				);
 				item.append(
 					node("span", "ps-menu-name", voice.name),
 					node(
@@ -1265,22 +1342,413 @@
 			);
 		};
 		search.addEventListener("input", draw);
-		menu.addEventListener("keydown", (event) => {
-			if (event.key !== "Escape") return;
+		search.addEventListener("keydown", (event) => {
+			if (event.key !== "ArrowDown") return;
+			const first = results.querySelector(".ps-menu-item");
+			if (!first) return;
 			event.preventDefault();
-			event.stopPropagation();
-			closeMenu(true);
+			first.focus();
 		});
-		menu.append(search, status, results);
-		wrap.append(menu);
-		trigger.setAttribute("aria-controls", menu.id);
-		trigger.setAttribute("aria-expanded", "true");
-		state.menu = { element: menu, trigger, wrap };
+		results.addEventListener("keydown", (event) => {
+			if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+			const items = [...results.querySelectorAll(".ps-menu-item")];
+			const at = items.indexOf(document.activeElement);
+			if (at < 0) return;
+			event.preventDefault();
+			if (event.key === "ArrowUp" && at === 0) return search.focus();
+			items[
+				Math.min(
+					items.length - 1,
+					Math.max(0, at + (event.key === "ArrowDown" ? 1 : -1)),
+				)
+			].focus();
+		});
+		pop.append(search, status, results);
+		if (typeof api().openVoicePicker === "function") {
+			const more = button(
+				"전체 성우에서 찾기 · 필터·샘플",
+				"button button-secondary ps-menu-more",
+				"search",
+			);
+			more.addEventListener("click", () => {
+				closeMenu(false);
+				api().openVoicePicker({
+					label: `${number}번 문단`,
+					currentVoiceId: segment?.voiceId,
+					returnFocus: trigger,
+					onPick: (voiceId) => setVoice(id, voiceId),
+				});
+			});
+			pop.append(more);
+		}
 		draw();
-		search.focus();
+		return search;
 	};
 
-	// ---- 일괄 막대 ----
+	const glyph = (path) => {
+		const svg = document.createElementNS(SVG_NS, "svg");
+		svg.setAttribute("aria-hidden", "true");
+		svg.setAttribute("viewBox", "0 0 24 24");
+		const shape = document.createElementNS(SVG_NS, "path");
+		shape.setAttribute("d", path);
+		svg.append(shape);
+		return svg;
+	};
+	const stepButton = (path, label) => {
+		const element = node("button", "ps-step");
+		element.type = "button";
+		element.setAttribute("aria-label", label);
+		element.append(glyph(path));
+		return element;
+	};
+	// 스테퍼: [−] [숫자] [+] + 기본값 버튼. set(value)는 값이 바뀔 때마다 불린다.
+	const stepper = ({ label, min, max, get, empty, initial, set, note }) => {
+		const box = node("div", "ps-pop-section");
+		const row = node("div", "ps-stepper");
+		const input = numberInput(
+			get(),
+			min,
+			max,
+			empty === null ? "기본" : String(empty),
+		);
+		input.setAttribute("aria-label", label);
+		const error = node(
+			"p",
+			"ps-field-error",
+			`${min}~${max} 사이로 입력해 주세요.`,
+		);
+		error.id = nextId("error");
+		error.hidden = true;
+		const apply = (value) => {
+			input.value = value === null ? "" : String(value);
+			input.removeAttribute("aria-invalid");
+			input.removeAttribute("aria-describedby");
+			error.hidden = true;
+			set(value);
+		};
+		const bump = (delta) => {
+			const now = parseNumber(input, min, max);
+			const base = typeof now === "number" ? now : (get() ?? initial);
+			apply(Math.min(max, Math.max(min, round1(base + delta))));
+		};
+		const down = stepButton("M5 12h14", `${label} 0.1 낮추기`);
+		const up = stepButton("M12 5v14M5 12h14", `${label} 0.1 높이기`);
+		down.addEventListener("click", () => bump(-0.1));
+		up.addEventListener("click", () => bump(0.1));
+		input.addEventListener("change", () => {
+			const value = parseNumber(input, min, max);
+			if (value === undefined) {
+				input.setAttribute("aria-invalid", "true");
+				input.setAttribute("aria-describedby", error.id);
+				error.hidden = false;
+				return;
+			}
+			apply(value ?? empty);
+		});
+		const reset = button("기본값으로", "mini-button");
+		reset.addEventListener("click", () => apply(empty));
+		row.append(down, input, up, reset);
+		box.append(row, error);
+		if (note) box.append(node("p", "ps-pop-note", note));
+		return { box, input };
+	};
+
+	const speedPop = (pop, ctx) => {
+		const { box, input } = stepper({
+			label: `${ctx.number}번 문단 속도`,
+			min: 0.5,
+			max: 2,
+			get: () => ctx.current.speed,
+			empty: null,
+			initial: 1,
+			set: (value) => ctx.setValue("speed", value),
+			note: "0.5~2.0배. 기본은 모델 설정의 속도를 따라요.",
+		});
+		pop.append(box);
+		return input;
+	};
+	const pausePop = (pop, ctx) => {
+		const { box, input } = stepper({
+			label: `${ctx.number}번 문단 뒤 간격(초)`,
+			min: 0,
+			max: 5,
+			get: () => ctx.current.pauseAfter,
+			empty: DEFAULT_PAUSE,
+			initial: DEFAULT_PAUSE,
+			set: (value) => ctx.setValue("pauseAfter", value),
+			note: "0~5초. 이 문단을 읽은 뒤 쉬는 시간이에요.",
+		});
+		pop.append(box);
+		return input;
+	};
+	const emotionPop = (pop, ctx) => {
+		const { current, number } = ctx;
+		const provider = ctx.provider();
+		const noIntensity = NO_INTENSITY.has(provider);
+		const presets = node("div", "ps-pop-section");
+		presets.append(node("p", "ps-pop-title", "감정"));
+		const grid = node("div", "ps-option-grid");
+		grid.setAttribute("role", "group");
+		grid.setAttribute("aria-label", `${number}번 문단 감정`);
+		const options = EMOTIONS.map(([emotionId, name]) => {
+			const option = node("button", "ps-option", name);
+			option.type = "button";
+			option.setAttribute(
+				"aria-pressed",
+				String(current.emotion === emotionId),
+			);
+			option.addEventListener("click", () => {
+				ctx.setValue("emotion", emotionId);
+				for (const item of options)
+					item.setAttribute("aria-pressed", String(item === option));
+			});
+			return option;
+		});
+		grid.append(...options);
+		presets.append(grid);
+
+		const strength = node("div", "ps-pop-section");
+		const label = node("p", "ps-pop-title", "강도");
+		label.id = nextId("intensity");
+		const group = node("div", "ps-intensity");
+		group.setAttribute("role", "group");
+		group.setAttribute("aria-labelledby", label.id);
+		const levels = INTENSITIES.map((name, level) => {
+			const option = node("button", "ps-segment-button", name);
+			option.type = "button";
+			option.setAttribute("aria-label", `${number}번 문단 강도 ${name}`);
+			option.setAttribute(
+				"aria-pressed",
+				String(
+					current.intensity !== null && Math.round(current.intensity) === level,
+				),
+			);
+			option.disabled = noIntensity;
+			option.addEventListener("click", () => {
+				const next =
+					current.intensity !== null && Math.round(current.intensity) === level
+						? null
+						: level;
+				levels.forEach((item, index) => {
+					item.setAttribute("aria-pressed", String(index === next));
+				});
+				ctx.setValue("intensity", next);
+				state.session = "";
+			});
+			return option;
+		});
+		group.append(...levels);
+		strength.append(label, group);
+		strength.append(
+			node(
+				"p",
+				"ps-pop-note",
+				noIntensity
+					? `${provider}는 숫자 감정 강도를 받지 않아요. 감정은 태그로 표현합니다.`
+					: "같은 강도를 다시 누르면 모델 기본으로 돌아가요.",
+			),
+		);
+		pop.append(presets, strength);
+		return options.find((item) => item.getAttribute("aria-pressed") === "true");
+	};
+	const instructionPop = (pop, ctx) => {
+		const { current, id, number } = ctx;
+		const box = node("div", "ps-pop-section");
+		const input = document.createElement("input");
+		input.type = "text";
+		input.className = "ps-input";
+		input.maxLength = MAX_INSTRUCTION;
+		input.placeholder = "예: 끝을 살짝 올려서, 천천히";
+		input.value = current.instruction;
+		input.setAttribute("aria-label", `${number}번 문단 연기 지시`);
+		const count = node("span", "ps-count");
+		const paint = () => {
+			count.textContent = `${input.value.length} / ${MAX_INSTRUCTION}자`;
+		};
+		input.addEventListener("input", () => {
+			current.instruction = input.value;
+			paint();
+			ctx.paint();
+			scheduleField(id, "instruction", input.value);
+		});
+		bindTyping(input);
+		paint();
+		const chips = node("div", "ps-quick");
+		chips.setAttribute("role", "group");
+		chips.setAttribute("aria-label", `${number}번 문단 연기 지시에 덧붙이기`);
+		for (const label of CHIPS) {
+			const chip = button(label, "ps-chip", "plus");
+			chip.setAttribute("aria-label", `연기 지시에 ${label} 덧붙이기`);
+			chip.title = `연기 지시 끝에 덧붙이기 · ${label}`;
+			chip.addEventListener("click", () => {
+				flushText();
+				const value = input.value.trim();
+				if (value.split(/\s*,\s*/).includes(label))
+					return notify("이미 들어 있는 연기 지시예요.");
+				const next = value ? `${value}, ${label}` : label;
+				if (next.length > MAX_INSTRUCTION)
+					return notify("연기 지시는 300자까지 쓸 수 있어요.");
+				input.value = next;
+				paint();
+				ctx.setValue("instruction", next);
+				state.session = "";
+			});
+			chips.append(chip);
+		}
+		box.append(input, count);
+		pop.append(box, chips);
+		return input;
+	};
+	const moreMenu = (pop, ctx) => {
+		const { id, number, index, total } = ctx;
+		const items = [];
+		const add = (label, iconId, reason, run, className = "") => {
+			const item = button(
+				label,
+				`ps-menu-item ps-menu-action ${className}`,
+				iconId,
+			);
+			setBlocked(item, reason);
+			item.addEventListener("click", () => {
+				if (item.getAttribute("aria-disabled") === "true")
+					return notify(reason);
+				closeMenu(true);
+				run();
+			});
+			items.push(item);
+			return item;
+		};
+		add(
+			"위로 옮기기",
+			"up",
+			index === 0 ? "첫 번째 문단이에요." : "",
+			() => moveSegment(id, -1),
+			"ps-mobile-only",
+		);
+		add(
+			"아래로 옮기기",
+			"down",
+			index === total - 1 ? "마지막 문단이에요." : "",
+			() => moveSegment(id, 1),
+			"ps-mobile-only",
+		);
+		add("미리 생성 · 시연", "play", PREVIEW_REASON, () => {}, "ps-mobile-only");
+		const first = add(
+			"아래에 문단 추가",
+			"plus",
+			total >= MAX_SEGMENTS ? LIMIT_REASON : "",
+			() => addAfter(id),
+		);
+		add("이 문단 나누기", "split", "", () => openSplitFor(new Set([id])));
+		add(
+			"삭제",
+			"trash",
+			total <= 1 ? "마지막 남은 문단은 지울 수 없어요." : "",
+			() => deleteSegment(id),
+			"ps-danger",
+		);
+		pop.setAttribute("aria-label", `${number}번 문단 더보기`);
+		pop.append(...items);
+		return first;
+	};
+
+	// ---- 카드 본문에 붙여넣기: 여러 문단이면 나눌지 묻는다 ----
+	const pasteInto = async (event, id, area) => {
+		const pasted = event.clipboardData?.getData("text/plain") || "";
+		const found = api().isSpeakerDetectOn?.() ? detectSpeakers(pasted) : null;
+		const parts = found ? [] : splitBlank(pasted);
+		if (!found?.segments?.length && parts.length < 2) return;
+		event.preventDefault();
+		const { selectionStart: start, selectionEnd: end, value } = area;
+		const count = found ? found.segments.length : parts.length;
+		const choice = await choose(
+			found
+				? {
+						title: `화자 ${found.speakers.length}명·문단 ${count}개를 감지했어요`,
+						message:
+							"문단으로 나누면 대사마다 문단이 생기고, 역할별로 성우를 고를 수 있어요. 화자 이름과 같은 성우가 있으면 먼저 배정해요.",
+						actions: [
+							{ label: "그대로 붙여넣기", value: "plain" },
+							{ label: "문단으로 나누기", value: "split", variant: "primary" },
+						],
+					}
+				: {
+						title: `${count}개 문단으로 나눌까요?`,
+						message:
+							"빈 줄을 기준으로 나눠요. 나눈 문단은 이 문단의 성우와 설정을 이어받아요.",
+						actions: [
+							{ label: "그대로 붙여넣기", value: "plain" },
+							{ label: "문단으로 나누기", value: "split", variant: "primary" },
+						],
+					},
+		);
+		if (choice === "split") {
+			const before = value.slice(0, start).trim();
+			const after = value.slice(end).trim();
+			flushText();
+			const segments = read();
+			const index = segments.findIndex((item) => item.id === id);
+			const base = segments[index];
+			if (!base) return;
+			const owner = voiceOf(base.voiceId) || api().getActiveVoice?.() || null;
+			const roles = found
+				? assignRoleVoices(
+						found.speakers,
+						voices(),
+						owner,
+						owner &&
+							(before || after || found.segments.some((part) => !part.speaker))
+							? [owner.id]
+							: [],
+					)
+				: new Map();
+			const pieces = found
+				? [
+						before && { text: before, speaker: base.speaker },
+						...found.segments,
+						after && { text: after, speaker: base.speaker },
+					].filter(Boolean)
+				: [before, ...parts, after].filter(Boolean).map((text) => ({ text }));
+			if (segments.length - 1 + pieces.length > MAX_SEGMENTS)
+				return notify(
+					`나누면 ${segments.length - 1 + pieces.length}개가 되어 ${MAX_SEGMENTS}개를 넘어요.`,
+				);
+			const made = pieces.map((piece, offset) => {
+				const cast = found ? voiceOf(roles.get(piece.speaker)) || owner : null;
+				const seed = found
+					? {
+							...base,
+							speaker: piece.speaker ?? "",
+							voiceId: cast?.id ?? base.voiceId,
+							provider: cast?.provider ?? base.provider,
+						}
+					: base;
+				return !found && offset === 0
+					? { ...base, text: piece.text }
+					: { ...newSegment(seed, piece.text), instruction: base.instruction };
+			});
+			const done = mutate(
+				(list) => {
+					const at = list.findIndex((item) => item.id === id);
+					if (at < 0) return false;
+					list.splice(at, 1, ...made);
+				},
+				{
+					label: "붙여넣은 대본 나누기",
+					message: `문단 ${made.length}개로 나눴어요.`,
+					focus: [`${made[0].id}:text`],
+				},
+			);
+			if (done && found?.speakers.length) openRoleDialog(api());
+			return;
+		}
+		area.focus();
+		area.setRangeText(pasted, start, end, "end");
+		area.dispatchEvent(new Event("input", { bubbles: true }));
+	};
+
+	// ---- 일괄 작업 (좌측 레일) ----
+	const ZERO_REASON = "문단을 선택하면 쓸 수 있어요";
 	const syncBatch = () => {
 		const bar = state.bar;
 		if (!bar) return;
@@ -1289,35 +1757,40 @@
 		// 첫 선택으로 막대가 펼쳐져도 누른 자리가 밀리지 않게 한다. 포커스는 옮기지 않는다.
 		const anchor =
 			bar.root.classList.contains("has-selection") !== count > 0 &&
-			state.root?.contains(document.activeElement)
+			bar.root.contains(document.activeElement)
 				? document.activeElement
 				: null;
 		const before = anchor?.getBoundingClientRect().top;
 		bar.root.classList.toggle("has-selection", count > 0);
-		bar.root.classList.toggle("is-open", state.batchOpen);
 		state.root?.classList.toggle("has-selection", count > 0);
 		const shift = anchor ? anchor.getBoundingClientRect().top - before : 0;
 		if (shift) window.scrollBy(0, shift);
-		bar.empty.hidden = count > 0;
 		bar.all.checked = total > 0 && count === total;
 		bar.all.indeterminate = count > 0 && count < total;
 		bar.count.textContent = `선택 ${count}/${total}`;
 		bar.sheetCount.textContent = `선택 ${count}개`;
-		bar.toggle.setAttribute("aria-expanded", String(state.batchOpen));
 		bar.undo.hidden = !state.history.length;
-		// 선택이 없으면 패널(설정·동작)이 숨어 있어 합치기·삭제 사유만 따진다.
+		const zero = count === 0 ? ZERO_REASON : "";
 		const mergeReason =
-			count === 1 ? "합치기는 문단을 2개 이상 선택해야 해요." : "";
+			zero || (count === 1 ? "합치기는 문단을 2개 이상 선택해야 해요." : "");
 		const removeReason =
-			count > 0 && count >= total
+			zero ||
+			(count >= total
 				? "문단을 모두 지울 수는 없어요. 1개 이상 남겨 주세요."
-				: "";
+				: "");
+		for (const key of ["voice", "speed", "pause"])
+			setBlocked(bar.buttons[key], zero);
 		setBlocked(bar.buttons.merge, mergeReason);
 		setBlocked(bar.buttons.remove, removeReason);
-		bar.hint.textContent = [mergeReason, removeReason]
-			.filter(Boolean)
-			.join(" ");
+		bar.hint.textContent = zero
+			? ZERO_REASON
+			: [mergeReason, removeReason].filter(Boolean).join(" ");
 		bar.hint.hidden = !bar.hint.textContent;
+		const applyButton = bar.applyRef.button;
+		if (applyButton) {
+			applyButton.textContent = `선택한 ${count}개에 적용`;
+			setBlocked(applyButton, zero);
+		}
 	};
 	const syncCards = () => {
 		for (const card of state.root?.querySelectorAll(".ps-card") || []) {
@@ -1328,18 +1801,68 @@
 		}
 		syncBatch();
 	};
-	const batchGroup = (labelText, control, ...actions) => {
-		const group = node("div", "ps-batch-group");
-		const label = node("label", "ps-field-label", labelText);
-		control.id = nextId("batch");
-		label.htmlFor = control.id;
-		group.append(label, control, ...actions);
-		return group;
+	const applyVoiceToSelected = (voice) =>
+		applyToSelected(
+			(segment) => {
+				segment.voiceId = voice.id;
+				segment.provider = voice.provider;
+			},
+			{
+				label: "성우 일괄 변경",
+				focus: ["batch:voice-apply"],
+				message: `선택한 문단 ${state.selected.size}개의 성우를 바꿨어요 · ${voice.name}`,
+			},
+		);
+	// 속도·간격: 버튼 그리드 아래 인라인 패널(스테퍼 + 기본값 + 적용). 적용을 눌러야 문단에 들어간다.
+	const batchNumberPanel = (options, applyRef, close) => {
+		const { name, label, min, max, empty, initial, note, focus, done } =
+			options;
+		const panel = node("div", "ps-batch-inline-body");
+		panel.append(node("p", "ps-pop-title", `선택한 문단의 ${label}`));
+		let draft = state.batchValues[name];
+		const { box, input } = stepper({
+			label: `선택 문단 ${label}`,
+			min,
+			max,
+			get: () => (draft === undefined ? initial : draft),
+			empty,
+			initial,
+			set: (value) => {
+				draft = value;
+				state.batchValues[name] = value;
+			},
+			note,
+		});
+		const apply = button("", "button button-primary ps-pop-apply");
+		applyRef.button = apply;
+		onPress(apply, () => {
+			if (input.getAttribute("aria-invalid") === "true") return input.focus();
+			const value = draft === undefined ? initial : draft;
+			close(false);
+			applyToSelected(
+				(segment) => {
+					segment[name] = value;
+				},
+				{
+					label: `${label} 일괄 변경`,
+					focus: [focus],
+					message: done(value),
+				},
+			);
+		});
+		panel.append(box, apply);
+		return { panel, input };
 	};
 	const buildBatch = (segments) => {
 		const bar = node("div", "ps-batch");
 		bar.setAttribute("role", "group");
 		bar.setAttribute("aria-label", "문단 일괄 작업");
+		const head = node("div", "ps-batch-head");
+		const title = node("h2", "ps-batch-title", "문단 일괄 작업");
+		const undoButton = button("되돌리기", "mini-button ps-undo", "undo");
+		focusKey(undoButton, "batch:undo");
+		undoButton.addEventListener("click", undo);
+		head.append(title, undoButton);
 		const top = node("div", "ps-batch-top");
 		const allLabel = node("label", "ps-check ps-check-all");
 		const all = document.createElement("input");
@@ -1353,339 +1876,189 @@
 		});
 		allLabel.append(all, node("span", "", "전체 선택"));
 		const count = node("span", "ps-batch-count");
-		const empty = node(
-			"p",
-			"ps-batch-empty",
-			"문단을 선택하면 성우·속도·간격을 한 번에 바꾸고 나누기·합치기·삭제를 할 수 있어요",
-		);
-		const undoButton = button("되돌리기", "mini-button ps-undo", "undo");
-		focusKey(undoButton, "batch:undo");
-		undoButton.addEventListener("click", undo);
-		top.append(allLabel, count, empty, undoButton);
+		top.append(allLabel, count);
 
 		const panel = node("div", "ps-batch-panel");
 		const sheetHead = node("div", "ps-sheet-head");
 		const sheetCount = node("strong", "ps-sheet-count");
-		const settings = node("div", "ps-batch-settings");
-		settings.id = nextId("batch-settings");
-		const toggle = button(
-			"설정 일괄 변경",
-			"mini-button ps-sheet-toggle",
-			"sliders",
-		);
-		toggle.setAttribute("aria-controls", settings.id);
-		focusKey(toggle, "batch:toggle");
-		toggle.addEventListener("click", () => {
-			state.batchOpen = !state.batchOpen;
-			syncBatch();
-		});
 		const clear = button("선택 해제", "mini-button", "close");
 		clear.addEventListener("click", () => {
 			state.selected.clear();
 			syncCards();
 			all.focus();
 		});
-		sheetHead.append(sheetCount, toggle, clear);
+		sheetHead.append(sheetCount, clear);
 
-		const values = state.batchValues;
-		const voiceSelect = selectInput(
-			[
-				["", "성우 선택"],
-				...voices().map((voice) => [voice.id, voiceName(voice)]),
-			],
-			values.voice,
+		const grid = node("div", "ps-batch-actions");
+		const tile = (label, iconId, className, key) => {
+			const element = button(
+				label,
+				`mini-button ps-batch-btn ${className}`,
+				iconId,
+			);
+			focusKey(element, key);
+			return element;
+		};
+		const voice = tile(
+			"성우 고르기",
+			"voice",
+			"ps-voice-pick",
+			"batch:voice-apply",
 		);
-		voiceSelect.addEventListener("change", () => {
-			values.voice = voiceSelect.value;
-			voiceSelect.removeAttribute("aria-invalid");
-		});
-		const voiceApply = button("적용", "mini-button");
-		voiceApply.setAttribute("aria-label", "선택 문단에 성우 적용");
-		focusKey(voiceApply, "batch:voice-apply");
-		onPress(voiceApply, () => batchVoice(voiceSelect));
-
-		const speed = numberInput(values.speed, 0.5, 2, "1.0");
-		speed.addEventListener("input", () => {
-			values.speed = speed.value;
-			speed.removeAttribute("aria-invalid");
-		});
-		const speedApply = button("적용", "mini-button");
-		speedApply.setAttribute("aria-label", "선택 문단에 속도 적용");
-		focusKey(speedApply, "batch:speed-apply");
-		onPress(speedApply, () =>
-			batchNumber(
-				speed,
-				"speed",
-				0.5,
-				2,
-				"속도는 0.5~2.0 사이로 입력해 주세요.",
-				(value) =>
-					`선택한 문단 ${state.selected.size}개의 속도를 바꿨어요 · ${value}`,
-			),
-		);
-		const speedReset = button("모델 설정 따름", "text-button ps-reset");
-		focusKey(speedReset, "batch:speed-reset");
-		onPress(speedReset, () =>
-			applyToSelected(
-				(segment) => {
-					segment.speed = null;
+		voice.setAttribute("aria-label", "선택 문단의 성우 고르기");
+		onPress(voice, () => {
+			if (typeof api().openVoicePicker !== "function")
+				return notify("성우 고르기를 불러오지 못했어요.");
+			api().openVoicePicker({
+				label: `선택한 문단 ${state.selected.size}개`,
+				returnFocus: voice,
+				onPick: (voiceId) => {
+					const picked = voiceOf(voiceId);
+					if (picked) applyVoiceToSelected(picked);
+					else notify("성우를 찾지 못했어요.");
 				},
-				{
-					label: "속도 일괄 변경",
-					focus: ["batch:speed-reset"],
-					message: `선택한 문단 ${state.selected.size}개가 모델 설정 속도를 따릅니다.`,
-				},
-			),
-		);
-
-		const pause = numberInput(values.pause, 0, 5, "0.3");
-		pause.addEventListener("input", () => {
-			values.pause = pause.value;
-			pause.removeAttribute("aria-invalid");
+			});
 		});
-		const pauseApply = button("적용", "mini-button");
-		pauseApply.setAttribute("aria-label", "선택 문단에 간격 적용");
-		focusKey(pauseApply, "batch:pauseAfter-apply");
-		onPress(pauseApply, () =>
-			batchNumber(
-				pause,
-				"pauseAfter",
-				0,
-				5,
-				"문단 뒤 간격은 0~5초 사이로 입력해 주세요.",
-				(value) =>
-					`선택한 문단 ${state.selected.size}개의 문단 뒤 간격을 바꿨어요 · ${value}초`,
+		const inline = node("div", "ps-batch-inline");
+		inline.id = nextId("batch-inline");
+		inline.hidden = true;
+		const applyRef = { button: null };
+		const tiles = [];
+		let openName = "";
+		const closeInline = (returnFocus) => {
+			const owner = tiles.find((item) => item.name === openName);
+			openName = "";
+			inline.hidden = true;
+			inline.replaceChildren();
+			applyRef.button = null;
+			for (const item of tiles)
+				item.element.setAttribute("aria-expanded", "false");
+			if (returnFocus) owner?.element.focus();
+		};
+		inline.addEventListener("keydown", (event) => {
+			if (event.key !== "Escape") return;
+			event.preventDefault();
+			closeInline(true);
+		});
+		const numberTile = (label, iconId, key, options) => {
+			const element = tile(label, iconId, "", key);
+			element.setAttribute("aria-haspopup", "true");
+			element.setAttribute("aria-expanded", "false");
+			element.setAttribute("aria-controls", inline.id);
+			element.setAttribute("aria-label", `선택 문단의 ${label} 바꾸기`);
+			tiles.push({ name: options.name, element });
+			onPress(element, () => {
+				if (openName === options.name) return closeInline(true);
+				closeInline(false);
+				const { panel, input } = batchNumberPanel(
+					{ ...options, focus: key },
+					applyRef,
+					closeInline,
+				);
+				openName = options.name;
+				inline.replaceChildren(panel);
+				inline.hidden = false;
+				element.setAttribute("aria-expanded", "true");
+				syncBatch();
+				input.focus();
+			});
+			return element;
+		};
+		const speed = numberTile("속도", "sliders", "batch:speed-apply", {
+			name: "speed",
+			label: "속도",
+			min: 0.5,
+			max: 2,
+			empty: null,
+			initial: 1,
+			note: "0.5~2.0배. 기본은 모델 설정을 따라요.",
+			done: (value) =>
+				value === null
+					? `선택한 문단 ${state.selected.size}개가 모델 설정 속도를 따릅니다.`
+					: `선택한 문단 ${state.selected.size}개의 속도를 바꿨어요 · ${value}`,
+		});
+		const pause = numberTile("간격", "wave", "batch:pauseAfter-apply", {
+			name: "pauseAfter",
+			label: "간격",
+			min: 0,
+			max: 5,
+			empty: DEFAULT_PAUSE,
+			initial: DEFAULT_PAUSE,
+			note: "0~5초. 문단 뒤에 쉬는 시간이에요.",
+			done: (value) =>
+				`선택한 문단 ${state.selected.size}개의 문단 뒤 간격을 바꿨어요 · ${value}초`,
+		});
+		const split = tile("분할", "split", "ps-split", "batch:split");
+		split.title = "선택한 문단을 나눠요. 선택이 없으면 전체 문단이 대상이에요.";
+		onPress(split, () =>
+			openSplitFor(
+				state.selected.size
+					? new Set(state.selected)
+					: new Set(read().map((item) => item.id)),
 			),
 		);
-		settings.append(
-			batchGroup("성우", voiceSelect, voiceApply),
-			batchGroup("속도", speed, speedApply, speedReset),
-			batchGroup("간격(초)", pause, pauseApply),
-		);
-
-		const actions = node("div", "ps-batch-actions");
-		const split = button("분할", "button button-secondary", "split");
-		focusKey(split, "batch:split");
-		onPress(split, () => openSplitFor(new Set(state.selected)));
-		const merge = button("합치기", "button button-secondary", "merge");
-		focusKey(merge, "batch:merge");
+		const merge = tile("합치기", "merge", "ps-merge", "batch:merge");
 		onPress(merge, mergeSelected);
-		const remove = button(
+		const remove = tile(
 			"선택 삭제",
-			"button button-secondary ps-danger",
 			"trash",
+			"ps-danger ps-remove",
+			"batch:remove",
 		);
-		focusKey(remove, "batch:remove");
 		onPress(remove, deleteSelected);
-		actions.append(split, merge, remove);
+		grid.append(voice, speed, pause, split, merge, remove);
 		const hint = node("p", "ps-batch-hint");
 		hint.id = nextId("batch-hint");
-		const buttons = {
-			voice: voiceApply,
-			speed: speedApply,
-			reset: speedReset,
-			pause: pauseApply,
-			split,
-			merge,
-			remove,
-		};
+		const buttons = { voice, speed, pause, merge, remove };
 		for (const element of Object.values(buttons))
 			element.setAttribute("aria-describedby", hint.id);
-		panel.append(sheetHead, settings, actions, hint);
-		bar.append(top, panel);
+		panel.append(sheetHead, grid, inline, hint);
+		bar.append(head, top, panel);
 		state.bar = {
 			root: bar,
 			panel,
 			all,
 			count,
-			empty,
 			sheetCount,
-			toggle,
 			undo: undoButton,
 			hint,
 			buttons,
+			applyRef,
 			total: segments.length,
 		};
 		return bar;
 	};
 
 	// ---- 문단 카드 ----
-	const bindNumber = (control, wrap, options) => {
-		const { id, name, min, max, empty, message, after } = options;
-		const error = node("span", "ps-field-error", message);
-		error.id = nextId("error");
-		error.hidden = true;
-		wrap.append(error);
-		control.addEventListener("change", () => {
-			const value = parseNumber(control, min, max);
-			error.hidden = value !== undefined;
-			if (value === undefined) {
-				control.setAttribute("aria-invalid", "true");
-				control.setAttribute("aria-describedby", error.id);
+	// 조절 툴바: 탭 정지는 하나(roving tabindex), ←/→/Home/End로 옮긴다.
+	const setupToolbar = (toolbar) => {
+		const all = () => [...toolbar.querySelectorAll("button")];
+		const visible = () =>
+			all().filter((item) => !item.disabled && item.getClientRects().length);
+		const mark = (active) => {
+			for (const item of all()) item.tabIndex = item === active ? 0 : -1;
+		};
+		toolbar.addEventListener("focusin", (event) => {
+			const target = event.target.closest?.("button");
+			if (target && toolbar.contains(target)) mark(target);
+		});
+		toolbar.addEventListener("keydown", (event) => {
+			if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key))
 				return;
-			}
-			control.removeAttribute("aria-invalid");
-			control.removeAttribute("aria-describedby");
-			const next = value ?? empty;
-			control.value = next === null ? "" : String(next);
-			after(next);
-			saveField(id, name, next);
+			const list = visible();
+			const at = list.indexOf(event.target.closest?.("button"));
+			if (at < 0) return;
+			event.preventDefault();
+			const step = event.key === "ArrowRight" ? 1 : -1;
+			const next =
+				event.key === "Home"
+					? 0
+					: event.key === "End"
+						? list.length - 1
+						: (at + step + list.length) % list.length;
+			list[next].focus();
 		});
-		control.addEventListener("blur", endEdit);
-	};
-	const buildControls = (segment, number, current, refresh) => {
-		const id = segment.id;
-		const controls = node("div", "ps-controls");
-
-		const speed = numberInput(segment.speed, 0.5, 2, "모델 설정");
-		speed.setAttribute("aria-label", `${number}번 문단 속도`);
-		focusKey(speed, `${id}:speed`);
-		const speedField = field("속도", speed, "ps-field-speed");
-		bindNumber(speed, speedField, {
-			id,
-			name: "speed",
-			min: 0.5,
-			max: 2,
-			empty: null,
-			message: "0.5~2.0 사이로 입력하거나 비워 두세요.",
-			after: (value) => {
-				current.speed = value;
-				refresh();
-			},
-		});
-		const pause = numberInput(segment.pauseAfter, 0, 5, String(DEFAULT_PAUSE));
-		pause.setAttribute("aria-label", `${number}번 문단 뒤 간격(초)`);
-		focusKey(pause, `${id}:pause`);
-		const pauseField = field("문단 뒤 간격(초)", pause, "ps-field-pause");
-		bindNumber(pause, pauseField, {
-			id,
-			name: "pauseAfter",
-			min: 0,
-			max: 5,
-			empty: DEFAULT_PAUSE,
-			message: "0~5초 사이로 입력해 주세요.",
-			after: (value) => {
-				current.pauseAfter = value;
-				refresh();
-			},
-		});
-
-		const emotion = selectInput(EMOTIONS, segment.emotion);
-		emotion.setAttribute("aria-label", `${number}번 문단 감정`);
-		focusKey(emotion, `${id}:emotion`);
-		emotion.addEventListener("change", () =>
-			saveField(id, "emotion", emotion.value),
-		);
-		emotion.addEventListener("blur", endEdit);
-
-		const provider = voiceOf(segment.voiceId)?.provider || segment.provider;
-		const noIntensity = NO_INTENSITY.has(provider);
-		const intensityField = node("div", "ps-field ps-field-intensity");
-		const intensityLabel = node("span", "ps-field-label", "강도");
-		intensityLabel.id = nextId("intensity");
-		const intensity = node("div", "ps-intensity");
-		intensity.setAttribute("role", "group");
-		intensity.setAttribute("aria-labelledby", intensityLabel.id);
-		const levels = INTENSITIES.map((label, level) => {
-			const option = node("button", "ps-segment-button", label);
-			option.type = "button";
-			option.setAttribute("aria-label", `${number}번 문단 강도 ${label}`);
-			option.setAttribute(
-				"aria-pressed",
-				String(
-					segment.intensity !== null && Math.round(segment.intensity) === level,
-				),
-			);
-			option.disabled = noIntensity;
-			focusKey(option, `${id}:intensity-${level}`);
-			option.addEventListener("click", () => {
-				const next =
-					current.intensity !== null && Math.round(current.intensity) === level
-						? null
-						: level;
-				current.intensity = next;
-				levels.forEach((item, index) => {
-					item.setAttribute("aria-pressed", String(index === next));
-				});
-				saveField(id, "intensity", next);
-				state.session = "";
-			});
-			return option;
-		});
-		intensity.append(...levels);
-		intensityField.append(intensityLabel, intensity);
-		if (noIntensity) {
-			const reason = `${provider}는 숫자 감정 강도를 받지 않아요. 감정은 태그로 표현합니다.`;
-			intensity.title = reason;
-			intensityField.append(
-				node("span", "ps-field-note", "강도 없음 · 태그로 표현"),
-			);
-		} else
-			intensityField.append(
-				node("span", "ps-field-note", "다시 누르면 모델 기본"),
-			);
-
-		const instruction = document.createElement("input");
-		instruction.type = "text";
-		instruction.className = "ps-input";
-		instruction.maxLength = MAX_INSTRUCTION;
-		instruction.placeholder = "예: 끝을 살짝 올려서, 천천히";
-		instruction.value = pendingValue(id, "instruction", segment.instruction);
-		instruction.setAttribute("aria-label", `${number}번 문단 연기 지시`);
-		focusKey(instruction, `${id}:instruction`);
-		instruction.addEventListener("input", () =>
-			scheduleField(id, "instruction", instruction.value),
-		);
-		bindTyping(instruction);
-		const instructionField = field(
-			"연기 지시",
-			instruction,
-			"ps-field-instruction",
-		);
-		// 칩은 입력 칸이나 칩에 포커스가 있을 때(CSS) 또는 `지시 예시`를 눌렀을 때만 보인다.
-		const chips = node("div", "ps-chips");
-		chips.id = nextId("chips");
-		chips.setAttribute("role", "group");
-		chips.setAttribute("aria-label", `${number}번 문단 연기 지시에 덧붙이기`);
-		const examples = button("지시 예시", "text-button ps-chip-toggle");
-		examples.setAttribute("aria-expanded", "false");
-		examples.setAttribute("aria-controls", chips.id);
-		examples.setAttribute("aria-label", `${number}번 문단 연기 지시 예시`);
-		examples.addEventListener("click", () => {
-			const open = instructionField.classList.toggle("show-chips");
-			examples.setAttribute("aria-expanded", String(open));
-		});
-		instructionField.querySelector(".ps-field-label").after(examples);
-		for (const label of CHIPS) {
-			const chip = button(label, "ps-chip", "plus");
-			chip.setAttribute("aria-label", `연기 지시에 ${label} 덧붙이기`);
-			chip.title = `연기 지시 끝에 덧붙이기 · ${label}`;
-			focusKey(chip, `${id}:chip-${label}`);
-			// 누르는 동안 입력 칸이 포커스를 잃어 칩이 사라지지 않게 한다(Safari는 버튼에 포커스를 주지 않는다).
-			chip.addEventListener("mousedown", (event) => event.preventDefault());
-			chip.addEventListener("click", () => {
-				flushText();
-				const value = instruction.value.trim();
-				if (value.split(/\s*,\s*/).includes(label))
-					return notify("이미 들어 있는 연기 지시예요.");
-				const next = value ? `${value}, ${label}` : label;
-				if (next.length > MAX_INSTRUCTION)
-					return notify("연기 지시는 300자까지 쓸 수 있어요.");
-				instruction.value = next;
-				saveField(id, "instruction", next);
-				state.session = "";
-			});
-			chips.append(chip);
-		}
-		instructionField.append(chips);
-		controls.append(
-			speedField,
-			pauseField,
-			field("감정", emotion, "ps-field-emotion"),
-			intensityField,
-			instructionField,
-		);
-		return controls;
+		mark(all()[0]);
 	};
 	const buildCard = (segment, index, total) => {
 		const number = index + 1;
@@ -1699,9 +2072,7 @@
 			card.classList.add("is-playing");
 			card.setAttribute("aria-current", "true");
 		}
-		const main = node("div", "ps-card-main");
-
-		const head = node("div", "ps-card-head");
+		const summary = node("div", "ps-summary");
 		const checkLabel = node("label", "ps-check");
 		const check = document.createElement("input");
 		check.type = "checkbox";
@@ -1718,35 +2089,33 @@
 		checkLabel.append(check);
 		const badge = node("span", "ps-num", String(number));
 		badge.setAttribute("aria-hidden", "true");
+		const len = node("span", "ps-len");
+		const usage = node("span", "ps-usage");
+		const tools = node("div", "ps-tools");
+		tools.setAttribute("role", "toolbar");
+		tools.setAttribute("aria-label", `${number}번 문단 조절`);
+
 		const voice = voiceOf(segment.voiceId);
-		const wrap = node("div", "ps-voice");
-		const trigger = node("button", "ps-voice-button");
-		trigger.type = "button";
-		trigger.setAttribute("aria-haspopup", "dialog");
-		trigger.setAttribute("aria-expanded", "false");
-		focusKey(trigger, `${id}:voice`);
-		trigger.append(
+		const voiceButton = node("button", "ps-voice-button");
+		voiceButton.type = "button";
+		voiceButton.setAttribute("aria-haspopup", "dialog");
+		voiceButton.setAttribute("aria-expanded", "false");
+		voiceButton.title = voice
+			? `${voice.name} · ${voice.provider}`
+			: "성우 미지정";
+		focusKey(voiceButton, `${id}:voice`);
+		const avatar = node("span", "ps-avatar", initialOf(voice));
+		avatar.setAttribute("aria-hidden", "true");
+		voiceButton.append(
 			node("span", "sr-only", `${number}번 문단 성우 `),
-			icon("voice"),
+			avatar,
 			node("span", "ps-voice-name", voice?.name || "성우 미지정"),
+			icon("chevron-down"),
 		);
-		if (voice)
-			trigger.append(node("span", "ps-voice-provider", voice.provider));
-		trigger.append(icon("chevron-down"));
-		trigger.addEventListener("click", () => {
-			if (state.menu?.trigger === trigger) closeMenu(true);
-			else openMenu(wrap, trigger, id, number);
-		});
-		wrap.addEventListener("focusout", (event) => {
-			if (
-				state.menu?.wrap === wrap &&
-				event.relatedTarget &&
-				!wrap.contains(event.relatedTarget)
-			)
-				closeMenu(false);
-		});
-		wrap.append(trigger);
-		head.append(checkLabel, badge, wrap);
+		bindPopover(card, voiceButton, `${number}번 문단 성우 고르기`, (pop) =>
+			voiceMenu(pop, voiceButton, id, number),
+		);
+		tools.append(voiceButton);
 		if (segment.speaker) {
 			const role = button(`역할 · ${segment.speaker}`, "ps-role");
 			role.title = `‘${segment.speaker}’ 역할의 성우를 한 번에 바꿉니다`;
@@ -1754,117 +2123,172 @@
 			role.addEventListener("click", () =>
 				openRoleDialog(api(), segment.speaker),
 			);
-			head.append(role);
+			tools.append(role);
 		}
-		const move = node("div", "ps-move");
-		const up = iconButton("up", `${number}번 문단 위로 이동`);
-		up.disabled = index === 0;
-		focusKey(up, `${id}:up`);
-		up.addEventListener("click", () => moveSegment(id, -1));
-		const down = iconButton("down", `${number}번 문단 아래로 이동`);
-		down.disabled = index === total - 1;
-		focusKey(down, `${id}:down`);
-		down.addEventListener("click", () => moveSegment(id, 1));
-		move.append(up, down);
-		head.append(move);
 
-		const body = node("div", "ps-card-body");
+		// 입력 전의 빈 카드는 오류가 아니다. 편집한 뒤 비웠을 때만 알린다.
+		let edited = false;
 		const text = document.createElement("textarea");
 		text.className = "ps-text";
-		text.rows = 2;
+		text.placeholder = "문단 내용을 입력해 주세요";
+		text.rows = 1;
 		text.maxLength = MAX_TEXT;
 		text.value = pendingValue(id, "text", segment.text);
 		text.setAttribute("aria-label", `${number}번 문단 대사`);
 		focusKey(text, `${id}:text`);
-		const meta = node("div", "ps-meta");
-		const estimateLine = node("p", "ps-estimate");
 		const counter = node("span", "ps-count");
-		counter.id = nextId("count");
 		const problem = node("p", "ps-problem");
 		problem.id = nextId("problem");
-		text.setAttribute("aria-describedby", `${counter.id} ${problem.id}`);
-		const splitHere = button("이 문단 나누기", "mini-button", "split");
-		focusKey(splitHere, `${id}:split`);
-		splitHere.addEventListener("click", () => openSplitFor(new Set([id])));
+		text.setAttribute("aria-describedby", problem.id);
+		const meta = node("div", "ps-meta");
+		meta.append(problem, counter);
+
+		const chipButton = (key) => {
+			const element = node("button", "ps-chip-btn");
+			element.type = "button";
+			element.setAttribute("aria-haspopup", "dialog");
+			element.setAttribute("aria-expanded", "false");
+			focusKey(element, `${id}:${key}`);
+			return element;
+		};
+		const speedChip = chipButton("speed");
+		const pauseChip = chipButton("pause");
+		const emotionChip = chipButton("emotion");
+		const instructionChip = chipButton("instruction");
+		const providerOf = () =>
+			voiceOf(current.voiceId)?.provider || current.provider;
+		const setChip = (element, label, changed) => {
+			element.textContent = label;
+			element.classList.toggle("is-changed", changed);
+			element.setAttribute("aria-label", `${number}번 문단 ${label} 바꾸기`);
+		};
+		const paint = () => {
+			setChip(speedChip, speedLabel(current.speed), current.speed !== null);
+			setChip(
+				pauseChip,
+				pauseLabel(current.pauseAfter),
+				current.pauseAfter !== DEFAULT_PAUSE,
+			);
+			setChip(
+				emotionChip,
+				emotionLabel(current, NO_INTENSITY.has(providerOf())),
+				current.emotion !== "normal",
+			);
+			setChip(
+				instructionChip,
+				instructionLabel(current.instruction),
+				Boolean(current.instruction.trim()),
+			);
+		};
 		const refresh = () => {
 			const value = text.value;
 			const over = value.length > MAX_TEXT;
 			current.text = value;
 			counter.textContent = `${formatCount(value.length)} / ${formatCount(MAX_TEXT)}자`;
+			counter.hidden = value.length < MAX_TEXT * 0.75;
 			problem.textContent = over
 				? `${formatCount(value.length)}자로 2,000자를 넘었어요. 문단을 나누거나 줄여 주세요.`
-				: value.trim()
+				: value.trim() || !edited
 					? ""
 					: "내용을 입력해 주세요. 빈 문단은 생성할 수 없어요.";
 			problem.classList.toggle("is-error", over);
 			problem.hidden = !problem.textContent;
-			splitHere.hidden = !over;
+			meta.hidden = problem.hidden && counter.hidden;
 			if (over) text.setAttribute("aria-invalid", "true");
 			else text.removeAttribute("aria-invalid");
 			card.classList.toggle("has-error", over);
-			fillEstimate(estimateLine, current);
+			const result = estimate(current);
+			len.replaceChildren(
+				node("span", "sr-only", "예상 길이 약 "),
+				document.createTextNode(`${Number(result.seconds).toFixed(1)}초`),
+			);
+			usage.replaceChildren(
+				node("span", "sr-only", "예상 사용량 "),
+				document.createTextNode(result.usageLabel),
+			);
+			len.title = usage.title = result.basis || "";
+			paint();
 		};
+		const setValue = (name, value) => {
+			current[name] = value;
+			saveField(id, name, value);
+			paint();
+			refresh();
+		};
+		const ctx = {
+			id,
+			number,
+			current,
+			setValue,
+			paint,
+			provider: providerOf,
+		};
+		bindPopover(card, speedChip, `${number}번 문단 속도`, (pop) =>
+			speedPop(pop, ctx),
+		);
+		bindPopover(card, pauseChip, `${number}번 문단 뒤 간격`, (pop) =>
+			pausePop(pop, ctx),
+		);
+		bindPopover(card, emotionChip, `${number}번 문단 감정`, (pop) =>
+			emotionPop(pop, ctx),
+		);
+		bindPopover(card, instructionChip, `${number}번 문단 연기 지시`, (pop) =>
+			instructionPop(pop, ctx),
+		);
+		tools.append(speedChip, pauseChip, emotionChip, instructionChip);
+
+		const recommend = node("button", "ps-action ps-recommend");
+		recommend.type = "button";
+		recommend.setAttribute("aria-label", `${number}번 문단 성우 추천`);
+		recommend.title = "이 문단에 맞는 성우를 추천받아요";
+		recommend.append(icon("search"), node("span", "ps-action-label", "추천"));
+		focusKey(recommend, `${id}:recommend`);
+		recommend.addEventListener("click", () => recommendFor(id));
+		const preview = iconButton("play", `${number}번 문단 미리 생성 · 시연`);
+		preview.classList.add("ps-act", "ps-preview");
+		focusKey(preview, `${id}:preview`);
+		setBlocked(preview, PREVIEW_REASON);
+		onPress(preview, () => {});
+		const up = iconButton("up", `${number}번 문단 위로 이동`);
+		up.classList.add("ps-act", "ps-up");
+		up.disabled = index === 0;
+		focusKey(up, `${id}:up`);
+		up.addEventListener("click", () => moveSegment(id, -1));
+		const down = iconButton("down", `${number}번 문단 아래로 이동`);
+		down.classList.add("ps-act", "ps-down");
+		down.disabled = index === total - 1;
+		focusKey(down, `${id}:down`);
+		down.addEventListener("click", () => moveSegment(id, 1));
+		const more = iconButton("more", `${number}번 문단 더보기`);
+		more.classList.add("ps-act");
+		more.setAttribute("aria-haspopup", "dialog");
+		more.setAttribute("aria-expanded", "false");
+		focusKey(more, `${id}:more`);
+		bindPopover(
+			card,
+			more,
+			`${number}번 문단 더보기`,
+			(pop) => moreMenu(pop, { id, number, index, total }),
+			"ps-pop-more",
+		);
+		tools.append(recommend, preview, up, down, more);
+		setupToolbar(tools);
+
 		text.addEventListener("input", () => {
+			edited = true;
 			autoGrow(text);
 			refresh();
 			scheduleField(id, "text", text.value);
 		});
+		text.addEventListener("paste", (event) => pasteInto(event, id, text));
 		bindTyping(text);
-		meta.append(estimateLine, counter);
-		body.append(text, meta, problem, splitHere);
 		refresh();
 
-		const actions = node("div", "ps-card-actions");
-		const recommend = iconButton("search", `${number}번 문단 성우 추천`);
-		focusKey(recommend, `${id}:recommend`);
-		recommend.addEventListener("click", () => recommendFor(id));
-		const preview = iconButton("play", `${number}번 문단 미리 생성 · 시연`);
-		focusKey(preview, `${id}:preview`);
-		setBlocked(preview, PREVIEW_REASON);
-		onPress(preview, () => {});
-		const remove = iconButton("trash", `${number}번 문단 삭제`);
-		focusKey(remove, `${id}:delete`);
-		setBlocked(remove, total <= 1 ? "마지막 남은 문단은 지울 수 없어요." : "");
-		onPress(remove, () => deleteSegment(id));
-		const add = iconButton("plus", `${number}번 문단 아래에 문단 추가`);
-		focusKey(add, `${id}:add`);
-		setBlocked(add, total >= MAX_SEGMENTS ? LIMIT_REASON : "");
-		onPress(add, () => addAfter(id));
-		actions.append(recommend, preview, remove, add);
-
-		main.append(head, body, buildControls(segment, number, current, refresh));
-		card.append(main, actions);
+		summary.append(checkLabel, badge, len, usage, tools);
+		const body = node("div", "ps-card-body");
+		body.append(text, meta);
+		card.append(summary, body);
 		return card;
-	};
-	const buildHeader = (segments) => {
-		const header = node("div", "ps-header");
-		const title = node(
-			"h2",
-			"ps-title",
-			`문단 제작 계획 · ${segments.length}개`,
-		);
-		title.tabIndex = -1;
-		header.append(title);
-		const roles = roleGroups(segments);
-		if (roles.length) {
-			const assigned = roles.filter((role) => role.voiceId).length;
-			const open = button(
-				`역할별 성우 · 지정 ${assigned}/${roles.length}`,
-				"button button-secondary",
-				"voice",
-			);
-			focusKey(open, "header:roles");
-			open.addEventListener("click", () => openRoleDialog(api()));
-			header.append(open);
-		}
-		header.append(
-			node(
-				"p",
-				"ps-note",
-				"문단마다 성우·속도·간격·감정·연기 지시를 따로 정합니다. 예상 길이와 예상 사용량은 추정치이고, 문단 미리 생성은 시연이라 실행하지 않습니다.",
-			),
-		);
-		return header;
 	};
 	const buildFooter = (segments) => {
 		const footer = node("div", "ps-footer");
@@ -1916,18 +2340,28 @@
 		document.addEventListener(
 			"pointerdown",
 			(event) => {
-				if (state.menu && !state.menu.wrap.contains(event.target))
+				const menu = state.menu;
+				if (
+					menu &&
+					!menu.element.contains(event.target) &&
+					!menu.trigger.contains(event.target)
+				)
 					closeMenu(false);
 			},
 			true,
 		);
 	};
+	const findFocus = (key) => {
+		const selector = `[data-focus="${CSS.escape(key)}"]`;
+		return (
+			state.container?.querySelector(selector) ||
+			state.host?.querySelector(selector)
+		);
+	};
 	const restoreFocus = (keys, selection) => {
 		for (const key of keys) {
 			if (!key || !state.container) continue;
-			const target = state.container.querySelector(
-				`[data-focus="${CSS.escape(key)}"]`,
-			);
+			const target = findFocus(key);
 			if (!target || target.disabled || !target.getClientRects().length)
 				continue;
 			target.focus({ preventScroll: true });
@@ -1949,6 +2383,8 @@
 		if (state.busy?.quiet && state.root && container.contains(state.root))
 			return;
 		listenOnce();
+		const host = document.getElementById("batch-rail");
+		state.host = host;
 		const segments = read();
 		// 다른 화면이 문단을 바꿨으면 이전 되돌리기 기록은 더 이상 맞지 않는다.
 		if (!state.busy) {
@@ -1960,7 +2396,10 @@
 		const keys = [...(focus || state.busy?.focus || [])];
 		const active = document.activeElement;
 		let selection = null;
-		if (active?.dataset?.focus && container.contains(active)) {
+		if (
+			active?.dataset?.focus &&
+			(container.contains(active) || host?.contains(active))
+		) {
 			keys.push(active.dataset.focus);
 			if (
 				(active.tagName === "TEXTAREA" || active.type === "text") &&
@@ -1972,7 +2411,7 @@
 					end: active.selectionEnd,
 				};
 		}
-		closeMenu(false);
+		closeMenu(false, false);
 		state.rendering = true;
 		try {
 			const ids = new Set(segments.map((item) => item.id));
@@ -1981,6 +2420,7 @@
 			container.hidden = !segments.length;
 			if (!segments.length) {
 				container.replaceChildren();
+				host?.replaceChildren();
 				state.root = null;
 				state.bar = null;
 				publishSheet();
@@ -1993,12 +2433,10 @@
 			segments.forEach((segment, index) => {
 				list.append(buildCard(segment, index, segments.length));
 			});
-			root.append(
-				buildHeader(segments),
-				buildBatch(segments),
-				list,
-				buildFooter(segments),
-			);
+			const bar = buildBatch(segments);
+			if (host) host.replaceChildren(bar);
+			else root.append(bar);
+			root.append(list, buildFooter(segments));
 			container.replaceChildren(root);
 			for (const area of root.querySelectorAll(".ps-text")) autoGrow(area);
 			syncBatch();
@@ -2161,11 +2599,62 @@
 			),
 			"성우가 모자랄 때만 다시 씀",
 		);
+		check(
+			same(splitBlank("가\n\n나 다\n \n\n라"), ["가", "나 다", "라"]),
+			"빈 줄로 덩어리 나누기",
+		);
+		check(splitBlank("한 줄\n다음 줄").length === 1, "줄바꿈만이면 한 덩어리");
+		check(
+			speedLabel(null) === "속도 기본" && speedLabel(1.2) === "속도 1.2배",
+			"속도 칩 문구",
+		);
+		check(
+			pauseLabel(0.3) === "뒤 0.3초" && pauseLabel(0) === "뒤 0초",
+			"간격 칩 문구",
+		);
+		check(
+			emotionLabel({ emotion: "normal", intensity: 1 }, false) ===
+				"감정 기본" &&
+				emotionLabel({ emotion: "sad", intensity: 1 }, false) ===
+					"차분 · 보통" &&
+				emotionLabel({ emotion: "sad", intensity: 1 }, true) === "차분" &&
+				emotionLabel({ emotion: "happy", intensity: null }, false) === "밝게",
+			"감정 칩 문구",
+		);
+		check(
+			instructionLabel("") === "지시 +" &&
+				instructionLabel("강조") === "지시 있음",
+			"지시 칩 문구",
+		);
+		const stats = roleStats();
+		check(
+			stats.roles >= stats.assigned && stats.assigned >= 0,
+			"역할 통계: 지정 수는 역할 수 이하",
+		);
 		return failures;
+	};
+
+	// 767px 이하에서는 일괄 줄이 숨어 있어 툴바 ⋯ 메뉴가 이 둘을 부른다.
+	const selectAll = () => {
+		flushText();
+		state.selected = new Set(read().map((item) => item.id));
+		syncCards();
+		announce(`문단 ${state.selected.size}개를 모두 선택했어요.`);
+		return state.selected.size;
+	};
+	const openSplit = () => {
+		flushText();
+		const ids = state.selected.size
+			? new Set(state.selected)
+			: new Set(read().map((item) => item.id));
+		openSplitFor(ids);
 	};
 
 	window.TTSParagraphs = {
 		render,
+		selectAll,
+		openSplit,
+		roleStats,
 		detectSpeakers,
 		splitText,
 		assignRoleVoices,

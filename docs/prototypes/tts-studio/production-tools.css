@@ -72,54 +72,7 @@
 	color: var(--text-muted);
 	font-size: 13px;
 }
-.production-tools-nav {
-	display: flex;
-	gap: var(--space-4);
-	flex-wrap: wrap;
-}
-.production-tools-nav fieldset {
-	border: 0;
-	padding: 0;
-	margin: 0;
-	display: flex;
-	flex-wrap: wrap;
-	gap: var(--space-2);
-}
-.production-tools-nav legend {
-	padding: 0;
-	margin-bottom: var(--space-2);
-	font-size: 13px;
-	color: var(--text-muted);
-}
-.production-tools-actions {
-	display: flex;
-	justify-content: flex-end;
-	margin-block: var(--space-4);
-}
-.production-tools-nav .button {
-	min-height: 44px;
-}
-.production-tools-note {
-	flex-basis: 100%;
-	color: var(--text-muted);
-	font-size: 12px;
-}
-.production-tools-nav [aria-expanded="true"] {
-	color: var(--blue-fg);
-	background: var(--blue-subtle);
-}
 @media (max-width: 767px) {
-	.production-tools-nav {
-		display: grid;
-		grid-template-columns: 1fr;
-	}
-	.production-tools-nav .button {
-		flex: 1;
-	}
-	.production-tools-heading {
-		flex-wrap: wrap;
-		gap: var(--space-2);
-	}
 	.segment-plan {
 		padding: var(--space-4);
 	}
@@ -162,14 +115,6 @@
 .voice-tool-status:focus-visible {
 	outline: var(--focus-outline);
 	outline-offset: 2px;
-}
-@media (max-width: 767px) {
-	.header-actions #open-production-tools {
-		display: inline-flex;
-		width: auto;
-		padding: var(--space-2) var(--space-3);
-		font-size: 13px;
-	}
 }
 
 .prototype-media-recorder {
@@ -309,5 +254,197 @@
 	}
 	.prototype-media-recorder > .button {
 		flex: 1 1 0;
+	}
+}
+
+/* AI 보이스 도구 레일과 메뉴 */
+.tool-rail-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2);
+	margin-bottom: var(--space-3);
+}
+.tool-rail-head h2 {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 700;
+}
+.tool-rail-toggle {
+	display: inline-grid;
+	place-items: center;
+	width: 32px;
+	height: 32px;
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+.tool-rail-toggle:hover {
+	background: var(--surface-muted);
+	color: var(--text);
+}
+.tool-rail-toggle svg {
+	width: 18px;
+	height: 18px;
+	transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tool-rail-toggle[data-collapsed="true"] svg {
+	transform: rotate(-90deg);
+}
+.tool-tile-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--space-2);
+}
+.tool-tile {
+	position: relative;
+	min-width: 0;
+}
+.tool-tile-main {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: var(--space-2);
+	width: 100%;
+	min-height: 72px;
+	padding: var(--space-3);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+	color: var(--text);
+	font: inherit;
+	font-size: 13px;
+	font-weight: 650;
+	line-height: 1.3;
+	text-align: left;
+	cursor: pointer;
+}
+.tool-tile-main:hover {
+	border-color: var(--line-strong);
+	background: var(--surface-muted);
+}
+.tool-tile-main[aria-disabled="true"] {
+	color: var(--text-faint);
+	cursor: not-allowed;
+}
+.tool-tile-main[aria-disabled="true"]:hover {
+	border-color: var(--line);
+	background: var(--surface);
+}
+.tool-tile-main svg {
+	width: 16px;
+	height: 16px;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.8;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	color: var(--text-muted);
+}
+.tool-tile-help {
+	position: absolute;
+	top: var(--space-1);
+	right: var(--space-1);
+	display: grid;
+	place-items: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: 0;
+	border-radius: var(--radius-circle);
+	background: transparent;
+	color: var(--text-faint);
+	font-size: 12px;
+	font-weight: 700;
+	cursor: pointer;
+}
+.tool-tile-help:hover {
+	background: var(--surface-muted);
+	color: var(--text);
+}
+.tool-tile-main:focus-visible,
+.tool-tile-help:focus-visible,
+.tool-rail-toggle:focus-visible {
+	outline: var(--focus-outline);
+	outline-offset: 2px;
+}
+.tool-tile-note {
+	margin: var(--space-2) 0 0;
+	color: var(--text-muted);
+	font-size: 12px;
+	line-height: 1.5;
+}
+.tool-tile-pop {
+	position: fixed;
+	inset: auto;
+	margin: 0;
+	padding: var(--space-3);
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+	color: var(--text);
+	box-shadow: var(--shadow-float);
+	font-size: 13px;
+	line-height: 1.55;
+}
+.tool-tile-pop p {
+	margin: var(--space-1) 0 0;
+	color: var(--text-muted);
+}
+.tool-menu .tool-tile-main {
+	min-height: 88px;
+}
+
+/* 드로어(데스크톱 약 560px, 767px 이하 전체 화면) 안의 도구 패널 */
+.production-tool-content {
+	container-type: inline-size;
+	min-width: 0;
+}
+.production-tool-content
+	:is(img, audio, video, table, pre, textarea, input, select) {
+	max-width: 100%;
+}
+@container (max-width: 640px) {
+	.production-tool-content .segment-plan-row {
+		grid-template-columns: 1fr;
+	}
+	.production-tool-content .prototype-media-controls > * {
+		flex-basis: 100%;
+	}
+	.production-tool-content .prototype-media-device {
+		flex-basis: 100%;
+	}
+}
+@media (max-width: 767px), (pointer: coarse) {
+	.tool-tile-main {
+		min-height: 88px;
+	}
+	.tool-tile-help {
+		width: 44px;
+		height: 44px;
+		top: 0;
+		right: 0;
+	}
+	.tool-rail-toggle {
+		width: 44px;
+		height: 44px;
+	}
+}
+
+/* 드로어 제목(h2)이 도구 이름을 이미 말하므로 패널 안 첫 제목은 감춘다. 절 제목은 h3로 이어진다 */
+.production-tool-content :is(.voice-tool-title, .script-tool > h2) {
+	display: none;
+}
+.tool-tile-help::after {
+	content: "";
+	position: absolute;
+	inset: -4px;
+}
+@media (max-width: 767px), (pointer: coarse) {
+	.tool-tile-help::after {
+		inset: 0;
 	}
 }

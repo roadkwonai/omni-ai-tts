@@ -70,53 +70,37 @@
 	font-size: 13px;
 }
 
-/* 새로고침 복구 */
-.recovery-copy {
-	margin: var(--space-2) 0 var(--space-4);
-	color: var(--text-muted);
-	font-size: 13px;
-	line-height: 1.5;
-}
-.recovery-facts {
-	display: grid;
-	gap: var(--space-2);
-	margin: 0;
-	padding: var(--space-3) var(--space-4);
-	border-radius: var(--radius-sm);
-	background: var(--surface-muted);
-}
-.recovery-facts div {
-	display: grid;
-	grid-template-columns: 96px minmax(0, 1fr);
-	gap: var(--space-3);
-}
-.recovery-facts dt {
-	color: var(--text-muted);
-	font-size: 13px;
-}
-.recovery-facts dd {
-	margin: 0;
-	overflow-wrap: anywhere;
-	font-weight: 620;
-}
-.recovery-actions {
-	flex-wrap: wrap;
-}
-.recovery-actions .button-danger {
-	margin-right: auto;
-}
+/* 임시 작업 복구 배너: 작업 영역 맨 위, 첫 진입을 막지 않는다 */
 .draft-notice {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: var(--space-2) var(--space-3);
-	padding: var(--space-2) var(--space-8);
+	gap: var(--space-2) var(--space-4);
+	padding: var(--space-3) var(--space-6);
 	border-bottom: 1px solid var(--line);
 	background: var(--orange-subtle);
 	font-size: 13px;
 }
 .draft-notice p {
 	flex: 1 1 260px;
+}
+.draft-copy {
+	display: grid;
+	flex: 1 1 320px;
+	gap: var(--space-1);
+	min-width: 0;
+}
+.draft-copy strong {
+	font-size: 14px;
+}
+.draft-copy p {
+	color: var(--text-muted);
+	overflow-wrap: anywhere;
+}
+.draft-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
 }
 
 /* 사용법 */
@@ -211,7 +195,10 @@
 		min-height: 44px;
 	}
 	.draft-notice {
-		padding: var(--space-2) var(--space-4);
+		padding: var(--space-3) var(--space-4);
+	}
+	.draft-actions .button {
+		flex: 1 1 auto;
 	}
 	.guide-step {
 		grid-template-columns: 24px minmax(0, 1fr);

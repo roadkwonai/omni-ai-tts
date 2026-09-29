@@ -197,7 +197,7 @@
 		isGenerating: false,
 		generationSnapshot: null,
 		scriptSegments: null,
-		segmentSource: "",
+		tab: "paragraph",
 		segmentUndo: null,
 		usageLog: [],
 		voiceSort: "default",
@@ -254,6 +254,8 @@
 	};
 	const announce = (message) => {
 		$("#live-region").textContent = message;
+		// 모달 드로어가 열려 있으면 바깥은 inert라 드로어 안의 알림 영역에도 쓴다.
+		$("#drawer-live").textContent = message;
 	};
 	const toast = (message, { actionLabel, onAction, timeout } = {}) => {
 		$(".toast")?.remove();
@@ -282,7 +284,10 @@
 			node.addEventListener("focusin", () => window.clearTimeout(timer));
 			node.addEventListener("focusout", arm);
 		}
-		document.body.append(node);
+		// 열린 모달(드로어 등)은 top layer라 안에 붙여야 토스트가 보인다.
+		(
+			[...document.querySelectorAll("dialog[open]")].at(-1) || document.body
+		).append(node);
 		arm();
 	};
 	let pendingChoice = null;
@@ -371,40 +376,22 @@
 			if (item.decision === "applied" || item.decision === "manual")
 				text = text.replace(item.source, item.proposal);
 		});
-		const modelId = $("#model-select").value;
-		const settings = window.TTSGenerationSettings?.getSettings();
-		const tags =
-			modelId === "eleven_v3"
-				? settings?.audioTags?.trim()
-				: modelId.startsWith("fish-")
-					? settings?.emotionTags?.trim()
-					: "";
+		const tags = spokenTags();
 		return tags ? `${tags} ${text}` : text;
 	};
-	const updateScriptLength = () => {
-		const length = originalText().length;
-		const count = $("#script-length");
+	const spokenTags = () => {
 		const modelId = $("#model-select").value;
-		const generatedText = finalText();
+		const settings = window.TTSGenerationSettings?.getSettings();
+		return modelId === "eleven_v3"
+			? settings?.audioTags?.trim()
+			: modelId.startsWith("fish-")
+				? settings?.emotionTags?.trim()
+				: "";
+	};
+	const updateScriptLength = () => {
 		updateWorkbar();
-		if (state.scriptSegments?.length) {
-			count.textContent = `문단 ${state.scriptSegments.length}개 · 원문 ${fmt(length)}자 · 문단당 최대 2,000자`;
-			count.classList.remove("is-over");
-			return;
-		}
-		if (modelId.startsWith("fish-")) {
-			const bytes = new TextEncoder().encode(generatedText).length;
-			const cost =
-				modelId === "fish-s2.1-pro-free"
-					? "무료"
-					: `약 $${((bytes / 1_000_000) * 15).toFixed(4)}`;
-			count.textContent = `원문 ${length.toLocaleString("ko-KR")}자 · 생성문 ${bytes.toLocaleString("ko-KR")}바이트(UTF-8) · 예상 ${cost} (문서 기준 $15/백만 바이트, 실제 청구는 연결 후 확인)`;
-			count.classList.remove("is-over");
-			return;
-		}
-		const generatedLength = generatedText.length;
-		count.textContent = `원문 ${length.toLocaleString("ko-KR")}자 · 생성문 ${generatedLength.toLocaleString("ko-KR")} / 2,000자`;
-		count.classList.toggle("is-over", generatedLength > 2000);
+		$("#script-length").textContent =
+			`문단 ${state.scriptSegments?.length || 0}개 · 원문 ${fmt(originalText().length)}자 · 문단당 최대 2,000자`;
 	};
 	const fmt = (value) => value.toLocaleString("ko-KR");
 	const round1 = (value) => Math.round(value * 10) / 10;
@@ -432,14 +419,34 @@
 			: `${Math.floor(seconds / 60)}분 ${Math.round(seconds % 60)}초`;
 	const clock = (seconds) =>
 		`${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
-	const workItems = () =>
-		state.scriptSegments?.length
-			? state.scriptSegments
-			: [{ id: null, text: originalText(), voiceId: activeVoice().id }];
-	const summarize = (items = workItems()) => {
+	// 빈 문단은 생성 대상에서 뺀다.
+	const activeSegments = () =>
+		(state.scriptSegments || []).filter((part) => part.text.trim());
+	// 실제로 보내는 발음용 대본 기준: 적용한 발음 교정은 처음 나오는 문단에 반영하고 태그는 문단마다 붙인다.
+	const spokenSegments = (items = activeSegments()) => {
+		const tags = spokenTags();
+		const pending = corrections.filter(
+			(item) => item.decision === "applied" || item.decision === "manual",
+		);
+		return items.map((part) => {
+			let text = part.text;
+			for (const item of pending)
+				if (text.includes(item.source)) {
+					text = text.replace(item.source, item.proposal);
+					pending.splice(pending.indexOf(item), 1);
+				}
+			return {
+				...part,
+				text: tags ? `${tags} ${text}` : text,
+				sourceLength: part.text.length,
+			};
+		});
+	};
+	const summarize = (items = spokenSegments()) => {
 		const rows = new Map();
 		let seconds = 0;
 		let chars = 0;
+		let spokenChars = 0;
 		items.forEach((item) => {
 			const result = estimate(item.text, item);
 			const provider = (getVoice(item.voiceId) || activeVoice()).provider;
@@ -454,12 +461,14 @@
 			row.units += result.units;
 			rows.set(provider, row);
 			seconds += result.seconds;
-			chars += item.text.length;
+			chars += item.sourceLength ?? item.text.length;
+			spokenChars += item.text.length;
 		});
 		const providerRows = [...rows.values()];
 		return {
 			count: items.length,
 			chars,
+			spokenChars,
 			seconds: round1(seconds),
 			voices: new Set(items.map((item) => item.voiceId)).size,
 			rows: providerRows,
@@ -572,21 +581,23 @@
 		seekPlayer(parts[target]?.start ?? 0);
 		announce(`문단 ${target + 1}/${parts.length} 위치로 옮겼어요.`);
 	};
-	const renderSummaryPanel = () => {
-		const panel = $("#workbar-summary-panel");
+	const RESULT_TEXT = {
+		idle: "생성 시연을 취소했어요.",
+		working: "생성 요청을 시연하는 중이에요.",
+		success: "임시 생성 결과가 있어요 · 시연",
+		lost: "생성 여부를 확인하지 못했어요.",
+		error: "공급자 오류 상태예요 · 시연",
+	};
+	// 작업 요약: 우측 레일과 작업 바 팝오버가 같은 계산을 쓴다.
+	const summaryNodes = (compact = false) => {
 		const summary = summarize();
-		const paragraphs = Boolean(state.scriptSegments?.length);
-		const ready = state.generationMode === "success";
-		const heading = el("h2", "", "예상 요약 ");
-		heading.append(el("span", "estimate-tag", "추정"));
+		const skipped = (state.scriptSegments?.length || 0) - summary.count;
 		const facts = el("dl", "summary-facts");
 		[
-			["문단", paragraphs ? `${summary.count}개` : "한 덩어리 대본"],
-			["글자", `${fmt(summary.chars)}자`],
-			[
-				"예상 길이",
-				`약 ${formatDuration(summary.seconds)}${paragraphs ? " · 문단 뒤 간격 포함" : ""}`,
-			],
+			["문단", `${summary.count}개`],
+			["원문", `${fmt(summary.chars)}자`],
+			["발음용", `${fmt(summary.spokenChars)}자`],
+			["예상 길이", `약 ${formatDuration(summary.seconds)}`],
 			["성우", `${summary.voices}명`],
 		].forEach(([term, value]) => {
 			const row = el("div");
@@ -601,24 +612,109 @@
 				el(
 					"span",
 					"",
-					`${paragraphs ? `문단 ${row.count}개 · ` : ""}${usageText(row.units, row.unitLabel)}`,
+					`문단 ${row.count}개 · ${usageText(row.units, row.unitLabel)}`,
 				),
 			);
 			list.append(item);
 		});
-		panel.replaceChildren(
-			heading,
-			facts,
-			el("h3", "", "공급자별 예상 사용량"),
-			list,
+		const nodes = [facts];
+		if (skipped)
+			nodes.push(
+				el("p", "summary-basis", `빈 문단 ${skipped}개는 빼고 계산해요.`),
+			);
+		nodes.push(el("h3", "", "공급자별 예상 사용량"), list);
+		if (compact) {
+			nodes.push(
+				el(
+					"p",
+					"summary-basis",
+					"추정 · 발음 교정·태그 반영 · 실제 청구는 연결 후 확인",
+				),
+			);
+			return nodes;
+		}
+		nodes.push(
+			el(
+				"p",
+				"summary-basis",
+				"사용량은 발음 교정과 감정 태그를 반영한 발음용 대본을 문단별로 세어 추정해요.",
+			),
 			...[
 				...new Set(summary.rows.flatMap((row) => row.basis.split(" · "))),
 			].map((basis) => el("p", "summary-basis", basis)),
 			el(
 				"p",
 				"summary-basis",
-				"문단별 추정의 합계라 실제 요청 단위와 다를 수 있어요. 실제 청구는 연결 후 공급자 내역에서 확인합니다.",
+				"문단별 추정의 합계라 실제 요청 단위와 다를 수 있어요. 실제 청구는 연결 후 공급자 내역에서 확인해요.",
 			),
+		);
+		return nodes;
+	};
+	const reviewLink = (before) => {
+		const left = pendingCorrections().length;
+		if (!left) return el("p", "summary-basis", "발음 검수: 남은 건이 없어요.");
+		const link = button(`발음 검수 남은 ${left}건 ›`, "text-button rail-link");
+		link.addEventListener("click", () => {
+			before?.();
+			selectTab("pronunciation", { focus: true });
+		});
+		return link;
+	};
+	const estimateHeading = (tag) => {
+		const heading = el("h2", "", "작업 요약 ");
+		heading.id = tag;
+		heading.append(el("span", "estimate-tag", "추정"));
+		return heading;
+	};
+	const renderRailSummary = () => {
+		const rail = $("#rail-summary");
+		if (!rail) return;
+		rail.replaceChildren(
+			estimateHeading("rail-summary-title"),
+			...summaryNodes(true),
+			reviewLink(),
+		);
+	};
+	const renderRailRoles = () => {
+		const box = $("#rail-roles");
+		const stats = window.TTSParagraphs?.roleStats?.();
+		// 우측 레일이 접히는 1279px 이하에서는 툴바 버튼이 역할 창으로 가는 길이다.
+		const toolbarRoles = $("#open-roles");
+		toolbarRoles.hidden = !stats?.roles;
+		if (stats?.roles) {
+			const label = `역할 ${stats.assigned}/${stats.roles}`;
+			$(".tb-label", toolbarRoles).textContent = label;
+			toolbarRoles.setAttribute(
+				"aria-label",
+				`역할별 성우 · 지정 ${stats.assigned}/${stats.roles}`,
+			);
+		}
+		box.hidden = !stats?.roles;
+		if (!stats?.roles) return box.replaceChildren();
+		const open = button(
+			`역할별 성우 · 지정 ${stats.assigned}/${stats.roles} ›`,
+			"text-button rail-link",
+		);
+		open.addEventListener("click", () =>
+			window.TTSParagraphs.openRoleDialog(bridge),
+		);
+		box.replaceChildren(open);
+	};
+	const renderSummaryPanel = () => {
+		const panel = $("#workbar-summary-panel");
+		const ready = state.generationMode === "success";
+		const heading = el("h2", "", "예상 요약 ");
+		heading.append(el("span", "estimate-tag", "추정"));
+		panel.replaceChildren(
+			heading,
+			...summaryNodes(),
+			el("h3", "", "결과"),
+			el(
+				"p",
+				"summary-basis",
+				RESULT_TEXT[state.generationMode] || "아직 음성을 만들지 않았어요.",
+			),
+			reviewLink(() => panel.hidePopover()),
 		);
 		if (!ready)
 			panel.append(
@@ -632,18 +728,18 @@
 	const renderDownloadMenu = () => {
 		const menu = $("#workbar-download-menu");
 		const ready = state.generationMode === "success";
-		const laterReason = "P2 범위: 자막·ZIP 내보내기는 후속 구현";
+		const laterReason = "자막·문단별 ZIP 내보내기는 준비 중이에요";
 		const later = el("p", "summary-basis", laterReason);
 		later.id = "download-later-reason";
 		const list = el("div", "download-options");
 		[
 			["MP3 전체", ""],
 			["WAV 전체", ""],
-			["SRT 자막", "P2"],
-			["문단별 ZIP", "P2"],
+			["SRT 자막", "준비 중"],
+			["문단별 ZIP", "준비 중"],
 		].forEach(([label, scope]) => {
 			const option = button(label, "download-option", "download");
-			// P2 항목은 일괄 막대처럼 aria-disabled와 보이는 사유를 둔다. 성공 뒤에도 막는다.
+			// 준비 중 항목은 일괄 막대처럼 aria-disabled와 보이는 사유를 둔다. 성공 뒤에도 막는다.
 			if (scope) {
 				option.append(el("span", "scope-tag", scope));
 				option.setAttribute("aria-disabled", "true");
@@ -676,11 +772,38 @@
 		const summary = summarize();
 		const ready = state.generationMode === "success";
 		$("#workbar-summary-text").textContent =
-			`${state.scriptSegments?.length ? `문단 ${summary.count}` : "한 덩어리"} · ${fmt(summary.chars)}자 · 약 ${formatDuration(summary.seconds)} · 예상 ${summary.usage}`;
-		$("#make-audio-usage").textContent = summary.usage;
+			`문단 ${summary.count} · ${fmt(summary.chars)}자 · 약 ${formatDuration(summary.seconds)} · 예상 ${summary.usage}`;
+		const pending = pendingCorrections().length;
+		const empty = summary.chars === 0;
+		const mode = empty ? "empty" : pending ? "review" : "make";
+		const [long, short] = {
+			empty: ["대본을 입력해 주세요", "대본을 입력해 주세요"],
+			review: [`발음 검수 ${pending}건 확인`, `검수 ${pending}건`],
+			make: ["음성 만들기 · 시연", "음성 만들기 · 시연"],
+		}[mode];
+		const make = $("#make-audio");
+		make.dataset.mode = mode;
+		make.setAttribute("aria-disabled", String(empty));
+		$(".mk-long", make).textContent = long;
+		$(".mk-short", make).textContent = short;
+		$("#make-audio-icon use").setAttribute(
+			"href",
+			mode === "review" ? "#i-check" : "#i-wand",
+		);
+		$("#make-audio-usage").textContent = mode === "make" ? summary.usage : "";
+		const chip = $("#workbar-summary");
+		const chipText = $("#workbar-summary-text").textContent;
+		chip.title = chipText;
+		chip.setAttribute("aria-label", `${chipText} · 추정`);
+		const reason = ready
+			? "자막·무음 편집은 준비 중이에요"
+			: "생성 후 쓸 수 있어요 · 준비 중";
+		$("#post-edit-reason").textContent = reason;
+		$("#post-edit").title = reason;
 		bar.classList.toggle("has-result", ready);
 		if (!ready) stopPlayer();
 		renderPlayer();
+		renderRailSummary();
 		if ($("#workbar-summary-panel").matches(":popover-open"))
 			renderSummaryPanel();
 		if ($("#workbar-download-menu").matches(":popover-open"))
@@ -698,11 +821,6 @@
 	};
 	const updateVoiceSelection = () => {
 		const voice = activeVoice();
-		if (document.body.classList.contains("show-mobile-voices")) {
-			document.body.classList.remove("show-mobile-voices");
-			$("#mobile-voice-toggle").setAttribute("aria-expanded", "false");
-			$("#mobile-voice-toggle").focus();
-		}
 		$("#selected-initial").textContent = voice.initial;
 		$("#selected-voice-name").textContent = voice.name;
 		$("#selected-voice-meta").textContent = `${voice.provider} · ${voice.tone}`;
@@ -894,6 +1012,7 @@
 	const renderVoiceList = () => {
 		const list = $("#voice-list");
 		const voices = getFilteredVoices();
+		const currentPick = picker?.currentVoiceId ?? state.selectedVoice;
 		list.replaceChildren();
 		$("#reset-voice-filters").hidden =
 			state.provider === "all" &&
@@ -918,7 +1037,7 @@
 			const flags = voiceFlags(voice);
 			const row = el(
 				"div",
-				`voice-row${voice.id === state.selectedVoice ? " is-selected" : ""}`,
+				`voice-row${voice.id === currentPick ? " is-selected" : ""}`,
 			);
 			const play = button(
 				"",
@@ -946,6 +1065,9 @@
 			const main = button("", "voice-main");
 			const line = el("div", "voice-name-line");
 			line.append(el("span", "voice-name", voice.name));
+			if (voice.id === currentPick)
+				line.append(el("span", "tag tag-blue", "지금 선택"));
+			main.setAttribute("aria-label", `${voice.name} 선택`);
 			main.append(
 				line,
 				el("div", "voice-provider", voice.provider),
@@ -955,11 +1077,7 @@
 					voice.sample ? voice.tone : "기본 샘플이 없어요",
 				),
 			);
-			main.addEventListener("click", () => {
-				state.selectedVoice = voice.id;
-				updateVoiceSelection();
-				toast(`${voice.name} 성우를 선택했습니다.`);
-			});
+			main.addEventListener("click", () => pickVoice(voice));
 			const favorite = button(
 				"",
 				`favorite-button${flags.favorite ? " is-favorite" : ""}`,
@@ -1008,6 +1126,7 @@
 		);
 		candidates.forEach((item, _index) => {
 			const row = el("article", "review-item");
+			if (item.decision === "pending") row.dataset.pending = "";
 			const content = el("div");
 			content.append(
 				el(
@@ -1095,15 +1214,41 @@
 		updateScriptLength();
 		refreshResult();
 	};
-	const selectTab = (name) => {
-		const source = name === "source";
-		$("#source-tab").classList.toggle("is-active", source);
-		$("#source-tab").setAttribute("aria-selected", String(source));
-		$("#pronunciation-tab").classList.toggle("is-active", !source);
-		$("#pronunciation-tab").setAttribute("aria-selected", String(!source));
-		$("#source-panel").hidden = !source;
-		$("#pronunciation-panel").hidden = source;
-		if (!source) renderReview();
+	const viewTabs = [
+		["paragraph", "#paragraph-tab", "#segment-plan"],
+		["source", "#source-tab", "#source-panel"],
+		["pronunciation", "#pronunciation-tab", "#pronunciation-panel"],
+	];
+	const selectTab = (name, { focus = false } = {}) => {
+		if (!viewTabs.some(([id]) => id === name)) return;
+		const previous = state.tab;
+		state.tab = name;
+		for (const [id, tabSelector, panelSelector] of viewTabs) {
+			const on = id === name;
+			const tab = $(tabSelector);
+			tab.classList.toggle("is-active", on);
+			tab.setAttribute("aria-selected", String(on));
+			tab.tabIndex = on ? 0 : -1;
+			$(panelSelector).hidden = !on;
+			if (on && focus) tab.focus();
+		}
+		// 숨겨진 동안 자란 카드 높이를 다시 맞추도록 문단 탭으로 돌아올 때 다시 그린다.
+		// 문단 탭이 아니면 일괄 작업은 쓸 수 없다.
+		$("#batch-rail").inert = name !== "paragraph";
+		$("#batch-rail-note").hidden = name === "paragraph";
+		if (name === "paragraph" && previous !== "paragraph")
+			window.TTSParagraphs?.render?.($("#segment-plan"), bridge);
+		if (name === "source") fitReadonlyEditor();
+		if (name === "pronunciation") renderReview();
+	};
+	// 검수가 남았으면 생성 대신 첫 미검수 항목으로 안내한다(탭이 갑자기 넘어가지 않도록 버튼 라벨이 미리 알린다).
+	const goReview = () => {
+		const left = pendingCorrections().length;
+		selectTab("pronunciation");
+		(
+			$("#review-list [data-pending] .mini-button") || $("#pronunciation-tab")
+		).focus();
+		announce(`발음 검수가 ${left}건 남았어요. 첫 항목으로 옮겼어요.`);
 	};
 	const refreshResult = () => {
 		if (
@@ -1125,13 +1270,13 @@
 		const copy = el("div", "result-copy");
 		if (mode === "idle") {
 			copy.append(
-				el("h2", "", "생성 시연을 취소했어요"),
+				el("h3", "", "생성 시연을 취소했어요"),
 				el("p", "", "대본을 유지했습니다. 다시 시연할 수 있어요."),
 			);
 		}
 		if (mode === "working") {
 			copy.append(
-				el("h2", "", "생성 요청을 시연하고 있어요"),
+				el("h3", "", "생성 요청을 시연하고 있어요"),
 				el(
 					"p",
 					"",
@@ -1142,17 +1287,17 @@
 		if (mode === "success") {
 			const snapshot = state.generationSnapshot;
 			copy.append(
-				el("h2", "", "임시 생성 결과 · 시연"),
+				el("h3", "", "임시 생성 결과 · 시연"),
 				el(
 					"p",
 					"",
-					`${snapshot?.segments?.length ? `문단 ${snapshot.segments.length}개 계획 시연 · ` : ""}${snapshot?.voiceName || activeVoice().name} · ${snapshot?.modelLabel || "선택한 모델"} · 실제 오디오 파일은 없는 결과 화면 시연입니다.${snapshot && (snapshot.sourceText !== originalText() || snapshot.spokenText !== finalText() || snapshot.voiceId !== activeVoice().id || snapshot.modelId !== $("#model-select").value || JSON.stringify(snapshot.settings) !== JSON.stringify(window.TTSGenerationSettings?.getSettings?.()) || JSON.stringify(snapshot.segments) !== JSON.stringify(state.scriptSegments)) ? " 이전 대본 또는 설정으로 만든 결과입니다." : ""}`,
+					`${snapshot?.segments?.length ? `문단 ${snapshot.segments.length}개 계획 시연 · ` : ""}${snapshot?.voiceName || activeVoice().name} · ${snapshot?.modelLabel || "선택한 모델"} · 실제 오디오 파일은 없는 결과 화면 시연입니다.${snapshot && (snapshot.sourceText !== originalText() || snapshot.spokenText !== finalText() || snapshot.voiceId !== activeVoice().id || snapshot.modelId !== $("#model-select").value || JSON.stringify(snapshot.settings) !== JSON.stringify(window.TTSGenerationSettings?.getSettings?.()) || JSON.stringify(snapshot.segments) !== JSON.stringify(activeSegments())) ? " 이전 대본 또는 설정으로 만든 결과입니다." : ""}`,
 				),
 			);
 		}
 		if (mode === "lost") {
 			copy.append(
-				el("h2", "", "생성 여부를 확인하지 못했어요"),
+				el("h3", "", "생성 여부를 확인하지 못했어요"),
 				el(
 					"p",
 					"",
@@ -1162,7 +1307,7 @@
 		}
 		if (mode === "error") {
 			copy.append(
-				el("h2", "", "Typecast 연결 상태 시연: 지금은 만들 수 없어요"),
+				el("h3", "", "Typecast 연결 상태 시연: 지금은 만들 수 없어요"),
 				el("p", "", "다른 공급자를 선택하거나 연결 상태를 확인해 주세요."),
 			);
 		}
@@ -1212,7 +1357,7 @@
 		const items = snapshot.segments?.length
 			? snapshot.segments
 			: [{ text: snapshot.spokenText, voiceId: snapshot.voiceId }];
-		summarize(items).rows.forEach((row) => {
+		summarize(spokenSegments(items)).rows.forEach((row) => {
 			logUsage({
 				kind: "generate",
 				provider: row.provider,
@@ -1714,31 +1859,26 @@
 			toast("시연용 텍스트를 이 브라우저에 저장했습니다.");
 		}, 340);
 	};
+	// 삽입은 선택하거나 포커스한 문단 뒤에 문단으로 더하고, 교체는 전체를 바꾸고 되돌리기를 남긴다.
 	const insertScript = (text, replace) => {
-		const editor = $("#script-editor");
-		if (state.scriptSegments?.length && !replace) {
-			setSegments(
-				[...state.scriptSegments, { text, voiceId: activeVoice().id }],
-				{ label: "저장 대본을 마지막 문단으로 추가했어요." },
-			);
-			selectTab("source");
-			showView("studio");
-			toast("문단 작업 중이라 저장 대본을 마지막 문단으로 추가했어요.");
+		const incoming = toParagraphs(text, { blankLines: true }).map((part) => ({
+			text: part,
+			voiceId: activeVoice().id,
+		}));
+		const before = structuredClone(state.scriptSegments);
+		const hadText = before?.some((part) => part.text.trim());
+		if (!setSegments(mergeSegments(incoming, replace ? "replace" : "append")))
 			return;
-		}
-		if (replace) {
-			setSegments(null);
-			editor.value = text;
-		} else {
-			const start = editor.selectionStart ?? editor.value.length;
-			editor.value = `${editor.value.slice(0, start)}${editor.value ? "\n" : ""}${text}${editor.value.slice(start)}`;
-		}
-		editor.dispatchEvent(new Event("input", { bubbles: true }));
-		selectTab("source");
+		selectTab("paragraph");
 		showView("studio");
-		toast(
-			replace ? "대본을 교체했습니다." : "대본을 현재 위치에 삽입했습니다.",
-		);
+		if (replace && hadText)
+			toast("대본을 교체했어요.", {
+				actionLabel: "되돌리기",
+				onAction: () =>
+					setSegments(before, { label: "대본 교체를 되돌렸어요." }),
+			});
+		else
+			toast(replace ? "대본을 불러왔어요." : "저장 대본을 문단으로 더했어요.");
 	};
 	const applyPreset = (preset) => {
 		const voice = voiceData.find((item) => item.id === preset.voice);
@@ -1837,55 +1977,23 @@
 		classification().renderManager(content);
 	};
 	let cloneMediaCleanup = null;
-	const renderSegmentPlan = () => {
-		const host = $("#segment-plan");
-		if (!host) return;
-		host.replaceChildren();
-		host.hidden = !state.scriptSegments?.length;
-		if (host.hidden) return;
-		const head = el("div", "segment-plan-header");
-		head.append(
-			el("h2", "", `문단 제작 계획 · ${state.scriptSegments.length}개`),
+	// 문단 배열이 한 번도 비지 않도록 텍스트를 카드 글자 수 한도(2,000자)에 맞춰 문단으로 만든다.
+	const toParagraphs = (text, { blankLines = false } = {}) => {
+		const source = String(text ?? "").replace(/\r\n?/g, "\n");
+		const parts = blankLines
+			? source
+					.split(/\n\s*\n/)
+					.map((part) => part.trim())
+					.filter(Boolean)
+			: [source];
+		const fitted = parts.flatMap((part) =>
+			part.length <= 2000
+				? [part]
+				: (window.TTSParagraphs?.splitText?.(part, "chars", 1800) ?? [
+						part.slice(0, 2000),
+					]),
 		);
-		const scriptEdit = button("대본·화자 편집", "button button-secondary");
-		scriptEdit.addEventListener("click", () =>
-			window.TTSStudioTools.open("import"),
-		);
-		const edit = button("감정 검토", "button button-secondary");
-		edit.addEventListener("click", () => window.TTSStudioTools.open("emotion"));
-		const clear = button("문단 계획 해제", "mini-button");
-		clear.addEventListener("click", () =>
-			setSegments(null, { label: "문단 계획을 해제했어요." }),
-		);
-		head.append(scriptEdit, edit, clear);
-		host.append(
-			head,
-			el(
-				"p",
-				"segment-plan-note",
-				"문단별 성우·감정 설정입니다. 음성 만들기는 이 계획의 생성 상태를 시연하며 실제 음성 파일은 생성하지 않습니다.",
-			),
-		);
-		const list = el("div", "segment-plan-list");
-		state.scriptSegments.forEach((part, index) => {
-			const row = el("div", "segment-plan-row");
-			const voice = voiceData.find((v) => v.id === part.voiceId);
-			row.append(
-				el(
-					"strong",
-					"",
-					`${index + 1}. ${part.speaker || "내레이터"} · ${voice?.name || "성우 미지정"}`,
-				),
-				el("p", "", part.text),
-				el(
-					"span",
-					"segment-plan-note",
-					`${part.provider} · ${part.emotion || "normal"} · 강도 ${part.intensity ?? 1}`,
-				),
-			);
-			list.append(row);
-		});
-		host.append(list);
+		return fitted.length ? fitted : [""];
 	};
 	const normalizePlanText = (text) =>
 		text
@@ -1906,6 +2014,34 @@
 					(v) => v.id === part.voiceId && v.provider === part.provider,
 				),
 		);
+	// 삽입 기준: 선택한 문단(여러 개면 마지막) → 마지막으로 포커스한 문단 → 없으면 끝.
+	let lastFocusedSegmentId = "";
+	const anchorSegmentId = () => {
+		const cards = $$("#segment-plan .ps-card");
+		const checked = cards.filter((card) => $(".ps-card-check", card)?.checked);
+		const id =
+			checked.at(-1)?.dataset.segmentId ||
+			document.activeElement?.closest?.("#segment-plan .ps-card")?.dataset
+				.segmentId ||
+			lastFocusedSegmentId;
+		return state.scriptSegments?.some((part) => part.id === id) ? id : "";
+	};
+	const mergeSegments = (incoming, mode) => {
+		const current = structuredClone(state.scriptSegments || []);
+		if (mode === "replace") return structuredClone(incoming);
+		// 빈 카드 하나뿐이면 그 자리를 채운다.
+		if (current.length === 1 && !current[0].text.trim())
+			return structuredClone(incoming);
+		const anchor = anchorSegmentId();
+		const at = anchor
+			? current.findIndex((part) => part.id === anchor) + 1
+			: current.length;
+		return [
+			...current.slice(0, at),
+			...structuredClone(incoming),
+			...current.slice(at),
+		];
+	};
 	const applyScriptPlan = (plan, mode) => {
 		if (
 			!validSegments(plan.segments) ||
@@ -1917,37 +2053,23 @@
 			return false;
 		}
 		if (mode !== "replace" && mode !== "append") return false;
-		if (
-			mode === "replace" &&
-			originalText().trim() &&
-			!window.confirm(
-				"현재 작업실 대본을 교체할까요? 저장하지 않은 편집 내용은 바뀝니다.",
-			)
-		)
-			return false;
-		const previous = originalText();
-		let segments = structuredClone(plan.segments);
-		if (mode === "append" && previous.trim()) {
-			const current = state.scriptSegments || [
-				{
-					id: `existing-${Date.now()}`,
-					text: previous,
-					speaker: "내레이터",
-					voiceId: activeVoice().id,
-					provider: activeVoice().provider,
-					emotion: "normal",
-					intensity: 1,
-				},
-			];
-			segments = [...structuredClone(current), ...segments];
-		}
+		const before = structuredClone(state.scriptSegments);
+		const hadText = before?.some((part) => part.text.trim());
+		const segments = mergeSegments(plan.segments, mode);
 		if (segments.length > 200) {
 			toast("합친 문단이 200개를 넘습니다. 분량을 줄여 주세요.");
 			return false;
 		}
 		if (!setSegments(segments)) return false;
+		selectTab("paragraph");
 		showView("studio");
 		announce("대본과 문단별 성우 배정을 작업실에 적용했습니다.");
+		if (mode === "replace" && hadText)
+			toast("대본을 교체했어요.", {
+				actionLabel: "되돌리기",
+				onAction: () =>
+					setSegments(before, { label: "대본 교체를 되돌렸어요." }),
+			});
 		return true;
 	};
 	const applyEmotionPlan = (segments) => {
@@ -1982,51 +2104,51 @@
 	};
 	const makeSegmentId = (index) =>
 		`seg-${Date.now().toString(36)}-${index}-${Math.random().toString(36).slice(2, 7)}`;
+	// 문단 0개 상태는 없다. 비었거나 null이면 원문 전체를 문단 1개(기본 성우)로 만든다.
 	const setSegments = (segments, { label } = {}) => {
-		if (segments?.length) {
-			if (segments.length > 200) {
-				toast("문단은 최대 200개까지 만들 수 있어요.");
-				return false;
-			}
-			const invalid = segments.find(
-				(part) =>
-					typeof part?.text !== "string" ||
-					part.text.length > 2000 ||
-					!getVoice(part.voiceId),
-			);
-			if (invalid) {
-				toast("문단 내용이나 성우를 확인해 주세요. 문단당 최대 2,000자입니다.");
-				return false;
-			}
+		const requested = segments?.length
+			? segments
+			: toParagraphs(originalText()).map((text) => ({
+					text,
+					voiceId: activeVoice().id,
+				}));
+		if (requested.length > 200) {
+			toast("문단은 최대 200개까지 만들 수 있어요.");
+			return false;
 		}
-		const next = segments?.length
-			? structuredClone(segments).map((part, index) => ({
-					...part,
-					id: part.id || makeSegmentId(index),
-					speaker: part.speaker || "",
-					provider: getVoice(part.voiceId).provider,
-					emotion: part.emotion || "normal",
-					// 숫자 강도를 받는 공급자(Typecast)는 보통(1), ElevenLabs·Fish는 모델 기본(null).
-					intensity:
-						part.intensity !== undefined
-							? part.intensity
-							: ["ElevenLabs", "Fish Audio"].includes(
-										getVoice(part.voiceId).provider,
-									)
-								? null
-								: 1,
-					speed: typeof part.speed === "number" ? part.speed : null,
-					pauseAfter:
-						typeof part.pauseAfter === "number" ? part.pauseAfter : 0.3,
-					instruction:
-						typeof part.instruction === "string" ? part.instruction : "",
-				}))
-			: null;
+		const invalid = requested.find(
+			(part) =>
+				typeof part?.text !== "string" ||
+				part.text.length > 2000 ||
+				!getVoice(part.voiceId),
+		);
+		if (invalid) {
+			toast("문단 내용이나 성우를 확인해 주세요. 문단당 최대 2,000자입니다.");
+			return false;
+		}
+		const next = structuredClone(requested).map((part, index) => ({
+			...part,
+			id: part.id || makeSegmentId(index),
+			speaker: part.speaker || "",
+			provider: getVoice(part.voiceId).provider,
+			emotion: part.emotion || "normal",
+			// 숫자 강도를 받는 공급자(Typecast)는 보통(1), ElevenLabs·Fish는 모델 기본(null).
+			intensity:
+				part.intensity !== undefined
+					? part.intensity
+					: ["ElevenLabs", "Fish Audio"].includes(
+								getVoice(part.voiceId).provider,
+							)
+						? null
+						: 1,
+			speed: typeof part.speed === "number" ? part.speed : null,
+			pauseAfter: typeof part.pauseAfter === "number" ? part.pauseAfter : 0.3,
+			instruction: typeof part.instruction === "string" ? part.instruction : "",
+		}));
 		const editor = $("#script-editor");
 		const before = editor.value;
-		if (next) editor.value = next.map((part) => part.text).join("\n\n");
+		editor.value = next.map((part) => part.text).join("\n\n");
 		state.scriptSegments = next;
-		state.segmentSource = next ? editor.value : "";
 		renderWorkspace();
 		if (editor.value !== before)
 			markSourceChanged(
@@ -2041,21 +2163,14 @@
 		const editor = $("#script-editor");
 		editor.classList.toggle(
 			"is-clipped",
-			editor.readOnly &&
-				editor.scrollTop + editor.clientHeight < editor.scrollHeight - 1,
+			editor.scrollTop + editor.clientHeight < editor.scrollHeight - 1,
 		);
 	};
-	// 문단 상태의 읽기 전용 보기는 내용 높이만큼 키운다. CSS max-height(60vh)를 넘을 때만 칸 안에서 스크롤한다.
+	// 원문 전체 보기는 내용 높이만큼 키운다. CSS max-height(60vh)를 넘을 때만 칸 안에서 스크롤한다.
 	// field-sizing을 지원하지 않는 Safari 때문에 JS로 맞춘다.
 	const fitReadonlyEditor = () => {
 		const editor = $("#script-editor");
 		const hint = $("#readonly-more");
-		if (!editor.readOnly) {
-			editor.style.height = "";
-			editor.classList.remove("is-clipped");
-			hint.hidden = true;
-			return;
-		}
 		if (!editor.getClientRects().length) return;
 		editor.style.height = "auto";
 		editor.style.height = `${editor.scrollHeight}px`;
@@ -2065,117 +2180,219 @@
 			hint.textContent = `전체 ${state.scriptSegments.length}문단 · 칸 안에서 스크롤하면 끝까지 볼 수 있어요`;
 		syncClipped();
 	};
+	const renderRails = () => {
+		const count = state.scriptSegments?.length || 0;
+		$("#segment-count").textContent = `문단 ${count}`;
+		const merge = $("#merge-all");
+		merge.setAttribute("aria-disabled", String(count < 2));
+		merge.title = count < 2 ? "문단이 하나뿐이에요" : "";
+		updateWorkbar();
+		renderRailRoles();
+	};
 	const renderWorkspace = () => {
-		const paragraphs = Boolean(state.scriptSegments?.length);
-		const editor = $("#script-editor");
-		editor.readOnly = paragraphs;
-		if (paragraphs)
-			editor.setAttribute("aria-describedby", "paragraph-mode-text");
-		else editor.removeAttribute("aria-describedby");
-		$("#paragraph-mode-notice").hidden = !paragraphs;
-		$("#single-mode-tools").hidden = paragraphs;
-		const host = $("#segment-plan");
-		if (window.TTSParagraphs?.render) {
-			host.hidden = !paragraphs;
-			window.TTSParagraphs.render(host, bridge);
-		} else renderSegmentPlan();
+		window.TTSParagraphs?.render?.($("#segment-plan"), bridge);
 		updateScriptLength();
 		fitReadonlyEditor();
+		renderRails();
+		window.TTSStudioTools?.refresh?.();
 	};
-	const splitIntoParagraphs = () => {
-		const text = originalText();
-		if (!text.trim()) {
-			toast("대본을 입력한 뒤 문단으로 나눠 주세요.");
-			$("#script-editor").focus();
-			return;
-		}
-		if (window.TTSParagraphs?.startFromText) {
-			window.TTSParagraphs.startFromText(text, bridge);
-			return;
-		}
-		setSegments(
-			text
-				.split(/\n\s*\n/)
-				.map((part) => part.trim())
-				.filter(Boolean)
-				.map((part) => ({ text: part, voiceId: activeVoice().id })),
-			{ label: "빈 줄을 기준으로 문단을 나눴어요." },
-		);
-	};
-	const unsplitParagraphs = async () => {
+	const mergeAllParagraphs = async () => {
 		const previous = structuredClone(state.scriptSegments);
+		if (previous.length < 2) {
+			announce("문단이 하나뿐이라 합칠 게 없어요.");
+			return;
+		}
+		const joined = previous.map((part) => part.text).join("\n");
+		if (joined.length > 2000) {
+			toast(
+				`합치면 ${fmt(joined.length)}자라 한 문단의 최대 2,000자를 넘어요. 일부만 합쳐 주세요.`,
+			);
+			return;
+		}
 		const choice = await choose({
-			title: "문단을 해제할까요?",
+			title: "모두 합쳐 한 문단으로 만들까요?",
 			message:
-				"문단별 성우·속도·간격·감정·연기 지시가 사라지고, 이어 붙인 원문만 남아요.",
+				"첫 문단의 성우와 속도·간격·감정을 남기고, 나머지 문단의 설정은 사라져요. 되돌릴 수 있어요.",
 			actions: [
 				{ label: "취소", value: "cancel" },
-				{ label: "문단 해제", value: "unsplit", variant: "danger" },
+				{ label: "모두 합치기", value: "merge", variant: "primary" },
 			],
 		});
-		if (choice !== "unsplit") return;
-		setSegments(null, {
-			label: "문단을 해제했어요. 원문을 직접 편집할 수 있어요.",
-		});
-		$("#script-editor").focus();
-		toast("문단을 해제했어요.", {
+		if (choice !== "merge") return;
+		if (
+			!setSegments([{ ...previous[0], text: joined }], {
+				label: "문단을 모두 합쳐 한 문단으로 만들었어요.",
+			})
+		)
+			return;
+		toast("문단을 모두 합쳤어요.", {
 			actionLabel: "되돌리기",
 			onAction: () =>
-				setSegments(previous, { label: "문단 작업을 되돌렸어요." }),
+				setSegments(previous, { label: "문단 합치기를 되돌렸어요." }),
 		});
 	};
-	const pasteWithSpeakers = async (event) => {
-		if (!state.speakerDetect || state.scriptSegments?.length) return;
-		const pasted = event.clipboardData?.getData("text/plain") || "";
-		const found = window.TTSParagraphs?.detectSpeakers?.(pasted);
-		if (!found?.segments?.length) return;
-		event.preventDefault();
-		const editor = event.currentTarget;
-		const { selectionStart: start, selectionEnd: end, value } = editor;
-		const choice = await choose({
-			title: `화자 ${found.speakers.length}명·문단 ${found.segments.length}개를 감지했어요`,
-			message:
-				"문단으로 나누면 대사마다 문단이 생기고, 역할별로 성우를 고를 수 있어요. 화자 이름과 같은 성우가 있으면 먼저 배정해요.",
-			actions: [
-				{ label: "그대로 붙여넣기", value: "plain" },
-				{ label: "문단으로 나누기", value: "split", variant: "primary" },
-			],
-		});
-		const before = value.slice(0, start).trim();
-		const after = value.slice(end).trim();
-		const narrated =
-			before || after || found.segments.some((part) => !part.speaker);
-		const roles = window.TTSParagraphs.assignRoleVoices(
-			found.speakers,
-			voiceData,
-			activeVoice(),
-			narrated ? [activeVoice().id] : [],
-		);
-		const voiceFor = (speaker) => roles.get(speaker) || activeVoice().id;
-		if (
-			choice === "split" &&
-			setSegments(
-				[
-					before && { text: before, voiceId: activeVoice().id },
-					...found.segments.map((part) => ({
-						text: part.text,
-						speaker: part.speaker,
-						voiceId: voiceFor(part.speaker),
-					})),
-					after && { text: after, voiceId: activeVoice().id },
-				].filter(Boolean),
-				{
-					label: `화자 ${found.speakers.length}명의 대사를 문단으로 나눴어요.`,
-				},
-			)
-		) {
-			window.TTSParagraphs?.openRoleDialog?.(bridge);
+
+	// ---- 드로어 (오른쪽 시트 <dialog>) ----
+	let drawerState = null;
+	let lastPressed = null;
+	document.addEventListener(
+		"click",
+		(event) => {
+			const pressed = event.target.closest?.("button");
+			if (pressed && !pressed.closest("#studio-drawer")) lastPressed = pressed;
+		},
+		true,
+	);
+	let picker = null;
+	const returnBorrowed = (st) => {
+		for (const { node, parent, next } of st.borrowed) {
+			if (!parent.isConnected) continue;
+			parent.insertBefore(node, next?.parentNode === parent ? next : null);
+		}
+	};
+	const finishDrawer = (restoreFocus = true) => {
+		const st = drawerState;
+		if (!st) return;
+		drawerState = null;
+		returnBorrowed(st);
+		st.onClose?.();
+		if (!restoreFocus) return;
+		// 트리거가 다시 그려져 사라졌으면 selector, 그것도 없으면 마지막으로 누른 버튼으로 돌아간다.
+		const target = [
+			st.returnFocus,
+			st.returnFocusSelector && $(st.returnFocusSelector),
+			lastPressed,
+		].find((node) => node?.isConnected && node !== document.body);
+		target?.focus();
+	};
+	const closeDrawer = () => {
+		const dialog = $("#studio-drawer");
+		if (!dialog.open) return;
+		dialog.close();
+		finishDrawer();
+	};
+	// node는 Node 하나나 배열. 드로어 본문으로 옮겨 쓰고 닫을 때 원래 자리로 돌려놓는다.
+	const openDrawer = ({
+		title,
+		subtitle = "",
+		node,
+		render,
+		onClose,
+		returnFocus,
+		returnFocusSelector,
+	} = {}) => {
+		const dialog = $("#studio-drawer");
+		// JS click()처럼 포커스 없이 열리면 activeElement가 body라 마지막으로 누른 버튼으로 돌아온다.
+		if (!returnFocus || returnFocus === document.body)
+			returnFocus =
+				document.activeElement !== document.body
+					? document.activeElement
+					: lastPressed;
+		const body = $("#drawer-body");
+		let target = returnFocus;
+		let selector = returnFocusSelector;
+		if (drawerState) {
+			selector ||= drawerState.returnFocusSelector;
+			target = drawerState.returnFocus;
+			finishDrawer(false);
+		}
+		drawerState = {
+			onClose,
+			returnFocus: target,
+			returnFocusSelector: selector,
+			borrowed: [],
+		};
+		$("#drawer-title").textContent = title || "";
+		const sub = $("#drawer-target");
+		sub.textContent = subtitle;
+		sub.hidden = !subtitle;
+		body.replaceChildren();
+		for (const item of [node].flat().filter(Boolean)) {
+			drawerState.borrowed.push({
+				node: item,
+				parent: item.parentNode,
+				next: item.nextSibling,
+			});
+			body.append(item);
+		}
+		render?.(body);
+		if (!dialog.open) dialog.showModal();
+		// 검색창이 있으면 그곳, 없으면 본문에서 DOM 순서상 첫 포커스 가능 요소. 스크롤은 맨 위로 둔다.
+		(
+			body.querySelector("input[type=search]") ||
+			body.querySelector(
+				"input:not([type=hidden]):not(:disabled), textarea:not(:disabled), select:not(:disabled), button:not(:disabled), a[href]",
+			) ||
+			$("#drawer-title")
+		).focus({ preventScroll: true });
+		body.scrollTop = 0;
+		return { close: closeDrawer, body };
+	};
+	const pickVoice = (voice) => {
+		if (picker?.onPick) {
+			const { onPick } = picker;
+			closeDrawer();
+			onPick(voice.id);
+			announce(`${voice.name} 성우를 적용했어요.`);
 			return;
 		}
-		editor.focus();
-		editor.setRangeText(pasted, start, end, "end");
-		editor.dispatchEvent(new Event("input", { bubbles: true }));
+		const previous = state.selectedVoice;
+		state.selectedVoice = voice.id;
+		updateVoiceSelection();
+		closeDrawer();
+		// 받침 없음·ㄹ 받침이면 "로", 그 밖의 받침이면 "으로".
+		const last = voice.name.charCodeAt(voice.name.length - 1) - 0xac00;
+		const ro =
+			last >= 0 && last < 11172 && last % 28 !== 0 && last % 28 !== 8
+				? "으로"
+				: "로";
+		toast(`새 문단 기본 성우를 ${voice.name}${ro} 바꿨어요.`, {
+			actionLabel: "되돌리기",
+			onAction: () => {
+				state.selectedVoice = previous;
+				updateVoiceSelection();
+				announce("새 문단 기본 성우를 되돌렸어요.");
+			},
+		});
 	};
+	const openVoicePicker = ({
+		label = "새 문단 기본 성우",
+		onPick,
+		currentVoiceId,
+		returnFocus = document.activeElement,
+		returnFocusSelector,
+	} = {}) => {
+		const mine = {
+			onPick,
+			currentVoiceId: currentVoiceId || state.selectedVoice,
+		};
+		picker = mine;
+		renderVoiceList();
+		return openDrawer({
+			title: "성우 찾기",
+			subtitle: `적용 대상: ${label}`,
+			node: $("#voice-picker-panel"),
+			returnFocus,
+			returnFocusSelector,
+			onClose: () => {
+				if (picker === mine) picker = null;
+				renderVoiceList();
+			},
+		});
+	};
+	const narrowRail = matchMedia("(max-width: 1279px)");
+	const openSettingsDrawer = (returnFocus = document.activeElement) => {
+		const narrow = narrowRail.matches;
+		return openDrawer({
+			title: narrow ? "작업 설정" : "생성 설정",
+			subtitle: "시연 · 실제 요청 없음",
+			node: narrow
+				? [$("#rail-settings"), $("#settings-inline")]
+				: $("#settings-inline"),
+			returnFocus,
+		});
+	};
+
 	const cloneUsable = (clone) =>
 		clone.status === "사용 가능" ||
 		clone.status === "사용 가능(시연)" ||
@@ -2351,8 +2568,8 @@
 		);
 		content.firstElementChild.addEventListener("click", () => {
 			showView("studio");
-			selectTab("source");
-			$("#script-editor").focus();
+			selectTab("paragraph");
+			$("#segment-plan textarea")?.focus();
 		});
 		content.append(
 			el(
@@ -2872,9 +3089,12 @@
 			getVoice(part?.voiceId) ? part : { ...part, voiceId: activeVoice().id },
 		);
 		if (!segments.length || !setSegments(segments)) {
-			setSegments(null);
-			$("#script-editor").value =
-				typeof project.sourceText === "string" ? project.sourceText : "";
+			// 한 덩어리로 저장된 예전 작업은 원문 전체를 문단 1개로 불러온다.
+			setSegments(
+				toParagraphs(
+					typeof project.sourceText === "string" ? project.sourceText : "",
+				).map((text) => ({ text, voiceId: activeVoice().id })),
+			);
 			markSourceChanged("대본을 불러왔어요. 숫자 발음 교정을 검토해 주세요.");
 		}
 		Object.assign(state, {
@@ -2886,7 +3106,7 @@
 		panel.className = "generation-result";
 		panel.replaceChildren(...initialResult.map((node) => node.cloneNode(true)));
 		updateWorkbar();
-		selectTab("source");
+		selectTab("paragraph");
 		if (segments.some((part, index) => part !== saved[index]))
 			toast("일부 문단의 성우를 찾지 못해 현재 성우로 바꿨어요.");
 	};
@@ -2919,7 +3139,40 @@
 			const voice = getVoice(voiceId);
 			return voice ? structuredClone(voice) : undefined;
 		},
+		openDrawer,
+		closeDrawer,
+		openVoicePicker,
+		openSettingsDrawer,
+		setTab: selectTab,
+		isSpeakerDetectOn: () => state.speakerDetect,
 	};
+	// 좁은 화면에서만 보이는 ⋯ 메뉴. 넓은 화면에서는 CSS가 패널을 늘 펼쳐 둔다.
+	const bindCollapsibleMenu = (trigger, panel, closeOn) => {
+		const set = (open, refocus) => {
+			panel.classList.toggle("is-open", open);
+			trigger.setAttribute("aria-expanded", String(open));
+			if (!open && refocus) trigger.focus();
+		};
+		trigger.addEventListener("click", () =>
+			set(!panel.classList.contains("is-open")),
+		);
+		panel.addEventListener("click", (event) => {
+			if (event.target.closest(closeOn)) set(false);
+		});
+		document.addEventListener("keydown", (event) => {
+			if (event.key === "Escape" && panel.classList.contains("is-open"))
+				set(false, true);
+		});
+		document.addEventListener("click", (event) => {
+			if (
+				panel.classList.contains("is-open") &&
+				!panel.contains(event.target) &&
+				!trigger.contains(event.target)
+			)
+				set(false);
+		});
+	};
+	const volumeKey = "tts-pilot.prototype.volume.v1";
 	const init = () => {
 		loadStoredScripts();
 		classification().init({
@@ -2980,6 +3233,29 @@
 				`${workbar.offsetHeight}px`,
 			),
 		).observe(workbar);
+		// 768~1023px에서는 좌측 레일이 작업 영역 위에 붙어 따라오므로 툴바가 그 아래에 붙는다.
+		new ResizeObserver(() =>
+			document.documentElement.style.setProperty(
+				"--left-rail-h",
+				`${$("#left-rail").offsetHeight}px`,
+			),
+		).observe($("#left-rail"));
+		// 767px 이하에서는 내비가 위쪽에 붙어 있어 툴바가 그 아래에 붙는다.
+		const mobileBar = matchMedia("(max-width: 767px)");
+		const syncNavInset = () =>
+			document.documentElement.style.setProperty(
+				"--nav-top-h",
+				`${mobileBar.matches ? $(".side-nav").offsetHeight : 0}px`,
+			);
+		new ResizeObserver(syncNavInset).observe($(".side-nav"));
+		mobileBar.addEventListener("change", syncNavInset);
+		bindCollapsibleMenu($("#toolbar-more"), $("#toolbar-more-panel"), "button");
+		bindCollapsibleMenu($("#header-more"), $("#header-tools"), ".button");
+		bindCollapsibleMenu(
+			$("#workbar-more"),
+			$("#workbar-extras"),
+			"#workbar-download",
+		);
 		$("#workbar-summary-panel").addEventListener("beforetoggle", (event) => {
 			if (event.newState === "open") renderSummaryPanel();
 		});
@@ -3018,9 +3294,17 @@
 			);
 		});
 		renderSpeakerDetect();
-		$("#split-paragraphs").addEventListener("click", splitIntoParagraphs);
-		$("#unsplit-paragraphs").addEventListener("click", unsplitParagraphs);
-		$("#script-editor").addEventListener("paste", pasteWithSpeakers);
+		$("#merge-all").addEventListener("click", mergeAllParagraphs);
+		$("#copy-source").addEventListener("click", () =>
+			navigator.clipboard?.writeText(originalText()).then(
+				() => toast("원문 전체를 복사했어요."),
+				() => toast("브라우저 정책으로 복사하지 못했어요."),
+			),
+		);
+		$("#segment-plan").addEventListener("focusin", (event) => {
+			const id = event.target.closest?.(".ps-card")?.dataset.segmentId;
+			if (id) lastFocusedSegmentId = id;
+		});
 		$("#script-editor").addEventListener("scroll", syncClipped, {
 			passive: true,
 		});
@@ -3035,7 +3319,15 @@
 		renderVoiceFacets();
 		renderVoiceList();
 		renderReview();
-		renderWorkspace();
+		// 새 방문자의 첫 화면은 예시 원문을 문장 단위로 나눈 문단 카드다. 문단 0개 상태는 없다.
+		const firstParagraphs =
+			window.TTSParagraphs?.splitText?.(originalText(), "sentence") || [];
+		setSegments(
+			firstParagraphs.map((text) => ({ text, voiceId: activeVoice().id })),
+		);
+		state.reviewDirty = false;
+		$("#editor-help").textContent =
+			"문단을 고치면 이전 발음 교정이 다시 검토 대상으로 바뀝니다.";
 		$$(".nav-item, .brand").forEach((nav) => {
 			nav.addEventListener("click", (event) => {
 				const name = nav.dataset.nav;
@@ -3045,7 +3337,7 @@
 				history.replaceState(null, "", `#${name}`);
 			});
 		});
-		$$(".filter-chip").forEach((chip) => {
+		$$(".filter-row .filter-chip").forEach((chip) => {
 			chip.addEventListener("click", () => {
 				state.provider = chip.dataset.provider;
 				$$(".filter-chip").forEach((item) => {
@@ -3062,35 +3354,21 @@
 			$("#voice-search").value = "없는 성우";
 			renderVoiceList();
 		});
-		$("#source-tab").addEventListener("click", () => selectTab("source"));
-		$("#pronunciation-tab").addEventListener("click", () =>
-			selectTab("pronunciation"),
-		);
-		[$("#source-tab"), $("#pronunciation-tab")].forEach((tab, index, tabs) => {
+		viewTabs.forEach(([id, tabSelector], index) => {
+			const tab = $(tabSelector);
+			tab.addEventListener("click", () => selectTab(id));
 			tab.addEventListener("keydown", (event) => {
-				if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+				const last = viewTabs.length - 1;
+				const next = {
+					ArrowRight: index === last ? 0 : index + 1,
+					ArrowLeft: index === 0 ? last : index - 1,
+					Home: 0,
+					End: last,
+				}[event.key];
+				if (next === undefined) return;
 				event.preventDefault();
-				const nextIndex =
-					event.key === "ArrowRight"
-						? (index + 1) % tabs.length
-						: (index - 1 + tabs.length) % tabs.length;
-				tabs[nextIndex].focus();
-				selectTab(nextIndex === 0 ? "source" : "pronunciation");
+				selectTab(viewTabs[next][0], { focus: true });
 			});
-		});
-		$("#script-editor").addEventListener("input", () => {
-			if (state.scriptSegments && state.segmentSource !== originalText()) {
-				state.scriptSegments = null;
-				state.segmentSource = "";
-				announce(
-					"원문이 변경되어 문단별 계획을 해제했습니다. 다시 검토해 주세요.",
-				);
-				renderWorkspace();
-			}
-			markSourceChanged(
-				"원문을 수정했어요. 숫자 발음 교정을 다시 검토해 주세요.",
-			);
-			noteWorkChange();
 		});
 		$("#revert-review").addEventListener("click", () => {
 			corrections.forEach((item) => {
@@ -3107,24 +3385,67 @@
 		});
 		$("#save-script").addEventListener("click", saveCurrentScript);
 		$("#load-script").addEventListener("click", openScriptDialog);
-		$("#open-import-tool").addEventListener("click", () =>
-			window.TTSStudioTools.open("import"),
+		$("#open-import-tool").addEventListener("click", (event) =>
+			window.TTSStudioTools?.open("import", event.currentTarget),
 		);
+		$("#open-emotion-tool").addEventListener("click", (event) =>
+			window.TTSStudioTools?.open("emotion", event.currentTarget),
+		);
+		$("#open-tools-menu").addEventListener("click", (event) =>
+			window.TTSStudioTools?.openMenu(event.currentTarget),
+		);
+		$("#open-settings-drawer").addEventListener("click", (event) =>
+			openSettingsDrawer(event.currentTarget),
+		);
+		$("#toggle-settings").addEventListener("click", (event) =>
+			openSettingsDrawer(event.currentTarget),
+		);
+		$("#change-default-voice").addEventListener("click", (event) =>
+			openVoicePicker({
+				label: "새 문단 기본 성우",
+				currentVoiceId: state.selectedVoice,
+				returnFocus: event.currentTarget,
+			}),
+		);
+		$("#toolbar-select-all").addEventListener("click", () =>
+			window.TTSParagraphs?.selectAll?.(),
+		);
+		$("#toolbar-split").addEventListener("click", () =>
+			window.TTSParagraphs?.openSplit?.(),
+		);
+		for (const nav of $$(".nav-item[aria-label], .brand[aria-label]"))
+			nav.title = nav.getAttribute("aria-label");
+		$("#open-roles").addEventListener("click", () =>
+			window.TTSParagraphs?.openRoleDialog?.(bridge),
+		);
+		$("#open-usage").addEventListener("click", () => showView("connections"));
 		$("#open-preset-dialog").addEventListener("click", openPresetDialog);
-		$("#open-voice-library").addEventListener("click", () =>
-			showView("voices"),
-		);
-		$("#toggle-settings").addEventListener("click", () => {
-			const settings = $("#settings-inline");
-			settings.hidden = !settings.hidden;
-			$("#toggle-settings").setAttribute(
-				"aria-expanded",
-				String(!settings.hidden),
-			);
-			$("#toggle-settings").lastChild.textContent = settings.hidden
-				? "설정 펼치기"
-				: "설정 접기";
+		$("#open-voice-library").addEventListener("click", () => {
+			closeDrawer();
+			showView("voices");
 		});
+		$("#drawer-close").addEventListener("click", closeDrawer);
+		$("#studio-drawer").addEventListener("click", (event) => {
+			if (event.target === event.currentTarget) closeDrawer();
+		});
+		$("#studio-drawer").addEventListener("close", () => {
+			if (!$("#studio-drawer").open) finishDrawer();
+		});
+		const volume = $("#player-volume");
+		const savedVolume = readStored(volumeKey, 80);
+		if (Number.isFinite(savedVolume)) volume.value = String(savedVolume);
+		const syncVolume = () => {
+			volume.setAttribute("aria-valuetext", `${volume.value}%`);
+			volume.style.setProperty("--fill", `${volume.value}%`);
+		};
+		volume.addEventListener("input", () => {
+			syncVolume();
+			writeStored(volumeKey, Number(volume.value));
+		});
+		syncVolume();
+		$("#post-edit").addEventListener("click", () =>
+			announce($("#post-edit-reason").textContent),
+		);
 		$("#reset-settings").addEventListener("click", () => {
 			window.TTSGenerationSettings?.resetModel($("#model-select").value);
 			toast("현재 모델의 생성 설정을 기본값으로 되돌렸습니다.");
@@ -3133,10 +3454,6 @@
 			renderModelSettings();
 			renderFinalScript();
 			noteWorkChange();
-		});
-		$("#mobile-voice-toggle")?.addEventListener("click", () => {
-			const open = document.body.classList.toggle("show-mobile-voices");
-			$("#mobile-voice-toggle").setAttribute("aria-expanded", String(open));
 		});
 		$("#mobile-more-toggle")?.addEventListener("click", () => {
 			const open = document.body.classList.toggle("show-mobile-more");
@@ -3155,27 +3472,12 @@
 		});
 		$("#make-audio").addEventListener("click", async () => {
 			if (state.isGenerating) return;
-			const paragraphs = Boolean(state.scriptSegments?.length);
-			if (!originalText().trim()) {
+			const active = activeSegments();
+			if ($("#make-audio").dataset.mode === "review") return goReview();
+			if (!active.length) {
 				toast("대본을 입력한 뒤 음성을 만들어 주세요.");
-				return;
-			}
-			if (
-				paragraphs &&
-				state.scriptSegments.some((part) => !part.text.trim())
-			) {
-				toast("내용이 없는 문단이 있어요. 채우거나 삭제한 뒤 만들어 주세요.");
-				return;
-			}
-			if (!paragraphs && finalText().length > 2000) {
-				toast("교정 후 생성문이 2,000자를 넘어요. 분량을 줄여 주세요.");
-				return;
-			}
-			if (pendingCorrections().length) {
-				selectTab("pronunciation");
-				toast(
-					"검수 대기 숫자를 적용하거나 원문 유지로 결정한 뒤 만들어 주세요.",
-				);
+				selectTab("paragraph");
+				$("#segment-plan textarea")?.focus();
 				return;
 			}
 			const settingErrors =
@@ -3185,9 +3487,10 @@
 				return;
 			}
 			const summary = summarize();
+			const skipped = state.scriptSegments.length - active.length;
 			const choice = await choose({
 				title: "음성 만들기 확인 · 시연",
-				message: `${paragraphs ? `문단 ${summary.count}개 · 성우 ${summary.voices}명` : `한 덩어리 대본 · ${activeVoice().name}`} · 약 ${formatDuration(summary.seconds)} · 예상 사용량 ${summary.usage}(추정). 실제 요청과 과금은 일어나지 않는 시연입니다.`,
+				message: `문단 ${summary.count}개 · 성우 ${summary.voices}명${skipped ? ` · 빈 문단 ${skipped}개 제외` : ""} · 약 ${formatDuration(summary.seconds)} · 예상 사용량 ${summary.usage}(추정). 실제 요청과 과금은 일어나지 않는 시연입니다.`,
 				actions: [
 					{ label: "취소", value: "cancel" },
 					{ label: "만들기 시연", value: "generate", variant: "primary" },
@@ -3196,9 +3499,7 @@
 			if (choice !== "generate" || state.isGenerating) return;
 			state.isGenerating = true;
 			state.generationSnapshot = {
-				segments: state.scriptSegments
-					? structuredClone(state.scriptSegments)
-					: null,
+				segments: structuredClone(active),
 				sourceText: originalText(),
 				spokenText: finalText(),
 				voiceId: activeVoice().id,

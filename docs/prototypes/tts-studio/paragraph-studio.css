@@ -1,19 +1,20 @@
-/* 문단 작업실: paragraph-studio.js가 그리는 영역. styles.css :root 토큰만 쓴다. */
+/* 문단 작업실: paragraph-studio.js가 그리는 영역. styles.css :root 토큰만 쓴다.
+   카드 목록은 #segment-plan(.ps-root), 일괄 작업은 좌측 레일 #batch-rail(.ps-batch). */
 .ps-root {
 	display: grid;
-	gap: var(--space-4);
+	gap: var(--space-3);
 }
-.ps-root :is(button, [tabindex="-1"]):focus-visible,
+:is(.ps-root, .ps-batch) :is(button, [tabindex="-1"]):focus-visible,
 .ps-dialog button:focus-visible {
 	outline: var(--focus-outline);
 	outline-offset: 2px;
 }
-.ps-root [aria-disabled="true"],
+:is(.ps-root, .ps-batch) [aria-disabled="true"],
 .ps-dialog [aria-disabled="true"],
-.ps-root button:disabled {
+:is(.ps-root, .ps-batch) button:disabled {
 	cursor: not-allowed;
 }
-.ps-root :is(.button, .mini-button)[aria-disabled="true"],
+:is(.ps-root, .ps-batch) :is(.button, .mini-button)[aria-disabled="true"],
 .ps-dialog .button[aria-disabled="true"] {
 	border-color: var(--line);
 	background: var(--surface-muted);
@@ -24,97 +25,18 @@
 	background: var(--blue-disabled);
 	color: var(--on-accent-disabled);
 }
-.ps-root .text-button[aria-disabled="true"],
-.ps-root .icon-button[aria-disabled="true"],
-.ps-root .icon-button:disabled {
+:is(.ps-root, .ps-batch) .text-button[aria-disabled="true"],
+:is(.ps-root, .ps-batch) .icon-button[aria-disabled="true"],
+:is(.ps-root, .ps-batch) .icon-button:disabled {
 	background: transparent;
 	color: var(--line-strong);
 }
-
-.ps-header {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: var(--space-2) var(--space-3);
-}
-.ps-title {
-	margin-right: auto;
-	font-size: 18px;
-	font-weight: 700;
-	letter-spacing: -0.02em;
-}
-.ps-title:focus {
-	outline: 0;
-}
-.ps-note {
-	flex-basis: 100%;
-	color: var(--text-muted);
-	font-size: 13px;
-	line-height: 1.5;
-}
-
-/* 일괄 막대: 데스크톱은 목록 위에 붙어 따라온다. */
-.ps-batch {
-	position: sticky;
-	z-index: 4;
-	top: 0;
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: var(--space-2) var(--space-5);
-	padding: var(--space-3) var(--space-4);
-	border: 1px solid var(--line);
-	border-radius: var(--radius-md);
-	background: var(--surface);
-}
-.ps-batch-top,
-.ps-batch-panel,
-.ps-batch-settings,
-.ps-batch-actions,
-.ps-batch-group {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: var(--space-2);
-}
-.ps-batch-panel,
-.ps-batch-settings {
-	gap: var(--space-2) var(--space-5);
-}
-.ps-batch-panel {
-	flex: 1 1 520px;
-}
-.ps-batch-count {
-	min-width: 76px;
-	font-weight: 650;
-	font-variant-numeric: tabular-nums;
-}
-.ps-batch-hint {
-	flex-basis: 100%;
-	color: var(--text-muted);
-	font-size: 12px;
-}
-/* 선택이 없으면 전체 선택·개수·안내·되돌리기만 보인다. */
-.ps-batch:not(.has-selection) .ps-batch-panel {
-	display: none;
-}
-.ps-batch:not(.has-selection) .ps-batch-top {
-	flex: 1 1 auto;
-}
-.ps-batch-empty {
-	flex: 1 1 16rem;
-	color: var(--text-muted);
-	font-size: 13px;
-}
-.ps-sheet-head {
-	display: none;
-}
-:where(.ps-root) .mini-button {
+:where(.ps-root, .ps-batch) .mini-button {
 	display: inline-flex;
 	align-items: center;
 	gap: var(--space-1);
 }
-:where(.ps-root) .mini-button svg {
+:where(.ps-root, .ps-batch) .mini-button svg {
 	width: 16px;
 	height: 16px;
 }
@@ -140,19 +62,114 @@
 	accent-color: var(--blue-fg);
 }
 
-/* 문단 카드 */
+/* 일괄 작업: 기본은 한 줄(768~1023). 1024 이상은 세로 레일(2열 버튼), 767 이하는 선택 시 작업 바 위 시트. */
+.ps-batch {
+	position: relative;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2) var(--space-5);
+	padding: var(--space-2) var(--space-4);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+}
+.ps-batch-head {
+	display: contents;
+}
+.ps-batch-title {
+	display: none;
+	font-size: 14px;
+	font-weight: 700;
+	letter-spacing: -0.01em;
+}
+.ps-batch-top,
+.ps-batch-panel,
+.ps-batch-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+}
+.ps-batch-panel {
+	flex: 1 1 auto;
+	gap: var(--space-2) var(--space-5);
+}
+.ps-batch-count {
+	min-width: 76px;
+	font-weight: 650;
+	font-variant-numeric: tabular-nums;
+}
+.ps-batch-hint {
+	flex-basis: 100%;
+	color: var(--text-muted);
+	font-size: 12px;
+	line-height: 1.5;
+}
+.ps-sheet-head {
+	display: none;
+}
+.ps-batch-btn {
+	justify-content: flex-start;
+	min-height: 34px;
+}
+/* 선택이 없으면 한 줄 배치에서는 전체 선택·개수·분할만 보인다. 안내문은 aria-describedby로만 남는다. */
+@media (max-width: 1023px) {
+	.ps-batch:not(.has-selection) .ps-batch-actions > :not(.ps-split),
+	.ps-batch:not(.has-selection) .ps-batch-hint {
+		display: none;
+	}
+	.ps-batch:not(.has-selection) .ps-batch-panel {
+		flex: none;
+	}
+}
+@media (min-width: 1024px) {
+	.ps-batch {
+		display: grid;
+		align-items: start;
+		gap: var(--space-2);
+		padding: var(--space-3);
+	}
+	.ps-batch-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-2);
+	}
+	.ps-batch-title {
+		display: block;
+	}
+	.ps-batch-top {
+		justify-content: space-between;
+	}
+	.ps-batch-panel {
+		display: grid;
+		gap: var(--space-2);
+	}
+	.ps-batch-actions {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: var(--space-1) var(--space-2);
+	}
+	.ps-batch-hint {
+		font-size: 12px;
+		line-height: 1.4;
+	}
+}
+
+/* 문단 카드: 요약 줄(조절 툴바) + 본문. 한두 줄 문단은 약 100px. */
 .ps-list {
 	display: grid;
-	gap: var(--space-3);
+	gap: var(--space-2);
 	margin: 0;
 	padding: 0;
 	list-style: none;
 }
 .ps-card {
+	position: relative;
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) auto;
-	gap: var(--space-3) var(--space-4);
-	padding: var(--space-4);
+	gap: 6px;
+	padding: var(--space-2) var(--space-3);
 	border: 1px solid var(--line);
 	border-radius: var(--radius-md);
 	background: var(--surface);
@@ -175,18 +192,22 @@
 .ps-card.has-error {
 	border-color: var(--red);
 }
-.ps-card-main {
-	display: grid;
-	gap: var(--space-3);
-	min-width: 0;
-}
-.ps-card-head {
+.ps-summary {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: var(--space-2);
+	gap: var(--space-1) var(--space-2);
+	min-width: 0;
+}
+/* 조절 툴바의 자식은 요약 줄의 flex 항목이 된다. 오른쪽 끝 묶음은 order로 뒤에 둔다. */
+.ps-tools {
+	display: contents;
+}
+.ps-summary > .ps-check {
+	order: 0;
 }
 .ps-num {
+	order: 1;
 	display: inline-grid;
 	place-items: center;
 	min-width: 28px;
@@ -203,19 +224,16 @@
 	background: var(--blue);
 	color: var(--on-accent);
 }
-.ps-voice {
-	position: relative;
-	min-width: 0;
-}
 .ps-voice-button {
+	order: 2;
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
-	max-width: 100%;
+	max-width: 200px;
 	min-height: 32px;
-	padding: 0 var(--space-2) 0 10px;
+	padding: 0 var(--space-2) 0 5px;
 	border: 1px solid var(--line-strong);
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-pill);
 	background: var(--surface);
 	color: var(--text);
 	font-weight: 650;
@@ -224,24 +242,31 @@
 .ps-voice-button[aria-expanded="true"] {
 	background: var(--surface-muted);
 }
-.ps-voice-button svg {
+.ps-voice-button > svg {
 	flex: none;
 	width: 16px;
 	height: 16px;
 	color: var(--text-muted);
+}
+.ps-avatar {
+	display: inline-grid;
+	flex: none;
+	place-items: center;
+	width: 22px;
+	height: 22px;
+	border-radius: var(--radius-circle);
+	background: var(--avatar-bg);
+	color: var(--avatar-fg);
+	font-size: 12px;
+	font-weight: 700;
 }
 .ps-voice-name {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
-.ps-voice-provider {
-	color: var(--text-muted);
-	font-size: 12px;
-	font-weight: 550;
-	white-space: nowrap;
-}
 .ps-role {
+	order: 3;
 	min-height: 32px;
 	padding: 0 var(--space-3);
 	border: 0;
@@ -255,10 +280,67 @@
 	text-decoration: underline;
 	text-underline-offset: 3px;
 }
-.ps-move {
-	display: flex;
-	gap: 2px;
+.ps-len,
+.ps-usage {
+	color: var(--text-muted);
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+.ps-len {
+	order: 4;
+}
+.ps-usage {
+	order: 6;
 	margin-left: auto;
+}
+.ps-chip-btn {
+	order: 5;
+	min-height: 32px;
+	padding: 0 10px;
+	border: 1px solid var(--line-strong, var(--line));
+	border-radius: var(--radius-pill);
+	background: transparent;
+	color: var(--text-faint);
+	font-size: 13px;
+	font-weight: 550;
+	white-space: nowrap;
+}
+.ps-chip-btn:hover,
+.ps-chip-btn[aria-expanded="true"] {
+	background: var(--surface-muted);
+	color: var(--text);
+}
+/* 바꾼 값은 강조 톤 */
+.ps-chip-btn.is-changed {
+	border-color: var(--selected-line);
+	background: var(--blue-subtle);
+	color: var(--blue-fg);
+	font-weight: 650;
+}
+.ps-tools > :is(.ps-action, .ps-act) {
+	order: 7;
+}
+.ps-action {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	min-height: 32px;
+	padding: 0 var(--space-2);
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: var(--text-muted);
+	font-size: 13px;
+	font-weight: 600;
+}
+.ps-action:hover {
+	background: var(--surface-muted);
+	color: var(--text);
+}
+.ps-action svg {
+	width: 16px;
+	height: 16px;
 }
 .ps-icon-button {
 	width: 32px;
@@ -272,16 +354,17 @@
 .ps-text {
 	display: block;
 	width: 100%;
-	min-height: 64px;
-	padding: 10px 12px;
-	border: 1px solid var(--line-strong);
+	min-height: 0;
+	padding: 6px 10px;
+	border: 1px solid var(--line-strong, var(--line));
 	border-radius: var(--radius-sm);
 	background: var(--surface);
 	color: var(--text);
 	font-size: 15px;
 	line-height: 1.6;
+	overflow: hidden;
 	overflow-wrap: anywhere;
-	resize: vertical;
+	resize: none;
 	field-sizing: content;
 }
 .ps-text[aria-invalid="true"] {
@@ -292,25 +375,12 @@
 	flex-wrap: wrap;
 	justify-content: space-between;
 	gap: var(--space-1) var(--space-3);
-	margin-top: 6px;
+	margin-top: 4px;
 	color: var(--text-muted);
 	font-size: 12px;
 	font-variant-numeric: tabular-nums;
 }
-.ps-estimate {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: var(--space-1) var(--space-3);
-}
-.ps-estimate-tag {
-	padding: 0 6px;
-	border-radius: var(--radius-pill);
-	background: var(--surface-muted);
-	font-weight: 650;
-}
 .ps-problem {
-	margin-top: 6px;
 	color: var(--orange);
 	font-size: 12px;
 	font-weight: 600;
@@ -318,15 +388,34 @@
 .ps-problem.is-error {
 	color: var(--red);
 }
-.ps-card-body .mini-button {
-	margin-top: var(--space-2);
+.ps-count {
+	margin-left: auto;
+	color: var(--text-muted);
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
 }
-
-.ps-controls {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: flex-start;
-	gap: var(--space-3) var(--space-4);
+.ps-field-error {
+	color: var(--red);
+	font-size: 12px;
+}
+.ps-input,
+.ps-select {
+	width: 100%;
+	min-height: 36px;
+	padding: 0 10px;
+	border: 1px solid var(--line-strong, var(--line));
+	border-radius: var(--radius-sm);
+	background: var(--surface);
+	color: var(--text);
+	font-variant-numeric: tabular-nums;
+}
+.ps-input::placeholder,
+.ps-text::placeholder {
+	color: var(--text-faint);
+}
+.ps-input[aria-invalid="true"],
+.ps-select[aria-invalid="true"] {
+	border-color: var(--red);
 }
 .ps-field {
 	display: grid;
@@ -339,62 +428,124 @@
 	font-size: 12px;
 	font-weight: 600;
 }
-.ps-field-speed,
-.ps-field-pause {
-	width: 108px;
+.ps-footer {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-3);
 }
-.ps-field-emotion {
-	width: 132px;
+.ps-footer-count {
+	color: var(--text-muted);
+	font-size: 13px;
+	font-variant-numeric: tabular-nums;
 }
-.ps-field-instruction {
-	flex: 1 1 280px;
-	grid-template-columns: minmax(0, 1fr) auto;
-	align-items: end;
+
+/* 팝오버(성우 빠른 메뉴, 칩, ⋯): 카드 안에서 그 자리에 뜬다 */
+.ps-menu {
+	position: absolute;
+	z-index: 6;
+	top: 100%;
+	left: var(--ps-pop-left, 0);
+	width: min(300px, calc(100vw - 32px));
+	max-height: min(420px, 60vh);
+	overflow: auto;
+	overscroll-behavior: contain;
+	padding: var(--space-2);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+	box-shadow: var(--shadow-dialog);
 }
-.ps-field-instruction > :not(.ps-field-label, .ps-chip-toggle) {
-	grid-column: 1 / -1;
+.ps-pop-voice {
+	display: flex;
+	flex-direction: column;
+	width: min(340px, calc(100vw - 32px));
+	overflow: hidden;
 }
-/* 모바일 44px 높이에서도 글자는 라벨과 같은 줄(아래)에 둔다. */
-.ps-chip-toggle {
-	align-items: flex-end;
-	padding: 0;
-	font-size: 12px;
+.ps-pop-voice .ps-menu-results {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: auto;
+	overscroll-behavior: contain;
 }
-.ps-field-error {
-	color: var(--red);
-	font-size: 12px;
+.ps-pop-more {
+	width: min(220px, calc(100vw - 32px));
 }
-.ps-field-note {
+.ps-pop-section {
+	display: grid;
+	gap: var(--space-2);
+}
+.ps-pop-section + .ps-pop-section,
+.ps-pop-section + .ps-quick {
+	margin-top: var(--space-3);
+}
+.ps-pop-title {
 	color: var(--text-muted);
 	font-size: 12px;
+	font-weight: 650;
 }
-.ps-input,
-.ps-select {
-	width: 100%;
-	min-height: 36px;
-	padding: 0 10px;
+.ps-pop-note {
+	color: var(--text-muted);
+	font-size: 12px;
+	line-height: 1.5;
+}
+.ps-stepper {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+}
+.ps-stepper .ps-input {
+	width: 72px;
+	text-align: center;
+}
+.ps-step {
+	display: grid;
+	place-items: center;
+	width: 36px;
+	height: 36px;
 	border: 1px solid var(--line-strong);
 	border-radius: var(--radius-sm);
 	background: var(--surface);
 	color: var(--text);
-	font-variant-numeric: tabular-nums;
 }
-.ps-batch-group .ps-select {
-	width: 168px;
+.ps-step:hover {
+	background: var(--surface-muted);
 }
-.ps-batch-group .ps-input {
-	width: 76px;
+.ps-step svg {
+	width: 16px;
+	height: 16px;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2;
+	stroke-linecap: round;
 }
-.ps-input::placeholder,
-.ps-text::placeholder {
-	color: var(--text-faint);
+.ps-option-grid,
+.ps-quick {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
 }
-.ps-input[aria-invalid="true"],
-.ps-select[aria-invalid="true"] {
-	border-color: var(--red);
+.ps-option {
+	min-height: 32px;
+	padding: 0 10px;
+	border: 1px solid var(--line);
+	border-radius: var(--radius-pill);
+	background: var(--surface);
+	color: var(--text-muted);
+	font-size: 13px;
+	font-weight: 600;
+}
+.ps-option:hover {
+	background: var(--surface-muted);
+}
+.ps-option[aria-pressed="true"] {
+	border-color: var(--selected-line);
+	background: var(--blue-subtle);
+	color: var(--blue-fg);
+	font-weight: 700;
 }
 .ps-intensity {
-	display: inline-flex;
+	display: flex;
 	gap: 2px;
 	padding: 2px;
 	border: 1px solid var(--line-strong);
@@ -402,7 +553,7 @@
 	background: var(--surface-muted);
 }
 .ps-segment-button {
-	min-width: 56px;
+	flex: 1;
 	min-height: 30px;
 	padding: 0 var(--space-2);
 	border: 0;
@@ -419,20 +570,6 @@
 }
 .ps-segment-button:disabled {
 	color: var(--text-faint);
-}
-/* 접힌 칩도 포커스는 받는다. display: none이면 입력 칸에서 Tab으로 넘어가는 순간 포커스를 잃는다. */
-.ps-chips {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 6px;
-	height: 0;
-	overflow: clip;
-}
-.ps-field-instruction:is(.show-chips, :has(.ps-input:focus, .ps-chips :focus))
-	.ps-chips {
-	height: auto;
-	margin-top: 6px;
-	overflow: visible;
 }
 .ps-chip {
 	display: inline-flex;
@@ -455,40 +592,14 @@
 	border-color: var(--selected-line);
 	color: var(--blue-fg);
 }
-.ps-card-actions {
-	display: flex;
-	flex-direction: column;
-	gap: var(--space-1);
-}
-.ps-footer {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: var(--space-3);
-}
-.ps-footer-count {
-	color: var(--text-muted);
-	font-size: 13px;
-	font-variant-numeric: tabular-nums;
-}
-
-/* 성우 빠른 메뉴: 모달이 아닌 제자리 팝오버 */
-.ps-menu {
-	position: absolute;
-	z-index: 6;
-	top: calc(100% + var(--space-1));
-	left: 0;
-	width: min(340px, calc(100vw - 32px));
-	max-height: min(420px, 60vh);
-	overflow: auto;
-	overscroll-behavior: contain;
-	padding: var(--space-2);
-	border-radius: var(--radius-md);
-	background: var(--surface);
-	box-shadow: var(--shadow-dialog);
-}
 .ps-menu-search {
 	margin-bottom: var(--space-2);
+}
+.ps-menu-more {
+	flex: none;
+	width: 100%;
+	margin-top: var(--space-2);
+	justify-content: center;
 }
 .ps-menu-section + .ps-menu-section {
 	margin-top: var(--space-2);
@@ -514,6 +625,18 @@
 	background: transparent;
 	color: var(--text);
 	text-align: left;
+}
+.ps-menu-action {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+.ps-menu-action svg {
+	width: 16px;
+	height: 16px;
+}
+.ps-menu-action[aria-disabled="true"] {
+	color: var(--text-faint);
 }
 .ps-menu-item:hover {
 	background: var(--surface-muted);
@@ -547,6 +670,67 @@
 	outline: var(--focus-outline);
 	outline-offset: -2px;
 }
+.ps-mobile-only {
+	display: none;
+}
+
+.ps-batch-inline {
+	flex-basis: 100%;
+	padding-top: var(--space-3);
+	border-top: 1px solid var(--line);
+}
+.ps-batch-inline-body {
+	display: grid;
+	gap: var(--space-2);
+}
+.ps-pop-apply {
+	width: 100%;
+	margin-top: var(--space-3);
+}
+
+/* 데스크톱: 왼쪽 거터에 선택·번호·위·아래를 두어 요약 줄을 한 줄로 유지한다. */
+@media (min-width: 1024px) {
+	.ps-card {
+		min-height: 88px;
+		padding-left: 78px;
+	}
+	.ps-summary > .ps-check,
+	.ps-num,
+	.ps-tools > .ps-up,
+	.ps-tools > .ps-down {
+		position: absolute;
+		left: 12px;
+	}
+	.ps-summary > .ps-check {
+		top: 8px;
+	}
+	.ps-num {
+		top: 12px;
+		left: 48px;
+	}
+	.ps-tools > .ps-up,
+	.ps-tools > .ps-down {
+		top: 48px;
+		width: 28px;
+		height: 28px;
+	}
+	.ps-tools > .ps-down {
+		left: 48px;
+	}
+	.ps-chip-btn {
+		padding: 0 7px;
+		font-size: 12.5px;
+	}
+	.ps-summary {
+		gap: var(--space-1) 5px;
+	}
+	.ps-voice-button {
+		max-width: 132px;
+	}
+	.ps-action {
+		padding: 0 6px;
+	}
+}
 
 /* 역할·분할 대화상자 */
 .dialog.ps-dialog {
@@ -571,7 +755,7 @@
 }
 .ps-role-row {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(200px, 260px);
+	grid-template-columns: minmax(0, 1fr) minmax(200px, 320px);
 	align-items: center;
 	gap: var(--space-1) var(--space-3);
 	padding: var(--space-3) 0;
@@ -651,24 +835,31 @@
 	font-weight: 600;
 }
 
-@media (prefers-reduced-motion: reduce) {
-	.ps-card {
-		transition: none;
-	}
+.ps-role-pick {
+	display: flex;
+	gap: var(--space-2);
+}
+.ps-role-pick .ps-select {
+	flex: 1;
+	min-width: 0;
+}
+.ps-dialog .ps-text {
+	min-height: 96px;
+	overflow: auto;
+	resize: vertical;
 }
 
-/* 모바일: 일괄 작업은 선택이 있을 때 작업 바 위 시트가 된다. */
+/* 모바일: 요약 줄이 두 줄로 접히고, 일괄 작업은 선택이 있을 때 작업 바 위 시트가 된다. */
 @media (max-width: 767px) {
 	.ps-batch {
-		position: static;
-		padding: var(--space-2) var(--space-3);
-	}
-	.ps-batch-empty {
-		order: 1;
-		flex-basis: 100%;
+		padding: var(--space-1) var(--space-3);
 	}
 	.ps-undo {
 		margin-left: auto;
+	}
+	/* 선택이 없으면 일괄 줄을 숨긴다. 전체 선택·분할은 툴바 ⋯ 메뉴(selectAll, openSplit)에서 부른다. */
+	.ps-batch:not(.has-selection) {
+		display: none;
 	}
 	.ps-batch.has-selection .ps-batch-panel {
 		position: fixed;
@@ -686,7 +877,7 @@
 		background: var(--surface);
 		box-shadow: var(--shadow-dialog);
 	}
-	.ps-sheet-head {
+	.ps-batch.has-selection .ps-sheet-head {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
@@ -695,39 +886,18 @@
 		margin-right: auto;
 		font-variant-numeric: tabular-nums;
 	}
-	.ps-batch-settings {
-		display: none;
-	}
-	.ps-batch.is-open .ps-batch-settings {
-		display: grid;
-		gap: var(--space-2);
-	}
-	.ps-batch-group {
-		display: grid;
-		grid-template-columns: 56px minmax(0, 1fr) auto;
-	}
-	.ps-batch-group .ps-select,
-	.ps-batch-group .ps-input {
-		width: 100%;
-	}
-	.ps-batch-group .ps-reset {
-		grid-column: 2 / -1;
-		justify-self: start;
-	}
-	.ps-batch-group .mini-button {
-		min-width: 44px;
-	}
-	.ps-batch-actions {
+	.ps-batch.has-selection .ps-batch-actions {
 		display: grid;
 		grid-template-columns: repeat(3, minmax(0, 1fr));
 	}
-	.ps-batch-actions .button {
+	.ps-batch-actions .mini-button {
 		padding: 0 var(--space-2);
 	}
 	.ps-root.has-selection {
 		padding-bottom: calc(var(--ps-sheet-height, 180px) + var(--space-4));
 	}
-	.ps-root :is(button, input:not([type="checkbox"]), select, .ps-check),
+	:is(.ps-root, .ps-batch)
+		:is(button, input:not([type="checkbox"]), select, .ps-check),
 	.ps-dialog
 		:is(
 			button,
@@ -750,8 +920,7 @@
 		height: 44px;
 	}
 	.ps-card {
-		grid-template-columns: minmax(0, 1fr);
-		padding: var(--space-3);
+		padding: var(--space-2) var(--space-3);
 	}
 	.ps-card,
 	.ps-card :is(button, input, select, textarea) {
@@ -762,56 +931,46 @@
 			var(--space-3)
 		);
 	}
-	.ps-voice {
-		order: 5;
-		flex-basis: 100%;
+	.ps-len,
+	.ps-usage,
+	.ps-up,
+	.ps-down,
+	.ps-preview {
+		display: none;
+	}
+	.ps-summary {
+		gap: var(--space-1);
+	}
+	.ps-role {
+		max-width: 96px;
+		padding: 0 var(--space-2);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.ps-mobile-only {
+		display: flex;
 	}
 	.ps-voice-button {
-		width: 100%;
+		max-width: 120px;
 	}
-	.ps-voice-name {
-		margin-right: auto;
+	.ps-action {
+		padding: 0 var(--space-2);
+		min-width: 44px;
+		justify-content: center;
+	}
+	.ps-chip-btn {
+		padding: 0 var(--space-2);
 	}
 	.ps-menu {
 		right: 0;
+		left: 0;
 		width: auto;
-	}
-	.ps-controls {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: var(--space-3);
-	}
-	.ps-field-speed,
-	.ps-field-pause,
-	.ps-field-emotion {
-		width: auto;
-	}
-	.ps-field-instruction {
-		grid-column: 1 / -1;
-	}
-	.ps-intensity {
-		display: flex;
-	}
-	.ps-segment-button {
-		flex: 1;
-		min-width: 0;
-	}
-	.ps-card-actions {
-		flex-direction: row;
-		justify-content: flex-end;
-		padding-top: var(--space-2);
-		border-top: 1px solid var(--line);
 	}
 	.ps-role-row {
 		grid-template-columns: minmax(0, 1fr);
 	}
 	.ps-role-hint {
 		grid-column: 1;
-	}
-}
-/* 320px대에서는 강도 버튼 3개가 반 칸에 들어가지 않아 한 줄을 다 쓴다. */
-@media (max-width: 374px) {
-	.ps-field-intensity {
-		grid-column: 1 / -1;
 	}
 }

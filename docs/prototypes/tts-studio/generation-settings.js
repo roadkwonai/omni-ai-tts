@@ -704,10 +704,8 @@
 			}
 		}
 		document.querySelector("#model-settings").prepend(box);
-		document.querySelector("#settings-inline").hidden = false;
-		const toggle = document.querySelector("#toggle-settings");
-		toggle.setAttribute("aria-expanded", "true");
-		toggle.lastChild.textContent = "설정 접기";
+		// 설정은 드로어에 있다. 열어야 오류 칸으로 포커스를 옮길 수 있다.
+		window.TTSStudio?.openSettingsDrawer?.();
 		if (first) {
 			let ancestor = first.parentElement;
 			while (ancestor) {

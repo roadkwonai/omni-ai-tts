@@ -537,3 +537,54 @@
 		flex: 1 1 auto;
 	}
 }
+
+/* 드로어 폭(약 500px)에서는 화면 폭과 상관없이 한 열로 쌓는다 */
+@container (max-width: 640px) {
+	.voice-tool-filter-grid,
+	.voice-tool-changer .voice-tool-filter-grid,
+	.voice-tool-comparison-grid,
+	.voice-design-choice-grid,
+	.voice-tool-filter-grid.voice-design-tuning,
+	.voice-design-candidates {
+		grid-template-columns: 1fr;
+	}
+
+	.voice-tool-candidate,
+	.voice-tool-compare-row {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.voice-tool-candidate .voice-tool-actions,
+	.voice-tool-candidate .button,
+	.voice-tool-compare-row .voice-tool-text-button {
+		width: 100%;
+	}
+}
+
+.voice-tool-demo-settings {
+	margin-top: var(--space-4);
+	padding-top: var(--space-3);
+	border-top: 1px solid var(--line);
+	color: var(--text-muted);
+	font-size: 13px;
+}
+
+.voice-tool-demo-settings summary {
+	display: flex;
+	align-items: center;
+	min-height: 32px;
+	cursor: pointer;
+}
+
+.voice-tool-demo-settings summary:focus-visible {
+	border-radius: var(--radius-sm);
+	outline: var(--focus-outline);
+	outline-offset: 2px;
+}
+
+@media (max-width: 767px), (pointer: coarse) {
+	.voice-tool-demo-settings summary {
+		min-height: 44px;
+	}
+}
