@@ -20,11 +20,6 @@
 	background: var(--surface-muted);
 	color: var(--text-faint);
 }
-.ps-dialog .button-primary[aria-disabled="true"] {
-	border-color: transparent;
-	background: var(--blue-disabled);
-	color: var(--on-accent-disabled);
-}
 :is(.ps-root, .ps-batch) .text-button[aria-disabled="true"],
 :is(.ps-root, .ps-batch) .icon-button[aria-disabled="true"],
 :is(.ps-root, .ps-batch) .icon-button:disabled {

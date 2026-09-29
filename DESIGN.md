@@ -93,6 +93,7 @@ colors:
   fg-secondary: oklch(0.298 0.010 273 / 0.61)   # labels, captions
   fg-tertiary: oklch(0.298 0.010 273 / 0.43)   # placeholder
   fg-disabled: oklch(0.298 0.010 273 / 0.28)
+  fg-disabled-label: oklch(0.298 0.010 273 / 0.68)   # disabled button text, 4.68:1 on bg-muted
   fg-on-brand: oklch(1 0 0)
   fg-brand: oklch(0.563 0.241 261)
   fg-link: oklch(0.563 0.241 261)
@@ -123,6 +124,7 @@ colors:
   dark-fg-secondary: oklch(1 0 0 / 0.61)
   dark-fg-tertiary: oklch(1 0 0 / 0.43)
   dark-fg-disabled: oklch(1 0 0 / 0.28)
+  dark-fg-disabled-label: oklch(1 0 0 / 0.50)   # 5.29:1 on dark-bg-muted
   dark-fg-on-brand: oklch(1 0 0)
   dark-fg-brand: oklch(0.715 0.155 255)   # blue-400 (brightened from blue-800; synthesized)
   dark-fg-danger: oklch(0.715 0.220 27)   # synthesized (red @ ↑ lightness)
@@ -338,7 +340,7 @@ Voice는 **친근한 2인칭 + 부드러운 존댓말**로 요약된다. 사무�
 
 ### Neutral (21-step, cool blue-tinted — 워크호스 패밀리)
 
-`neutral-700` (`oklch(0.521 0.018 273)`)이 `border-subtle`/`border-default`/`border-strong`의 알파 베이스이며, `neutral-825` (`oklch(0.298 0.010 273)`)가 `fg-secondary`/`fg-tertiary`/`fg-disabled`의 알파 베이스, `neutral-875` (`oklch(0.259 0.010 273)`)가 `fg-default`(body)의 알파 베이스다. text와 border가 서로 다른 neutral 단계에서 알파를 곱하는 구조이므로, 토큰 정의 시 두 베이스를 혼동하지 않도록 분리해야 한다.
+`neutral-700` (`oklch(0.521 0.018 273)`)이 `border-subtle`/`border-default`/`border-strong`의 알파 베이스이며, `neutral-825` (`oklch(0.298 0.010 273)`)가 `fg-secondary`/`fg-tertiary`/`fg-disabled`/`fg-disabled-label`의 알파 베이스, `neutral-875` (`oklch(0.259 0.010 273)`)가 `fg-default`(body)의 알파 베이스다. text와 border가 서로 다른 neutral 단계에서 알파를 곱하는 구조이므로, 토큰 정의 시 두 베이스를 혼동하지 않도록 분리해야 한다.
 
 **이 3-베이스 구조는 공개 시맨틱 토큰에서 그대로 확인된다** [src:4] — 공식 `Line - Normal` 토큰군은 단일 베이스 `#70737C`(`coolNeutral-50`)에 알파를 얹고 (별도 그룹인 `Line - Solid`는 보더 중첩을 막으려고 알파 없는 불투명 색을 쓰고, `line-primary`/`line-status`는 각 hue 베이스를 쓴다), `Label` 토큰군은 `label-neutral`만 `#2E2F33`(`coolNeutral-22`)를, `label-alternative`/`assistive`/`disable`은 `#37383C`(`coolNeutral-25`)를 베이스로 쓴다. 즉 "border는 한 베이스, body text는 또 다른 베이스, 그 아래 위계는 세 번째 베이스"라는 분리가 공식 체계와 일치한다. 다만 **본 문서의 OKLCH 값은 공개 hex와 정확히 대응하지 않는다** — 번들이 이 세 앵커를 공개 램프보다 어두운 단계로 정의하고 있어(예: `neutral-875` = `oklch(0.259 …)` vs 공개 `coolNeutral-22` = `#2E2F33` ≈ `oklch(0.306 …)`), 값 자체는 번들 관찰값으로 남긴다.
 
@@ -358,7 +360,7 @@ Voice는 **친근한 2인칭 + 부드러운 존댓말**로 요약된다. 사무�
 
 ### Semantic alias — Dark
 
-다크 모드는 light 모드의 alpha multiplier 구조를 그대로 유지한다 — text 알파 베이스가 `neutral-825`/`neutral-875` → `oklch(1 0 0)`(흰색)로 뒤집힐 뿐이다. 시맨틱 alias의 의미(fg-default = 본문, fg-secondary = label/caption, fg-tertiary = placeholder, fg-disabled = disabled)는 양 테마에서 동일하다.
+다크 모드는 light 모드의 alpha multiplier 구조를 그대로 유지한다 — text 알파 베이스가 `neutral-825`/`neutral-875` → `oklch(1 0 0)`(흰색)로 뒤집힐 뿐이다. 시맨틱 alias의 의미(fg-default = 본문, fg-secondary = label/caption, fg-tertiary = placeholder, fg-disabled = disabled 아이콘·장식, fg-disabled-label = 비활성 버튼의 읽어야 하는 글자)는 양 테마에서 동일하다.
 
 **위 다크 값 중 `dark-bg-danger/success/warning-subtle`과 `dark-fg-brand/danger/success/warning`은 본 카탈로그가 preview 대비를 맞추려고 합성(synthesized)한 값이며, 공개 출처의 값과 다르다.** 종전 판본은 이를 "SSOT가 surface하지 않은 빈자리"로 설명했으나, 몽타주 공개 문서는 해당 다크 토큰을 모두 공개하고 있으므로 그 설명은 사실이 아니다 — 합성값은 공개 출처 부재 때문이 아니라 번들 기준 팔레트와의 정합을 위해 남겨 둔 것이다. 공식 다크 값은 다음과 같다 [src:4].
 
@@ -564,7 +566,7 @@ text 변형 — 투명 배경 + `{colors.fg-brand}` 텍스트, 보더 없음. Ho
 
 ### button-disabled
 
-`{colors.neutral-700}` 10% 배경(`oklch(0.521 0.018 273 / 0.10)`) + `{colors.fg-disabled}` (alpha 0.28 텍스트). 부분 회색 처리 없이 컴포넌트 전체에 적용되며 cursor는 not-allowed다. (outlined/text 변형의 disabled는 보더만 유지하고 배경은 `{colors.bg-surface}`로 둔다.)
+`{colors.bg-muted}` 배경 + `{colors.border-default}` 보더 + `{colors.fg-disabled-label}` 텍스트(bg-muted 위 라이트 4.68:1, 다크 5.29:1). primary·secondary 모두 같은 회색 처리를 쓰고 브랜드 색을 흐리게 남기지 않는다. 부분 회색 처리 없이 컴포넌트 전체에 적용되며 cursor는 not-allowed다. (outlined/text 변형의 disabled는 보더만 유지하고 배경은 `{colors.bg-surface}`로 둔다.) 이 제품의 비활성 버튼은 "대본을 입력해 주세요"처럼 이유를 글자로 보여 주므로, WCAG 1.4.3의 비활성 예외에 기대지 않고 4.5:1 이상을 지킨다(2026-09-29 사용자 결정). 아이콘만 있는 비활성 버튼은 `{colors.fg-disabled}`를 그대로 쓴다.
 
 ### input / form field
 

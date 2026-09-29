@@ -39,7 +39,6 @@
 			error: "",
 			requestId: 0,
 			timer: 0,
-			failureMode: "success",
 		},
 	};
 
@@ -825,7 +824,8 @@
 		renderEmotion(host);
 		emotion.timer = window.setTimeout(() => {
 			if (requestId !== emotion.requestId) return;
-			if (emotion.failureMode === "failure") {
+			// 성공·실패는 내비 하단 "시연 설정"에서 고른다.
+			if (window.TTSStudio?.demoOutcome?.("emotion") === "failure") {
 				emotion.status = "";
 				emotion.error = "시연 제안을 만들지 못했습니다. 다시 시도해 주세요.";
 				return renderEmotion(host);
@@ -1027,23 +1027,13 @@
 			),
 		);
 		const toolbar = node("div", "script-tool-emotion-toolbar");
-		const simulation = select("script-tool-select");
-		simulation.append(
-			option("success", "정상 시연"),
-			option("failure", "실패 상태 시연"),
-		);
-		simulation.value = emotion.failureMode;
-		simulation.setAttribute("aria-label", "감정 제안 시연 상태");
-		simulation.addEventListener("change", () => {
-			emotion.failureMode = simulation.value;
-		});
 		const propose = button(
 			emotion.status.includes("준비") ? "제안 준비 중…" : "규칙 기반 제안 시작",
 			"button button-primary",
 		);
 		propose.disabled = emotion.status.includes("준비");
 		propose.addEventListener("click", () => beginProposal(host));
-		toolbar.append(simulation, propose);
+		toolbar.append(propose);
 		root.append(toolbar);
 		const support = node("aside", "script-tool-provider-note");
 		support.append(node("strong", "", "공급자 표현 범위"));

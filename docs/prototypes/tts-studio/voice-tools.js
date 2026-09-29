@@ -6,14 +6,12 @@
 			provider: "all",
 			category: "all",
 			type: "all",
-			outcome: "success",
 			status: "idle",
 			results: [],
 			compare: [],
 		},
 		discovery: {
 			source: null,
-			outcome: "success",
 			status: "idle",
 			results: [],
 			compare: [],
@@ -24,7 +22,6 @@
 			format: "mp3_44100_128",
 			denoise: "off",
 			consent: false,
-			outcome: "success",
 			status: "idle",
 		},
 		design: {
@@ -299,34 +296,9 @@
 		return list;
 	}
 
-	function outcomeSelect(id, section, render) {
-		const select = document.createElement("select");
-		["success", "empty", "error"].forEach((value) => {
-			const option = node(
-				"option",
-				"",
-				value === "success" ? "성공" : value === "empty" ? "빈 결과" : "오류",
-			);
-			option.value = value;
-			option.selected = section.outcome === value;
-			select.append(option);
-		});
-		select.addEventListener("change", () => {
-			section.outcome = select.value;
-			invalidate(section);
-			render();
-		});
-		const details = node("details", "voice-tool-demo-settings");
-		details.open = Boolean(section.demoOpen);
-		details.addEventListener("toggle", () => {
-			section.demoOpen = details.open;
-		});
-		details.append(
-			node("summary", "", "시연 설정"),
-			labelledInput(id, "시연 결과(검토용)", select),
-		);
-		return details;
-	}
+	// 결과 종류는 내비 하단 "시연 설정"에서 고른다.
+	const demoOutcome = () =>
+		window.TTSStudio?.demoOutcome?.("tools") || "success";
 
 	function focusResult(key, section) {
 		const button = document.querySelector(`[data-voice-tool-run="${key}"]`);
@@ -371,7 +343,7 @@
 				timers.delete(key);
 				section.timerKey = null;
 				const terminalStatus = complete();
-				section.status = terminalStatus || section.outcome;
+				section.status = terminalStatus || demoOutcome();
 				render();
 				focusResult(key, section);
 			}, 560),
@@ -565,7 +537,7 @@
 						: section.description.trim().length > 0,
 				() => {
 					section.results =
-						section.outcome === "success"
+						demoOutcome() === "success"
 							? fixtureCandidates("recommend").filter((voice) => {
 									const assignment =
 										window.TTSVoiceClassification?.getAssignments?.(voice) ||
@@ -580,7 +552,7 @@
 									);
 								})
 							: [];
-					return section.outcome === "success" && !section.results.length
+					return demoOutcome() === "success" && !section.results.length
 						? "empty"
 						: undefined;
 				},
@@ -607,9 +579,6 @@
 				renderCompare(section, section.results, render),
 			);
 		}
-		panel.append(
-			outcomeSelect("voice-tool-recommend-outcome", section, render),
-		);
 		host.append(panel);
 	}
 
@@ -698,7 +667,7 @@
 				() => Boolean(section.source?.ready && !section.mediaBusy),
 				() => {
 					section.results =
-						section.outcome === "success" ? fixtureCandidates("discover") : [];
+						demoOutcome() === "success" ? fixtureCandidates("discover") : [];
 				},
 				render,
 				error,
@@ -731,9 +700,6 @@
 				renderCandidates(section, section.results, render),
 				renderCompare(section, section.results, render),
 			);
-		panel.append(
-			outcomeSelect("voice-tool-discovery-outcome", section, render),
-		);
 		host.append(panel);
 	}
 
@@ -878,7 +844,6 @@
 			renderResultState(section, "변환", () => changer(host)),
 			changerComparison(section, elevenVoices),
 		);
-		panel.append(outcomeSelect("voice-tool-changer-outcome", section, render));
 		host.append(panel);
 	}
 

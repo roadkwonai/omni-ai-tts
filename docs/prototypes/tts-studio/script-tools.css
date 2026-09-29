@@ -305,10 +305,6 @@
 	margin: 0 0 var(--space-3);
 }
 
-.script-tool-emotion-toolbar .script-tool-select {
-	width: min(180px, 100%);
-}
-
 .script-tool-provider-note {
 	margin: var(--space-3) 0;
 	padding: var(--space-3);
@@ -417,7 +413,6 @@
 	.script-tool-source-controls .button,
 	.script-tool-emotion-toolbar .button,
 	.script-tool-bulk .button,
-	.script-tool-emotion-toolbar .script-tool-select,
 	.script-tool-bulk .script-tool-select {
 		width: 100%;
 		max-width: none;

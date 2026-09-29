@@ -204,6 +204,8 @@
 		voiceFacets: { language: [], gender: [], age: [], uses: [] },
 		speakerDetect: true,
 		player: { timer: 0, elapsed: 0, index: -1 },
+		// 시연 설정(내비 하단 "시연 모드"): 실제 요청 없이 보여 줄 결과.
+		demo: { generation: "success", tools: "success", emotion: "success" },
 	};
 	const recentVoicesKey = "tts-pilot.prototype.recent-voices.v1";
 	const speakerDetectKey = "tts-pilot.prototype.speaker-detect.v1";
@@ -252,10 +254,16 @@
 		if (iconName) node.prepend(icon(iconName));
 		return node;
 	};
+	let announceTimer = 0;
 	const announce = (message) => {
-		$("#live-region").textContent = message;
 		// 모달 드로어가 열려 있으면 바깥은 inert라 드로어 안의 알림 영역에도 쓴다.
-		$("#drawer-live").textContent = message;
+		// 읽은 뒤 비워서 지난 안내가 남지 않게 하고, 같은 문구도 다시 읽히게 한다.
+		const regions = [$("#live-region"), $("#drawer-live")];
+		for (const region of regions) region.textContent = message;
+		clearTimeout(announceTimer);
+		announceTimer = setTimeout(() => {
+			for (const region of regions) region.textContent = "";
+		}, 5000);
 	};
 	const toast = (message, { actionLabel, onAction, timeout } = {}) => {
 		$(".toast")?.remove();
@@ -582,7 +590,6 @@
 		announce(`문단 ${target + 1}/${parts.length} 위치로 옮겼어요.`);
 	};
 	const RESULT_TEXT = {
-		idle: "생성 시연을 취소했어요.",
 		working: "생성 요청을 시연하는 중이에요.",
 		success: "임시 생성 결과가 있어요 · 시연",
 		lost: "생성 여부를 확인하지 못했어요.",
@@ -783,7 +790,8 @@
 		}[mode];
 		const make = $("#make-audio");
 		make.dataset.mode = mode;
-		make.setAttribute("aria-disabled", String(empty));
+		// 만드는 중에도 disabled 대신 aria-disabled로 둬서 포커스가 버튼에 남는다.
+		make.setAttribute("aria-disabled", String(empty || state.isGenerating));
 		$(".mk-long", make).textContent = long;
 		$(".mk-short", make).textContent = short;
 		$("#make-audio-icon use").setAttribute(
@@ -1268,12 +1276,6 @@
 			icon(mode === "error" ? "close" : mode === "success" ? "wave" : "wand"),
 		);
 		const copy = el("div", "result-copy");
-		if (mode === "idle") {
-			copy.append(
-				el("h3", "", "생성 시연을 취소했어요"),
-				el("p", "", "대본을 유지했습니다. 다시 시연할 수 있어요."),
-			);
-		}
 		if (mode === "working") {
 			copy.append(
 				el("h3", "", "생성 요청을 시연하고 있어요"),
@@ -1344,9 +1346,9 @@
 		if (mode === "error" || mode === "lost") {
 			panel.classList.add("result-error");
 			const actions = el("div", "result-actions");
-			const choose = button("상태 바꾸기", "button button-secondary");
-			choose.addEventListener("click", showGenerationPicker);
-			actions.append(choose);
+			const retry = button("다시 만들기", "button button-secondary", "refresh");
+			retry.addEventListener("click", () => $("#make-audio").click());
+			actions.append(retry);
 			panel.append(actions);
 		}
 		updateWorkbar();
@@ -1381,43 +1383,8 @@
 		if (state.activeView === "connections")
 			renderPage("connections", $("#connections-view"));
 	};
-	const showGenerationPicker = () => {
-		openConfirm(
-			"생성 상태 시연",
-			"실제 요청 없이 검토할 상태를 선택합니다.",
-			"완료 상태",
-			() => {
-				state.isGenerating = false;
-				showGeneration("success");
-				recordGenerationSuccess();
-			},
-		);
-		const dialog = $("#confirm-dialog");
-		const actions = $(".dialog-actions", dialog);
-		const lost = button("응답 유실", "button button-secondary scenario-action");
-		lost.value = "cancel";
-		lost.addEventListener("click", () => {
-			dialog.close();
-			state.isGenerating = false;
-			showGeneration("lost");
-		});
-		const error = button(
-			"공급자 오류",
-			"button button-secondary scenario-action",
-		);
-		error.value = "cancel";
-		error.addEventListener("click", () => {
-			dialog.close();
-			state.isGenerating = false;
-			showGeneration("error");
-		});
-		actions.prepend(error, lost);
-	};
 	const openConfirm = (title, message, actionLabel, action) => {
 		const dialog = $("#confirm-dialog");
-		$$(".scenario-action", dialog).forEach((node) => {
-			node.remove();
-		});
 		$("#confirm-title").textContent = title;
 		$("#confirm-message").textContent = message;
 		const confirm = $("#confirm-action");
@@ -3145,6 +3112,7 @@
 		openSettingsDrawer,
 		setTab: selectTab,
 		isSpeakerDetectOn: () => state.speakerDetect,
+		demoOutcome: (kind) => state.demo[kind],
 	};
 	// 좁은 화면에서만 보이는 ⋯ 메뉴. 넓은 화면에서는 CSS가 패널을 늘 펼쳐 둔다.
 	const bindCollapsibleMenu = (trigger, panel, closeOn) => {
@@ -3455,20 +3423,28 @@
 			renderFinalScript();
 			noteWorkChange();
 		});
+		for (const select of $$("#demo-settings select")) {
+			select.addEventListener("change", () => {
+				state.demo[select.dataset.demo] = select.value;
+			});
+		}
+		// 트리거 옆에 연다. 화면 아래쪽(데스크톱 내비 하단)이면 위로 펼친다.
+		$("#demo-settings").addEventListener("beforetoggle", (event) => {
+			if (event.newState !== "open") return;
+			const pop = event.currentTarget;
+			const r = $("#demo-settings-toggle").getBoundingClientRect();
+			const width = Math.min(300, innerWidth - 16);
+			const above = r.top > innerHeight / 2;
+			Object.assign(pop.style, {
+				width: `${width}px`,
+				left: `${Math.max(8, Math.min(r.left, innerWidth - width - 8))}px`,
+				top: above ? "auto" : `${r.bottom + 6}px`,
+				bottom: above ? `${innerHeight - r.top + 6}px` : "auto",
+			});
+		});
 		$("#mobile-more-toggle")?.addEventListener("click", () => {
 			const open = document.body.classList.toggle("show-mobile-more");
 			$("#mobile-more-toggle").setAttribute("aria-expanded", String(open));
-		});
-		$("#confirm-dialog").addEventListener("close", () => {
-			if (state.isGenerating && $("#confirm-dialog").returnValue === "cancel")
-				state.isGenerating = false;
-		});
-		$("#confirm-dialog").addEventListener("close", () => {
-			if (state.isGenerating) {
-				state.isGenerating = false;
-				$("#make-audio").disabled = false;
-				showGeneration("idle");
-			}
 		});
 		$("#make-audio").addEventListener("click", async () => {
 			if (state.isGenerating) return;
@@ -3510,11 +3486,32 @@
 					$("#model-select").value,
 				),
 			};
-			$("#make-audio").disabled = true;
 			showGeneration("working");
 			window.setTimeout(() => {
-				$("#make-audio").disabled = false;
-				showGenerationPicker();
+				state.isGenerating = false;
+				const outcome = state.demo.generation;
+				showGeneration(outcome);
+				if (outcome === "success") recordGenerationSuccess();
+				// 결과 패널이 보이는 폭(1280px 이상)은 패널을 보이게 스크롤하고, 숨는 폭은 토스트로 알린다.
+				const panel = $("#generation-result");
+				if (panel.checkVisibility()) {
+					panel.scrollIntoView({ block: "nearest" });
+					announce(RESULT_TEXT[outcome]);
+				} else {
+					toast(
+						RESULT_TEXT[outcome],
+						outcome === "success"
+							? {}
+							: {
+									actionLabel: "다시 만들기",
+									// 토스트는 누르면 사라지므로 확인 창을 닫으면 돌아갈 곳을 음성 만들기로 둔다.
+									onAction: () => {
+										$("#make-audio").focus();
+										$("#make-audio").click();
+									},
+								},
+					);
+				}
 			}, 520);
 		});
 		window.TTSStudio = bridge;

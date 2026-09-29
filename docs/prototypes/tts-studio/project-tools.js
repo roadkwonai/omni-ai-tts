@@ -873,8 +873,9 @@
 			const next = event.currentTarget.dataset.next;
 			write(THEME_KEY, next === "system" ? null : next);
 			applyTheme(next);
-			$("#live-region").textContent =
-				`${THEMES.find((theme) => theme.id === next).label} 테마로 바꿨어요.`;
+			host.bridge.announce(
+				`${THEMES.find((theme) => theme.id === next).label} 테마로 바꿨어요.`,
+			);
 		});
 		matchMedia("(prefers-color-scheme: dark)").addEventListener(
 			"change",

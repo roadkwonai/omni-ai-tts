@@ -40,7 +40,14 @@
           <a class="nav-item nav-extra" aria-label="내 보이스" href="#mine" data-nav="mine"><svg aria-hidden="true"><use href="#i-mic" /></svg><span>내 보이스</span></a>
           <a class="nav-item nav-extra" aria-label="연결 상태" href="#connections" data-nav="connections"><svg aria-hidden="true"><use href="#i-link" /></svg><span>연결 상태</span></a>
         </nav>
-        <div class="nav-footer"><span class="nav-status"><span class="dot dot-muted" aria-hidden="true"></span><span>시연 모드</span></span><button type="button" class="icon-button theme-toggle" id="theme-toggle" aria-label="테마: 시스템 설정 · 눌러서 라이트로" title="테마: 시스템 설정 · 눌러서 라이트로"><svg aria-hidden="true"><use href="#i-monitor" /></svg></button></div>
+        <div class="nav-footer"><button type="button" class="nav-status" id="demo-settings-toggle" popovertarget="demo-settings" aria-label="시연 모드 설정" title="시연 모드 설정"><span class="dot dot-muted" aria-hidden="true"></span><span>시연<span class="nav-status-long"> 모드</span></span></button><button type="button" class="icon-button theme-toggle" id="theme-toggle" aria-label="테마: 시스템 설정 · 눌러서 라이트로" title="테마: 시스템 설정 · 눌러서 라이트로"><svg aria-hidden="true"><use href="#i-monitor" /></svg></button></div>
+        <section id="demo-settings" class="workbar-popover demo-settings" popover aria-labelledby="demo-settings-title">
+          <h2 id="demo-settings-title">시연 설정</h2>
+          <p class="demo-settings-lead">실제 요청 없이 볼 결과를 골라요. 검토용이라 저장하지 않아요.</p>
+          <div class="model-picker"><label for="demo-generation">음성 만들기</label><select id="demo-generation" class="model-select" data-demo="generation"><option value="success">완료</option><option value="lost">응답 유실</option><option value="error">공급자 오류</option></select></div>
+          <div class="model-picker"><label for="demo-tools">AI 보이스 도구</label><select id="demo-tools" class="model-select" data-demo="tools"><option value="success">결과 있음</option><option value="empty">빈 결과</option><option value="error">오류</option></select></div>
+          <div class="model-picker"><label for="demo-emotion">감정 자동화</label><select id="demo-emotion" class="model-select" data-demo="emotion"><option value="success">제안 성공</option><option value="failure">제안 실패</option></select></div>
+        </section>
       </aside>
       <main id="main-content" class="main-content" tabindex="-1">
         <div id="live-region" class="sr-only" aria-live="polite" aria-atomic="true"></div>

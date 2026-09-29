@@ -561,30 +561,3 @@
 		width: 100%;
 	}
 }
-
-.voice-tool-demo-settings {
-	margin-top: var(--space-4);
-	padding-top: var(--space-3);
-	border-top: 1px solid var(--line);
-	color: var(--text-muted);
-	font-size: 13px;
-}
-
-.voice-tool-demo-settings summary {
-	display: flex;
-	align-items: center;
-	min-height: 32px;
-	cursor: pointer;
-}
-
-.voice-tool-demo-settings summary:focus-visible {
-	border-radius: var(--radius-sm);
-	outline: var(--focus-outline);
-	outline-offset: 2px;
-}
-
-@media (max-width: 767px), (pointer: coarse) {
-	.voice-tool-demo-settings summary {
-		min-height: 44px;
-	}
-}

@@ -17,12 +17,12 @@
 	--surface-strong: light-dark(#17171c, oklch(0.237 0.008 273));
 	--text: light-dark(#17171c, oklch(1 0 0 / 0.88));
 	--text-muted: light-dark(#62646d, oklch(1 0 0 / 0.61));
-	--text-faint: light-dark(#70727d, oklch(1 0 0 / 0.5));
+	/* 비활성 버튼 글자도 쓰므로 surface-muted 위에서 4.5:1 이상 (라이트 4.6) */
+	--text-faint: light-dark(#6c6e79, oklch(1 0 0 / 0.5));
 	--selected-line: light-dark(#c9ddff, oklch(0.5 0.14 258));
 	--favorite: light-dark(#f5c400, oklch(0.84 0.16 88));
 	--favorite-stroke: light-dark(#8a6500, oklch(0.82 0.15 85));
 	--on-accent: #fff;
-	--on-accent-disabled: light-dark(#fff, oklch(1 0 0 / 0.55));
 	--radius-pill: 999px;
 	--line: light-dark(#e6e7eb, oklch(1 0 0 / 0.12));
 	/* 폼 컨트롤 경계: 인접 배경(surface·bg·surface-muted)에 3:1 이상. 라이트 3.2~3.5, 다크 3.3~3.6 */
@@ -39,7 +39,6 @@
 	--orange: light-dark(#a95c00, oklch(0.778 0.158 64));
 	--orange-subtle: light-dark(#fff5e7, oklch(0.298 0.1 56 / 0.32));
 	--radius-circle: 50%;
-	--blue-disabled: light-dark(#9abcf5, oklch(0.36 0.08 260));
 	--avatar-bg: light-dark(#e8edf7, oklch(0.3 0.04 260));
 	--avatar-fg: light-dark(#385273, oklch(0.86 0.05 255));
 	--success-line: light-dark(#bce8cc, oklch(0.45 0.1 150));
@@ -82,6 +81,8 @@
 html {
 	min-width: 320px;
 	background: var(--bg);
+	/* 포커스·스크롤 대상이 고정된 작업 바 아래로 숨지 않게 한다. */
+	scroll-padding-bottom: calc(var(--workbar-height, 0px) + var(--space-3));
 }
 body {
 	margin: 0;
@@ -242,7 +243,24 @@ select {
 .nav-status {
 	display: flex;
 	align-items: center;
+	justify-content: center;
 	gap: 8px;
+	min-width: 36px;
+	min-height: 36px;
+	padding: 0 var(--space-2);
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: inherit;
+}
+.nav-status:hover {
+	background: var(--surface-muted);
+	color: var(--text);
+}
+.demo-settings-lead {
+	margin: var(--space-1) 0 0;
+	color: var(--text-muted);
+	font-size: 13px;
 }
 .theme-toggle {
 	margin-left: auto;
@@ -331,8 +349,9 @@ h3 {
 	background: var(--blue-hover);
 }
 .button-primary:disabled {
-	background: var(--blue-disabled);
-	color: var(--on-accent-disabled);
+	border-color: var(--line);
+	background: var(--surface-muted);
+	color: var(--text-faint);
 }
 .button-danger {
 	background: var(--red-solid);
@@ -384,6 +403,7 @@ h3 {
 	color: var(--text);
 }
 .icon-button:focus-visible,
+.nav-status:focus-visible,
 .button:focus-visible,
 .text-button:focus-visible,
 .nav-item:focus-visible,
@@ -1431,8 +1451,13 @@ textarea::selection {
 	}
 	.brand > span:last-child,
 	.nav-item span,
-	.nav-footer span:last-child {
+	.nav-status-long {
 		display: none;
+	}
+	.nav-status {
+		padding: 0 var(--space-1);
+		gap: var(--space-1);
+		font-size: 12px;
 	}
 	.nav-item {
 		justify-content: center;
@@ -1517,6 +1542,9 @@ textarea::selection {
 	}
 	.nav-status {
 		display: none;
+	}
+	.show-mobile-more .nav-status {
+		display: flex;
 	}
 	.theme-toggle {
 		width: 44px;
@@ -1844,7 +1872,7 @@ fieldset.form-field legend {
 }
 @media (max-width: 767px) {
 	html {
-		scroll-padding-bottom: 24px;
+		scroll-padding-bottom: calc(var(--workbar-height, 0px) + 24px);
 	}
 	button,
 	input,
@@ -3258,6 +3286,10 @@ body {
 	.toast-action {
 		min-height: 44px;
 	}
+	.nav-status {
+		min-width: 44px;
+		min-height: 44px;
+	}
 	.icon-button,
 	.voice-play,
 	.favorite-button,
@@ -3391,8 +3423,13 @@ body {
 	}
 	.brand > span:last-child,
 	.nav-item span,
-	.nav-footer span:last-child {
+	.nav-status-long {
 		display: none;
+	}
+	.nav-status {
+		padding: 0 var(--space-1);
+		gap: var(--space-1);
+		font-size: 12px;
 	}
 	.nav-item {
 		justify-content: center;
@@ -3421,8 +3458,9 @@ body {
 	filter: brightness(0.96);
 }
 #make-audio[aria-disabled="true"] {
-	background: var(--blue-disabled);
-	color: var(--on-accent-disabled);
+	border-color: var(--line);
+	background: var(--surface-muted);
+	color: var(--text-faint);
 	cursor: not-allowed;
 }
 
