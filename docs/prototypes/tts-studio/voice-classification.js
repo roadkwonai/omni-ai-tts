@@ -263,6 +263,22 @@
 		return true;
 	}
 
+	// 편집기를 거치지 않고 한 그룹의 연결을 바로 바꾼다(성우 캐스팅의 넣기·빼기).
+	function setAssignment(voice, group, ids) {
+		const key = voiceKey(voice);
+		if (!key || !GROUPS.includes(group)) return false;
+		const next = structuredClone(data);
+		const assignment = next.assignments[key] || emptyAssignment();
+		assignment[group] = validIdList(
+			ids,
+			new Set(next.items[group].map((item) => item.id)),
+		);
+		next.assignments[key] = assignment;
+		if (!persist(next)) return false;
+		emit({ type: "assignment", voice: key });
+		return true;
+	}
+
 	function getLabels(voice, group) {
 		if (!GROUPS.includes(group)) return [];
 		const items = new Map(
@@ -680,8 +696,10 @@
 			data = load();
 			return window.TTSVoiceClassification;
 		},
+		addItem,
 		getItems,
 		getAssignments,
+		setAssignment,
 		getFlags,
 		setFlags,
 		getLabels,

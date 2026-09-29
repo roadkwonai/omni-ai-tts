@@ -2,6 +2,10 @@
 	const storageKey = "tts-pilot.prototype.scripts";
 	const _sampleScript =
 		"2026년 9월 26일, 하루 3분으로 시작하는 경제 이야기입니다. 커피 한 잔은 4,500원. 지난달보다 12.5% 올랐습니다. 오늘은 3가지 변화를 살펴볼게요.";
+	// 가상 성우. 필드는 공급자 목록 API가 주는 값을 한국어 이름으로 옮긴 모양이다.
+	// Typecast(GET /v3/voices): gender·age·use_cases·models, 언어 없음.
+	// ElevenLabs(GET /v1/shared-voices): gender·age(청년·중년·장년)·use_case·language·accent·free_users_allowed(freeUsers), 정렬용 수치(created는 date_unix).
+	// Fish Audio(GET /model): languages·tags·licensed, 정렬용 수치(created는 created_at). 성별·연령·용도 없음.
 	const voiceData = [
 		{
 			id: "minseo",
@@ -12,10 +16,10 @@
 			tags: ["경제 한 입", "내레이션"],
 			favorite: true,
 			sample: true,
-			language: "한국어",
 			gender: "여성",
 			age: "청년",
-			uses: ["뉴스", "강의", "안내"],
+			uses: ["뉴스", "교육·강의", "아나운서"],
+			models: ["ssfm-v30", "ssfm-v21"],
 		},
 		{
 			id: "juno",
@@ -26,10 +30,80 @@
 			tags: ["교육", "차분한"],
 			favorite: false,
 			sample: true,
-			language: "한국어",
 			gender: "남성",
 			age: "청년",
-			uses: ["강의", "낭독", "안내"],
+			uses: ["교육·강의", "오디오북", "대화"],
+			models: ["ssfm-v30", "ssfm-v21"],
+		},
+		{
+			id: "taeho",
+			name: "태호",
+			initial: "태",
+			provider: "Typecast",
+			tone: "낮고 안정적인 톤",
+			tags: ["다큐", "중저음"],
+			favorite: false,
+			sample: true,
+			gender: "남성",
+			age: "장년",
+			uses: ["다큐멘터리", "오디오북"],
+			models: ["ssfm-v21"],
+		},
+		{
+			id: "seoah",
+			name: "서아",
+			initial: "서",
+			provider: "Typecast",
+			tone: "맑고 장난스러운 목소리",
+			tags: ["캐릭터"],
+			favorite: false,
+			sample: true,
+			gender: "여성",
+			age: "아동",
+			uses: ["애니메이션", "게임"],
+			models: ["ssfm-v30"],
+		},
+		{
+			id: "dain",
+			name: "다인",
+			initial: "다",
+			provider: "Typecast",
+			tone: "통통 튀는 쇼츠형",
+			tags: ["쇼츠", "밝은"],
+			favorite: false,
+			sample: true,
+			gender: "여성",
+			age: "청소년",
+			uses: ["숏폼", "대화"],
+			models: ["ssfm-v30"],
+		},
+		{
+			id: "jihun",
+			name: "지훈",
+			initial: "지",
+			provider: "Typecast",
+			tone: "힘 있는 광고형",
+			tags: ["광고"],
+			favorite: false,
+			sample: true,
+			gender: "남성",
+			age: "중년",
+			uses: ["광고", "팟캐스트"],
+			models: ["ssfm-v30"],
+		},
+		{
+			id: "mira",
+			name: "미라",
+			initial: "미",
+			provider: "Typecast",
+			tone: "단정한 안내 방송",
+			tags: ["안내"],
+			favorite: false,
+			sample: true,
+			gender: "여성",
+			age: "중년",
+			uses: ["아나운서", "음성 안내"],
+			models: ["ssfm-v30", "ssfm-v21"],
 		},
 		{
 			id: "soyeon",
@@ -41,9 +115,12 @@
 			favorite: true,
 			sample: true,
 			language: "한국어",
+			accent: "표준",
 			gender: "여성",
 			age: "중년",
-			uses: ["뉴스", "라디오"],
+			uses: ["정보·교육"],
+			freeUsers: true,
+			stats: { created: "2026-03-02", usage: 1820000, trend: 41, cloned: 930 },
 		},
 		{
 			id: "haneul",
@@ -55,23 +132,97 @@
 			favorite: false,
 			sample: false,
 			language: "영어",
+			accent: "미국식",
 			gender: "여성",
-			age: "청소년",
-			uses: ["광고", "예능", "게임"],
+			age: "청년",
+			uses: ["소셜 미디어"],
+			freeUsers: true,
+			stats: { created: "2026-08-21", usage: 240000, trend: 88, cloned: 310 },
 		},
 		{
-			id: "taeho",
-			name: "태호",
-			initial: "태",
-			provider: "Typecast",
-			tone: "낮고 안정적인 톤",
-			tags: ["다큐", "중저음"],
+			id: "seojun",
+			name: "서준",
+			initial: "서",
+			provider: "ElevenLabs",
+			tone: "깊은 이야기꾼",
+			tags: ["내레이션"],
 			favorite: false,
 			sample: true,
 			language: "한국어",
+			accent: "표준",
+			gender: "남성",
+			age: "중년",
+			uses: ["내레이션·이야기"],
+			freeUsers: false,
+			stats: { created: "2025-11-17", usage: 3100000, trend: 12, cloned: 2400 },
+		},
+		{
+			id: "yerin",
+			name: "예린",
+			initial: "예",
+			provider: "ElevenLabs",
+			tone: "만화 같은 캐릭터 톤",
+			tags: ["캐릭터"],
+			favorite: false,
+			sample: true,
+			language: "일본어",
+			accent: "표준",
+			gender: "여성",
+			age: "청년",
+			uses: ["캐릭터·애니메이션"],
+			freeUsers: true,
+			stats: { created: "2026-06-05", usage: 560000, trend: 63, cloned: 780 },
+		},
+		{
+			id: "geonwoo",
+			name: "건우",
+			initial: "건",
+			provider: "ElevenLabs",
+			tone: "품위 있는 낭독",
+			tags: ["낭독"],
+			favorite: false,
+			sample: true,
+			language: "영어",
+			accent: "영국식",
 			gender: "남성",
 			age: "장년",
-			uses: ["다큐", "낭독"],
+			uses: ["내레이션·이야기"],
+			freeUsers: false,
+			stats: { created: "2025-09-30", usage: 980000, trend: 7, cloned: 1500 },
+		},
+		{
+			id: "sora",
+			name: "소라",
+			initial: "소",
+			provider: "ElevenLabs",
+			tone: "상냥한 광고형",
+			tags: ["광고"],
+			favorite: false,
+			sample: true,
+			language: "한국어",
+			accent: "표준",
+			gender: "여성",
+			age: "중년",
+			uses: ["광고"],
+			freeUsers: true,
+			stats: { created: "2026-09-10", usage: 90000, trend: 95, cloned: 120 },
+		},
+		{
+			id: "hyunwoo",
+			name: "현우",
+			initial: "현",
+			provider: "ElevenLabs",
+			tone: "편안한 대화형",
+			tags: ["대화"],
+			favorite: false,
+			sample: true,
+			language: "한국어",
+			accent: "표준",
+			gender: "남성",
+			age: "청년",
+			uses: ["대화"],
+			freeUsers: false,
+			stats: { created: "2026-04-18", usage: 720000, trend: 30, cloned: 640 },
 		},
 		{
 			id: "yuna",
@@ -83,9 +234,9 @@
 			favorite: false,
 			sample: true,
 			language: "한국어",
-			gender: "여성",
-			age: "청년",
-			uses: ["낭독", "라디오", "다큐"],
+			providerTags: ["내레이션", "감성"],
+			licensed: true,
+			stats: { created: "2026-05-11", usage: 45200, score: 92 },
 		},
 		{
 			id: "dojin",
@@ -97,9 +248,79 @@
 			favorite: false,
 			sample: false,
 			language: "한국어",
-			gender: "남성",
-			age: "중년",
-			uses: ["뉴스", "강의", "광고"],
+			providerTags: ["뉴스", "경제"],
+			licensed: false,
+			stats: { created: "2026-08-03", usage: 8100, score: 71 },
+		},
+		{
+			id: "bora",
+			name: "보라",
+			initial: "보",
+			provider: "Fish Audio",
+			tone: "속삭이는 차분한 톤",
+			tags: ["차분한"],
+			favorite: false,
+			sample: true,
+			language: "한국어",
+			providerTags: ["ASMR", "차분함"],
+			licensed: true,
+			stats: { created: "2026-02-20", usage: 63800, score: 88 },
+		},
+		{
+			id: "nari",
+			name: "나리",
+			initial: "나",
+			provider: "Fish Audio",
+			tone: "담담한 오디오북 낭독",
+			tags: ["낭독"],
+			favorite: false,
+			sample: true,
+			language: "한국어",
+			providerTags: ["오디오북", "내레이션"],
+			licensed: false,
+			stats: { created: "2026-09-01", usage: 2300, score: 64 },
+		},
+		{
+			id: "taeyang",
+			name: "태양",
+			initial: "태",
+			provider: "Fish Audio",
+			tone: "우렁찬 게임 캐릭터",
+			tags: ["캐릭터"],
+			favorite: false,
+			sample: true,
+			language: "한국어",
+			providerTags: ["게임", "캐릭터"],
+			licensed: false,
+			stats: { created: "2026-07-07", usage: 17400, score: 77 },
+		},
+		{
+			id: "haru",
+			name: "하루",
+			initial: "하",
+			provider: "Fish Audio",
+			tone: "귀여운 애니 톤",
+			tags: ["캐릭터"],
+			favorite: false,
+			sample: true,
+			language: "일본어",
+			providerTags: ["애니", "캐릭터"],
+			licensed: false,
+			stats: { created: "2026-06-28", usage: 29500, score: 81 },
+		},
+		{
+			id: "jiwoo",
+			name: "지우",
+			initial: "지",
+			provider: "Fish Audio",
+			tone: "친절한 튜토리얼 진행",
+			tags: ["교육"],
+			favorite: false,
+			sample: true,
+			language: "영어",
+			providerTags: ["유튜브", "교육"],
+			licensed: true,
+			stats: { created: "2026-01-15", usage: 51000, score: 85 },
 		},
 	];
 	const corrections = [
@@ -191,8 +412,27 @@
 			channels: [],
 			categories: [],
 			types: [],
+			facets: {},
 		},
 		voiceNotes: {},
+		// 성우 캐스팅 페이지. script가 null이면 처음 열 때 작업실 첫 문단으로 채운다.
+		// takes[성우 id]는 마지막 시험 생성 {script, status}. playing은 "sample:id"·"take:id".
+		casting: {
+			provider: "all",
+			query: "",
+			facets: {},
+			channels: [],
+			categories: [],
+			types: [],
+			view: "all",
+			sort: "default",
+			selected: null,
+			script: null,
+			takes: {},
+			playing: null,
+			// 둘러보기 인기에서 보는 공급자(전체 탭).
+			popular: null,
+		},
 		clones: [],
 		isGenerating: false,
 		generationSnapshot: null,
@@ -201,34 +441,94 @@
 		segmentUndo: null,
 		usageLog: [],
 		voiceSort: "default",
-		voiceFacets: { language: [], gender: [], age: [], uses: [] },
+		voiceFacets: {},
 		speakerDetect: true,
 		player: { timer: 0, elapsed: 0, index: -1 },
 		// 시연 설정(내비 하단 "시연 모드"): 실제 요청 없이 보여 줄 결과.
-		demo: { generation: "success", tools: "success", emotion: "success" },
+		demo: {
+			generation: "success",
+			tools: "success",
+			emotion: "success",
+			trial: "success",
+		},
 	};
 	const recentVoicesKey = "tts-pilot.prototype.recent-voices.v1";
 	const speakerDetectKey = "tts-pilot.prototype.speaker-detect.v1";
-	const facetGroups = [
-		["language", "언어", null],
-		["gender", "성별", ["여성", "남성"]],
-		["age", "연령", ["아동", "청소년", "청년", "중년", "장년"]],
-		[
-			"uses",
-			"용도",
-			[
-				"다큐",
-				"낭독",
-				"강의",
-				"안내",
-				"광고",
-				"게임",
-				"라디오",
-				"예능",
-				"뉴스",
-			],
+	// 필터는 공급자 목록 API의 조회 조건과 응답 필드만 쓴다(docs/briefs/tts-voice-provider-filters.md).
+	// 내 보이스만 앱 기록(클론 소유 매핑)이다. 공용 키의 공급자 계정 목록에는 남의 클론이 섞인다.
+	// [이름, 선택지 순서(null이면 성우 데이터에서 뽑음)]
+	const facetDefs = {
+		gender: ["성별", ["여성", "남성"]],
+		age: ["연령", ["아동", "청소년", "청년", "중년", "장년"]],
+		// API의 use_cases. Typecast 화면이 '콘텐츠'라고 부른다.
+		uses: ["콘텐츠", null],
+		language: ["언어", null],
+		models: ["모델", null],
+		accent: ["억양", null],
+		providerTags: ["태그", null],
+		licensed: ["보증 성우만", null],
+		isNew: ["신규", null],
+		freeUsers: ["체험", null],
+		mine: ["내 보이스", null],
+	};
+	// ponytail: 시연 기준일(2026-09-29)에서 30일 전으로 고정. 실제 앱은 오늘 기준으로 센다.
+	const NEW_SINCE = "2026-08-30";
+	// 켜고 끄는 조건: [성우가 해당하는지, 칩 설명]
+	// licensed: Fish Audio licensed / isNew: ElevenLabs date_unix·Fish Audio created_at
+	// freeUsers: ElevenLabs free_users_allowed / mine: 앱의 클론 소유 기록
+	const flagFacets = {
+		licensed: [
+			(voice) => voice.licensed,
+			"Fish Audio가 목소리 주인의 권리를 확인한 성우",
 		],
-	];
+		isNew: [
+			(voice) => voice.stats?.created >= NEW_SINCE,
+			"최근 30일 안에 공개된 성우",
+		],
+		freeUsers: [(voice) => voice.freeUsers, "무료 플랜에서도 쓸 수 있는 성우"],
+		mine: [(voice) => voice.mine, "내가 만들거나 연결한 클론 보이스"],
+	};
+	const providerFacets = {
+		all: ["gender", "age", "uses", "language", "isNew", "freeUsers", "mine"],
+		Typecast: ["gender", "age", "uses", "models", "mine"],
+		ElevenLabs: [
+			"gender",
+			"age",
+			"uses",
+			"language",
+			"accent",
+			"isNew",
+			"freeUsers",
+			"mine",
+		],
+		"Fish Audio": ["language", "providerTags", "licensed", "isNew", "mine"],
+	};
+	// 공급자 API의 정렬(sort, sort_by). Typecast 목록에는 정렬이 없다.
+	const providerSorts = {
+		ElevenLabs: [
+			["trend", "인기 급상승"],
+			["usage", "사용량 많은 순"],
+			["cloned", "클론 많은 순"],
+			["created", "최신 순"],
+		],
+		"Fish Audio": [
+			["score", "점수 순"],
+			["usage", "사용량 많은 순"],
+			["created", "최신 순"],
+		],
+	};
+	// 조건 줄 끝의 탭 안내. Typecast 목록 API에는 설명 검색이 없고 추천 API가 따로 있다.
+	const facetHints = {
+		all: "공급자를 고르면 조건이 더 나와요",
+		Typecast: "설명으로 찾기는 맞춤 성우 추천에서 해요",
+	};
+	// 실제 앱의 검색: Typecast는 받아 둔 전체 목록을 앱이 찾고, ElevenLabs는 search, Fish Audio는 title로 조회한다.
+	const searchHints = {
+		all: "이름·분위기·목소리 ID 검색",
+		Typecast: "이름·분위기 검색",
+		ElevenLabs: "이름·설명 검색",
+		"Fish Audio": "이름 검색",
+	};
 
 	const $ = (selector, parent = document) => parent.querySelector(selector);
 	const $$ = (selector, parent = document) => [
@@ -947,76 +1247,354 @@
 		target.replaceChildren();
 		makeClassificationFilters(target, state.studioFilters, renderVoiceList);
 	};
-	const facetValues = (voice, key) =>
-		key === "uses" ? voice.uses || [] : voice[key] ? [voice[key]] : [];
-	const facetMatches = (voice) =>
-		facetGroups.every(
-			([key]) =>
-				!state.voiceFacets[key].length ||
-				facetValues(voice, key).some((value) =>
-					state.voiceFacets[key].includes(value),
-				),
-		);
-	const facetCount = () =>
-		facetGroups.reduce((sum, [key]) => sum + state.voiceFacets[key].length, 0);
-	const renderVoiceFacets = () => {
-		const host = $("#voice-facet-groups");
-		if (!host) return;
-		host.replaceChildren();
-		facetGroups.forEach(([key, label, order]) => {
-			const present = new Set(voiceData.flatMap((v) => facetValues(v, key)));
-			const values = order
-				? order.filter((value) => present.has(value))
-				: [...present];
-			const group = el("fieldset", "voice-facet-group");
-			const selected = state.voiceFacets[key].length;
-			group.append(
-				el("legend", "", `${label}${selected ? ` · ${selected}개 선택` : ""}`),
-			);
-			const chips = el("div", "voice-facet-chips");
-			values.forEach((value) => {
-				const pressed = state.voiceFacets[key].includes(value);
-				const chip = button(value, "filter-chip");
-				chip.setAttribute("aria-pressed", String(pressed));
-				chip.addEventListener("click", () => {
-					state.voiceFacets[key] = pressed
-						? state.voiceFacets[key].filter((item) => item !== value)
-						: [...state.voiceFacets[key], value];
-					renderVoiceFacets();
-					renderVoiceList();
-					$(`[data-facet="${key}:${value}"]`)?.focus();
-				});
-				chip.dataset.facet = `${key}:${value}`;
-				chips.append(chip);
-			});
-			group.append(chips);
-			host.append(group);
-		});
-		const count = facetCount();
-		$("#voice-facet-count").textContent = count ? `· ${count}개 선택` : "";
+	const facetValues = (voice, key) => {
+		const value = voice[key];
+		if (flagFacets[key])
+			return flagFacets[key][0](voice) ? [facetDefs[key][0]] : [];
+		return Array.isArray(value) ? value : value ? [value] : [];
 	};
-	const getFilteredVoices = () => {
+	const facetKeys = (provider) => providerFacets[provider || "all"];
+	// 콘텐츠별 묶음과 펼친 칩 줄에 쓰는 조건. Fish Audio는 용도 대신 태그가 있다.
+	const contentKey = (provider) =>
+		facetKeys(provider).includes("uses") ? "uses" : "providerTags";
+	const facetMatches = (voice, selected, provider) =>
+		facetKeys(provider).every(
+			(key) =>
+				!selected[key]?.length ||
+				facetValues(voice, key).some((value) => selected[key].includes(value)),
+		);
+	const facetCount = (selected) =>
+		Object.values(selected).reduce((sum, values) => sum + values.length, 0);
+	// 전체 탭에서 고른 조건을 주지 않는 공급자는 성우가 모두 빠진다. [공급자, [조건 이름]] 목록.
+	const missingFacets = (tab, selected) =>
+		tab !== "all"
+			? []
+			: Object.entries(providerFacets)
+					.filter(([name]) => name !== "all")
+					.map(([name, keys]) => [
+						name,
+						facetKeys("all")
+							.filter((key) => selected[key]?.length && !keys.includes(key))
+							.map((key) => facetDefs[key][0]),
+					])
+					.filter(([, labels]) => labels.length);
+	// 목록 한 줄 요약: 공급자와 API가 준 속성.
+	const voiceMeta = (voice) =>
+		[
+			voice.provider,
+			voice.gender,
+			voice.age,
+			voice.language,
+			voice.licensed && "보증",
+			flagFacets.isNew[0](voice) && "신규",
+			voice.freeUsers && "체험",
+		]
+			.filter(Boolean)
+			.join(" · ");
+	// top layer에 뜨는 팝오버를 칩 아래에 두고, 열려 있는 동안 스크롤·크기 변경을 따라간다.
+	const anchorPopover = (pop, trigger) => {
+		// 아래 공간이 좁으면(화면 아래쪽 칩) 칩 위로 뒤집는다.
+		const place = () => {
+			const r = trigger.getBoundingClientRect();
+			const width = Math.min(280, innerWidth - 16);
+			const below = innerHeight - r.bottom - 14;
+			const above = r.top - 14;
+			const up = below < 240 && above > below;
+			Object.assign(pop.style, {
+				width: `${width}px`,
+				left: `${Math.max(8, Math.min(r.left, innerWidth - width - 8))}px`,
+				top: up ? "auto" : `${r.bottom + 6}px`,
+				bottom: up ? `${innerHeight - r.top + 6}px` : "auto",
+				maxHeight: `${up ? above : below}px`,
+			});
+		};
+		pop.addEventListener("beforetoggle", (event) => {
+			if (event.newState === "open") place();
+		});
+		pop.addEventListener("toggle", (event) => {
+			const method =
+				event.newState === "open" ? "addEventListener" : "removeEventListener";
+			window[method]("scroll", place, true);
+			window[method]("resize", place);
+		});
+	};
+	// 드롭다운 칩 하나: 누르면 팝오버에 선택지 칩이 나오고 여러 개 고를 수 있다.
+	// options는 [값, 이름], chosen()은 지금 고른 값 목록, onToggle(값)은 선택을 바꾼다.
+	const dropChip = (id, label, options, chosen, onToggle) => {
+		const pop = el("fieldset", "facet-pop");
+		pop.id = id;
+		pop.popover = "auto";
+		pop.append(el("legend", "", label));
+		const trigger = button("", "filter-chip facet-trigger");
+		trigger.setAttribute("popovertarget", id);
+		const caption = el("span");
+		const nameOf = (value) =>
+			options.find(([option]) => option === value)?.[1] ?? value;
+		const setCaption = () => {
+			const list = chosen();
+			caption.textContent = !list.length
+				? label
+				: `${label} · ${nameOf(list[0])}${list.length > 1 ? ` 외 ${list.length - 1}` : ""}`;
+			trigger.classList.toggle("is-selected", list.length > 0);
+		};
+		trigger.append(caption, icon("chevron-down"));
+		const chips = el("div", "voice-facet-chips");
+		for (const [value, name] of options) {
+			const chip = button(name, "filter-chip");
+			chip.setAttribute("aria-pressed", String(chosen().includes(value)));
+			chip.addEventListener("click", () => {
+				onToggle(value);
+				chip.setAttribute("aria-pressed", String(chosen().includes(value)));
+				setCaption();
+			});
+			chips.append(chip);
+		}
+		pop.append(chips);
+		anchorPopover(pop, trigger);
+		setCaption();
+		return [trigger, pop];
+	};
+	// 켜고 끄는 조건 칩. 설명은 마우스에는 title, 스크린리더에는 aria-describedby로 준다.
+	const appendFlag = (host, id, key, checked, onChange) => {
+		const toggle = el("label", "filter-chip facet-toggle");
+		toggle.title = flagFacets[key][1];
+		const box = el("input");
+		box.type = "checkbox";
+		box.checked = checked;
+		const tip = el("span", "sr-only", flagFacets[key][1]);
+		tip.id = `${id}-tip`;
+		box.setAttribute("aria-describedby", tip.id);
+		box.addEventListener("change", () => onChange(box.checked));
+		toggle.append(box, facetDefs[key][0]);
+		host.append(toggle, tip);
+	};
+	// 콘텐츠 칩을 펼쳐 둔다. 접힌 동안은 앞 6개와 고른 칩만 보이고 더보기로 모두 연다.
+	const CONTENT_LIMIT = 6;
+	const renderContentChips = (host, label, values, chosen, onToggle) => {
+		host.replaceChildren(el("legend", "sr-only", label));
+		values.forEach((value, index) => {
+			const chip = button(value, "filter-chip");
+			chip.classList.toggle("is-extra", index >= CONTENT_LIMIT);
+			chip.setAttribute("aria-pressed", String(chosen.includes(value)));
+			chip.addEventListener("click", () => {
+				onToggle(value);
+				chip.setAttribute(
+					"aria-pressed",
+					String(chip.getAttribute("aria-pressed") !== "true"),
+				);
+			});
+			host.append(chip);
+		});
+		if (values.length <= CONTENT_LIMIT) return;
+		const more = button("", "filter-chip facet-more");
+		const setLabel = () => {
+			const open = host.classList.contains("is-open");
+			more.replaceChildren(
+				open ? "접기" : `더보기 ${values.length - CONTENT_LIMIT}`,
+				icon("chevron-down"),
+			);
+			more.setAttribute("aria-expanded", String(open));
+		};
+		more.addEventListener("click", () => {
+			host.classList.toggle("is-open");
+			setLabel();
+		});
+		setLabel();
+		host.append(more);
+	};
+	// 조건마다 드롭다운 칩. 선택지는 지금 공급자 탭의 성우에서 뽑는다.
+	// 칩을 눌러도 줄을 다시 그리지 않아 팝오버와 포커스가 그대로 남는다.
+	// 해제·빠짐 안내는 줄 아래 안내 줄(role=status)에 보이고, 빠진 공급자로 바로 옮길 수 있다.
+	// 성우 캐스팅은 콘텐츠(태그)를 contentHost에 펼친 칩으로 두고, own 조건(내 보이스)은
+	// 내 분류 줄이 그리므로 여기서는 그리지도, 세지도, 해제하지도 않는다.
+	const makeFacetRow = (host, provider, selected, options) => {
+		const { onChange, onProvider, contentHost, own = [] } = options;
+		const tab = provider || "all";
+		const keys = facetKeys(tab);
+		const pool = voiceData.filter(
+			(voice) => tab === "all" || voice.provider === tab,
+		);
+		const dropped = [];
+		for (const key of Object.keys(selected)) {
+			if (keys.includes(key)) continue;
+			if (selected[key].length) dropped.push(facetDefs[key][0]);
+			delete selected[key];
+		}
+		// 안내 줄은 한 번만 만들어 둬야 바뀐 내용이 읽힌다.
+		if (!host.facetNote) {
+			host.facetNote = el("p", "facet-note");
+			host.facetNote.setAttribute("role", "status");
+			host.after(host.facetNote);
+		}
+		const note = host.facetNote;
+		host.replaceChildren(el("legend", "sr-only", "공급자 분류"));
+		const chosenCount = () =>
+			keys
+				.filter((key) => !own.includes(key))
+				.reduce((sum, key) => sum + (selected[key]?.length ?? 0), 0);
+		const reset = button("조건 해제", "filter-chip facet-reset", "close");
+		// 탭 안내는 고른 조건이 없을 때만 보이고, 고르면 그 자리에 조건 해제가 온다.
+		const hint = el("span", "facet-hint", facetHints[tab] || "");
+		let droppedText = "";
+		const renderNote = () => {
+			note.replaceChildren();
+			if (droppedText) note.append(el("span", "", droppedText));
+			for (const [name, labels] of missingFacets(tab, selected)) {
+				note.append(
+					el("span", "", `${name}는 ${labels.join("·")} 정보가 없어 빠졌어요.`),
+				);
+				const go = button(`${name} 보기`, "text-button facet-note-action");
+				go.addEventListener("click", () => onProvider(name));
+				note.append(go);
+			}
+		};
+		const sync = () => {
+			droppedText = "";
+			reset.hidden = !chosenCount();
+			hint.hidden = !reset.hidden;
+			renderNote();
+			onChange();
+		};
+		for (const key of keys) {
+			const [label, order] = facetDefs[key];
+			const present = new Set(pool.flatMap((voice) => facetValues(voice, key)));
+			// 켜고 끄는 조건은 해당 성우가 없어도(내 보이스 0명) 칩을 둔다.
+			const values = flagFacets[key]
+				? [label]
+				: order
+					? order.filter((value) => present.has(value))
+					: [...present].sort((a, b) => a.localeCompare(b, "ko"));
+			// 새 탭에 없는 값은 칩이 안 보이므로 선택도 푼다.
+			const kept = (selected[key] || []).filter((value) =>
+				values.includes(value),
+			);
+			if (kept.length < (selected[key] || []).length) dropped.push(label);
+			selected[key] = kept;
+			if (!values.length || own.includes(key)) continue;
+			const toggleValue = (value) => {
+				const chosen = selected[key];
+				selected[key] = chosen.includes(value)
+					? chosen.filter((item) => item !== value)
+					: [...chosen, value];
+				sync();
+			};
+			if (flagFacets[key]) {
+				appendFlag(host, `${host.id}-${key}`, key, kept.length > 0, (on) => {
+					selected[key] = on ? [label] : [];
+					sync();
+				});
+				continue;
+			}
+			if (contentHost && key === contentKey(tab)) {
+				// 펼친 칩은 성우가 많은 값부터 보인다.
+				const size = (value) =>
+					pool.filter((voice) => facetValues(voice, key).includes(value))
+						.length;
+				renderContentChips(
+					contentHost,
+					label,
+					values.toSorted((a, b) => size(b) - size(a)),
+					selected[key],
+					toggleValue,
+				);
+				continue;
+			}
+			host.append(
+				...dropChip(
+					`${host.id}-${key}`,
+					label,
+					values.map((value) => [value, value]),
+					() => selected[key],
+					toggleValue,
+				),
+			);
+		}
+		if (facetHints[tab]) host.append(hint);
+		reset.addEventListener("click", () => {
+			for (const key of Object.keys(selected))
+				if (!own.includes(key)) delete selected[key];
+			makeFacetRow(host, provider, selected, options);
+			host.querySelector(".facet-trigger")?.focus();
+			onChange();
+		});
+		reset.hidden = !chosenCount();
+		hint.hidden = !reset.hidden;
+		host.append(reset);
+		if (dropped.length)
+			droppedText = `${tab === "all" ? "전체" : tab}에 없는 ${[...new Set(dropped)].join("·")} 조건은 해제했어요.`;
+		renderNote();
+	};
+	const renderVoiceFacets = () =>
+		makeFacetRow($("#voice-facets"), state.provider, state.voiceFacets, {
+			onChange: renderVoiceList,
+			onProvider: (name) => {
+				const tab = $(`.filter-row [data-provider="${name}"]`);
+				tab.click();
+				tab.focus();
+			},
+		});
+	// 공급자 탭을 바꾸면 조건 줄, 검색 안내, 정렬 선택지를 그 공급자에 맞춘다.
+	const setPickerProvider = (provider) => {
+		state.provider = provider;
+		$("#voice-search").placeholder = searchHints[provider];
+		const sort = $("#voice-sort");
+		for (const option of $$("option[data-provider-sort]", sort))
+			option.remove();
+		for (const [key, label] of providerSorts[provider] || []) {
+			const option = el("option", "", label);
+			option.value = `stat:${key}`;
+			option.dataset.providerSort = "";
+			sort.append(option);
+		}
+		if (![...sort.options].some((option) => option.value === state.voiceSort))
+			state.voiceSort = "default";
+		sort.value = state.voiceSort;
+		renderVoiceFacets();
+		renderVoiceList();
+	};
+	// 성우 선택 창과 성우 캐스팅이 같이 쓴다. classes는 채널·카테고리·타입 선택.
+	const filterVoices = ({ provider, view, query, classes, facets, sort }) => {
 		const voices = voiceData.filter(
 			(voice) =>
-				(state.provider === "all" || voice.provider === state.provider) &&
-				viewMatches(voice, state.voiceView) &&
-				searchVoice(voice, $("#voice-search").value) &&
-				classification().matches(voice, state.studioFilters) &&
-				facetMatches(voice),
+				(provider === "all" || voice.provider === provider) &&
+				viewMatches(voice, view) &&
+				searchVoice(voice, query) &&
+				classification().matches(voice, classes) &&
+				facetMatches(voice, facets, provider),
 		);
-		if (state.voiceSort === "recent") {
+		// 공급자 정렬(stat:키)은 큰 값·최근 날짜가 먼저다.
+		if (sort.startsWith("stat:")) {
+			const key = sort.slice(5);
+			return voices.sort((a, b) =>
+				String(b.stats?.[key] ?? "").localeCompare(
+					String(a.stats?.[key] ?? ""),
+					"en",
+					{ numeric: true },
+				),
+			);
+		}
+		if (sort === "recent") {
 			const recent = getRecentVoices();
 			const rank = (voice) =>
 				recent.includes(voice.id) ? recent.indexOf(voice.id) : recent.length;
 			return voices.sort((a, b) => rank(a) - rank(b));
 		}
-		if (state.voiceSort === "favorites")
+		if (sort === "favorites")
 			return voices.sort(
 				(a, b) =>
 					Number(voiceFlags(b).favorite) - Number(voiceFlags(a).favorite),
 			);
 		return voices;
 	};
+	const getFilteredVoices = () =>
+		filterVoices({
+			provider: state.provider,
+			view: state.voiceView,
+			query: $("#voice-search").value,
+			classes: state.studioFilters,
+			facets: state.voiceFacets,
+			sort: state.voiceSort,
+		});
 	const renderVoiceList = () => {
 		const list = $("#voice-list");
 		const voices = getFilteredVoices();
@@ -1026,7 +1604,7 @@
 			state.provider === "all" &&
 			state.voiceView === "all" &&
 			state.voiceSort === "default" &&
-			!facetCount() &&
+			!facetCount(state.voiceFacets) &&
 			!$("#voice-search").value &&
 			groups.every(([g]) => !state.studioFilters[g].length);
 		const resultCount = $("#voice-result-count");
@@ -1078,11 +1656,16 @@
 			main.setAttribute("aria-label", `${voice.name} 선택`);
 			main.append(
 				line,
-				el("div", "voice-provider", voice.provider),
+				el("div", "voice-provider", voiceMeta(voice)),
 				el(
 					"div",
 					"voice-detail",
-					voice.sample ? voice.tone : "기본 샘플이 없어요",
+					[
+						voice.sample ? voice.tone : "기본 샘플이 없어요",
+						...(voice.uses || voice.providerTags || [])
+							.slice(0, 2)
+							.map((tag) => `#${tag}`),
+					].join(" "),
 				),
 			);
 			main.addEventListener("click", () => pickVoice(voice));
@@ -1105,26 +1688,21 @@
 		});
 	};
 	const resetVoiceFilters = () => {
-		state.provider = "all";
 		state.voiceView = "all";
 		state.voiceSort = "default";
+		state.voiceFacets = {};
 		$("#studio-voice-view").value = "all";
-		$("#voice-sort").value = "default";
 		groups.forEach(([g]) => {
 			state.studioFilters[g] = [];
 		});
-		facetGroups.forEach(([key]) => {
-			state.voiceFacets[key] = [];
-		});
-		renderVoiceFacets();
 		renderStudioClassificationFilters();
 		$("#voice-search").value = "";
-		$$(".filter-chip").forEach((chip) => {
+		$$(".filter-row .filter-chip").forEach((chip) => {
 			const selected = chip.dataset.provider === "all";
 			chip.classList.toggle("is-selected", selected);
 			chip.setAttribute("aria-pressed", String(selected));
 		});
-		renderVoiceList();
+		setPickerProvider("all");
 	};
 	const renderReview = () => {
 		const list = $("#review-list");
@@ -1436,6 +2014,7 @@
 	const renderPage = (name, view) => {
 		view.replaceChildren();
 		if (name === "voices") renderVoicesPage(view);
+		if (name === "casting") renderCastingPage(view);
 		if (name === "scripts") renderScriptsPage(view);
 		if (name === "presets") renderPresetsPage(view);
 		if (name === "library") renderLibraryPage(view);
@@ -1484,6 +2063,7 @@
 			select.value = filters[key];
 			select.addEventListener("change", () => {
 				filters[key] = select.value;
+				if (key === "provider") renderFacets();
 				render();
 			});
 			wrap.append(select);
@@ -1498,19 +2078,21 @@
 				channels: [],
 				categories: [],
 				types: [],
+				facets: {},
 			});
 			renderVoicesPage(view);
 		};
 		const resetButton = button("필터 초기화", "mini-button");
 		resetButton.addEventListener("click", reset);
+		const providerFilter = selectFilter("provider", "공급자", [
+			["", "전체"],
+			["Typecast", "Typecast"],
+			["ElevenLabs", "ElevenLabs"],
+			["Fish Audio", "Fish Audio"],
+		]);
 		tools.append(
 			search,
-			selectFilter("provider", "공급자", [
-				["", "전체"],
-				["Typecast", "Typecast"],
-				["ElevenLabs", "ElevenLabs"],
-				["Fish Audio", "Fish Audio"],
-			]),
+			providerFilter,
 			selectFilter("view", "보기", [
 				["all", "전체 성우"],
 				["favorites", "즐겨찾기"],
@@ -1523,6 +2105,18 @@
 			]),
 			resetButton,
 		);
+		const facetHost = el("fieldset", "facet-row");
+		facetHost.id = "library-facets";
+		const renderFacets = () =>
+			makeFacetRow(facetHost, filters.provider, filters.facets, {
+				onChange: () => render(),
+				onProvider: (name) => {
+					const select = providerFilter.querySelector("select");
+					select.value = name;
+					select.dispatchEvent(new Event("change"));
+					select.focus();
+				},
+			});
 		const filterGroups = el("div", "voice-classification-filters");
 		makeClassificationFilters(filterGroups, filters, () => render());
 		const resultCount = el("p", "meta-text");
@@ -1537,6 +2131,7 @@
 					viewMatches(v, filters.view) &&
 					searchVoice(v, filters.query) &&
 					classification().matches(v, filters) &&
+					facetMatches(v, filters.facets, filters.provider) &&
 					(!filters.preset || (filters.preset === "used") === inPreset)
 				);
 			});
@@ -1550,7 +2145,7 @@
 				const copy = el("div");
 				copy.append(
 					el("strong", "", voice.name),
-					el("span", "", `${voice.provider} · ${voice.tone}`),
+					el("span", "", `${voiceMeta(voice)} · ${voice.tone}`),
 				);
 				info.append(copy);
 				const tags = el("div", "voice-assignment-tags");
@@ -1631,9 +2226,886 @@
 			filters.query = search.value;
 			render();
 		});
-		content.append(tools, filterGroups, resultCount, list);
+		content.append(tools, facetHost, filterGroups, resultCount, list);
 		view.append(content);
+		renderFacets();
 		render();
+	};
+	// 성우 캐스팅: 찾기 → 듣기 → 분류에 넣기 → 작업실에서 사용(docs/briefs/tts-voice-casting.md).
+	// 목록에는 과금 없는 샘플과 즐겨찾기만 두고, 유료인 시험 생성은 성우 패널에서 누를 때만 한다.
+	const TRIAL_LIMIT = 200;
+	const castingNarrow = () => matchMedia("(max-width: 1023px)").matches;
+	const renderCastingPage = (view) => {
+		const c = state.casting;
+		c.script ??= (
+			state.scriptSegments?.[0]?.text ?? originalText().split(/\n\s*\n/)[0]
+		)
+			.trim()
+			.slice(0, TRIAL_LIMIT);
+		view.replaceChildren(
+			pageHeader(
+				"casting-title",
+				"성우 캐스팅",
+				"공급자 성우를 찾아 샘플과 내 대본으로 들어 보고, 채널·분류에 넣어 작업실로 가져가세요. 가상 성우 목록이며 실제 음성은 재생하지 않아요.",
+			),
+		);
+		const content = el("div", "page-content casting-page");
+		const main = el("div", "casting-main");
+		const panel = el("aside", "casting-panel");
+		panel.setAttribute("aria-labelledby", "casting-panel-title");
+		// 다시 그린 뒤 같은 역할의 요소(data-focus)로 포커스를 돌려놓는다.
+		const refresh = (focusKey = document.activeElement?.dataset?.focus) => {
+			renderList();
+			renderPanel();
+			if (focusKey) $(`[data-focus="${CSS.escape(focusKey)}"]`)?.focus();
+		};
+		// 듣는 성우와 패널의 성우가 같도록, 넓은 화면에서는 재생을 시작하면 그 성우를 연다.
+		const togglePlay = (key, message) => {
+			c.playing = c.playing === key ? null : key;
+			if (c.playing && !castingNarrow()) c.selected = key.split(":")[1];
+			announce(c.playing ? message : "재생을 멈췄어요.");
+			refresh();
+		};
+		const sampleButton = (voice, withLabel, prefix = "") => {
+			const key = `sample:${voice.id}`;
+			const playing = c.playing === key;
+			const label = !voice.sample
+				? "샘플 없음"
+				: playing
+					? "샘플 정지"
+					: "기본 샘플 듣기";
+			const glyph = voice.sample ? (playing ? "pause" : "play") : "";
+			const node = withLabel
+				? button(label, "button button-secondary", glyph)
+				: button("", "voice-play", glyph || "play");
+			if (!withLabel) node.setAttribute("aria-label", `${voice.name} ${label}`);
+			node.setAttribute("aria-pressed", String(playing));
+			node.dataset.focus = `${withLabel ? "panel-" : prefix}${key}`;
+			node.disabled = !voice.sample;
+			node.addEventListener("click", () =>
+				togglePlay(
+					key,
+					`${voice.name} 기본 샘플을 재생하는 시연이에요. 실제 음성은 나오지 않아요.`,
+				),
+			);
+			return node;
+		};
+		const favoriteButton = (voice, focusPrefix = "") => {
+			const on = voiceFlags(voice).favorite;
+			const node = button(
+				"",
+				`favorite-button${on ? " is-favorite" : ""}`,
+				"star",
+			);
+			node.setAttribute("aria-label", `${voice.name} 즐겨찾기`);
+			node.setAttribute("aria-pressed", String(on));
+			node.dataset.focus = `${focusPrefix}favorite:${voice.id}`;
+			node.addEventListener("click", () => setFlag(voice, "favorite"));
+			return node;
+		};
+		const setFlag = (voice, flag) => {
+			if (
+				!classification().setFlags(voice, { [flag]: !voiceFlags(voice)[flag] })
+			)
+				toast("저장하지 못했습니다. 다시 시도해 주세요.");
+			refresh();
+		};
+		const assign = (voice, group, ids, message) => {
+			if (!classification().setAssignment(voice, group, ids)) {
+				toast("저장하지 못했습니다. 다시 시도해 주세요.");
+				return;
+			}
+			announce(message);
+			refresh(`add:${group}`);
+		};
+
+		// 조건: 검색 → 공급자 탭 → 공급자 분류 → 내 분류 → 보기·정렬
+		const searchField = el("label", "search-field casting-search");
+		const search = el("input");
+		search.type = "search";
+		search.name = "casting-search";
+		search.autocomplete = "off";
+		search.spellcheck = false;
+		search.value = c.query;
+		search.setAttribute("aria-label", "성우 검색");
+		searchField.append(icon("search"), search);
+		search.addEventListener("input", () => {
+			c.query = search.value;
+			renderList();
+		});
+		const tabs = el("fieldset", "casting-providers");
+		tabs.append(el("legend", "sr-only", "공급자"));
+		for (const name of ["all", "Typecast", "ElevenLabs", "Fish Audio"]) {
+			const total = voiceData.filter(
+				(voice) => name === "all" || voice.provider === name,
+			).length;
+			const tab = button("", "filter-chip");
+			tab.append(
+				`${name === "all" ? "전체" : name} `,
+				el("span", "casting-count", String(total)),
+			);
+			tab.dataset.castingProvider = name;
+			tab.translate = false;
+			tab.addEventListener("click", () => setProvider(name));
+			tabs.append(tab);
+		}
+		const filterLine = (label, host) => {
+			const line = el("div", "casting-filter-line");
+			const caption = el("span", "casting-filter-label", label);
+			caption.setAttribute("aria-hidden", "true");
+			line.append(caption, host);
+			return line;
+		};
+		const facetHost = el("fieldset", "facet-row");
+		facetHost.id = "casting-facets";
+		const contentHost = el("fieldset", "facet-row facet-content");
+		contentHost.id = "casting-content";
+		const contentLine = filterLine("", contentHost);
+		const renderFacets = () => {
+			makeFacetRow(facetHost, c.provider, c.facets, {
+				onChange: () => renderList(),
+				onProvider: (name) => {
+					setProvider(name);
+					$(`[data-casting-provider="${name}"]`)?.focus();
+				},
+				contentHost,
+				own: ["mine"],
+			});
+			contentLine.firstChild.textContent = facetDefs[contentKey(c.provider)][0];
+		};
+		const mineHost = el("fieldset", "facet-row");
+		mineHost.id = "casting-mine";
+		const renderMine = () => {
+			mineHost.replaceChildren(el("legend", "sr-only", "내 분류"));
+			const reset = button("조건 해제", "filter-chip facet-reset", "close");
+			const syncReset = () => {
+				reset.hidden =
+					groups.every(([group]) => !c[group].length) && !c.facets.mine?.length;
+			};
+			for (const [group, label] of groups) {
+				const items = classification().getItems(group);
+				if (!items.length) continue;
+				mineHost.append(
+					...dropChip(
+						`casting-mine-${group}`,
+						label,
+						items.map((item) => [item.id, item.name]),
+						() => c[group],
+						(id) => {
+							c[group] = c[group].includes(id)
+								? c[group].filter((item) => item !== id)
+								: [...c[group], id];
+							syncReset();
+							renderList();
+						},
+					),
+				);
+			}
+			// 내 보이스는 공급자 목록이 아니라 앱 기록이라 내 분류 줄에 둔다.
+			appendFlag(
+				mineHost,
+				"casting-mine-own",
+				"mine",
+				Boolean(c.facets.mine?.length),
+				(on) => {
+					c.facets.mine = on ? [facetDefs.mine[0]] : [];
+					syncReset();
+					renderList();
+				},
+			);
+			reset.addEventListener("click", () => {
+				for (const [group] of groups) c[group] = [];
+				c.facets.mine = [];
+				renderMine();
+				mineHost.querySelector(".facet-trigger")?.focus();
+				renderList();
+			});
+			syncReset();
+			mineHost.append(reset);
+		};
+		// 767px 이하는 조건 줄을 접어 목록이 먼저 보이게 한다.
+		const conditions = el("div", "casting-conditions");
+		conditions.id = "casting-conditions";
+		const conditionsToggle = button(
+			"조건",
+			"filter-chip casting-conditions-toggle",
+			"sliders",
+		);
+		conditionsToggle.setAttribute("aria-controls", conditions.id);
+		conditionsToggle.setAttribute("aria-expanded", "false");
+		conditionsToggle.addEventListener("click", () => {
+			const open = conditions.classList.toggle("is-open");
+			conditionsToggle.setAttribute("aria-expanded", String(open));
+		});
+		// 조건이 없을 때만 목록 위에 인기와 콘텐츠별 묶음을 둔다(Typecast 보이스 캐스팅 첫 화면).
+		// 인기는 공급자 API의 인기 정렬(providerSorts 첫 항목)이 있는 공급자만 보인다.
+		const browse = el("div", "casting-browse");
+		const listTitle = el("h2", "casting-browse-title", "전체 성우");
+		const focusFirstRow = () =>
+			$('.casting-list [data-focus^="pick:"]')?.focus();
+		const voiceCard = (voice) => {
+			const card = el(
+				"li",
+				`casting-card${voice.id === c.selected ? " is-selected" : ""}`,
+			);
+			const pick = button("", "casting-pick");
+			pick.dataset.focus = `popular-pick:${voice.id}`;
+			const copy = el("span", "casting-pick-copy");
+			const first = (voice.uses || voice.providerTags || [])[0];
+			copy.append(
+				el("span", "voice-name", voice.name),
+				el(
+					"span",
+					"voice-detail",
+					[first && `#${first}`, voice.language].filter(Boolean).join(" · "),
+				),
+			);
+			pick.append(el("span", "avatar", voice.initial), copy);
+			pick.addEventListener("click", () => select(voice, pick.dataset.focus));
+			card.append(sampleButton(voice, false, "popular-"), pick);
+			return card;
+		};
+		const renderBrowse = () => {
+			const popular = el("section", "casting-browse-section");
+			const head = el("div", "casting-browse-head");
+			head.append(el("h2", "casting-browse-title", "인기"));
+			popular.append(head);
+			const ranked = Object.keys(providerSorts).filter(
+				(name) => c.provider === "all" || name === c.provider,
+			);
+			if (!ranked.length)
+				popular.append(
+					el("p", "meta-text", `${c.provider} 목록 API에는 인기 순이 없어요.`),
+				);
+			else {
+				// 공급자마다 인기 기준이 달라 한 번에 한 공급자만 보인다.
+				if (!ranked.includes(c.popular)) [c.popular] = ranked;
+				const [key, label] = providerSorts[c.popular][0];
+				const picks = el("div", "casting-popular-picks");
+				for (const name of ranked) {
+					const caption = `${name} · ${providerSorts[name][0][1]}`;
+					if (ranked.length === 1) {
+						picks.append(el("span", "meta-text", caption));
+						break;
+					}
+					const chip = button(caption, "filter-chip");
+					chip.setAttribute("aria-pressed", String(name === c.popular));
+					chip.dataset.focus = `popular-provider:${name}`;
+					chip.addEventListener("click", () => {
+						c.popular = name;
+						renderBrowse();
+						$(`[data-focus="popular-provider:${name}"]`)?.focus();
+					});
+					picks.append(chip);
+				}
+				const all = button("모두 보기", "text-button");
+				all.setAttribute("aria-label", `${c.popular} 성우 모두 보기, ${label}`);
+				all.addEventListener("click", () => {
+					c.sort = `stat:${key}`;
+					setProvider(c.popular);
+					focusFirstRow();
+					announce(`${c.provider} 성우를 정렬했어요: ${label}.`);
+				});
+				head.append(picks, all);
+				const cards = el("ul", "casting-cards");
+				cards.setAttribute("aria-label", `${c.popular} ${label}`);
+				for (const voice of filterVoices({
+					...c,
+					classes: c,
+					provider: c.popular,
+					sort: `stat:${key}`,
+				}).slice(0, 6))
+					cards.append(voiceCard(voice));
+				popular.append(cards);
+			}
+			const key = contentKey(c.provider);
+			const [label] = facetDefs[key];
+			const groupsByValue = new Map();
+			for (const voice of voiceData) {
+				if (c.provider !== "all" && voice.provider !== c.provider) continue;
+				for (const value of facetValues(voice, key))
+					groupsByValue.set(value, [
+						...(groupsByValue.get(value) || []),
+						voice,
+					]);
+			}
+			const topics = el("section", "casting-browse-section");
+			topics.append(el("h2", "casting-browse-title", `${label}별 성우`));
+			const tiles = el("ul", "casting-topics");
+			// ponytail: 성우가 많은 6개만. 나머지는 위 콘텐츠 줄의 더보기에서 고른다.
+			for (const [value, voices] of [...groupsByValue]
+				.sort(
+					(a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0], "ko"),
+				)
+				.slice(0, 6)) {
+				const tile = button("", "casting-topic");
+				const faces = el("span", "avatar-stack");
+				for (const voice of voices.slice(0, 3))
+					faces.append(el("span", "avatar", voice.initial));
+				tile.append(
+					faces,
+					el("span", "casting-topic-name", value),
+					el("span", "casting-topic-count", `${voices.length}명`),
+					icon("chevron-right"),
+				);
+				tile.addEventListener("click", () => {
+					c.facets[key] = [value];
+					renderFacets();
+					renderList();
+					focusFirstRow();
+					announce(`${label} ${value} 성우 ${voices.length}명을 보여 줘요.`);
+				});
+				const item = el("li");
+				item.append(tile);
+				tiles.append(item);
+			}
+			topics.append(tiles);
+			browse.replaceChildren(popular, topics);
+		};
+		const bar = el("div", "casting-result-bar");
+		const count = el("p", "meta-text casting-result-count");
+		count.setAttribute("role", "status");
+		const selectBox = (label, options, value, onChange) => {
+			const wrap = el("label", "studio-voice-view", label);
+			const select = el("select", "casting-select");
+			for (const [id, name] of options) {
+				const option = el("option", "", name);
+				option.value = id;
+				select.append(option);
+			}
+			select.value = value;
+			select.addEventListener("change", () => onChange(select.value));
+			wrap.append(select);
+			return [wrap, select];
+		};
+		const [viewWrap] = selectBox(
+			"보기",
+			[
+				["all", "전체 성우"],
+				["favorites", "즐겨찾기"],
+				["frequent", "자주 사용"],
+			],
+			c.view,
+			(value) => {
+				c.view = value;
+				renderList();
+			},
+		);
+		const [sortWrap, sortSelect] = selectBox(
+			"정렬",
+			[
+				["default", "기본"],
+				["recent", "최근 사용"],
+				["favorites", "즐겨찾기 먼저"],
+			],
+			c.sort,
+			(value) => {
+				c.sort = value;
+				renderList();
+			},
+		);
+		bar.append(listTitle, count, viewWrap, sortWrap);
+		const setProvider = (name) => {
+			c.provider = name;
+			for (const tab of $$("[data-casting-provider]", tabs)) {
+				const on = tab.dataset.castingProvider === name;
+				tab.classList.toggle("is-selected", on);
+				tab.setAttribute("aria-pressed", String(on));
+			}
+			search.placeholder = searchHints[name];
+			for (const option of $$("option[data-provider-sort]", sortSelect))
+				option.remove();
+			for (const [key, label] of providerSorts[name] || []) {
+				const option = el("option", "", label);
+				option.value = `stat:${key}`;
+				option.dataset.providerSort = "";
+				sortSelect.append(option);
+			}
+			if (![...sortSelect.options].some((option) => option.value === c.sort))
+				c.sort = "default";
+			sortSelect.value = c.sort;
+			renderFacets();
+			renderList();
+		};
+		const resetAll = () => {
+			Object.assign(c, {
+				provider: "all",
+				query: "",
+				facets: {},
+				channels: [],
+				categories: [],
+				types: [],
+				view: "all",
+				sort: "default",
+			});
+			renderCastingPage(view);
+			$("#casting-view .casting-search input")?.focus();
+		};
+
+		// 목록: 행을 누르면 성우 패널(좁은 폭은 드로어)에 그 성우가 뜬다.
+		const list = el("ul", "casting-list");
+		list.setAttribute("aria-label", "성우 목록");
+		const select = (voice, focusKey) => {
+			c.selected = voice.id;
+			if (castingNarrow()) {
+				renderList();
+				renderPanel();
+				openDrawer({
+					title: "성우 자세히",
+					subtitle: voice.name,
+					node: panel,
+					returnFocus: $(`[data-focus="${focusKey}"]`),
+				});
+				// 열자마자 Enter로 작업실로 넘어가지 않게 제목에서 시작한다.
+				$("#drawer-title").focus();
+				return;
+			}
+			refresh(focusKey);
+			announce(`성우 패널에 ${voice.name} 성우를 열었어요.`);
+		};
+		const renderList = () => {
+			const results = filterVoices({ ...c, classes: c });
+			// 목록에서 빠진 성우는 패널에 남기지 않는다. 첫 결과로 옮기고 결과가 없으면 비운다.
+			if (!results.some((voice) => voice.id === c.selected)) {
+				c.selected = results[0]?.id ?? null;
+				renderPanel();
+			}
+			const chosen =
+				facetCount(c.facets) +
+				groups.reduce((sum, [group]) => sum + c[group].length, 0);
+			conditionsToggle.lastChild.textContent = chosen
+				? `조건 ${chosen}`
+				: "조건";
+			const browsing = !chosen && !c.query.trim() && c.view === "all";
+			count.textContent = `${browsing ? "" : "성우 "}${results.length}명`;
+			browse.hidden = !browsing;
+			listTitle.hidden = !browsing;
+			if (browsing) renderBrowse();
+			list.replaceChildren();
+			if (!results.length) {
+				const item = el("li");
+				const noMine =
+					c.facets.mine?.length && !voiceData.some((voice) => voice.mine);
+				item.append(
+					noMine
+						? makeEmpty(
+								"아직 내 보이스가 없어요",
+								"내 보이스에서 클론을 만들거나 ElevenLabs 목소리를 연결하면 여기서 고를 수 있어요.",
+								"내 보이스로 가기",
+								() => {
+									showView("mine");
+									history.replaceState(null, "", "#mine");
+								},
+							)
+						: makeEmpty(
+								"조건에 맞는 성우가 없어요",
+								"조건을 해제하거나 다른 공급자를 골라 보세요.",
+								"조건 모두 해제",
+								resetAll,
+							),
+				);
+				list.append(item);
+				return;
+			}
+			for (const voice of results) {
+				const current = voice.id === c.selected;
+				const row = el("li", `casting-row${current ? " is-selected" : ""}`);
+				const pick = button("", "casting-pick");
+				pick.dataset.focus = `pick:${voice.id}`;
+				if (current) pick.setAttribute("aria-current", "true");
+				const copy = el("span", "casting-pick-copy");
+				const nameLine = el("span", "voice-name-line");
+				nameLine.append(el("span", "voice-name", voice.name));
+				if (c.playing?.endsWith(`:${voice.id}`))
+					nameLine.append(el("span", "tag tag-blue", "재생 중"));
+				// 성우를 옮겨 다녀도 어느 성우를 이미 들어 봤는지 목록에서 보인다.
+				if (c.takes[voice.id]?.status === "success")
+					nameLine.append(el("span", "tag", "시험 생성 결과"));
+				const mine = groups.flatMap(([group]) =>
+					classification().getLabels(voice, group),
+				);
+				copy.append(
+					nameLine,
+					el("span", "voice-provider", voiceMeta(voice)),
+					el(
+						"span",
+						"voice-detail",
+						[
+							voice.tone,
+							...(voice.uses || voice.providerTags || [])
+								.slice(0, 2)
+								.map((tag) => `#${tag}`),
+						].join(" "),
+					),
+				);
+				if (mine.length) {
+					const tags = el("span", "casting-row-tags");
+					for (const name of mine) tags.append(el("span", "tag", name));
+					copy.append(tags);
+				}
+				pick.append(el("span", "avatar", voice.initial), copy);
+				pick.addEventListener("click", () => select(voice, pick.dataset.focus));
+				row.append(sampleButton(voice), pick, favoriteButton(voice));
+				list.append(row);
+			}
+		};
+
+		// 성우 패널: 머리 → 듣기(샘플, 내 대본으로 시험 생성) → 내 분류 → 작업실에서 사용
+		const renderPanel = () => {
+			panel.replaceChildren();
+			const voice = getVoice(c.selected);
+			if (!voice) {
+				panel.append(
+					el("p", "meta-text", "목록에서 성우를 고르면 여기서 듣고 분류해요."),
+				);
+				return;
+			}
+			const head = el("header", "casting-panel-head");
+			const title = el("h2", "casting-panel-title", voice.name);
+			title.id = "casting-panel-title";
+			const headCopy = el("div");
+			headCopy.append(title, el("p", "voice-provider", voiceMeta(voice)));
+			// 패널이 길어도 늘 보이도록 주 동작은 이름 옆에 둔다.
+			const use = button("작업실에서 사용", "button button-primary", "wand");
+			use.addEventListener("click", () => {
+				setDefaultVoice(voice);
+				showView("studio");
+				history.replaceState(null, "", "#studio");
+			});
+			head.append(
+				el("span", "avatar", voice.initial),
+				headCopy,
+				favoriteButton(voice, "panel-"),
+				use,
+			);
+			const traits = el("div", "tag-list");
+			for (const value of [
+				...(voice.uses || []),
+				...(voice.providerTags || []),
+				...(voice.models || []),
+				voice.accent,
+			].filter(Boolean))
+				traits.append(el("span", "tag", value));
+			panel.append(head, el("p", "casting-tone", voice.tone), traits);
+
+			const listen = el("section", "casting-section");
+			listen.append(el("h3", "", "듣기"), sampleButton(voice, true));
+			if (!voice.sample)
+				listen.append(
+					el("p", "meta-text", "공급자가 이 성우의 기본 샘플을 주지 않았어요."),
+				);
+			const scriptLabel = el(
+				"label",
+				"casting-script-label",
+				"내 대본으로 듣기",
+			);
+			scriptLabel.htmlFor = "casting-script";
+			const area = el("textarea", "casting-script");
+			area.id = "casting-script";
+			area.name = "casting-script";
+			area.autocomplete = "off";
+			area.dataset.focus = "script";
+			area.rows = 3;
+			area.value = c.script;
+			const meter = el("p", "casting-script-meta");
+			meter.id = "casting-script-meta";
+			area.setAttribute("aria-describedby", meter.id);
+			const sources = el("div", "casting-script-sources");
+			const fromStudio = button("작업실 첫 문단", "text-button", "script");
+			fromStudio.addEventListener("click", () => {
+				c.script = (
+					state.scriptSegments?.[0]?.text ?? originalText().split(/\n\s*\n/)[0]
+				)
+					.trim()
+					.slice(0, TRIAL_LIMIT);
+				area.value = c.script;
+				update();
+				area.focus();
+			});
+			sources.append(fromStudio);
+			if (state.scripts.length) {
+				const [savedWrap, saved] = selectBox(
+					"저장 대본",
+					[
+						["", "불러오기"],
+						...state.scripts.map((script, index) => [
+							String(index),
+							script.name,
+						]),
+					],
+					"",
+					(value) => {
+						if (!value) return;
+						c.script = state.scripts[Number(value)].text.slice(0, TRIAL_LIMIT);
+						area.value = c.script;
+						saved.value = "";
+						update();
+						area.focus();
+					},
+				);
+				savedWrap.className = "casting-saved-script";
+				sources.append(savedWrap);
+			}
+			const trial = button("", "button button-secondary casting-trial", "wave");
+			trial.dataset.focus = "trial";
+			const trialText = el("span");
+			trial.append(trialText);
+			const takeLine = el("div", "casting-take");
+			takeLine.setAttribute("role", "status");
+			const update = () => {
+				const take = c.takes[voice.id];
+				const text = c.script.trim();
+				const over = c.script.length > TRIAL_LIMIT;
+				const usage = estimate(c.script, { voiceId: voice.id }).usageLabel;
+				meter.textContent = `${fmt(c.script.length)}/${TRIAL_LIMIT}자 · 예상 사용량 ${usage}${over ? " · 200자까지 시험 생성할 수 있어요" : ""}`;
+				meter.classList.toggle("is-over", over);
+				area.setAttribute("aria-invalid", String(over));
+				const pending = take?.status === "pending";
+				trial.disabled = !text || over;
+				// 요청 중에는 포커스가 남도록 disabled 대신 aria-disabled로 막는다.
+				trial.setAttribute("aria-disabled", String(pending));
+				trialText.textContent = pending
+					? "요청 중"
+					: take?.status === "success" && take.script === c.script
+						? "다시 시험 생성"
+						: "시험 생성";
+				takeLine.replaceChildren();
+				if (!take) {
+					takeLine.append(
+						el(
+							"p",
+							"meta-text",
+							text
+								? "시험 생성은 공급자 사용량이 들어요. 누를 때마다 한 번 요청해요."
+								: "대본을 넣으면 이 성우로 시험 생성할 수 있어요.",
+						),
+					);
+					return;
+				}
+				if (pending) {
+					takeLine.append(el("p", "meta-text", "시험 생성을 요청하고 있어요."));
+					return;
+				}
+				if (take.status !== "success") {
+					takeLine.append(
+						el(
+							"p",
+							"casting-take-error",
+							take.status === "lost"
+								? "응답을 받지 못했어요. 처리됐는지 알 수 없어 자동으로 다시 요청하지 않아요. 연결 상태의 사용 내역을 확인한 뒤 다시 시험 생성하세요."
+								: "공급자 오류로 만들지 못했어요. 잠시 뒤 다시 시험 생성하세요.",
+						),
+					);
+					return;
+				}
+				const key = `take:${voice.id}`;
+				const playing = c.playing === key;
+				const play = button(
+					playing ? "결과 정지" : "결과 듣기",
+					"mini-button",
+					playing ? "pause" : "play",
+				);
+				play.setAttribute("aria-pressed", String(playing));
+				play.dataset.focus = key;
+				play.addEventListener("click", () =>
+					togglePlay(
+						key,
+						`${voice.name} 시험 생성 결과를 재생하는 시연이에요. 실제 음성은 나오지 않아요.`,
+					),
+				);
+				takeLine.append(
+					el(
+						"p",
+						"meta-text",
+						take.script === c.script
+							? "이 대본으로 만든 결과예요."
+							: "이전 대본으로 만든 결과예요. 지금 대본으로 들으려면 다시 시험 생성하세요.",
+					),
+					play,
+				);
+			};
+			area.addEventListener("input", () => {
+				c.script = area.value;
+				update();
+			});
+			trial.addEventListener("click", () => {
+				if (c.takes[voice.id]?.status === "pending") return;
+				const script = c.script;
+				c.takes[voice.id] = { script, status: "pending" };
+				if (c.playing === `take:${voice.id}`) c.playing = null;
+				update();
+				announce(`${voice.name} 성우로 시험 생성을 요청했어요.`);
+				// 실제 앱은 요청 id 하나로 한 번만 보낸다. 시연은 시연 설정의 결과로 끝낸다.
+				setTimeout(() => {
+					const outcome = state.demo.trial;
+					c.takes[voice.id] = { script, status: outcome };
+					if (outcome === "success") {
+						const { units, unitLabel, usageLabel } = estimate(script, {
+							voiceId: voice.id,
+						});
+						logUsage({
+							kind: "generate",
+							provider: voice.provider,
+							model: "공급자 기본 모델",
+							units,
+							unitLabel,
+							usageLabel,
+							note: `시험 생성 · ${voice.name} · 시연`,
+						});
+					}
+					announce(
+						{
+							success: `${voice.name} 시험 생성을 마쳤어요.`,
+							lost: "시험 생성 응답을 받지 못했어요.",
+							error: "시험 생성이 공급자 오류로 실패했어요.",
+						}[outcome],
+					);
+					// 패널을 다시 그리지 않아 대본 칸의 입력과 버튼 포커스가 그대로 남는다.
+					// 목록은 "시험 생성 결과" 태그를 붙이려고 다시 그린다.
+					if (area.isConnected) {
+						update();
+						const key = document.activeElement?.dataset?.focus;
+						renderList();
+						if (key?.startsWith("pick:") || key?.startsWith("sample:"))
+							$(`[data-focus="${CSS.escape(key)}"]`)?.focus();
+					}
+				}, 900);
+			});
+			const trialRow = el("div", "casting-trial-row");
+			trialRow.append(trial, takeLine);
+			listen.append(scriptLabel, area, meter, sources, trialRow);
+			update();
+
+			const mine = el("section", "casting-section");
+			mine.append(el("h3", "", "내 분류"));
+			const assigned = classification().getAssignments(voice);
+			for (const [group, label] of groups) {
+				const line = el("div", "casting-assign");
+				line.append(el("span", "casting-assign-label", label));
+				const chips = el("div", "casting-assign-chips");
+				const items = classification().getItems(group);
+				const ids = assigned[group];
+				for (const item of items.filter((entry) => ids.includes(entry.id))) {
+					const chip = el("span", "tag casting-assigned", item.name);
+					const remove = button("", "casting-unassign", "close");
+					remove.setAttribute("aria-label", `${item.name} ${label}에서 빼기`);
+					remove.addEventListener("click", () =>
+						assign(
+							voice,
+							group,
+							ids.filter((id) => id !== item.id),
+							`${item.name} ${label}에서 뺐어요.`,
+						),
+					);
+					chip.append(remove);
+					chips.append(chip);
+				}
+				const pop = el("div", "facet-pop casting-add-pop");
+				pop.id = `casting-add-${group}`;
+				pop.popover = "auto";
+				pop.append(el("p", "casting-add-title", `${label}에 넣기`));
+				const rest = items.filter((entry) => !ids.includes(entry.id));
+				const choices = el("div", "voice-facet-chips");
+				for (const item of rest) {
+					const choice = button(item.name, "filter-chip");
+					choice.addEventListener("click", () => {
+						pop.hidePopover();
+						assign(
+							voice,
+							group,
+							[...ids, item.id],
+							`${item.name} ${label}에 넣었어요.`,
+						);
+					});
+					choices.append(choice);
+				}
+				if (!rest.length)
+					choices.append(
+						el("p", "meta-text", `모든 ${label}에 이미 들어 있어요.`),
+					);
+				const form = el("form", "casting-add-form");
+				const input = el("input");
+				input.name = `casting-new-${group}`;
+				input.autocomplete = "off";
+				input.placeholder = `새 ${label} 이름…`;
+				input.setAttribute("aria-label", `새 ${label} 이름`);
+				const create = button("만들고 넣기", "mini-button");
+				create.type = "submit";
+				const error = el("p", "casting-take-error");
+				error.setAttribute("role", "alert");
+				form.append(input, create, error);
+				form.addEventListener("submit", (event) => {
+					event.preventDefault();
+					error.textContent = "";
+					const item = classification().addItem(group, input.value, error);
+					if (!item) return;
+					pop.hidePopover();
+					renderMine();
+					assign(
+						voice,
+						group,
+						[...ids, item.id],
+						`새 ${label} ${item.name}에 넣었어요.`,
+					);
+				});
+				pop.append(choices, form);
+				const add = button("추가", "filter-chip casting-add", "plus");
+				add.setAttribute("aria-label", `${label} 추가`);
+				add.setAttribute("popovertarget", pop.id);
+				add.dataset.focus = `add:${group}`;
+				anchorPopover(pop, add);
+				chips.append(add, pop);
+				line.append(chips);
+				mine.append(line);
+			}
+			// 즐겨찾기는 이름 옆 별로 올렸다. 자주 사용만 여기 둔다.
+			const frequent = voiceFlags(voice).frequent;
+			const frequentToggle = button(
+				"자주 사용",
+				"filter-chip casting-flag",
+				frequent ? "check" : "plus",
+			);
+			frequentToggle.setAttribute("aria-pressed", String(frequent));
+			frequentToggle.dataset.focus = "panel-frequent";
+			frequentToggle.addEventListener("click", () =>
+				setFlag(voice, "frequent"),
+			);
+			// 메모는 적어 둔 것이 있을 때만 펼쳐 둔다.
+			const noteBox = el("details", "casting-note-box");
+			noteBox.open = Boolean(state.voiceNotes[voiceKey(voice)]);
+			const noteSummary = el("summary", "", "메모");
+			const note = el("textarea", "casting-note");
+			note.id = "casting-note";
+			note.name = "casting-note";
+			note.autocomplete = "off";
+			note.setAttribute("aria-label", `${voice.name} 메모`);
+			note.dataset.focus = "note";
+			note.rows = 2;
+			note.placeholder = "이 성우를 쓸 때 기억할 점…";
+			note.value = state.voiceNotes[voiceKey(voice)] || "";
+			note.addEventListener("input", () => {
+				state.voiceNotes[voiceKey(voice)] = note.value;
+			});
+			noteBox.append(noteSummary, note);
+			mine.append(frequentToggle, noteBox);
+
+			panel.append(listen, mine);
+		};
+
+		conditions.append(
+			contentLine,
+			filterLine("공급자 분류", facetHost),
+			filterLine("내 분류", mineHost),
+		);
+		// 767px 이하에서는 조건 토글을 검색 칸 옆에 둔다.
+		const searchRow = el("div", "casting-search-row");
+		searchRow.append(searchField, conditionsToggle);
+		main.append(searchRow, tabs, conditions, browse, bar, list);
+		content.append(main, panel);
+		view.append(content);
+		renderMine();
+		setProvider(c.provider);
+		renderPanel();
 	};
 	const makeEmpty = (title, detail, actionLabel, action) => {
 		const box = el("div", "empty-state");
@@ -2303,6 +3775,10 @@
 			announce(`${voice.name} 성우를 적용했어요.`);
 			return;
 		}
+		setDefaultVoice(voice);
+	};
+	// 새 문단 기본 성우로 정하고 되돌리기를 준다(성우 선택 창, 성우 캐스팅).
+	const setDefaultVoice = (voice) => {
 		const previous = state.selectedVoice;
 		state.selectedVoice = voice.id;
 		updateVoiceSelection();
@@ -2380,6 +3856,7 @@
 			tags: ["내 보이스"],
 			sample: false,
 			favorite: true,
+			mine: true,
 			language: "한국어",
 			gender: "",
 			age: "",
@@ -3148,7 +4625,11 @@
 			onChange: () => {
 				const previousFocus = document.activeElement;
 				const focusLabel = previousFocus?.getAttribute("aria-label");
-				for (const filters of [state.libraryFilters, state.studioFilters])
+				for (const filters of [
+					state.libraryFilters,
+					state.studioFilters,
+					state.casting,
+				])
 					groups.forEach(([g]) => {
 						const ids = new Set(
 							classification()
@@ -3307,13 +4788,12 @@
 		});
 		$$(".filter-row .filter-chip").forEach((chip) => {
 			chip.addEventListener("click", () => {
-				state.provider = chip.dataset.provider;
-				$$(".filter-chip").forEach((item) => {
+				$$(".filter-row .filter-chip").forEach((item) => {
 					const selected = item === chip;
 					item.classList.toggle("is-selected", selected);
 					item.setAttribute("aria-pressed", String(selected));
 				});
-				renderVoiceList();
+				setPickerProvider(chip.dataset.provider);
 			});
 		});
 		$("#voice-search").addEventListener("input", renderVoiceList);
@@ -3391,6 +4871,11 @@
 		$("#open-voice-library").addEventListener("click", () => {
 			closeDrawer();
 			showView("voices");
+		});
+		$("#open-voice-casting").addEventListener("click", () => {
+			closeDrawer();
+			showView("casting");
+			history.replaceState(null, "", "#casting");
 		});
 		$("#drawer-close").addEventListener("click", closeDrawer);
 		$("#studio-drawer").addEventListener("click", (event) => {
@@ -3528,20 +5013,26 @@
 				$("#rename-project").textContent = name;
 			},
 		});
-		const hash = location.hash.slice(1);
-		if (
-			[
-				"studio",
-				"voices",
-				"scripts",
-				"presets",
-				"library",
-				"mine",
-				"connections",
-				"projects",
-			].includes(hash)
-		)
-			showView(hash);
+		// 열린 탭에서 주소의 #만 바꿔도(새로 고침 없이) 그 화면으로 옮긴다.
+		const route = () => {
+			const hash = location.hash.slice(1);
+			if (
+				[
+					"studio",
+					"casting",
+					"voices",
+					"scripts",
+					"presets",
+					"library",
+					"mine",
+					"connections",
+					"projects",
+				].includes(hash)
+			)
+				showView(hash);
+		};
+		route();
+		window.addEventListener("hashchange", route);
 	};
 	document.addEventListener("DOMContentLoaded", init);
 })();
