@@ -1048,3 +1048,8 @@ inset 트랙형 토글 그룹 — `{colors.neutral-75}` 트랙(10 라운드, pad
 15. https://github.com/wanteddev/wanted-sans — Wanted Sans 오픈소스 typeface (OFL). 디자인·제작 원티드랩(길형진·강한빈), 한글 바탕은 본고딕. 7가지 기본 굵기 + 가변 글꼴.
 16. https://github.com/orioncactus/pretendard — Pretendard JP variable typeface. 몽타주가 지정한 기본 글꼴.
 17. https://www.wanted.co.kr — 원티드 공식 마케팅 + 잡 마켓플레이스. 제품 표면의 카피 보이스·잡카드 조립물 관찰 대상.
+
+
+### 즐겨찾기 상태 — 사용자 지정 (2026-09-26)
+
+즐겨찾기는 별 아이콘을 사용한다. 선택 시 노란 채움(`--favorite: #F5C400`)과 식별 가능한 진한 테두리(`--favorite-stroke: #8A6500`), 해제 시 회색 윤곽선으로 표시한다. 색상뿐 아니라 채움 여부와 `aria-pressed`로 상태를 구분한다. 기존 빨간 하트 규칙을 대체한다.
