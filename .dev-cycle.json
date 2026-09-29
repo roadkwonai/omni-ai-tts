@@ -25,7 +25,7 @@
 			"why": "하네스"
 		}
 	],
-	"authPaths": "^(packages/auth/|apps/web/src/app/api/auth/|apps/web/src/lib/auth-client\\.ts$|apps/web/src/(proxy|middleware|services|context|env\\.server)\\.ts$|packages/api/src/(index|context)\\.ts$|packages/db/src/schema/auth\\.ts$|(.*/)?\\.env\\.schema$)",
+	"authPaths": "^(packages/auth/|packages/api/src/providers/|apps/web/src/app/api/auth/|apps/web/src/lib/auth-client\\.ts$|apps/web/src/(proxy|middleware|services|context|env\\.server)\\.ts$|packages/api/src/(index|context)\\.ts$|packages/db/src/schema/auth\\.ts$|(.*/)?\\.env\\.schema$)",
 	"ui": {
 		"auditMin": 16,
 		"a11yMin": 3
