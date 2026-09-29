@@ -1,51 +1,29 @@
-import { OpenAPIHandler } from "@orpc/openapi/fetch";
-import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
-import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
+import { SimpleCsrfProtectionHandlerPlugin } from "@orpc/server/plugins";
 import { appRouter } from "@tts-pilot-app/api/routers/index";
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 
 import { createContext } from "../../../../context";
 
+// 로컬 관리자 모드에는 로그인 쿠키가 없다. 다른 사이트가 이 API를 부르지 못하게 JS가 붙이는 헤더를 요구한다.
 const rpcHandler = new RPCHandler(appRouter, {
-  interceptors: [
-    onError((error) => {
-      console.error(error);
-    }),
-  ],
-});
-const apiHandler = new OpenAPIHandler(appRouter, {
-  plugins: [
-    new OpenAPIReferencePlugin({
-      schemaConverters: [new ZodToJsonSchemaConverter()],
-    }),
-  ],
-  interceptors: [
-    onError((error) => {
-      console.error(error);
-    }),
-  ],
+	plugins: [new SimpleCsrfProtectionHandlerPlugin()],
+	interceptors: [
+		onError((error) => {
+			console.error(error);
+		}),
+	],
 });
 
 async function handleRequest(req: NextRequest) {
-  const rpcResult = await rpcHandler.handle(req, {
-    prefix: "/api/rpc",
-    context: await createContext(req),
-  });
-  if (rpcResult.response) return rpcResult.response;
-
-  const apiResult = await apiHandler.handle(req, {
-    prefix: "/api/rpc/api-reference",
-    context: await createContext(req),
-  });
-  if (apiResult.response) return apiResult.response;
-
-  return new Response("Not found", { status: 404 });
+	const { response } = await rpcHandler.handle(req, {
+		prefix: "/api/rpc",
+		context: createContext(req),
+	});
+	return response ?? new Response("Not found", { status: 404 });
 }
 
+// RPC 프로토콜은 GET·POST만 쓴다.
 export const GET = handleRequest;
 export const POST = handleRequest;
-export const PUT = handleRequest;
-export const PATCH = handleRequest;
-export const DELETE = handleRequest;

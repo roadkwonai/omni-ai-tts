@@ -18,8 +18,6 @@ catalog:
   sonner: ^2.0.8
   "@orpc/server": ^1.15.0
   "@orpc/client": ^1.15.0
-  "@orpc/openapi": ^1.15.0
-  "@orpc/zod": ^1.15.0
   better-auth: 1.7.5
   "@tailwindcss/postcss": ^4.3.3
   "@types/react": ^19.2.18

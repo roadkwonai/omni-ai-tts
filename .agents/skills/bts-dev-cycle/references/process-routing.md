@@ -4,8 +4,8 @@
 
 | 단계 | 1순위 (Claude·Codex 같은 이름) | 보강 | Claude 대안 | Codex 대안 | 스킬이 없을 때 |
 |---|---|---|---|---|---|
-| 요구 명확화 | superpowers `brainstorming` | `domain-modeling`(새 용어를 `CONTEXT.md`에 바로 기록), `/grill-with-docs` (사용자가 호출, 용어와 ADR을 함께 기록) | OMC `deep-interview` | OMX `deep-interview` | 질문 목록을 만들어 사용자 확인을 받는다 |
-| 계획 | superpowers `writing-plans` | 계획 리뷰: gstack `plan-eng-review`, UI가 있으면 `plan-design-review` | OMC `plan`, `ralplan` | OMX `plan`, `ralplan` | 파일별 단계와 검사를 적은 계획 파일을 직접 쓴다 |
+| 요구 명확화 | superpowers `brainstorming` | ponytail 사다리로 범위 줄이기(규칙 6), `domain-modeling`(새 용어를 `CONTEXT.md`에 바로 기록), `/grill-with-docs` (사용자가 호출, 용어와 ADR을 함께 기록) | OMC `deep-interview` | OMX `deep-interview` | 질문 목록을 만들어 사용자 확인을 받는다 |
+| 계획 | superpowers `writing-plans` | 계획 리뷰: gstack `plan-eng-review`, UI가 있으면 `plan-design-review`, 계획 문서에 `ponytail-review`(규칙 6) | OMC `plan`, `ralplan` | OMX `plan`, `ralplan` | 파일별 단계와 검사를 적은 계획 파일을 직접 쓴다 |
 | 구현 | superpowers `subagent-driven-development`(`bts-implementer` 사용) + `test-driven-development` | ponytail 모드(규칙 6) | OMC `team`, `ralph` (대규모 병렬) | OMX `team`, `ralph` | 대조표 행 순서대로 직접 구현한다 |
 | 디버깅 (C) | superpowers `systematic-debugging` | gstack `investigate` | OMC `debug` | `gstack-investigate` | 재현 테스트 → 가설 → 수정 |
 | 리뷰 | **`bts-reviewer`(필수)** + 지적 처리는 superpowers `receiving-code-review` | `bts-reviewer(code)`와 함께 `ponytail-review`(과설계만, 규칙 6). 추가 관점(증거 대체 불가): F 병합 전 gstack `review`, Claude Code 내장 `/code-review`, OMX `code-review` | 없음 | 없음 | `bts-reviewer`만 |
@@ -29,6 +29,8 @@
 4. 구현 스킬(`subagent-driven-development`, `executing-plans`)이 끝에서 `finishing-a-development-branch`를 부르더라도 라운드 끝이 아니다. 병합·push·PR 선택지를 따르지 않고 대조표의 다음 행으로 간다.
 5. 전역 스킬이 하나도 없어도 "스킬이 없을 때" 절차만으로 라운드를 끝까지 진행할 수 있어야 한다.
 6. ponytail
+   - 설계: 스펙의 범위와 구조를 정할 때마다 사다리(지금 필요한가 → 이미 코드에 있는가 → 표준 라이브러리 → 플랫폼 기능 → 설치된 의존성 → 새 코드)를 먼저 적용한다. 스펙에 "만들지 않는 것" 절을 두고, 뺀 것과 다시 넣을 조건을 한 줄씩 적는다. 보안, 입력 검증, 접근성, 사용자가 요청한 것은 빼지 않는다.
+   - 계획: 계획 리뷰 행에서 계획 문서(새 파일, 추상화, 의존성, 설정)에 `ponytail-review`를 돌린다. 반영할 지적은 계획을 고친 뒤 구현한다. 증거는 계획 리뷰 결과 뒤에 `ponytail-review(계획): net -N lines, 반영 a, 기각 b`로 덧붙인다.
    - 구현은 ponytail 모드로 가장 짧게 동작하는 해법을 고른다. Claude는 플러그인 훅이 세션과 서브에이전트에 켠다. Codex는 구현 전에 `ponytail` 스킬을 읽고, 구현을 위임하면 `bts-implementer`에도 읽게 한다.
    - ponytail 규칙이 `AGENTS.md`, `bts-*`, 대조표와 부딪히면 뒤의 것이 우선한다. 대조표 행(vitest 도입, 격리 테스트 등), 구현 전 질문, 보고 형식은 줄이지 않는다. 보안 검사, 입력 검증, 데이터 손실을 막는 오류 처리도 줄이지 않는다.
    - 일부러 한계를 둔 단순화는 `ponytail:` 주석에 한계와 넘으면 할 일을 적는다.

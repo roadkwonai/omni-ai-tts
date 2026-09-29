@@ -7,124 +7,157 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.58 0.22 27);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+	/* DESIGN.md Semantic alias — Light */
+	--background: oklch(0.972 0.002 286); /* bg-subtle, 페이지 바탕 */
+	--foreground: oklch(0.259 0.01 273 / 0.88); /* fg-default */
+	--card: oklch(1 0 0); /* bg-surface */
+	--card-foreground: oklch(0.259 0.01 273 / 0.88);
+	--popover: oklch(1 0 0); /* bg-elevated */
+	--popover-foreground: oklch(0.259 0.01 273 / 0.88);
+	--primary: oklch(0.563 0.241 261); /* bg-brand */
+	--primary-foreground: oklch(1 0 0); /* fg-on-brand */
+	--secondary: oklch(0.961 0.002 286); /* bg-muted */
+	--secondary-foreground: oklch(0.148 0.004 277); /* fg-strong */
+	--muted: oklch(0.961 0.002 286); /* bg-muted */
+	--muted-foreground: oklch(0.298 0.01 273 / 0.74); /* fg-secondary, 5.94:1 */
+	--accent: oklch(0.961 0.002 286); /* bg-muted, hover */
+	--accent-foreground: oklch(0.148 0.004 277);
+	--destructive: oklch(0.546 0.22 27); /* fg-danger */
+	--border: oklch(0.521 0.018 273 / 0.22); /* border-default */
+	--input: oklch(0.521 0.018 273 / 0.35); /* border-strong */
+	--ring: oklch(0.563 0.241 261); /* border-brand */
+	--chart-1: oklch(0.809 0.105 251.813);
+	--chart-2: oklch(0.623 0.214 259.815);
+	--chart-3: oklch(0.546 0.245 262.881);
+	--chart-4: oklch(0.488 0.243 264.376);
+	--chart-5: oklch(0.424 0.199 265.638);
+	--radius: 0.5rem; /* radius-8, 컴포넌트 기본 */
+	--sidebar: oklch(1 0 0); /* bg-surface */
+	--sidebar-foreground: oklch(0.259 0.01 273 / 0.88);
+	--sidebar-primary: oklch(0.563 0.241 261);
+	--sidebar-primary-foreground: oklch(1 0 0);
+	--sidebar-accent: oklch(0.954 0.022 250); /* bg-brand-subtle, 활성 메뉴 */
+	--sidebar-accent-foreground: oklch(
+		0.484 0.205 258
+	); /* blue-900. fg-brand는 bg-brand-subtle 위에서 4.25:1이라 한 단계 어둡게(5.77:1) */
+	--sidebar-border: oklch(0.521 0.018 273 / 0.22);
+	--sidebar-ring: oklch(0.563 0.241 261);
+	--tooltip: oklch(0.196 0.008 273); /* neutral-925 */
+	--tooltip-foreground: oklch(1 0 0);
+	color-scheme: light;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.87 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.371 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+	/* DESIGN.md Semantic alias — Dark (일부 합성값은 DESIGN.md 주석 그대로) */
+	--background: oklch(0.135 0.002 286); /* dark-bg-subtle */
+	--foreground: oklch(1 0 0 / 0.88); /* dark-fg-default */
+	--card: oklch(0.166 0.005 271); /* dark-bg-surface */
+	--card-foreground: oklch(1 0 0 / 0.88);
+	--popover: oklch(0.237 0.008 273); /* dark-bg-elevated */
+	--popover-foreground: oklch(1 0 0 / 0.88);
+	--primary: oklch(0.563 0.241 261);
+	--primary-foreground: oklch(1 0 0);
+	--secondary: oklch(0.196 0.008 273); /* dark-bg-muted */
+	--secondary-foreground: oklch(1 0 0);
+	--muted: oklch(0.196 0.008 273);
+	--muted-foreground: oklch(1 0 0 / 0.61); /* dark-fg-secondary */
+	--accent: oklch(0.196 0.008 273);
+	--accent-foreground: oklch(1 0 0);
+	--destructive: oklch(0.715 0.22 27); /* dark-fg-danger */
+	--border: oklch(1 0 0 / 0.22); /* dark-border-default */
+	--input: oklch(1 0 0 / 0.35); /* dark-border-strong */
+	--ring: oklch(0.715 0.155 255); /* dark-fg-brand */
+	--chart-1: oklch(0.809 0.105 251.813);
+	--chart-2: oklch(0.623 0.214 259.815);
+	--chart-3: oklch(0.546 0.245 262.881);
+	--chart-4: oklch(0.488 0.243 264.376);
+	--chart-5: oklch(0.424 0.199 265.638);
+	--sidebar: oklch(0.166 0.005 271); /* dark-bg-surface */
+	--sidebar-foreground: oklch(1 0 0 / 0.88);
+	--sidebar-primary: oklch(0.563 0.241 261);
+	--sidebar-primary-foreground: oklch(1 0 0);
+	--sidebar-accent: oklch(0.149 0.069 257); /* dark-bg-brand-subtle */
+	--sidebar-accent-foreground: oklch(0.715 0.155 255); /* dark-fg-brand */
+	--sidebar-border: oklch(1 0 0 / 0.22);
+	--sidebar-ring: oklch(0.715 0.155 255);
+	--tooltip: oklch(1 0 0); /* dark-bg-inverse */
+	--tooltip-foreground: oklch(0.148 0.004 277); /* bg-inverse */
+	color-scheme: dark;
 }
 
 @theme inline {
-  --font-sans: var(--font-pretendard), -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Helvetica Neue", Arial, sans-serif;
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --color-foreground: var(--foreground);
-  --color-background: var(--background);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
+	--font-sans:
+		var(--font-pretendard), -apple-system, BlinkMacSystemFont, system-ui,
+		"Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Helvetica Neue",
+		Arial, sans-serif;
+	--color-sidebar-ring: var(--sidebar-ring);
+	--color-sidebar-border: var(--sidebar-border);
+	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+	--color-sidebar-accent: var(--sidebar-accent);
+	--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+	--color-sidebar-primary: var(--sidebar-primary);
+	--color-sidebar-foreground: var(--sidebar-foreground);
+	--color-sidebar: var(--sidebar);
+	--color-chart-5: var(--chart-5);
+	--color-chart-4: var(--chart-4);
+	--color-chart-3: var(--chart-3);
+	--color-chart-2: var(--chart-2);
+	--color-chart-1: var(--chart-1);
+	--color-tooltip: var(--tooltip);
+	--color-tooltip-foreground: var(--tooltip-foreground);
+	--color-ring: var(--ring);
+	--color-input: var(--input);
+	--color-border: var(--border);
+	--color-destructive: var(--destructive);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-accent: var(--accent);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-muted: var(--muted);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-secondary: var(--secondary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-primary: var(--primary);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-popover: var(--popover);
+	--color-card-foreground: var(--card-foreground);
+	--color-card: var(--card);
+	--color-foreground: var(--foreground);
+	--color-background: var(--background);
+	--radius-sm: calc(var(--radius) - 4px);
+	--radius-md: calc(var(--radius) - 2px);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) + 4px);
+	--radius-2xl: calc(var(--radius) + 8px);
+	--radius-3xl: calc(var(--radius) + 12px);
+	--radius-4xl: calc(var(--radius) + 16px);
+}
+
+/* HTML 시안의 반응형 기준: 768px(md, 기본값)와 1200px(xl) */
+@theme {
+	--breakpoint-xl: 75rem;
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply font-sans bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
-  }
+	* {
+		@apply border-border outline-ring/50;
+	}
+	body {
+		@apply font-sans bg-background text-foreground;
+	}
+	html {
+		@apply font-sans;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	::before,
+	::after {
+		/* biome-ignore lint/complexity/noImportantStyles: 동작 줄이기 설정은 모든 애니메이션을 덮어야 한다 */
+		animation-duration: 0.01ms !important;
+		/* biome-ignore lint/complexity/noImportantStyles: 동작 줄이기 설정은 모든 애니메이션을 덮어야 한다 */
+		animation-iteration-count: 1 !important;
+		/* biome-ignore lint/complexity/noImportantStyles: 동작 줄이기 설정은 모든 애니메이션을 덮어야 한다 */
+		transition-duration: 0.01ms !important;
+	}
 }

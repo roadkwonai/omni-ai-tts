@@ -50,10 +50,10 @@
 - [review] bts-reviewer(db) → verdict, max_severity, 반영·기각 내역
 
 ### F. 신규 기능
-- 스펙 작성 (brainstorming, 새 용어는 domain-modeling으로 CONTEXT.md에 바로 기록, 선택: /grill-with-docs, UI가 있으면 impeccable shape 브리프 링크) → 사용한 스킬, 스펙 경로, 추가·변경한 용어
+- 스펙 작성 (brainstorming + ponytail 사다리로 범위 줄이기, 스펙에 '만들지 않는 것' 절, 새 용어는 domain-modeling으로 CONTEXT.md에 바로 기록, 선택: /grill-with-docs, UI가 있으면 impeccable shape 브리프 링크) → 사용한 스킬, 스펙 경로, 추가·변경한 용어
 - 구현 계획 (writing-plans) → 사용한 스킬과 계획 경로
-- [review] 계획 리뷰 (plan-eng-review, UI가 있으면 plan-design-review) → 결과 요약 또는 N/A: 사유
-- 구현 방식 (subagent-driven-development + test-driven-development) → 사용한 스킬과 위임 내역
+- [review] 계획 리뷰 (plan-eng-review, UI가 있으면 plan-design-review, ponytail-review로 계획의 과설계 확인) → 결과 요약, ponytail-review 반영·기각 또는 N/A: 사유
+- 구현 방식 (subagent-driven-development + test-driven-development, ponytail 모드) → 사용한 스킬과 위임 내역
 - @include E D B
 - [verify] next-dev-loop 통합 런타임 확인 → 확인한 경로와 결과
 - [review] bts-reviewer(code) 전체 diff 최종 리뷰 → verdict, max_severity, 반영·기각 내역

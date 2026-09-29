@@ -1,17 +1,10 @@
-import type { Context as ApiContext } from "@tts-pilot-app/api/context";
-import type { NextRequest } from "next/server";
+import type { Context } from "@tts-pilot-app/api/context";
+import { localOwnerId } from "@tts-pilot-app/api/owner";
 
+import { ENV } from "./env.server";
 import { db } from "./services";
-import { auth } from "./services";
 
-export async function createContext(req: NextRequest): Promise<ApiContext> {
-  const session = await auth.api.getSession({
-    headers: req.headers,
-  });
-  return {
-    db,
-    session,
-  };
+// 로그인(T14) 전에는 로컬 관리자 모드다. T14에서 이 함수가 세션과 허용 목록으로 소유자를 정한다.
+export function createContext(req: Request): Context {
+	return { db, ownerId: localOwnerId(ENV.NODE_ENV, req.headers.get("host")) };
 }
-
-export type Context = Awaited<ReturnType<typeof createContext>>;

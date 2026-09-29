@@ -1,24 +1,24 @@
 {
-  "$schema": "https://ui.shadcn.com/schema.json",
-  "style": "base-lyra",
-  "rsc": true,
-  "tsx": true,
-  "tailwind": {
-    "config": "",
-    "css": "src/styles/globals.css",
-    "baseColor": "neutral",
-    "cssVariables": true,
-    "prefix": ""
-  },
-  "iconLibrary": "lucide",
-  "aliases": {
-    "components": "@tts-pilot-app/ui/components",
-    "utils": "@tts-pilot-app/ui/lib/utils",
-    "hooks": "@tts-pilot-app/ui/hooks",
-    "lib": "@tts-pilot-app/ui/lib",
-    "ui": "@tts-pilot-app/ui/components"
-  },
-  "menuColor": "default",
-  "menuAccent": "subtle",
-  "registries": {}
+	"$schema": "https://ui.shadcn.com/schema.json",
+	"style": "base-lyra",
+	"rsc": true,
+	"tsx": true,
+	"tailwind": {
+		"config": "",
+		"css": "src/styles/globals.css",
+		"baseColor": "neutral",
+		"cssVariables": true,
+		"prefix": ""
+	},
+	"iconLibrary": "lucide",
+	"aliases": {
+		"components": "@tts-pilot-app/ui/components",
+		"utils": "@tts-pilot-app/ui/lib/utils",
+		"hooks": "@tts-pilot-app/ui/hooks",
+		"lib": "@tts-pilot-app/ui/lib",
+		"ui": "@tts-pilot-app/ui/components"
+	},
+	"menuColor": "default",
+	"menuAccent": "subtle",
+	"registries": {}
 }

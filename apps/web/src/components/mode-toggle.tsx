@@ -2,30 +2,51 @@
 
 import { Button } from "@tts-pilot-app/ui/components/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
+	DropdownMenuTrigger,
 } from "@tts-pilot-app/ui/components/dropdown-menu";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import * as React from "react";
+
+const THEMES = [
+	{ value: "system", label: "시스템 설정" },
+	{ value: "light", label: "라이트" },
+	{ value: "dark", label: "다크" },
+] as const;
 
 export function ModeToggle() {
-  const { setTheme } = useTheme();
+	const { theme, setTheme } = useTheme();
 
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="outline" size="icon" />}>
-        <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-        <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-        <span className="sr-only">Toggle theme</span>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")}>Light</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")}>Dark</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")}>System</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger
+				render={
+					<Button variant="ghost" size="icon-lg" aria-label="테마 바꾸기" />
+				}
+			>
+				<Sun aria-hidden="true" className="dark:hidden" />
+				<Moon aria-hidden="true" className="hidden dark:block" />
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="start">
+				{/* theme은 서버에서만 undefined다. 메뉴는 열 때만 그려지므로 수화 불일치가 없다. */}
+				<DropdownMenuRadioGroup
+					value={theme}
+					onValueChange={(value) => setTheme(String(value))}
+				>
+					{THEMES.map((item) => (
+						<DropdownMenuRadioItem
+							key={item.value}
+							value={item.value}
+							closeOnClick
+						>
+							{item.label}
+						</DropdownMenuRadioItem>
+					))}
+				</DropdownMenuRadioGroup>
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
 }

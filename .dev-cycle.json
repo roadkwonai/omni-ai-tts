@@ -25,7 +25,7 @@
 			"why": "하네스"
 		}
 	],
-	"authPaths": "^(packages/auth/|packages/api/src/providers/|apps/web/src/app/api/auth/|apps/web/src/lib/auth-client\\.ts$|apps/web/src/(proxy|middleware|services|context|env\\.server)\\.ts$|packages/api/src/(index|context)\\.ts$|packages/db/src/schema/auth\\.ts$|(.*/)?\\.env\\.schema$)",
+	"authPaths": "^(packages/auth/|packages/api/src/providers/|apps/web/src/app/api/|apps/web/src/lib/auth-client\\.ts$|apps/web/src/(proxy|middleware|services|context|env\\.server)\\.ts$|packages/api/src/(index|context|owner)\\.ts$|packages/db/src/schema/auth\\.ts$|(.*/)?\\.env\\.schema$)",
 	"ui": {
 		"auditMin": 16,
 		"a11yMin": 3
@@ -34,6 +34,7 @@
 		"typecheck": "pnpm check-types",
 		"lint": "pnpm exec biome check .",
 		"build": "pnpm build",
+		"test": "pnpm test",
 		"dbGenerate": "pnpm --filter @tts-pilot-app/db db:generate",
 		"dbMigrate": "pnpm --filter @tts-pilot-app/db db:migrate",
 		"dbPush": "pnpm --filter @tts-pilot-app/db db:push"

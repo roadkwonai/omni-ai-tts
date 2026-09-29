@@ -5,26 +5,26 @@
 갱신은 해당 절의 표와 문장을 고치는 것이다. 날짜별 절이나 진행 경과를 덧붙이지 않는다(경과는 `tasks/archive/`에 남는다). 계획 중인 기능은 `기능` 표에 `계획` 상태로 넣고 스펙을 링크한다. 표의 `용어` 칸에는 `CONTEXT.md`의 용어를 그대로 적는다.
 
 ## 한 줄 요약
-개인 콘텐츠 제작자가 Typecast·ElevenLabs·Fish Audio 성우와 대본을 재사용하는 TTS 작업실을 계획 중이며, 현재 앱은 인증 기반 초기 골격과 별도 HTML 시안 단계다.
+개인 콘텐츠 제작자가 Typecast·ElevenLabs·Fish Audio 성우와 대본을 재사용하는 TTS 작업실을 계획 중이며, 현재 앱은 로컬 관리자 모드의 작업실 틀(T1)과 별도 HTML 시안 단계다.
 
 ## 사용자와 권한
 | 역할 | 할 수 있는 일 | 확인 위치 |
 |---|---|---|
-| 방문자 | 로그인, 가입 | `apps/web/src/app/login` |
-| 로그인 사용자 | 자기 데이터만 조회와 변경 | `protectedProcedure` |
+| 로컬 관리자 | 로그인 없이 모든 기능. 개발 서버(`127.0.0.1`)에서만. production에서는 보호 프로시저가 모두 거절된다 | `packages/api/src/owner.ts`, `protectedProcedure`, `apps/web/src/context.ts` |
 
 ## 주요 흐름
 사용자가 목적을 이루는 흐름을 화면(URL)과 프로시저로 그린다. 흐름이 바뀐 라운드에서 고친다.
 
 ```mermaid
 flowchart LR
-  L["/login<br/>로그인·가입"] --> D["/dashboard<br/>privateData"]
+  R["/"] --> S["/studio<br/>음성 작업실(빈 틀)"]
 ```
 
 ## 기능
 | 기능 | 상태 | 화면 | API | 스펙 |
 |---|---|---|---|---|
-| 로그인과 가입 | 구현 | `/login` | Better Auth | 해당 없음 |
+| 작업실 틀 (로컬 관리자 모드) | 구현 | `/studio` | 없음(`healthCheck`는 동작 점검용) | [T1 스펙](../plans/tasks/T01-app-foundation.md) |
+| 로그인 (소유자 전용) | 계획 | 없음 | 없음 | [구현 로드맵 T14](../plans/implementation-roadmap.md) |
 | TTS 작업실 (P0) | 계획 | 없음 (HTML 시안 `docs/prototypes/tts-studio/index.html`) | 없음 | [요구사항](../plans/tts-service-requirements.md), [실서비스 기획·설계안](../briefs/tts-app-design.md), [구현 로드맵](../plans/implementation-roadmap.md) |
 
 상태는 `계획`, `구현`, `중단` 가운데 하나다.
@@ -32,15 +32,14 @@ flowchart LR
 ## 화면과 URL
 | URL | 화면 | 보호 | 파일 |
 |---|---|---|---|
-| `/` | 홈 | 공개 | `apps/web/src/app/page.tsx` |
-| `/login` | 로그인과 가입 | 공개 | `apps/web/src/app/login/page.tsx` |
-| `/dashboard` | 대시보드 | 로그인 | `apps/web/src/app/dashboard/page.tsx` |
+| `/` | `/studio`로 이동 | 없음 | `apps/web/src/app/page.tsx` |
+| `/studio` | 음성 작업실(빈 틀) | 없음(로컬 관리자 모드) | `apps/web/src/app/(app)/studio/page.tsx` |
+| (없는 주소) | 페이지를 찾을 수 없어요(작업실로 가기) | 없음 | `apps/web/src/app/not-found.tsx` |
 
 ## API (oRPC)
 | 프로시저 | 용어 | 보호 | 입력 | 설명 |
 |---|---|---|---|---|
 | `healthCheck` | 해당 없음 | 공개 | 없음 | 상태 확인 |
-| `privateData` | 사용자 | 로그인 | 없음 | 세션 확인 예시 |
 
 ## 데이터 모델과 코드 매핑
 | 테이블 | 용어 | 스키마 파일 | 소유자 컬럼 | 설명 |

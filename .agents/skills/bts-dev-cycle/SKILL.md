@@ -54,7 +54,7 @@ pnpm dev-cycle table <케이스> --write --title "<요청 요약>"
 - 리뷰 행(`bts-reviewer(...)`)은 반드시 `bts-reviewer` 에이전트에 맡긴다. 프롬프트에 focus(`code`, `security`, `db`), 대조표 마커의 base SHA, 검토할 파일 목록, 대조표 경로를 준다. 응답 JSON은 증거 칸에 요약한다. 예: `bts-reviewer(code): approve, max=low, 지적 2 (반영 1, 기각 1: 재현 안 됨)`.
 - 지적은 직접 확인한 뒤에만 고친다. high 이상 지적을 고쳤으면 같은 focus로 다시 리뷰한다. 응답이 없거나 JSON이 깨졌으면 `blocked`로 적는다.
 - `bts-reviewer(code)` 행에는 `ponytail-review`로 과설계 목록도 받는다. `bts-reviewer`에 주는 focus와 범위는 줄이지 않는다(과설계를 ponytail에만 맡기지 않는다). 새 파일은 `git diff`에 나오지 않으니 내용을 함께 넘긴다. 증거 칸은 `bts-reviewer(code):` 결과로 시작하고 그 뒤에 `ponytail-review: net -12 lines, 반영 2, 기각 1`처럼 덧붙인다. ponytail이 없으면 `ponytail-review: 없음`으로 적는다.
-- 구현은 ponytail 모드로 한다(Claude는 플러그인 훅이 켠다. Codex는 구현 전에 `ponytail` 스킬을 읽고, 위임할 때 `bts-implementer`에도 읽게 한다). ponytail 규칙보다 이 스킬, `AGENTS.md`, 대조표가 우선한다. vitest 도입 행, 격리 테스트, 구현 전 질문은 줄이지 않는다. 기준은 [references/process-routing.md](references/process-routing.md) 규칙 6.
+- 설계·계획·구현에 ponytail을 쓴다. 스펙은 사다리로 범위를 줄이고 "만들지 않는 것" 절을 둔다. 계획은 계획 리뷰 행에서 `ponytail-review`로 과설계를 뺀다. 구현은 ponytail 모드로 한다(Claude는 플러그인 훅이 켠다. Codex는 구현 전에 `ponytail` 스킬을 읽고, 위임할 때 `bts-implementer`에도 읽게 한다). ponytail 규칙보다 이 스킬, `AGENTS.md`, 대조표가 우선한다. vitest 도입 행, 격리 테스트, 구현 전 질문은 줄이지 않는다. 기준은 [references/process-routing.md](references/process-routing.md) 규칙 6.
 - 구현을 위임할 때는 `bts-implementer`에 정확한 파일 목록, 읽을 `bts-*` 스킬, 완료 조건을 준다. 병렬로 위임할 때는 파일이 겹치지 않게 나눈다. `AGENTS.md`, `.dev-cycle.json`, `package.json`, 루트 설정은 직접 고친다.
 - impeccable `critique`처럼 서브에이전트를 스스로 띄우는 스킬은 메인 세션에서 실행한다.
 
