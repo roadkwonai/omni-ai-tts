@@ -112,7 +112,7 @@
 
 ### 이번 문서 작업에서 확인한 기존 품질 항목
 
-- [ ] Q-01 기존 전체 Biome 오류 정리 라운드: 초기 `pnpm exec biome check .`가 100 errors / 68 warnings / 2 infos로 실패. 2026-09-26 재검사 103 errors / 68 warnings / 2 infos(기존 코드·도구 상태 파일 포함); 프로토타입 13파일 검사는 통과. 이번 문서 계획과 분리해서 원인·범위를 확인한다.
+- [ ] Q-01 기존 전체 Biome 오류 정리 라운드: 초기 `pnpm exec biome check .`가 100 errors / 68 warnings / 2 infos로 실패. 2026-09-26 재검사 103 errors / 68 warnings / 2 infos(기존 코드·도구 상태 파일 포함); 프로토타입 13파일 검사는 통과. 이번 문서 계획과 분리해서 원인·범위를 확인한다. 2026-09-29 재검사 73 errors / 70 warnings: turbo.json·tsconfig.json·package.json 포맷과 apps/web(theme-provider·loader·next.config)의 import 정리 등 대부분 `biome check --write`로 자동 수정 가능.
 
 - [ ] Q-02 대본 저장·편집·가져오기 길이 정책 통일: 가져오기는 200,000자·200문단, 편집/저장은 별도 상한 검토. 현재 저장 대본의 직접 재사용은 가능하며 음성 생성 한도와 별개다.
 - [ ] Q-03 클론 삭제 시 해당 성우를 참조하는 문단 계획의 재배정 안내·생성 차단. 기존 클론 관리와 실제 생성 이관에서 회귀 검증.

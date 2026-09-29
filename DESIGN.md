@@ -90,10 +90,9 @@ colors:
   # Foreground (alpha multiplier on neutral-825 / neutral-875)
   fg-strong: oklch(0.148 0.004 277)   # @ alpha 1 (= neutral-960)
   fg-default: oklch(0.259 0.010 273 / 0.88)   # body
-  fg-secondary: oklch(0.298 0.010 273 / 0.61)   # labels, captions
-  fg-tertiary: oklch(0.298 0.010 273 / 0.43)   # placeholder
+  fg-secondary: oklch(0.298 0.010 273 / 0.74)   # labels, captions — TTS Pilot 조정(원 0.61), 5.94:1 on white
+  fg-tertiary: oklch(0.298 0.010 273 / 0.68)   # placeholder, disabled button text — TTS Pilot 조정(원 0.43), 4.68:1 on bg-muted
   fg-disabled: oklch(0.298 0.010 273 / 0.28)
-  fg-disabled-label: oklch(0.298 0.010 273 / 0.68)   # disabled button text, 4.68:1 on bg-muted
   fg-on-brand: oklch(1 0 0)
   fg-brand: oklch(0.563 0.241 261)
   fg-link: oklch(0.563 0.241 261)
@@ -122,9 +121,8 @@ colors:
   dark-fg-strong: oklch(1 0 0)
   dark-fg-default: oklch(1 0 0 / 0.88)
   dark-fg-secondary: oklch(1 0 0 / 0.61)
-  dark-fg-tertiary: oklch(1 0 0 / 0.43)
+  dark-fg-tertiary: oklch(1 0 0 / 0.52)   # TTS Pilot 조정(원 0.43), 5.41:1 on dark-bg-elevated
   dark-fg-disabled: oklch(1 0 0 / 0.28)
-  dark-fg-disabled-label: oklch(1 0 0 / 0.50)   # 5.29:1 on dark-bg-muted
   dark-fg-on-brand: oklch(1 0 0)
   dark-fg-brand: oklch(0.715 0.155 255)   # blue-400 (brightened from blue-800; synthesized)
   dark-fg-danger: oklch(0.715 0.220 27)   # synthesized (red @ ↑ lightness)
@@ -340,7 +338,7 @@ Voice는 **친근한 2인칭 + 부드러운 존댓말**로 요약된다. 사무�
 
 ### Neutral (21-step, cool blue-tinted — 워크호스 패밀리)
 
-`neutral-700` (`oklch(0.521 0.018 273)`)이 `border-subtle`/`border-default`/`border-strong`의 알파 베이스이며, `neutral-825` (`oklch(0.298 0.010 273)`)가 `fg-secondary`/`fg-tertiary`/`fg-disabled`/`fg-disabled-label`의 알파 베이스, `neutral-875` (`oklch(0.259 0.010 273)`)가 `fg-default`(body)의 알파 베이스다. text와 border가 서로 다른 neutral 단계에서 알파를 곱하는 구조이므로, 토큰 정의 시 두 베이스를 혼동하지 않도록 분리해야 한다.
+`neutral-700` (`oklch(0.521 0.018 273)`)이 `border-subtle`/`border-default`/`border-strong`의 알파 베이스이며, `neutral-825` (`oklch(0.298 0.010 273)`)가 `fg-secondary`/`fg-tertiary`/`fg-disabled`의 알파 베이스, `neutral-875` (`oklch(0.259 0.010 273)`)가 `fg-default`(body)의 알파 베이스다. text와 border가 서로 다른 neutral 단계에서 알파를 곱하는 구조이므로, 토큰 정의 시 두 베이스를 혼동하지 않도록 분리해야 한다.
 
 **이 3-베이스 구조는 공개 시맨틱 토큰에서 그대로 확인된다** [src:4] — 공식 `Line - Normal` 토큰군은 단일 베이스 `#70737C`(`coolNeutral-50`)에 알파를 얹고 (별도 그룹인 `Line - Solid`는 보더 중첩을 막으려고 알파 없는 불투명 색을 쓰고, `line-primary`/`line-status`는 각 hue 베이스를 쓴다), `Label` 토큰군은 `label-neutral`만 `#2E2F33`(`coolNeutral-22`)를, `label-alternative`/`assistive`/`disable`은 `#37383C`(`coolNeutral-25`)를 베이스로 쓴다. 즉 "border는 한 베이스, body text는 또 다른 베이스, 그 아래 위계는 세 번째 베이스"라는 분리가 공식 체계와 일치한다. 다만 **본 문서의 OKLCH 값은 공개 hex와 정확히 대응하지 않는다** — 번들이 이 세 앵커를 공개 램프보다 어두운 단계로 정의하고 있어(예: `neutral-875` = `oklch(0.259 …)` vs 공개 `coolNeutral-22` = `#2E2F33` ≈ `oklch(0.306 …)`), 값 자체는 번들 관찰값으로 남긴다.
 
@@ -358,9 +356,24 @@ Voice는 **친근한 2인칭 + 부드러운 존댓말**로 요약된다. 사무�
 
 **이 사다리는 공개 토큰과 단계 단위로 일치한다** — 몽타주 공식 테마의 `opacity` 토큰은 `0 · 5 · 8 · 12 · 16 · 22 · 28 · 35 · 43 · 52 · 61 · 74 · 88 · 97 · 100`으로, 위 13단계를 그대로 포함하고 양 끝점 0·100만 더 갖는다 [src:14]. 공개 시맨틱 토큰의 알파 hex도 같은 사다리에서 나온다 — line 계열은 베이스 `#70737C`(≈ `oklch(0.556 0.014 271)`) 위에 `14` = 8%, `29` = 16%, `38` = 22%를 얹고, label 계열은 `#37383C9C` = 61%, `#2E2F33E0` = 88%로 쌓는다 [src:4]. 본 문서의 정량값 중 공개 출처와 가장 강하게 교차검증되는 항목이다.
 
+### 접근성 조정 (TTS Pilot)
+
+공개 몽타주 값 그대로면 작은 글자 대비가 WCAG AA(4.5:1)에 못 미친다. `fg-secondary` α0.61은 흰 배경 4.01:1·`bg-muted` 3.84:1, `fg-tertiary` α0.43은 2.47:1·2.41:1, `dark-fg-tertiary` α0.43은 4.14~4.23:1이다. 이 토큰들은 탭·표 제목·텍스트 버튼·캡션·메타·placeholder처럼 12~15px 글자에 쓰이므로 2026-09-29 사용자 결정으로 값을 올렸다.
+
+| 토큰 | 원 값 | 조정 값 | 대비 |
+|---|---|---|---|
+| `fg-secondary` | 0.61 | 0.74 (`alpha-74`) | 흰 배경 5.94:1, `bg-muted` 5.59:1 |
+| `fg-tertiary` | 0.43 | 0.68 (사다리 밖) | 흰 배경 4.93:1, `bg-muted` 4.68:1 |
+| `dark-fg-tertiary` | 0.43 | 0.52 (`alpha-52`) | 다크 배경 4종 5.41~5.69:1 |
+
+- `dark-fg-secondary`(α0.61, 6.93~7.52:1)는 그대로 둔다. 그래서 라이트와 다크의 알파가 더는 같지 않다.
+- `fg-tertiary` 0.68은 알파 사다리에 없는 값이다. 사다리의 0.61은 기준에 못 미치고, 0.74는 `fg-secondary`와 겹쳐 위계가 사라진다. 사다리 자체(`opacity`)는 공개 값 그대로 둔다.
+- `fg-disabled`(α0.28)는 비활성 아이콘·장식 전용이다. 비활성 버튼의 글자는 이유를 읽어야 하므로 `fg-tertiary`를 쓴다(`button-disabled` 참고).
+- 대비는 이 문서의 OKLCH 값을 sRGB로 바꿔 배경 위에 알파 합성한 계산값이다.
+
 ### Semantic alias — Dark
 
-다크 모드는 light 모드의 alpha multiplier 구조를 그대로 유지한다 — text 알파 베이스가 `neutral-825`/`neutral-875` → `oklch(1 0 0)`(흰색)로 뒤집힐 뿐이다. 시맨틱 alias의 의미(fg-default = 본문, fg-secondary = label/caption, fg-tertiary = placeholder, fg-disabled = disabled 아이콘·장식, fg-disabled-label = 비활성 버튼의 읽어야 하는 글자)는 양 테마에서 동일하다.
+다크 모드는 light 모드의 alpha multiplier 구조를 그대로 유지한다 — text 알파 베이스가 `neutral-825`/`neutral-875` → `oklch(1 0 0)`(흰색)로 뒤집힐 뿐이다. 시맨틱 alias의 의미(fg-default = 본문, fg-secondary = label/caption, fg-tertiary = placeholder·비활성 버튼 글자, fg-disabled = disabled 아이콘·장식)는 양 테마에서 동일하다. 다만 알파 값은 위 "접근성 조정 (TTS Pilot)"에 따라 테마마다 다를 수 있다.
 
 **위 다크 값 중 `dark-bg-danger/success/warning-subtle`과 `dark-fg-brand/danger/success/warning`은 본 카탈로그가 preview 대비를 맞추려고 합성(synthesized)한 값이며, 공개 출처의 값과 다르다.** 종전 판본은 이를 "SSOT가 surface하지 않은 빈자리"로 설명했으나, 몽타주 공개 문서는 해당 다크 토큰을 모두 공개하고 있으므로 그 설명은 사실이 아니다 — 합성값은 공개 출처 부재 때문이 아니라 번들 기준 팔레트와의 정합을 위해 남겨 둔 것이다. 공식 다크 값은 다음과 같다 [src:4].
 
@@ -566,7 +579,7 @@ text 변형 — 투명 배경 + `{colors.fg-brand}` 텍스트, 보더 없음. Ho
 
 ### button-disabled
 
-`{colors.bg-muted}` 배경 + `{colors.border-default}` 보더 + `{colors.fg-disabled-label}` 텍스트(bg-muted 위 라이트 4.68:1, 다크 5.29:1). primary·secondary 모두 같은 회색 처리를 쓰고 브랜드 색을 흐리게 남기지 않는다. 부분 회색 처리 없이 컴포넌트 전체에 적용되며 cursor는 not-allowed다. (outlined/text 변형의 disabled는 보더만 유지하고 배경은 `{colors.bg-surface}`로 둔다.) 이 제품의 비활성 버튼은 "대본을 입력해 주세요"처럼 이유를 글자로 보여 주므로, WCAG 1.4.3의 비활성 예외에 기대지 않고 4.5:1 이상을 지킨다(2026-09-29 사용자 결정). 아이콘만 있는 비활성 버튼은 `{colors.fg-disabled}`를 그대로 쓴다.
+`{colors.bg-muted}` 배경 + `{colors.border-default}` 보더 + `{colors.fg-tertiary}` 텍스트(bg-muted 위 라이트 4.68:1, 다크 5.62:1). primary·secondary 모두 같은 회색 처리를 쓰고 브랜드 색을 흐리게 남기지 않는다. 부분 회색 처리 없이 컴포넌트 전체에 적용되며 cursor는 not-allowed다. (outlined/text 변형의 disabled는 보더만 유지하고 배경은 `{colors.bg-surface}`로 둔다.) 이 제품의 비활성 버튼은 "대본을 입력해 주세요"처럼 이유를 글자로 보여 주므로, WCAG 1.4.3의 비활성 예외에 기대지 않고 4.5:1 이상을 지킨다(2026-09-29 사용자 결정). 아이콘만 있는 비활성 버튼은 `{colors.fg-disabled}`를 그대로 쓴다.
 
 ### input / form field
 
@@ -1026,6 +1039,7 @@ inset 트랙형 토글 그룹 — `{colors.neutral-75}` 트랙(10 라운드, pad
 - **그라디언트 mid-stop 미세 차이** — 브랜드 그라디언트의 mid-stop은 README와 atomic 팔레트에서 약간 다른 값으로 surface된다. README/avatar gradient는 `#FF53C0`(≈ `oklch(0.709 0.232 346)`, magenta-shifted), atomic pink-600은 `#F553DA` — UI kit `styles.css`에서 실제 사용되는 hex는 `#FF53C0`이며 본 문서는 이를 우선한다. **공개 대조 결과, `#F553DA`는 공식 `pink-50` 토큰과 정확히 일치하지만 `#FF53C0`은 공식 토큰 집합 어디에도 없다** [src:3] — 본 문서가 병기한 hex 12개 중 공개 출처로 확인되지 않는 유일한 값이다. 또한 공식 문서 사이트가 렌더링하는 원티드 로고는 13개 이상의 `linearGradient`에 57개 stop을 쓰는 다층 그라디언트로, 본 문서의 3-stop 서술은 그 단순화다. 로고·워드마크 등 브랜드 자산은 디자인 시스템 라이선스가 아니라 별도 브랜드 가이드라인의 적용을 받으므로 [src:2], 그라디언트 마크를 그대로 재현하는 용도로는 쓰지 않는다.
 - **공식 motion 토큰** — duration·easing의 시스템 토큰은 명시되지 않았으며, hover transition은 100–150ms ease, page transition은 ~200ms fade-in이라는 정책만 README에 prose로 surface된다. 본 문서의 Motion 표는 SSOT의 정책 prose에서 추출한 권장값이며, 명시 토큰은 아니다.
 - **다크 모드 alias의 합성값** — `### Semantic alias — Dark`의 `bg-danger/success/warning-subtle`과 `fg-brand/danger/success/warning`은 본 카탈로그가 preview 대비를 맞추려 **합성(synthesized)**한 값이다. 종전 판본은 이를 "SSOT가 surface하지 않은 빈자리"로 설명했으나 **몽타주 공개 문서는 해당 다크 토큰을 모두 공개하고 있어 그 설명은 성립하지 않는다** [src:4]. 값을 임의로 덮어쓰지 않기 위해 합성값은 그대로 두되, 공식 값(`status-*`는 각 hue의 `-60` 단계, `background-status-*`는 같은 hue 알파 8%, 다크 `primary-normal`은 `#3385FF` ≈ `oklch(0.633 0.198 259)`)을 같은 절에 병기했다. 공식 패키지 위에서 구현한다면 공개 값을 쓴다.
+- **보조 글자색 접근성 조정 (2026-09-29)** — `fg-secondary`(0.61→0.74), `fg-tertiary`(0.43→0.68), `dark-fg-tertiary`(0.43→0.52)는 공개 몽타주 값과 다르다. 공개 값은 12~15px 글자에서 WCAG AA 4.5:1에 못 미쳐 TTS Pilot이 올렸다. 근거와 대비 수치는 `### 접근성 조정 (TTS Pilot)`에 있다.
 - **아이콘 인벤토리와 출처 교체** — 종전 판본이 아이코노그래피 근거로 인용하던 `github.com/wanteddev/wanted-icons`는 **현재 404이며 해당 레포는 존재하지 않는다.** 이 항목의 6개 인용을 공식 아이콘 갤러리 [src:9]와 `montage-web`의 `packages/wds-icon` [src:14]으로 교체했다. **공개 갤러리로는 전체 아이콘 수를 셀 수 없다** — 세그먼티드 컨트롤의 기본 탭만 SSR되고, 페이지의 24×24 `<svg>` 집계에는 사이드바·네비 chrome이 섞인다. 종전 판본의 "~340개" 추정도 이 방식으로는 확인할 수 없으므로 인벤토리 수치를 싣지 않는다. 개별 아이콘의 이름 매핑과 변형 ID도 본 문서 범위 외다.
 - **`wanted-sans.github.io` 링크 소실** — 종전 판본의 Wanted Sans 근거 URL도 404가 되어, 살아 있는 공식 레포 `github.com/wanteddev/wanted-sans`로 교체했다 [src:15].
 - **버전 스냅샷** — 몽타주는 Web·iOS·Android 3개 플랫폼이 6월·12월에 동일 Major로 정기 릴리즈되고 Minor·Patch는 플랫폼별로 독립 배포된다 [src:13]. 본 문서는 2026-07-25 시점의 공개 문서를 대조한 스냅샷이므로, 정기 릴리즈 이후에는 토큰이 갱신됐을 수 있다.
