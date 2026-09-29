@@ -15,7 +15,7 @@ description: >-
 - 결정: `docs/adr/0002-orpc-only-api.md`. 공급자 호출은 `packages/api`의 TypeScript로 하고 Python 서비스는 두지 않는다.
 - 요구사항: `docs/plans/tts-service-requirements.md`(REQ-01~13)와 `tasks/todo.md`의 P0 항목
 - 공급자 계약: `docs/research/<typecast|elevenlabs|fish-audio>-api-options.md`
-- 용어: `CONTEXT.md`
+- 용어: `GLOSSARY.md`
 
 ## 먼저
 1. 공급자 코드를 쓰기 전에 그 공급자의 공식 문서(Typecast는 llms.txt)를 다시 확인한다. research 문서와 다른 점은 보고에 적는다. P0-15, P0-16, P0-25가 재확인을 요구한다.
@@ -29,7 +29,7 @@ description: >-
 - 키는 `apps/web/.env.schema`에 `@sensitive`로 선언된 값을 varlock `ENV`로 읽는다. `apps/web/src/services.ts`가 `createDb(ENV)`처럼 공급자 클라이언트를 만들고 `apps/web/src/context.ts`가 context로 넘긴다. `packages/api`에서 `process.env`를 읽지 않는다.
 - SDK 생성자에는 키와 공식 호스트를 명시적으로 넘긴다. 두 SDK는 인자가 없으면 `process.env`(`TYPECAST_API_KEY`·`TYPECAST_API_HOST`·`ELEVENLABS_API_KEY`)로 조용히 대체한다. 키가 없으면 클라이언트를 만들지 않고 그 공급자를 "연결 안 됨"으로 처리한다.
 - 테스트는 context에 가짜 공급자를 넣는다. `bts-api`의 `references/ownership-test.md`가 `db`를 넣는 방식과 같다.
-- 코드 이름도 `CONTEXT.md`를 따른다. Fish Audio API가 `model`이라 부르는 성우 개체는 코드에서 voice로 부르고, `s1`·`s2.1-pro` 같은 합성 엔진만 model로 부른다.
+- 코드 이름도 `GLOSSARY.md`를 따른다. Fish Audio API가 `model`이라 부르는 성우 개체는 코드에서 voice로 부르고, `s1`·`s2.1-pro` 같은 합성 엔진만 model로 부른다.
 
 ## 유료·상태 변경 호출: 생성, 시험 생성, 클론, 클론 삭제
 - 누가 부를 수 있는지부터 막는다. 모든 사용자가 서버 키 하나를 같이 쓴다. 이 호출들을 여는 프로시저는 `protectedProcedure`로만 만들고, 소유자는 `context.ownerId`에서만 얻는다(REQ-01). 과금되지 않는 호출(연결 확인, 성우 목록, 사용량)도 서버 키를 쓰고 계정의 클론 목록을 돌려줄 수 있으므로 `protectedProcedure`로만 연다. 로그인(T14) 전에는 로컬 관리자 모드라서 보호가 네 겹이다. `protectedProcedure`가 production에서 모두 거절하고, 개발 서버는 `127.0.0.1`에서만 열리고, oRPC CSRF 플러그인이 다른 사이트의 호출을 막고, 루프백이 아닌 Host(DNS 리바인딩)에는 소유자를 주지 않는다. 그래서 T14 전에는 배포하지 않고 배포 환경에 공급자 키를 넣지 않는다. T14부터는 공통 미들웨어가 세션 사용자를 서버 환경변수의 허용 목록과 비교해 `FORBIDDEN`을 던지고, 목록이 비면 모두 거부한다. 가입 차단(`disableSignUp`)은 추가 방어일 뿐이다. 가입이 열려 있던 동안 만든 계정은 막지 못하기 때문이다.

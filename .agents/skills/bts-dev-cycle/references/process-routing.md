@@ -4,7 +4,7 @@
 
 | 단계 | 1순위 (Claude·Codex 같은 이름) | 보강 | Claude 대안 | Codex 대안 | 스킬이 없을 때 |
 |---|---|---|---|---|---|
-| 요구 명확화 | superpowers `brainstorming` | ponytail 사다리로 범위 줄이기(규칙 6), `domain-modeling`(새 용어를 `CONTEXT.md`에 바로 기록), `/grill-with-docs` (사용자가 호출, 용어와 ADR을 함께 기록) | OMC `deep-interview` | OMX `deep-interview` | 질문 목록을 만들어 사용자 확인을 받는다 |
+| 요구 명확화 | superpowers `brainstorming` | ponytail 사다리로 범위 줄이기(규칙 6), `domain-modeling`(새 용어를 `GLOSSARY.md`에 바로 기록), `/grill-with-docs` (사용자가 호출, 용어와 ADR을 함께 기록) | OMC `deep-interview` | OMX `deep-interview` | 질문 목록을 만들어 사용자 확인을 받는다 |
 | 계획 | superpowers `writing-plans` | 계획 리뷰: gstack `plan-eng-review`, UI가 있으면 `plan-design-review`, 계획 문서에 `ponytail-review`(규칙 6) | OMC `plan`, `ralplan` | OMX `plan`, `ralplan` | 파일별 단계와 검사를 적은 계획 파일을 직접 쓴다 |
 | 구현 | superpowers `subagent-driven-development`(`bts-implementer` 사용) + `test-driven-development` | ponytail 모드(규칙 6) | OMC `team`, `ralph` (대규모 병렬) | OMX `team`, `ralph` | 대조표 행 순서대로 직접 구현한다 |
 | 디버깅 (C) | superpowers `systematic-debugging` | gstack `investigate` | OMC `debug` | `gstack-investigate` | 재현 테스트 → 가설 → 수정 |

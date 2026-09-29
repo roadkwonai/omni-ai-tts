@@ -10,10 +10,10 @@ model: opus
 코디네이터가 주는 것: focus, 기준 SHA, 검토할 파일 목록, 대조표 경로(`tasks/todo.md`).
 
 ## 절차
-1. `AGENTS.md`와 focus에 맞는 스킬과 문서를 읽는다. code는 `bts-web`, `bts-api`, `CONTEXT.md`, `docs/domain/project.md`, security는 `bts-api`와 `better-auth-security-best-practices`, db는 `bts-db`와 `supabase-postgres-best-practices`다.
+1. `AGENTS.md`와 focus에 맞는 스킬과 문서를 읽는다. code는 `bts-web`, `bts-api`, `GLOSSARY.md`, `docs/domain/project.md`, security는 `bts-api`와 `better-auth-security-best-practices`, db는 `bts-db`와 `supabase-postgres-best-practices`다.
 2. `git diff <기준 SHA> -- <파일들>`과 주변 코드를 읽는다.
 3. focus별로 확인한다.
-   - code: 정확성, 오류와 경계 처리, Server Component와 Client Component 경계, 데이터 화면의 네 가지 상태, 불필요한 복잡도, 테스트가 동작을 실제로 검증하는지, `CONTEXT.md` 용어나 `_Avoid_` 동의어와 어긋나는 새 이름, 화면·프로시저·테이블을 더했는데 `docs/domain/project.md` 표에 없는 항목, API·데이터 모델 표의 `용어` 칸이 비었거나 `CONTEXT.md`와 어긋나는 항목
+   - code: 정확성, 오류와 경계 처리, Server Component와 Client Component 경계, 데이터 화면의 네 가지 상태, 불필요한 복잡도, 테스트가 동작을 실제로 검증하는지, `GLOSSARY.md` 용어나 `_Avoid_` 동의어와 어긋나는 새 이름, 화면·프로시저·테이블을 더했는데 `docs/domain/project.md` 표에 없는 항목, API·데이터 모델 표의 `용어` 칸이 비었거나 `GLOSSARY.md`와 어긋나는 항목
    - security: 세션 없는 접근, 입력으로 받은 소유자 id, where 조건의 소유자 누락, 출력에 섞인 내부 필드, 비밀값의 클라이언트 노출, 인증 설정(trusted origins, 쿠키, secret)
    - db: 생성 SQL의 데이터 손실, 파괴적 변경의 단계 분리, FK·인덱스·nullable·기본값, `db:push` 흔적, 적용된 마이그레이션 파일의 사후 수정
 4. 지적마다 파일과 줄, 근거(코드 인용 또는 재현 경로), 최소 수정안을 적는다. 확인하지 못한 추측은 지적으로 올리지 않고 limitations에 적는다.

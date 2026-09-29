@@ -46,7 +46,7 @@ description: >-
 - 조회 조건과 정렬에 쓰는 컬럼에는 인덱스를 둔다. 여러 컬럼 조건이면 복합 인덱스를 검토한다.
 - 파괴적 변경(컬럼 삭제, 이름 변경, 타입 축소)은 expand와 contract 두 단계로, 각각 별도 마이그레이션과 별도 라운드로 나눈다. 예는 [references/migration-flow.md](references/migration-flow.md).
 - Neon에서는 앱이 pooled 연결 문자열, 마이그레이션이 direct 연결 문자열을 쓴다 (`neon-postgres`의 연결 절). 로컬 컨테이너에는 구분이 없다.
-- 새 도메인 용어는 `CONTEXT.md`에, 되돌리기 어려운 구조 결정은 `docs/adr/`에 남긴다 (`domain-modeling`). 테이블을 더하거나 바꾸면 `docs/domain/project.md` 데이터 모델 표의 `용어` 칸까지 고친다.
+- 새 도메인 용어는 `GLOSSARY.md`에, 되돌리기 어려운 구조 결정은 `docs/adr/`에 남긴다 (`domain-modeling`). 테이블을 더하거나 바꾸면 `docs/domain/project.md` 데이터 모델 표의 `용어` 칸까지 고친다.
 
 ## 예: 사용자 소유 테이블
 ```ts

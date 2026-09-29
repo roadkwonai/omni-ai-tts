@@ -6,7 +6,7 @@
 - 확인일: **2026-09-26, Asia/Seoul**. 웹 문서는 고정 릴리스가 아니며, Studio는 현재 본문이 명시하는 **ElevenCreative Studio 4.0** 기준이다. HTTP `/v1`과 모델 `eleven_v3`는 다른 버전 축이다.
 - 요청된 [TTS API 소개](https://elevenlabs.io/text-to-speech-api)와 [API Introduction](https://elevenlabs.io/docs/api-reference/introduction)에서 시작해 아래 공식 가이드를 확인했다. 마케팅 페이지보다 제품 가이드와 해당 endpoint 계약을 우선한다.
 - 공개 문서 본문만 확인했다. 로그인, 계정 생성, 오디오 업로드, 녹음, 유료 API 호출, 청취·생성, 현재 로그인 화면 직접 조작은 하지 않았다. 문서에 있는 동작을 실제 사용으로 검증했다는 뜻이 아니다.
-- 기존 [API 옵션 조사](./elevenlabs-api-options.md), [서비스 비교](./tts-service-comparison.md)를 참고했다. 이 문서는 옵션 목록의 복제가 아니라 작업 흐름과 UI 반영 근거의 보충이다. 용어는 [CONTEXT.md](../../CONTEXT.md)를 따른다.
+- 기존 [API 옵션 조사](./elevenlabs-api-options.md), [서비스 비교](./tts-service-comparison.md)를 참고했다. 이 문서는 옵션 목록의 복제가 아니라 작업 흐름과 UI 반영 근거의 보충이다. 용어는 [GLOSSARY.md](../../GLOSSARY.md)를 따른다.
 
 ## 직접 답변
 

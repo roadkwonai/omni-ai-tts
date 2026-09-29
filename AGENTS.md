@@ -57,8 +57,8 @@
 - **Minimal Impact**: Changes should only touch what's necessary. Avoid introducing bugs.
 
 ## 먼저 읽을 문서
-- `CONTEXT.md`: 도메인 용어 정본. 코드, 문서, 대화에서 이 용어를 쓴다.
-- `docs/domain/project.md`: 서비스의 현재 모습. 권한, 주요 흐름, 기능, 화면과 URL, API, 데이터 모델. 표의 `용어` 칸이 `CONTEXT.md` 용어와 코드 이름을 잇는다. 갱신은 해당 절을 고치는 것이고 날짜별 기록을 덧붙이지 않는다.
+- `GLOSSARY.md`: 도메인 용어 정본. 코드, 문서, 대화에서 이 용어를 쓴다.
+- `docs/domain/project.md`: 서비스의 현재 모습. 권한, 주요 흐름, 기능, 화면과 URL, API, 데이터 모델. 표의 `용어` 칸이 `GLOSSARY.md` 용어와 코드 이름을 잇는다. 갱신은 해당 절을 고치는 것이고 날짜별 기록을 덧붙이지 않는다.
 - `docs/adr/`: 되돌리기 어려운 결정과 그 이유
 - `apps/web/AGENTS.md`: Next.js가 생성하는 버전별 규칙
 

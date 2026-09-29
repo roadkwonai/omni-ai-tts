@@ -14,7 +14,7 @@ description: >-
 
 ## 0. 시작
 1. `pnpm dev-cycle status`로 진행 중인 라운드가 있는지 본다. 있으면 그 라운드를 이어서 진행한다. 없으면 status가 외부 스킬의 새 버전도 확인한다(원격은 하루에 한 번). `UPDATE_AVAILABLE`, `UPSTREAM_GONE`, `CHECK_FAILED` 줄이 붙어 나오면 라운드를 열기 전에 `bts-skills-update`의 1절을 따른다.
-2. `AGENTS.md`, `CONTEXT.md`, `docs/domain/project.md`, `tasks/lessons.md`(있으면)를 읽는다.
+2. `AGENTS.md`, `GLOSSARY.md`, `docs/domain/project.md`, `tasks/lessons.md`(있으면)를 읽는다.
 3. 요청을 한 문장으로 다시 쓰고, 결과를 바꾸는 모호함이 있으면 구현 전에 묻는다.
 
 ## 1. 케이스 판정
@@ -44,7 +44,7 @@ pnpm dev-cycle table <케이스> --write --title "<요청 요약>"
 ## 3. 행 실행
 - 위에서부터 순서대로 수행하고, 끝낸 행마다 `tasks/todo.md`의 증거 칸을 채운다. 증거 형식은 `bts-verify`를 따른다: 실행한 명령과 결과, 산출물 경로, 사용한 스킬 이름. `✓`, `ok`, `done`만 적는 것은 증거가 아니다. 해당 없는 행은 `N/A: 사유`로 적는다. 표 끝의 `[confirm]` 행은 예외다(5절).
 - 계층별 스킬: 화면 동작은 `bts-web`, 화면 모양과 UX는 `bts-ui`, API와 인증은 `bts-api`, DB는 `bts-db`, 검사와 증거는 `bts-verify`.
-- 문서는 그 계층을 구현하는 행에서 함께 고친다. 새 용어는 `CONTEXT.md`에(`domain-modeling` 형식), 새 화면·프로시저·테이블은 `docs/domain/project.md`의 해당 표와 `용어` 칸에 넣는다. 그래야 뒤의 리뷰 행이 문서까지 함께 본다. 표 끝의 `문서 영향 확인` 행에는 고친 내역이나 `N/A: 사유`를 적는다.
+- 문서는 그 계층을 구현하는 행에서 함께 고친다. 새 용어는 `GLOSSARY.md`에(`domain-modeling` 형식), 새 화면·프로시저·테이블은 `docs/domain/project.md`의 해당 표와 `용어` 칸에 넣는다. 그래야 뒤의 리뷰 행이 문서까지 함께 본다. 표 끝의 `문서 영향 확인` 행에는 고친 내역이나 `N/A: 사유`를 적는다.
 - 행 문구에 괄호로 적힌 프로세스 스킬(예: `(systematic-debugging)`, `(brainstorming)`)은 그 행을 할 때 실제로 불러 쓰고, 증거 칸에 `사용: systematic-debugging`처럼 이름을 적는다.
 - 설계, 계획, 구현, 디버깅, 리뷰, QA, 검증에 쓸 프로세스 스킬은 [references/process-routing.md](references/process-routing.md)의 표를 따른다. 1순위 스킬이 없으면 대안을, 그것도 없으면 표의 대체 절차를 쓰고, 증거 칸에 실제로 쓴 것을 적는다.
 - D나 E 행이 있거나 C의 재현 대상이 서버·DB 코드인데 테스트 러너가 아직 없으면, 대조표 첫 행 앞에 `| 0 | vitest 도입(최초 1회) → 설정 파일과 실행 결과 |  |` 행을 직접 추가한다. 이 행은 `package.json`과 `turbo.json`을 고치므로 `bts-implementer`에 맡기지 않고 코디네이터가 직접 한다. 러너 도입은 요청 범위를 넓히는 일이 아니다. 격리 테스트 행을 채울 방법이 이것뿐이라 이 라운드에서 한다. 화면 버그처럼 단위 테스트로 재현하기 어려우면 브라우저로 재현한 흐름과 스크린샷(`bts-verify`의 `references/browser.md`)을 C의 재현 증거로 적는다.
