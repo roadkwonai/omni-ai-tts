@@ -25,7 +25,7 @@ flowchart LR
 | 기능 | 상태 | 화면 | API | 스펙 |
 |---|---|---|---|---|
 | 로그인과 가입 | 구현 | `/login` | Better Auth | 해당 없음 |
-| TTS 작업실 (P0) | 계획 | 없음 (HTML 시안 `docs/prototypes/tts-studio/index.html`) | 없음 | [요구사항](../plans/tts-service-requirements.md), [실서비스 기획·설계안](../briefs/tts-app-design.md) |
+| TTS 작업실 (P0) | 계획 | 없음 (HTML 시안 `docs/prototypes/tts-studio/index.html`) | 없음 | [요구사항](../plans/tts-service-requirements.md), [실서비스 기획·설계안](../briefs/tts-app-design.md), [구현 로드맵](../plans/implementation-roadmap.md) |
 
 상태는 `계획`, `구현`, `중단` 가운데 하나다.
 

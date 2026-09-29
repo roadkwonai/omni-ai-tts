@@ -1,5 +1,7 @@
 # 개인용 TTS 작업실 UI 우선 구현 계획
 
+> 2026-09-29: 작업 1~6의 층별 순서는 [서비스 구현 로드맵](implementation-roadmap.md)의 기능별 TASK 순서로 바뀌었다. 이 문서의 데이터 계약, 검증 항목, Review Focus는 해당 TASK를 설계할 때 참고한다.
+
 2026-09-26 HTML 기준 앱 기획·설계 요청의 검토안은 [실서비스 설계안](../briefs/tts-app-design.md)에서 확인한다. 7개 화면의 책임, 초안·저장·생성 상태, 데이터 경계와 기존 P0~P4 출시 순서를 정리했다. 설계안은 아직 사용자 검토 전이며 아래 작업을 구현 완료로 바꾸지 않는다.
 
 > 실행자는 `PRODUCT.md`, 아래 Spec과 HTML을 함께 읽는다. 각 작업은 bts-dev-cycle로 열고 bts-ui → impeccable, bts-web, bts-verify를 적용한다. 구현 위임 시 superpowers:subagent-driven-development, 직접 구현 시 superpowers:executing-plans를 사용한다. 커밋·push·배포는 별도 요청 전 하지 않는다.
