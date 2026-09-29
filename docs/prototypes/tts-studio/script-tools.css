@@ -305,6 +305,16 @@
 	margin: 0 0 var(--space-3);
 }
 
+/* 포커스가 남도록 aria-disabled로 둔 버튼(제안 준비 중, 되돌릴 기록 없음)은 :disabled와 같게 보인다 */
+.script-tool-emotion .button[aria-disabled="true"] {
+	cursor: not-allowed;
+}
+.script-tool-emotion-toolbar .button-primary[aria-disabled="true"] {
+	border-color: var(--line);
+	background: var(--surface-muted);
+	color: var(--text-faint);
+}
+
 .script-tool-provider-note {
 	margin: var(--space-3) 0;
 	padding: var(--space-3);

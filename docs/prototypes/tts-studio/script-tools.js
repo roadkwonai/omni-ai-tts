@@ -822,19 +822,24 @@
 		emotion.error = "";
 		emotion.sourceText = text;
 		renderEmotion(host);
+		// 끝나면 포커스는 제안 버튼에 남으므로 결과를 따로 알린다(가져오기의 focusImportResult와 같은 방식).
+		const settle = () => {
+			renderEmotion(host);
+			announce(emotion.error || emotion.status);
+		};
 		emotion.timer = window.setTimeout(() => {
 			if (requestId !== emotion.requestId) return;
 			// 성공·실패는 내비 하단 "시연 설정"에서 고른다.
 			if (window.TTSStudio?.demoOutcome?.("emotion") === "failure") {
 				emotion.status = "";
 				emotion.error = "시연 제안을 만들지 못했습니다. 다시 시도해 주세요.";
-				return renderEmotion(host);
+				return settle();
 			}
 			const candidates = sourceSegments();
 			if (candidates.length > MAX_PARAGRAPHS) {
 				emotion.status = "";
 				emotion.error = "감정 제안은 한 번에 200문단 이하만 지원합니다.";
-				return renderEmotion(host);
+				return settle();
 			}
 			const segments = candidates
 				.map((segment, index) => {
@@ -853,14 +858,14 @@
 			if (!segments.length) {
 				emotion.status = "";
 				emotion.error = "제안할 문단이 없습니다.";
-				return renderEmotion(host);
+				return settle();
 			}
 			emotion.original = clone(segments);
 			emotion.segments = segments;
 			emotion.selected = new Set(segments.map((segment) => segment.id));
 			emotion.history = [];
 			emotion.status = `${segments.length}개 문단에 규칙 기반 시연 제안을 만들었습니다.`;
-			renderEmotion(host);
+			settle();
 		}, 260);
 	};
 	const emotionSelect = (value) => {
@@ -896,6 +901,7 @@
 		const bulk = node("section", "script-tool-bulk");
 		const all = node("label", "script-tool-check");
 		const allCheck = input("checkbox");
+		allCheck.dataset.focus = "all";
 		allCheck.checked = emotion.selected.size === emotion.segments.length;
 		allCheck.indeterminate = emotion.selected.size > 0 && !allCheck.checked;
 		allCheck.addEventListener("change", () => {
@@ -907,7 +913,9 @@
 		all.append(allCheck, document.createTextNode("전체 선택"));
 		const batchEmotion = emotionSelect("normal");
 		batchEmotion.setAttribute("aria-label", "선택 문단 감정 일괄 적용");
+		batchEmotion.dataset.focus = "batch-emotion";
 		const batch = button("선택 문단에 적용", "button button-secondary");
+		batch.dataset.focus = "batch";
 		batch.disabled = !emotion.selected.size;
 		batch.addEventListener("click", () => {
 			snapshotEmotion();
@@ -919,13 +927,17 @@
 			renderEmotion(host);
 		});
 		const undo = button("마지막 수정 되돌리기", "button button-secondary");
-		undo.disabled = !emotion.history.length;
+		undo.dataset.focus = "undo";
+		// 누르면 스스로 비활성이 될 수 있어 disabled 대신 aria-disabled로 둔다. 포커스가 버튼에 남는다.
+		undo.setAttribute("aria-disabled", String(!emotion.history.length));
 		undo.addEventListener("click", () => {
 			const before = emotion.history.pop();
-			if (before) emotion.segments = before;
+			if (!before) return;
+			emotion.segments = before;
 			renderEmotion(host);
 		});
 		const reset = button("제안 처음으로", "script-tool-text-button");
+		reset.dataset.focus = "reset";
 		reset.addEventListener("click", () => {
 			emotion.segments = clone(emotion.original);
 			emotion.history = [];
@@ -946,6 +958,7 @@
 			const check = input("checkbox");
 			check.checked = emotion.selected.has(segment.id);
 			check.setAttribute("aria-label", `${index + 1}번 문단 선택`);
+			check.dataset.focus = `check:${segment.id}`;
 			check.addEventListener("change", () => {
 				if (check.checked) emotion.selected.add(segment.id);
 				else emotion.selected.delete(segment.id);
@@ -962,6 +975,7 @@
 			const controls = node("div", "script-tool-emotion-controls");
 			const emotionControl = emotionSelect(segment.emotion);
 			emotionControl.setAttribute("aria-label", `${index + 1}번 문단 감정`);
+			emotionControl.dataset.focus = `emotion:${segment.id}`;
 			emotionControl.addEventListener("change", () => {
 				snapshotEmotion();
 				segment.emotion = emotionControl.value;
@@ -976,6 +990,7 @@
 				segment.provider === "ElevenLabs" || segment.provider === "Fish Audio";
 			intensity.disabled = noIntensity;
 			intensity.setAttribute("aria-label", `${index + 1}번 문단 강도`);
+			intensity.dataset.focus = `intensity:${segment.id}`;
 			const output = node(
 				"output",
 				"script-tool-range-output",
@@ -989,7 +1004,7 @@
 					snapshotEmotion();
 					changingIntensity = true;
 				}
-				undo.disabled = false;
+				undo.setAttribute("aria-disabled", "false");
 				segment.intensity = Number(intensity.value);
 				output.textContent = `${Math.round(segment.intensity * 100)}%`;
 			});
@@ -1002,6 +1017,7 @@
 		});
 		root.append(list);
 		const apply = button("감정 계획을 작업실에 반영", "button button-primary");
+		apply.dataset.focus = "apply";
 		apply.addEventListener("click", () => applyEmotionPlan(host));
 		root.append(
 			apply,
@@ -1014,6 +1030,11 @@
 	};
 	const renderEmotion = (host) => {
 		if (!host) return;
+		// 다시 그린 뒤 같은 역할의 컨트롤(data-focus)로 포커스를 돌려놓는다. 그 컨트롤이 없어지면 제안 버튼으로 보낸다
+		// (드로어 안에서는 이 h2를 감추므로 제목은 대상이 될 수 없다).
+		const focusKey = host.contains(document.activeElement)
+			? document.activeElement.dataset.focus
+			: undefined;
 		host.replaceChildren();
 		const emotion = state.emotion;
 		const root = node("section", "script-tool script-tool-emotion");
@@ -1027,12 +1048,17 @@
 			),
 		);
 		const toolbar = node("div", "script-tool-emotion-toolbar");
+		const preparing = emotion.status.includes("준비");
 		const propose = button(
-			emotion.status.includes("준비") ? "제안 준비 중…" : "규칙 기반 제안 시작",
+			preparing ? "제안 준비 중…" : "규칙 기반 제안 시작",
 			"button button-primary",
 		);
-		propose.disabled = emotion.status.includes("준비");
-		propose.addEventListener("click", () => beginProposal(host));
+		propose.dataset.focus = "propose";
+		// 준비 중에도 disabled 대신 aria-disabled로 둬서 포커스가 버튼에 남는다.
+		propose.setAttribute("aria-disabled", String(preparing));
+		propose.addEventListener("click", () => {
+			if (!preparing) beginProposal(host);
+		});
 		toolbar.append(propose);
 		root.append(toolbar);
 		const support = node("aside", "script-tool-provider-note");
@@ -1056,6 +1082,9 @@
 			),
 		);
 		host.append(root);
+		if (!focusKey) return;
+		const next = root.querySelector(`[data-focus="${CSS.escape(focusKey)}"]`);
+		(next && !next.disabled ? next : propose).focus();
 	};
 	const leave = () => {
 		if (state.importer.busy) {
