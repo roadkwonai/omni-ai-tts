@@ -5,7 +5,9 @@ import { protectedProcedure, publicProcedure } from "../index";
 import {
 	providerIdSchema,
 	providerStatusResultSchema,
+	voiceListResultSchema,
 } from "../providers/contract";
+import { providerError } from "../providers/errors";
 
 export const appRouter = {
 	healthCheck: publicProcedure.handler(() => {
@@ -29,6 +31,16 @@ export const appRouter = {
 				};
 			}
 			return client.checkStatus();
+		}),
+	// 공개 성우 목록 전체. 공급자 문제는 사유를 붙여 던진다(T3 스펙 4절). 공급자는 T4·T5에서 넓힌다.
+	voiceList: protectedProcedure
+		.input(z.object({ provider: z.literal("typecast") }))
+		.output(voiceListResultSchema)
+		.handler(({ input, context }) => {
+			const listVoices = context.providers?.[input.provider]?.listVoices;
+			// 키가 없으면 공급자를 부르지 않는다.
+			if (!listVoices) throw providerError(input.provider, "no_key");
+			return listVoices();
 		}),
 };
 export type AppRouter = typeof appRouter;

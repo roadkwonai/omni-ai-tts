@@ -108,6 +108,16 @@ v30은 2026-01 공개, 37개 언어·Smart·7개 감정. v21은 2025-07 공개, 
 
 이들 호출도 인증은 서버의 X-API-KEY. multipart의 boundary는 HTTP 클라이언트가 생성한다. 목록에서 완료 커스텀 보이스는 먼저 반환되며 커스텀 preview_url은 null일 수 있다. API 클론과 소비자 Studio 클론은 별개이므로 Studio 보이스를 API 슬롯에 있다고 가정하지 않는다. [List Voices](https://typecast.ai/docs/api-reference/voices/list-voices), [llms.txt](https://typecast.ai/docs/llms.txt)
 
+### 성우 목록 실측(2026-10-04, T3)
+
+- SDK `@neosapience/typecast-js` 0.4.15: `getVoicesV3(filter?: VoicesV2Filter)`. 필터 타입에 `voice_type`이 없다. 시간 제한·취소·재시도·응답 검사가 없다.
+- `GET /v3/voices` 한 번(필터 없음)에 614명, 모두 `voice_type=original`. 응답 약 300KB(303,871바이트), 0.3초. 한글 이름(`voice_name.kor`)이 빠진 성우 0명.
+- `preview_url`은 614명 모두 있다. 모두 `static2.typecast.ai`의 서명 없는 고정 `.mp3` 주소이고 쿼리가 없다.
+- 모델: `ssfm-v30` 608명, `ssfm-v21` 535명(한 성우가 둘 다 가질 수 있다). 감정은 모델당 최대 10개.
+- 성별: female 282명, male 332명.
+- 연령: young_adult 364명, middle_age 151명, child 42명, elder 31명, teenager 26명.
+- `use_cases` 실제 값 13종(SDK `UseCaseEnum`과 다르다. 한 성우가 여러 값을 가진다): `TikTok/Reels/Shorts` 174, `Audiobook/Storytelling` 152, `Game` 150, `Ads/Promotion` 146, `E-learning/Explainer` 145, `Conversational` 134, `Radio/Podcast` 133, `Anime` 117, `Documentary` 114, `Voicemail/Voice Assistant` 96, `Announcer` 51, `News Reporter` 50, `Rapper` 7.
+
 ## 지원 여부를 분리할 기능
 
 | 항목 | 확인 결과·UI 처리 | 출처 |
@@ -124,7 +134,7 @@ v30은 2026-01 공개, 37개 언어·Smart·7개 감정. v21은 2025-07 공개, 
 - 호출: `GET /v1/users/me/subscription`(키 필요, 조회). 과금 여부 문구는 없다. [Get subscription](https://typecast.ai/docs/api-reference/subscription/get-subscription.md)
 - 응답: `plan`, `credits.plan_credits`(int), `credits.used_credits`(int), `limits.concurrency_limit`. 잔여는 `plan_credits − used_credits`로 계산한다. 초기화 시각 필드는 없다. 크레딧 단위는 문서에 없다(글자 수로 추정, 미확정).
 - 오류: 이 호출 문서에는 401 `{"detail":"Invalid API key"}`, 429, 500. 공통 오류 표에는 402(크레딧 부족), 403(구형 Starter 키, 휴면 계정, 키에 공백·개행). `Retry-After`는 명시 없음. [llms.txt](https://typecast.ai/docs/llms.txt)
-- SDK `@neosapience/typecast-js` 0.4.14(npm 최신과 같음): `getMySubscription()`. 생성자 `{ apiKey, baseHost }`, 인자가 없으면 `TYPECAST_API_KEY`·`TYPECAST_API_HOST`로 대체하고 키가 없어도 예외 없이 헤더 없이 요청한다. 시간 제한·취소·재시도 옵션이 없고 응답을 검사하지 않는다. 오류는 `TypecastAPIError`(`statusCode`, `response`). HTTP는 호출 시점의 전역 `fetch`. 타입에 문서의 `professional_voice_slot`이 없다.
+- SDK `@neosapience/typecast-js` 0.4.15(2026-10-04 설치본 확인): `getMySubscription()`. 생성자 `{ apiKey, baseHost }`, 인자가 없으면 `TYPECAST_API_KEY`·`TYPECAST_API_HOST`로 대체하고 키가 없어도 예외 없이 헤더 없이 요청한다. 시간 제한·취소·재시도 옵션이 없고 응답을 검사하지 않는다. 오류는 `TypecastAPIError`(`statusCode`, `response`). HTTP는 호출 시점의 전역 `fetch`. 타입에 문서의 `professional_voice_slot`이 없다.
 
 ## 문서 모순·미확인 사항
 

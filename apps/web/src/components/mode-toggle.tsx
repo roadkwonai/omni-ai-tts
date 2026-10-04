@@ -2,16 +2,15 @@
 
 import { Button } from "@tts-pilot-app/ui/components/button";
 import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuRadioGroup,
-	DropdownMenuRadioItem,
-	DropdownMenuTrigger,
-} from "@tts-pilot-app/ui/components/dropdown-menu";
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@tts-pilot-app/ui/components/tooltip";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 
+// 누를 때마다 이 순서로 바뀐다(2026-10-04 사용자 선택: 버튼 하나, 아이콘만).
 const THEMES = [
 	{ value: "system", label: "시스템 설정", icon: Monitor },
 	{ value: "light", label: "라이트", icon: Sun },
@@ -28,61 +27,46 @@ export function ModeToggle() {
 		() => true,
 		() => false,
 	);
-	const current = hydrated
-		? THEMES.find((item) => item.value === theme)
-		: undefined;
-	const Icon = current?.icon;
-	const [open, setOpen] = useState(false);
-	const triggerRef = useRef<HTMLButtonElement>(null);
+	const found = THEMES.findIndex((item) => item.value === theme);
+	const index = Math.max(found, 0);
+	const current = THEMES[index];
+	const next = THEMES[(index + 1) % THEMES.length];
+	const Icon = current.icon;
+	// 아이콘만 보이므로 이름은 툴팁과 접근 이름으로 준다. 수화 전이나 목록 밖 값이면 지금 값을 모른다.
+	const label =
+		hydrated && found >= 0
+			? `테마: ${current.label}, 누르면 ${next.label}`
+			: "테마 바꾸기";
+	// 누른 뒤에만 채워 새 테마를 스크린 리더에 알린다(처음부터 채우면 페이지마다 읽힌다).
+	const [announcement, setAnnouncement] = useState("");
 
 	return (
-		<DropdownMenu open={open} onOpenChange={setOpen}>
-			<DropdownMenuTrigger
+		<Tooltip>
+			{/* closeOnClick false: 마우스로 눌러도 툴팁이 남아 새 값으로 바뀐다(키보드와 같게) */}
+			<TooltipTrigger
+				closeOnClick={false}
 				render={
 					<Button
-						ref={triggerRef}
 						variant="ghost"
 						size="icon-lg"
-						aria-label={
-							current ? `테마 바꾸기, 현재 ${current.label}` : "테마 바꾸기"
-						}
+						aria-label={label}
+						onClick={() => {
+							setTheme(next.value);
+							setAnnouncement(`테마: ${next.label}`);
+						}}
 					/>
 				}
 			>
-				{Icon ? (
+				{hydrated ? (
 					<Icon aria-hidden="true" />
 				) : (
 					<span aria-hidden="true" className="size-4" />
 				)}
-			</DropdownMenuTrigger>
-			{/* Tab·Shift+Tab은 메뉴를 닫고 포커스를 이 버튼에 둔다. Base UI는 Tab으로 닫힐 때 포커스가 이미 밖으로
-			    나가 finalFocus가 듣지 않아, 사용자 핸들러가 먼저 불리는 mergeProps 순서를 이용해 직접 처리한다.
-			    Esc·선택 뒤 복귀는 Base UI 기본 동작이 맡는다. */}
-			<DropdownMenuContent
-				align="start"
-				onKeyDown={(event) => {
-					if (event.key !== "Tab") return;
-					event.preventDefault();
-					setOpen(false);
-					triggerRef.current?.focus();
-				}}
-			>
-				{/* theme은 서버에서만 undefined다. 메뉴는 열 때만 그려지므로 수화 불일치가 없다. */}
-				<DropdownMenuRadioGroup
-					value={theme}
-					onValueChange={(value) => setTheme(String(value))}
-				>
-					{THEMES.map((item) => (
-						<DropdownMenuRadioItem
-							key={item.value}
-							value={item.value}
-							closeOnClick
-						>
-							{item.label}
-						</DropdownMenuRadioItem>
-					))}
-				</DropdownMenuRadioGroup>
-			</DropdownMenuContent>
-		</DropdownMenu>
+			</TooltipTrigger>
+			<TooltipContent side="top">{label}</TooltipContent>
+			<span role="status" className="sr-only">
+				{announcement}
+			</span>
+		</Tooltip>
 	);
 }

@@ -1,1 +1,9 @@
 @import "@tts-pilot-app/ui/globals.css";
+
+/* 화면 밖 성우 카드는 그리기를 미룬다(T3 스펙 5절, rendering-content-visibility). 결과 격자의 li에만 붙인다.
+   선반은 5장뿐이고, 가로 줄에서는 화면 밖 카드의 자리값이 줄 높이를 늘린다.
+   높이는 카드 한 장의 대략값이다. 실측 216~242px(2026-10-04)이라 auto 14rem(224px)을 쓴다. */
+.voice-card {
+	content-visibility: auto;
+	contain-intrinsic-size: auto 14rem;
+}

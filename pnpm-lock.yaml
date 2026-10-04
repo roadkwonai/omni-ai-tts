@@ -253,7 +253,7 @@ importers:
         version: 1.15.4
       '@orpc/server':
         specifier: 'catalog:'
-        version: 1.15.4
+        version: 1.15.4(ws@8.22.0)
       '@orpc/tanstack-query':
         specifier: ^1.15.0
         version: 1.15.4(@orpc/client@1.15.4)(@tanstack/query-core@5.103.2)
@@ -327,6 +327,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
+      vitest:
+        specifier: ^5.0.2
+        version: 5.0.2(@types/node@26.6.2)(vite@8.3.1(@types/node@26.6.2))
 
   packages/api:
     dependencies:
@@ -4151,23 +4154,6 @@ snapshots:
       - '@opentelemetry/api'
 
   '@orpc/interop@1.15.4': {}
-
-  '@orpc/server@1.15.4':
-    dependencies:
-      '@orpc/client': 1.15.4
-      '@orpc/contract': 1.15.4
-      '@orpc/interop': 1.15.4
-      '@orpc/shared': 1.15.4
-      '@orpc/standard-server': 1.15.4
-      '@orpc/standard-server-aws-lambda': 1.15.4
-      '@orpc/standard-server-fastify': 1.15.4
-      '@orpc/standard-server-fetch': 1.15.4
-      '@orpc/standard-server-node': 1.15.4
-      '@orpc/standard-server-peer': 1.15.4
-      cookie: 1.1.1
-    transitivePeerDependencies:
-      - '@opentelemetry/api'
-      - fastify
 
   '@orpc/server@1.15.4(ws@8.22.0)':
     dependencies:

@@ -54,9 +54,10 @@ function EmptyMedia({
 	);
 }
 
-function EmptyTitle({ className, ...props }: React.ComponentProps<"div">) {
+// 빈 상태의 제목. 쓰는 곳이 모두 페이지 h1 아래라 h2다(AF-05).
+function EmptyTitle({ className, ...props }: React.ComponentProps<"h2">) {
 	return (
-		<div
+		<h2
 			data-slot="empty-title"
 			className={cn(
 				"cn-font-heading font-bold text-lg tracking-tight",

@@ -34,15 +34,15 @@ import {
 
 import { ModeToggle } from "./mode-toggle";
 
-// 열린 화면. 767px 이하에서는 위 막대에 늘 보인다.
+// 열린 화면. 767px 이하에서는 위 막대에 늘 보인다(4칸: 열린 화면 셋 + 더보기, 성우 캐스팅 브리프 10절).
 const OPEN_ITEMS: { label: string; icon: LucideIcon; href: Route }[] = [
 	{ label: "음성 작업실", icon: WandSparkles, href: "/studio" },
+	{ label: "성우 캐스팅", icon: AudioWaveform, href: "/casting" },
 	{ label: "연결 상태", icon: Link2, href: "/connections" },
 ];
 
 // 아직 만들지 않은 화면('준비 중', 사이트맵 "예외"). 그 화면을 여는 TASK가 OPEN_ITEMS로 옮긴다.
 const UPCOMING_ITEMS: { label: string; icon: LucideIcon }[] = [
-	{ label: "성우 캐스팅", icon: AudioWaveform },
 	{ label: "대본 보관함", icon: FileText },
 	{ label: "성우 보관함", icon: UserRound },
 	{ label: "프로젝트", icon: Folder },
@@ -105,8 +105,6 @@ export function AppNav() {
 	useEffect(() => {
 		if (!moreOpen) return;
 		function onKeyDown(event: KeyboardEvent) {
-			// 테마 메뉴(포털의 role="menu")에서 누른 키는 그 메뉴가 처리한다.
-			if ((event.target as Element).closest('[role="menu"]')) return;
 			if (event.key === "Escape") {
 				setMoreOpen(false);
 				moreButtonRef.current?.focus();
@@ -142,19 +140,11 @@ export function AppNav() {
 			}
 		}
 		function onPointerDown(event: PointerEvent) {
-			const target = event.target as Element;
-			// 테마 메뉴(포털의 role="menu")를 누르는 것은 바깥 누르기가 아니다.
-			// 테마 메뉴가 열린 동안 Base UI가 화면 전체에 까는 막(InternalBackdrop, data-base-ui-inert)을
-			// 누르면 테마 메뉴만 닫는다(Esc와 같게). 더보기는 그다음 누르기에 닫힌다.
-			if (
-				navRef.current?.contains(target) ||
-				target.closest('[role="menu"], [data-base-ui-inert]')
-			)
-				return;
+			if (navRef.current?.contains(event.target as Node)) return;
 			setMoreOpen(false);
 		}
 		document.addEventListener("keydown", onKeyDown);
-		// window capture: Base UI가 메뉴를 닫으며 막의 data-base-ui-inert를 지우기 전에 판정한다.
+		// capture: 다른 요소가 전파를 막아도 바깥 누르기를 본다.
 		window.addEventListener("pointerdown", onPointerDown, true);
 		return () => {
 			document.removeEventListener("keydown", onKeyDown);
@@ -176,7 +166,7 @@ export function AppNav() {
 				>
 					TTS Pilot
 				</Link>
-				<ul className="grid grid-cols-3 gap-0.5 px-2 py-1 md:flex md:flex-col md:gap-1 md:p-0">
+				<ul className="grid grid-cols-4 gap-0.5 px-2 py-1 md:flex md:flex-col md:gap-1 md:p-0">
 					{OPEN_ITEMS.map((item) => {
 						const Icon = item.icon;
 						// 하위 경로가 없다. 없는 주소(/connections/x)에서 '연결 상태'가 현재 페이지로 보이지 않게 같을 때만 활성이다.
@@ -298,8 +288,8 @@ export function AppNav() {
 							})}
 						</ul>
 					</div>
-					<div className="flex items-center gap-2 border-t px-1 pt-2 md:mt-auto md:flex-col md:border-t-0 md:px-0 md:pt-0 xl:flex-row xl:px-1">
-						<ModeToggle />
+					{/* 테마 버튼은 줄 오른쪽 끝(2026-10-04 사용자 요청). 보이는 순서와 Tab 순서가 같게 DOM에서도 뒤에 둔다 */}
+					<div className="flex items-center justify-between gap-2 border-t pt-2 pl-3 md:mt-auto md:flex-col md:border-t-0 md:px-0 md:pt-0 xl:flex-row xl:pl-3">
 						<span
 							title="로그인 없이 이 컴퓨터에서만 쓰는 모드예요"
 							className={cn(
@@ -309,6 +299,7 @@ export function AppNav() {
 						>
 							로컬 관리자
 						</span>
+						<ModeToggle />
 					</div>
 				</div>
 			</nav>

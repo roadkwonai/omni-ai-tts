@@ -60,8 +60,10 @@ description: >-
 | 타임아웃, 연결 끊김 | `GATEWAY_TIMEOUT` | `unknown_outcome` |
 
 - 판정은 `packages/api/src/providers/errors.ts`의 `reasonFromHttp`가 한다. SDK 오류는 `ProviderHttpError`(상태 코드, 공급자 오류 코드, `Retry-After`)로 바꿔 담는다.
-- 연결 확인(`providerStatus`)은 던지지 않고 연결 상태 값으로 돌려준다(`runCheck`). 입력 거절(400·422)과 표에 없는 상태는 `check_failed`다. 조회의 시간 초과·연결 끊김은 `unknown_outcome`이 아니라 `check_failed`다. 상태를 바꾸지 않는 조회라 처리 여부를 따질 필요가 없다.
-- SDK 오류 객체를 `cause`로 넘기거나 그대로 로그에 쓰지 않는다. rpc 라우트의 `onError`가 오류 전체를 `console.error`한다. 로그에는 공급자, 상태 코드, 공급자 오류 코드만 남긴다.
+- 연결 확인(`providerStatus`)은 던지지 않고 연결 상태 값으로 돌려준다(`runCheck`). 입력 거절(400·422)과 표에 없는 상태는 `check_failed`다. 이 확인의 시간 초과·연결 끊김은 `unknown_outcome`이 아니라 `check_failed`다. 상태를 바꾸지 않는 조회라 처리 여부를 따질 필요가 없다.
+- 목록·생성처럼 결과가 필요한 호출은 `runList`처럼 사유를 붙여 던진다(`providers/errors.ts`). 목록 조회의 시간 초과·연결 끊김은 T3 스펙 4절대로 `GATEWAY_TIMEOUT`·`unknown_outcome`(화면 문구 '응답하지 않아요')이고, 응답 검증 실패는 `provider_error`다.
+- 목록 응답은 항목 단위로 검사한다. 응답 모양(배열이 아님, 유형 필드 없음)이 어긋나면 `provider_error`, 성우 하나가 어긋나면 그 성우만 빼고 뺀 수와 필드 이름만 한 줄 남긴다(`[voiceList] typecast 성우 N명 제외: voice_name`). 샘플 주소만 어긋나면(https가 아니거나 공급자 호스트 typecast.ai가 아님) 그 성우의 샘플을 null로 둔다. 모두 빠지면 `provider_error`다.
+- SDK 오류 객체를 `cause`로 넘기거나 그대로 로그에 쓰지 않는다. rpc 라우트의 `onError`는 의도한 4xx를 남기지 않고, 사유(`data.reason`)가 붙은 공급자 오류는 `[rpc] 코드 공급자 사유` 한 줄만 남긴다. 그 밖의 오류만 오류 전체를 `console.error`한다. 로그에는 공급자, 상태 코드, 공급자 오류 코드만 남긴다.
 - 한 공급자의 장애가 다른 공급자의 목록이나 생성을 막지 않게 공급자별로 따로 처리한다(REQ-02).
 
 ## 클론 보이스와 공급자 리소스 소유권 (REQ-01, REQ-13)
@@ -89,6 +91,7 @@ description: >-
 - 금액은 공급자 문서에 근거가 있을 때만 출처와 함께 보여 준다. 예상치와 공급자가 돌려준 실제 사용량을 구분한다.
 
 ## 화면 (`bts-web`, `bts-ui`와 함께)
+- Typecast 기본 샘플 주소는 서명 없는 고정 주소다(2026-10-04 실측). 주소에 서명·만료가 생기면 만료를 따로 구분한다.
 - 한 번에 한 오디오만 재생한다(REQ-03). `URL.createObjectURL`로 만든 주소는 교체하거나 언마운트할 때 `URL.revokeObjectURL`한다.
 - 마이크 권한은 녹음 버튼을 누를 때 요청하고, 멈추거나 화면을 떠날 때 모든 `MediaStreamTrack`을 `stop()`한다(REQ-13).
 - 다운로드는 이미 받은 결과를 쓴다. 다운로드가 생성을 다시 부르지 않는다(REQ-10).
@@ -98,7 +101,7 @@ description: >-
 | SDK | 판 | 동작 |
 |---|---|---|
 | `@elevenlabs/elevenlabs-js` | 2.70.0 | 기본 `maxRetries` 2, 408·429·5xx 재시도(요청 옵션 `maxRetries: 0`으로 끈다). 키가 없으면 `process.env.ELEVENLABS_API_KEY`, 그래도 없으면 생성자가 예외. 요청 옵션 `maxRetries`·`abortSignal`·`timeoutInSeconds`(기본 240초). 구독 조회 `user.subscription.get()`은 응답 전체(필수 필드 20개)를 스키마로 검사하고(어긋나면 `ParseError`) camelCase로 준다. HTTP 오류는 `ElevenLabsError`(`statusCode`, `body`, `rawResponse.headers`), `abortSignal`로 끊으면 `statusCode` 없는 `ElevenLabsError`. SDK 로그는 기본으로 꺼져 있다. HTTP는 호출 시점의 전역 `fetch` |
-| `@neosapience/typecast-js` | 0.4.15 | 키가 없으면 `process.env.TYPECAST_API_KEY`(없어도 헤더 없이 요청), 호스트는 `TYPECAST_API_HOST`. 생성자 `{ apiKey, baseHost, source, generatedBy }`에서 `source`와 `generatedBy`는 함께 줘야 하고 형식이 틀리면 생성자가 예외(연동 식별은 `source: "api-docs"`, 작성 에이전트 토큰). 시간 제한·취소·재시도·응답 검증이 없다. 구독 조회 `getMySubscription()`. HTTP 오류는 `TypecastAPIError`(`statusCode`, `response`)이고 응답 헤더는 없다. 클론 파일 상한 25MB, 문자열 인자를 파일 경로로 읽음. HTTP는 호출 시점의 전역 `fetch`. 0.4.15: TTS 요청에서 `seed`를 보내지 않는다 |
+| `@neosapience/typecast-js` | 0.4.15 | 키가 없으면 `process.env.TYPECAST_API_KEY`(없어도 헤더 없이 요청), 호스트는 `TYPECAST_API_HOST`. 생성자 `{ apiKey, baseHost, source, generatedBy }`에서 `source`와 `generatedBy`는 함께 줘야 하고 형식이 틀리면 생성자가 예외(연동 식별은 `source: "api-docs"`, 작성 에이전트 토큰). 시간 제한·취소·재시도·응답 검증이 없다. 구독 조회 `getMySubscription()`. HTTP 오류는 `TypecastAPIError`(`statusCode`, `response`)이고 응답 헤더는 없다. 클론 파일 상한 25MB, 문자열 인자를 파일 경로로 읽음. `getVoicesV3` 필터 타입에 `voice_type` 없음. HTTP는 호출 시점의 전역 `fetch`. 0.4.15: TTS 요청에서 `seed`를 보내지 않는다 |
 
 판을 올리면 이 표를 다시 확인한다.
 

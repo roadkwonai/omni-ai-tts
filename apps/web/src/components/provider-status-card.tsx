@@ -18,6 +18,8 @@ import { Spinner } from "@tts-pilot-app/ui/components/spinner";
 import { CircleCheck, KeyRound, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { isUpcoming } from "@/lib/connection-view";
+
 export const PROVIDER_LABEL: Record<ProviderId, string> = {
 	typecast: "Typecast",
 	elevenlabs: "ElevenLabs",
@@ -129,13 +131,13 @@ function quotaText(provider: ProviderId, quota: RemainingQuota): ReactNode {
 			</>
 		);
 	}
-	return quota.resetAt === null ? (
-		characters
-	) : (
+	return quota.resetAt !== null && isUpcoming(quota.resetAt) ? (
 		<>
 			{characters} ·{" "}
 			{chunk(`${dayFormat.format(new Date(quota.resetAt))} 초기화`)}
 		</>
+	) : (
+		characters
 	);
 }
 

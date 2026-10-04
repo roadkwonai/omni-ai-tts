@@ -7,6 +7,7 @@
 		"build": "tsc -b ../../packages/api && next build",
 		"check-types": "next typegen && tsc -b ../../packages/api && tsc --noEmit",
 		"start": "next start --hostname 127.0.0.1",
+		"test": "vitest run --dir src",
 		"env:generate": "varlock codegen",
 		"auth:generate": "varlock run -- pnpm dlx auth@latest generate --config src/services.ts --output ../../packages/db/src/schema/auth.ts --yes"
 	},
@@ -38,6 +39,7 @@
 		"@types/react": "catalog:",
 		"@types/react-dom": "catalog:",
 		"tailwindcss": "catalog:",
-		"typescript": "catalog:"
+		"typescript": "catalog:",
+		"vitest": "^5.0.2"
 	}
 }

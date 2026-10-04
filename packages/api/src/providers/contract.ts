@@ -41,3 +41,41 @@ export const providerStatusResultSchema = z.object({
 	checkedAt: z.iso.datetime(),
 });
 export type ProviderStatusResult = z.infer<typeof providerStatusResultSchema>;
+
+// 공급자 호출이 실패한 사유. 목록 조회가 던지는 ORPCError의 data.reason이고 화면이 이 값으로 안내를 고른다(T3 스펙 4절).
+// 화면은 zod를 가져가지 않으므로 타입만 둔다. 연결 상태에서 '연결됨'·'확인 실패'를 빼고 '결과 모름'을 더한 것이다.
+export type ProviderFailure =
+	| Exclude<ConnectionStatus, "connected" | "check_failed">
+	| "unknown_outcome";
+export type ProviderErrorData = {
+	provider: ProviderId;
+	reason: ProviderFailure;
+};
+
+// 성우 하나(T3 스펙 5절 1). 공급자가 준 값만 담고 추정하지 않는다. 성별·연령이 없으면 null이다.
+export const voiceSchema = z.object({
+	provider: providerIdSchema,
+	voiceId: z.string().min(1),
+	// 화면 이름. Typecast는 한글 이름(비면 영문 이름)
+	name: z.string(),
+	// 화면 이름과 다른 영문 이름. 없거나 같으면 null
+	englishName: z.string().nullable(),
+	gender: z.enum(["male", "female"]).nullable(),
+	// Typecast child·teenager·young_adult·middle_age·elder. 모르는 값도 그대로 받는다
+	age: z.string().nullable(),
+	// 콘텐츠. 실제 값이 SDK enum과 달라 문자열로 받는다(스펙 3절)
+	useCases: z.array(z.string()),
+	models: z.array(
+		z.object({ model: z.string(), emotions: z.array(z.string()) }),
+	),
+	// 기본 샘플. 브라우저가 공급자 주소에서 바로 받는다. 오디오 src에 다른 스킴이 들어가지 않게 https만 받는다
+	previewUrl: z.url({ protocol: /^https$/ }).nullable(),
+});
+export type Voice = z.infer<typeof voiceSchema>;
+
+export const voiceListResultSchema = z.object({
+	provider: providerIdSchema,
+	voices: z.array(voiceSchema),
+	fetchedAt: z.iso.datetime(),
+});
+export type VoiceListResult = z.infer<typeof voiceListResultSchema>;

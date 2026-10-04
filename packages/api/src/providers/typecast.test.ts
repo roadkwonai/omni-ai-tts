@@ -106,3 +106,202 @@ describe("Typecast 연결 확인", () => {
 		await expect(pending).resolves.toMatchObject({ status: "check_failed" });
 	});
 });
+
+const rawVoice = (overrides: Record<string, unknown> = {}) => ({
+	voice_id: "tc_0001",
+	voice_name: { eng: "Minji", kor: "민지" },
+	voice_type: "original",
+	gender: "female",
+	age: "young_adult",
+	models: [
+		{ version: "ssfm-v30", emotions: ["normal", "happy"] },
+		{ version: "ssfm-v21", emotions: ["normal"] },
+	],
+	use_cases: ["Ads/Promotion", "Game"],
+	preview_url: "https://static2.typecast.ai/preview/tc_0001.mp3",
+	...overrides,
+});
+const list = () => createTypecast(KEY).listVoices?.();
+
+describe("Typecast 성우 목록", () => {
+	it("공개 성우를 계약 모양으로 바꾸고 커스텀 성우는 뺀다. 요청은 공식 호스트의 /v3/voices에 필터 없이 1회", async () => {
+		fetchMock.mockResolvedValue(
+			json(200, [
+				rawVoice(),
+				// 커스텀은 모양이 달라도(models 없음) 목록을 깨지 않는다
+				{
+					voice_id: "custom_1",
+					voice_name: { eng: "Me", kor: "나" },
+					voice_type: "custom",
+					preview_url: null,
+				},
+			]),
+		);
+		const result = await list();
+		expect(result?.provider).toBe("typecast");
+		expect(result?.voices).toEqual([
+			{
+				provider: "typecast",
+				voiceId: "tc_0001",
+				name: "민지",
+				englishName: "Minji",
+				gender: "female",
+				age: "young_adult",
+				useCases: ["Ads/Promotion", "Game"],
+				models: [
+					{ model: "ssfm-v30", emotions: ["normal", "happy"] },
+					{ model: "ssfm-v21", emotions: ["normal"] },
+				],
+				previewUrl: "https://static2.typecast.ai/preview/tc_0001.mp3",
+			},
+		]);
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		const [url, init] = fetchMock.mock.calls[0] ?? [];
+		const target = new URL(String(url));
+		expect(target.origin).toBe("https://api.typecast.ai");
+		expect(target.pathname).toBe("/v3/voices");
+		expect(target.search).toBe("");
+		expect(new Headers(init?.headers).get("x-api-key")).toBe(KEY);
+	});
+
+	it("값이 없거나 모르는 값: 성별은 null, 콘텐츠는 빈 배열, 샘플 주소는 null, 한글 이름이 비면 영문 이름을 쓴다", async () => {
+		const { use_cases: _omit, ...withoutUseCases } = rawVoice({
+			voice_name: { eng: "Sora", kor: " " },
+			gender: "unknown",
+			age: null,
+			preview_url: null,
+		});
+		fetchMock.mockResolvedValue(json(200, [withoutUseCases]));
+		const [voice] = (await list())?.voices ?? [];
+		expect(voice).toMatchObject({
+			name: "Sora",
+			englishName: null,
+			gender: null,
+			age: null,
+			useCases: [],
+			previewUrl: null,
+		});
+	});
+
+	it("같은 voice_id는 처음 것만 남긴다", async () => {
+		fetchMock.mockResolvedValue(
+			json(200, [
+				rawVoice(),
+				rawVoice({ voice_name: { eng: "Dup", kor: "중복" } }),
+			]),
+		);
+		const voices = (await list())?.voices ?? [];
+		expect(voices.map((voice) => voice.name)).toEqual(["민지"]);
+	});
+
+	it("401은 BAD_GATEWAY·provider_auth이고 재시도하지 않으며 오류에 키가 없다", async () => {
+		fetchMock.mockImplementation(async () =>
+			json(401, { detail: `Invalid API key ${KEY}` }),
+		);
+		const thrown = await list()?.catch((error) => error);
+		expect(thrown).toMatchObject({ code: "BAD_GATEWAY" });
+		expect(thrown.cause).toBeUndefined();
+		expect(thrown.data).toEqual({
+			provider: "typecast",
+			reason: "provider_auth",
+		});
+		expect(JSON.stringify(thrown.toJSON())).not.toContain(KEY);
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+
+	it("429는 SDK 경로로도 TOO_MANY_REQUESTS·rate_limit이다", async () => {
+		fetchMock.mockResolvedValue(json(429, { detail: "too many" }));
+		await expect(list()).rejects.toMatchObject({
+			code: "TOO_MANY_REQUESTS",
+			data: { provider: "typecast", reason: "rate_limit" },
+		});
+	});
+
+	it("JSON이 아닌 200 응답은 BAD_GATEWAY·provider_error이고 로그는 SyntaxError 한 줄이다", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => {});
+		fetchMock.mockResolvedValue(
+			new Response("<html>", {
+				status: 200,
+				headers: { "content-type": "text/html" },
+			}),
+		);
+		await expect(list()).rejects.toMatchObject({
+			code: "BAD_GATEWAY",
+			data: { reason: "provider_error" },
+		});
+		expect(log.mock.calls).toEqual([
+			["[voiceList] typecast 목록 조회 실패: SyntaxError"],
+		]);
+	});
+
+	it("https가 아니거나 공급자 호스트(typecast.ai)가 아닌 샘플 주소는 그 성우만 샘플 없음(null)이고 로그는 없다", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => {});
+		fetchMock.mockResolvedValue(
+			json(200, [
+				rawVoice({
+					voice_id: "tc_http",
+					preview_url: "http://static2.typecast.ai/a.mp3",
+				}),
+				rawVoice({
+					voice_id: "tc_other",
+					preview_url: "https://evil.example/a.mp3",
+				}),
+				rawVoice({
+					voice_id: "tc_suffix",
+					preview_url: "https://typecast.ai.evil.example/a.mp3",
+				}),
+				rawVoice({
+					voice_id: "tc_noslash",
+					preview_url: "https:evil.example/a.mp3",
+				}),
+				rawVoice(),
+			]),
+		);
+		const voices = (await list())?.voices ?? [];
+		expect(voices.map((voice) => [voice.voiceId, voice.previewUrl])).toEqual([
+			["tc_http", null],
+			["tc_other", null],
+			["tc_suffix", null],
+			["tc_noslash", null],
+			["tc_0001", "https://static2.typecast.ai/preview/tc_0001.mp3"],
+		]);
+		expect(log).not.toHaveBeenCalled();
+	});
+
+	it("https:host 꼴의 typecast.ai 주소는 https://host로 바로잡아 담는다", async () => {
+		fetchMock.mockResolvedValue(
+			json(200, [rawVoice({ preview_url: "https:static2.typecast.ai/a.mp3" })]),
+		);
+		const [voice] = (await list())?.voices ?? [];
+		expect(voice?.previewUrl).toBe("https://static2.typecast.ai/a.mp3");
+	});
+
+	it("한글·영문 이름이 모두 비면 그 성우만 빼고 voice_name으로 한 줄 남긴다", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => {});
+		fetchMock.mockResolvedValue(
+			json(200, [
+				rawVoice({ voice_id: "tc_blank", voice_name: { eng: " ", kor: "" } }),
+				rawVoice(),
+			]),
+		);
+		const voices = (await list())?.voices ?? [];
+		expect(voices.map((voice) => voice.voiceId)).toEqual(["tc_0001"]);
+		expect(log.mock.calls).toEqual([
+			["[voiceList] typecast 성우 1명 제외: voice_name"],
+		]);
+	});
+
+	it("공개 성우가 모두 어긋나면 BAD_GATEWAY·provider_error다", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => {});
+		fetchMock.mockResolvedValue(
+			json(200, [rawVoice({ models: undefined }), rawVoice({ voice_id: "" })]),
+		);
+		await expect(list()).rejects.toMatchObject({
+			code: "BAD_GATEWAY",
+			data: { provider: "typecast", reason: "provider_error" },
+		});
+		expect(log.mock.calls).toEqual([
+			["[voiceList] typecast 성우 2명 제외: models, voice_id"],
+		]);
+	});
+});

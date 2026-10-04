@@ -6,18 +6,13 @@ import type {
 	ProviderId,
 	ProviderStatusResult,
 } from "@tts-pilot-app/api/providers/contract";
-import {
-	Empty,
-	EmptyDescription,
-	EmptyHeader,
-	EmptyMedia,
-	EmptyTitle,
-} from "@tts-pilot-app/ui/components/empty";
-import { Info, Link2 } from "lucide-react";
+import { Info } from "lucide-react";
 import { Fragment, useState } from "react";
 
+import { toView } from "@/lib/connection-view";
 import { orpc } from "@/utils/orpc";
 
+import { LoopbackNotice } from "./notice";
 import {
 	PROVIDER_LABEL,
 	ProviderStatusCard,
@@ -29,32 +24,6 @@ const PROVIDER_ORDER = [
 	"elevenlabs",
 	"fish_audio",
 ] as const satisfies readonly ProviderId[];
-
-type QueryState = {
-	data?: ProviderStatusResult;
-	isError: boolean;
-	errorUpdatedAt: number;
-};
-
-// 조회 자체가 실패하면(자체 서버 500, 연결 끊김, CSRF 403) 확인 실패와 같은 모양으로 보인다(스펙 4절).
-// 데이터 없이 실패한 조회를 다시 확인하는 동안 query-core(5.103.2 fetchState)는 오류를 지우고 pending으로 돌린다.
-// errorUpdatedAt은 남으므로 그때도 확인 실패를 유지한다(첫 확인 중으로 돌아가지 않게, 브리프 6절).
-function toView(
-	provider: ProviderId,
-	query: QueryState,
-): ProviderStatusResult | undefined {
-	const failed =
-		query.isError || (query.data === undefined && query.errorUpdatedAt > 0);
-	if (!failed) return query.data;
-	return {
-		provider,
-		status: "check_failed",
-		quota: null,
-		providerCode: null,
-		retryAfterSeconds: null,
-		checkedAt: new Date(query.errorUpdatedAt).toISOString(),
-	};
-}
 
 const isUnauthorized = (error: unknown) =>
 	error instanceof ORPCError && error.code === "UNAUTHORIZED";
@@ -122,21 +91,7 @@ export function ConnectionStatus() {
 
 	if (queries.some((query) => isUnauthorized(query.error))) {
 		return (
-			<Empty className="border bg-card">
-				<EmptyHeader>
-					<EmptyMedia variant="icon">
-						<Link2 aria-hidden="true" />
-					</EmptyMedia>
-					<EmptyTitle>이 주소에서는 공급자 연결을 확인할 수 없어요</EmptyTitle>
-					<EmptyDescription>
-						개발 서버(
-						<code translate="no" className="font-mono">
-							pnpm dev
-						</code>
-						)를 127.0.0.1 또는 localhost 주소로 열어 주세요.
-					</EmptyDescription>
-				</EmptyHeader>
-			</Empty>
+			<LoopbackNotice title="이 주소에서는 공급자 연결을 확인할 수 없어요" />
 		);
 	}
 
@@ -148,7 +103,7 @@ export function ConnectionStatus() {
 	return (
 		<div className="flex flex-col gap-7">
 			<SummaryBanner views={views} />
-			<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+			<div className="grid grid-cols-cards gap-4 lg:grid-cols-3">
 				{views.map(({ provider, view }, index) => {
 					const query = queries[index];
 					return (

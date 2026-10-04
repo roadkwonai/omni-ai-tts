@@ -24,7 +24,9 @@
 	--accent-foreground: oklch(0 0 0 / 0.85);
 	--destructive: oklch(0.541 0.166 21); /* red-500, 5.49:1 */
 	--border: oklch(0 0 0 / 0.08); /* black-8 */
-	--input: oklch(0 0 0 / 0.15);
+	--input: oklch(
+		0 0 0 / 0.45
+	); /* 입력 경계. 흰 카드 3.35:1, 페이지 바탕 3.32:1(3:1 이상, T3) */
 	--ring: oklch(0.51 0.085 200);
 	--chart-1: oklch(0.809 0.105 251.813);
 	--chart-2: oklch(0.623 0.214 259.815);
@@ -76,7 +78,7 @@
 	--accent-foreground: oklch(1 0 0 / 0.9);
 	--destructive: oklch(0.72 0.15 23); /* grey-850 위 5.85:1, 10% 바탕 5.01:1 */
 	--border: oklch(1 0 0 / 0.12); /* white-12 */
-	--input: oklch(1 0 0 / 0.2);
+	--input: oklch(1 0 0 / 0.35); /* 카드 3.16:1, 바탕 3.21:1 */
 	--ring: oklch(0.78 0.105 198);
 	--chart-1: oklch(0.809 0.105 251.813);
 	--chart-2: oklch(0.623 0.214 259.815);
@@ -153,11 +155,17 @@
 	--radius-4xl: calc(var(--radius) + 16px);
 }
 
-/* HTML 시안의 반응형 기준: 768px(md, 기본값)와 1200px(xl) */
+/* HTML 시안의 반응형 기준: 768px(md, 기본값)와 1200px(xl). 성우 카드 5열은 1440px(2xl) 이상 */
 @theme {
 	--breakpoint-xl: 75rem;
+	--breakpoint-2xl: 90rem;
 	--default-transition-duration: 150ms;
 	--default-transition-timing-function: cubic-bezier(0.3, 0, 0, 1);
+}
+
+/* 카드 격자: 칸 최소 15rem(240px)으로 열 수를 정한다. 본문 872px(1024 화면)에서 3열(CS-04, 성우 캐스팅 브리프 8절) */
+@utility grid-cols-cards {
+	grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr));
 }
 
 @layer base {
