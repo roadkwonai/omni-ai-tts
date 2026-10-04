@@ -55,6 +55,7 @@ critique 27/40, audit 18/20(접근성 3/4) 결과 가운데 브리프·스펙을
 - [ ] CS-06 (audit P3) `dropdown-menu`의 Item·SubTrigger·CheckboxItem이 shadcn 기본 모양(`rounded-none text-xs`) 그대로다. 처음 쓰는 TASK가 맞춘다. chart 토큰도 처음 쓰는 TASK가 정한다. T3에서 일부: CheckboxItem은 `rounded-md`·`min-h-11`·14px, 네 항목 모두 포커스 안쪽 2px 윤곽선(2026-10-04). Item·SubTrigger·RadioItem 모양은 남음.
 - [ ] CS-07 (critique) 1차 버튼 hover가 `bg-primary/80`(밝아짐)인데 DESIGN.md는 brand-600(짙어짐)이다. hover 토큰을 더하는 일이라 1차 버튼을 많이 쓰는 TASK에서 한다.
 - [x] CS-08 (최종 확인 2026-10-04) ElevenLabs 카드가 지난 날짜("9월 20일 초기화")를 보여 준다. 공급자가 준 `next_character_count_reset_unix`를 그대로 쓴 것이다(무료 플랜 값으로 보임, 변환은 맞음). 지난 시각이면 날짜를 빼거나 연도를 붙일지 브리프 7절 문구와 함께 정한다. 연결 상태 화면을 다시 만지는 T3에서 본다. → T3에서 해결: 지난 초기화 시각은 날짜를 숨긴다(`isUpcoming`, 2026-10-04).
+- [ ] CS-09 (Fish Audio 잔액 후속 수정 2026-10-04) 연결 상태에 API 충전 잔액과 웹 플랜 크레딧을 함께 보이게 했지만, API 생성이 웹 플랜 크레딧을 쓰는지는 공식 문구가 없어 미확정이다. T5에서 승인한 생성 1회 전후로 두 잔액을 비교해 정하고, 크레딧 경고에 어느 잔액을 보일지 정한다(로드맵 T5 메모).
 
 ### 성우 캐스팅 (T3 디자인 리뷰에서 미룬 것, 2026-10-04)
 사용자 결정(2026-10-04): 23행은 "결함·접근성 + 모두 보기 정리"만 한다. 아래는 스펙·브리프 변경이라 미룬다. critique 26/40 스냅샷 `.impeccable/critique/2026-10-04T10-46-19Z__apps-web-src-app-app-casting-page-tsx.md`.

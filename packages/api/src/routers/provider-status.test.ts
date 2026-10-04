@@ -50,9 +50,15 @@ describe("providerStatus", () => {
 
 	it("결과에 키 문자열이 없다(성공과 키 오류 모두)", async () => {
 		const client = as("local-admin", createProviders({ fish_audio: KEY }));
-		fetchMock.mockResolvedValueOnce(
-			new Response(JSON.stringify({ credit: "1.5" }), { status: 200 }),
-		);
+		fetchMock
+			.mockResolvedValueOnce(
+				new Response(JSON.stringify({ credit: "1.5" }), { status: 200 }),
+			)
+			.mockResolvedValueOnce(
+				new Response(JSON.stringify({ type: "free", balance: 10, total: 8 }), {
+					status: 200,
+				}),
+			);
 		const ok = await client.providerStatus({ provider: "fish_audio" });
 		fetchMock.mockResolvedValueOnce(
 			new Response(JSON.stringify({ message: `bad key ${KEY}`, status: 401 }), {
@@ -61,6 +67,11 @@ describe("providerStatus", () => {
 		);
 		const denied = await client.providerStatus({ provider: "fish_audio" });
 		expect(ok.status).toBe("connected");
+		expect(ok.quota?.webCredit).toEqual({
+			plan: "free",
+			remaining: 10,
+			total: 8,
+		});
 		expect(denied.status).toBe("provider_auth");
 		expect(JSON.stringify([ok, denied])).not.toContain(KEY);
 	});

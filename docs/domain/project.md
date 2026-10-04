@@ -48,7 +48,7 @@ flowchart LR
 | 프로시저 | 용어 | 보호 | 입력 | 설명 |
 |---|---|---|---|---|
 | `healthCheck` | 해당 없음 | 공개 | 없음 | 상태 확인 |
-| `providerStatus` | 연결 상태, 잔여 사용량 | 보호(`protectedProcedure`) | `{ provider: "typecast" \| "elevenlabs" \| "fish_audio" }` | 서버 키로 공급자 계정을 한 번 조회해 연결 상태 8종과 잔여 사용량을 돌려준다. 키가 없으면 공급자를 부르지 않고 `no_key`다. 공급자 문제는 던지지 않고 값으로 돌려준다 |
+| `providerStatus` | 연결 상태, 잔여 사용량 | 보호(`protectedProcedure`) | `{ provider: "typecast" \| "elevenlabs" \| "fish_audio" }` | 서버 키로 공급자 계정을 조회해(Fish Audio는 API 충전 잔액 뒤 웹 플랜 크레딧까지 두 번) 연결 상태 8종과 잔여 사용량을 돌려준다. 키가 없으면 공급자를 부르지 않고 `no_key`다. 공급자 문제는 던지지 않고 값으로 돌려준다 |
 | `voiceList` | 성우, 성우 카탈로그, 공급자 분류(콘텐츠), 기본 샘플 | 보호(`protectedProcedure`) | `{ provider: "typecast" }` | 서버 키로 공개 성우 전체를 한 번 조회해 돌려준다. 커스텀 성우는 뺀다. 키가 없으면 공급자를 부르지 않고 `PRECONDITION_FAILED`. 공급자 문제는 사유(`data.reason`)를 붙여 던진다 |
 
 ## 데이터 모델과 코드 매핑

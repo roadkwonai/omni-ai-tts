@@ -122,9 +122,18 @@ export function fieldNames(errors: readonly unknown[]): string[] {
 	return [...new Set(names)].slice(0, 5);
 }
 
-// 공급자, 오류 이름, 검증에 실패한 필드 경로만 한 줄 남긴다. 오류 객체·값·메시지는 남기지 않는다.
-function logFailure(prefix: string, error: unknown, paths: readonly string[]) {
-	const name = error instanceof Error ? error.name : typeof error;
+// 공급자, 오류 이름(HTTP 오류는 상태 코드), 검증에 실패한 필드 경로만 한 줄 남긴다. 오류 객체·값·메시지는 남기지 않는다.
+export function logFailure(
+	prefix: string,
+	error: unknown,
+	paths: readonly string[] = invalidPaths(error),
+) {
+	const name =
+		error instanceof ProviderHttpError
+			? `HTTP ${error.status}`
+			: error instanceof Error
+				? error.name
+				: typeof error;
 	console.error(
 		`${prefix}: ${name}${paths.length > 0 ? ` (${paths.join(", ")})` : ""}`,
 	);
@@ -198,11 +207,7 @@ export async function runCheck(
 		}
 		// 시간 초과가 아닌 예상 밖 예외(연결 끊김, 응답 검증 실패 등)만 남긴다.
 		if (!(error instanceof ProviderTimeoutError)) {
-			logFailure(
-				`[providerStatus] ${provider} 확인 실패`,
-				error,
-				invalidPaths(error),
-			);
+			logFailure(`[providerStatus] ${provider} 확인 실패`, error);
 		}
 		return { ...empty, status: "check_failed", checkedAt };
 	}

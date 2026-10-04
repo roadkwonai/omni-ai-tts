@@ -101,15 +101,17 @@ function reasonText(
 	}
 }
 
-// 브리프 7절 형식. 남은 값이 0 아래로 내려가도 0으로 보인다.
 // 덩어리(이름표+숫자)는 줄바꿈 때 갈라지지 않게 nowrap으로 묶고, 구분자는 덩어리 사이에서만 줄이 바뀐다.
+const chunk = (text: string) => (
+	<span className="whitespace-nowrap">{text}</span>
+);
+
+// 브리프 7절 형식. 남은 값이 0 아래로 내려가도 0으로 보인다.
 function quotaText(provider: ProviderId, quota: RemainingQuota): ReactNode {
 	const remaining = numberFormat.format(Math.max(0, quota.remaining));
 	const total = quota.total === null ? "" : numberFormat.format(quota.total);
-	const chunk = (text: string) => (
-		<span className="whitespace-nowrap">{text}</span>
-	);
-	if (provider === "fish_audio") return chunk(`API 크레딧 잔액 ${remaining}`);
+	// 단위는 공급자 문서에 없어 붙이지 않는다. 웹 플랜 크레딧은 FishWebCredit이 따로 보인다.
+	if (provider === "fish_audio") return chunk(`API 충전 잔액 ${remaining}`);
 	if (provider === "typecast") {
 		return (
 			<>
@@ -138,6 +140,29 @@ function quotaText(provider: ProviderId, quota: RemainingQuota): ReactNode {
 		</>
 	) : (
 		characters
+	);
+}
+
+// Fish Audio 웹 플랜 크레딧. 앱이 쓰는 값(API 충전 잔액)보다 낮은 위계로 보인다.
+// 남은 값이 전체보다 클 수 있다(추가 크레딧). 공급자 웹 화면과 같게 그대로 보인다.
+// 조회에 실패해도 두 값이 별개라는 안내는 남긴다(사용자가 공급자 웹의 값과 헷갈리지 않게).
+function FishWebCredit({ web }: { web: RemainingQuota["webCredit"] }) {
+	return (
+		<>
+			{web === undefined ? null : (
+				<p className="tabular-nums">
+					{/* '남은 웹 크레딧'은 이름표가 길어 숫자만 묶는다(320px에서 글자를 키워도 카드 밖으로 나가지 않게) */}
+					웹 <span translate="no">{web.plan}</span> 플랜 · 남은 웹 크레딧{" "}
+					{chunk(`${numberFormat.format(Math.max(0, web.remaining))} /`)}{" "}
+					{chunk(`전체 ${numberFormat.format(web.total)}`)}
+				</p>
+			)}
+			<p className="text-muted-foreground text-sm">
+				<span translate="no">fish.audio</span> 웹 플랜 크레딧은{" "}
+				{web === undefined ? "확인하지 못했어요. 이 값은 " : null}
+				{chunk("API 충전 잔액")}과 별개예요.
+			</p>
+		</>
 	);
 }
 
@@ -193,9 +218,15 @@ function Details({
 				</p>
 			)}
 			{result.quota === null ? null : (
-				<p className="font-bold tabular-nums">
-					{quotaText(result.provider, result.quota)}
-				</p>
+				// 값과 그 안내는 한 묶음이라 확인 시각보다 가깝게 붙인다.
+				<div className="flex flex-col gap-1">
+					<p className="font-bold tabular-nums">
+						{quotaText(result.provider, result.quota)}
+					</p>
+					{result.provider === "fish_audio" ? (
+						<FishWebCredit web={result.quota.webCredit} />
+					) : null}
+				</div>
 			)}
 		</>
 	);

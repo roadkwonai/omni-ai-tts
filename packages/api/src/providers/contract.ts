@@ -22,13 +22,17 @@ export const connectionStatusSchema = z.enum([
 ]);
 export type ConnectionStatus = z.infer<typeof connectionStatusSchema>;
 
-// 잔여 사용량. 공급자가 준 값만 담는다. 단위는 공급자마다 다르다(Typecast 크레딧, ElevenLabs 글자, Fish Audio API 크레딧).
+// 잔여 사용량. 공급자가 준 값만 담는다. 단위는 공급자마다 다르다(Typecast 크레딧, ElevenLabs 글자, Fish Audio API 충전 잔액).
 export const remainingQuotaSchema = z.object({
 	remaining: z.number(),
 	total: z.number().nullable(), // Fish Audio는 전체 값이 없다
 	plan: z.string().nullable(), // Typecast만
 	resetAt: z.iso.datetime().nullable(), // ElevenLabs만
 	overageAllowed: z.boolean(), // ElevenLabs 한도 확장(max_credit_limit_extension이 0이 아님)
+	// Fish Audio만: fish.audio 웹 플랜(구독 패키지) 크레딧. remaining(API 충전 잔액)과 따로 조회한다. 조회에 실패하면 없다
+	webCredit: z
+		.object({ plan: z.string(), remaining: z.number(), total: z.number() })
+		.optional(),
 });
 export type RemainingQuota = z.infer<typeof remainingQuotaSchema>;
 

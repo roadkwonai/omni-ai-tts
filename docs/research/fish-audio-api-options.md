@@ -117,7 +117,13 @@ UI 배치: **후속**(단발 생성 UI 우선 구현 후 실시간 재생이 필
 - T2 연결 확인은 이 호출(`GET /wallet/self/api-credit`)을 쓴다. 키가 있어야 성공하고 잔액을 함께 준다.
 - OpenAPI상 `credit`과 `cumulative_top_up`은 **문자열**이다. 단위는 문서에 없다(USD로 추정하나 미확정). 초기화 시각은 없다. [OpenAPI](https://docs.fish.audio/api-reference/openapi.json)
 - 문서화된 응답은 200·401·503이다. 402(잔액 부족)·429는 일반 오류 문서에 있고 본문은 `{message, status}`다. `Retry-After`는 명시 없음. 잔액 0 계정이 이 조회에서 200을 받는지는 명시 없음(추정: 200에 잔액 0). [Errors](https://docs.fish.audio/api-reference/errors.md)
-- 정수 `balance`·`total`을 주는 `GET /wallet/self/package`도 있다(T2는 쓰지 않는다).
+- 정수 `balance`·`total`을 주는 `GET /wallet/self/package`도 있다. 아래 "웹 플랜(구독 패키지) 조회"를 본다.
+
+#### 웹 플랜(구독 패키지) 조회 (2026-10-04, T2 후속 수정)
+- `GET /wallet/{user_id}/package`. 문서 설명은 "Get current user premium information"이다. `Authorization: Bearer <키>` 필요. 응답 필드: `user_id`, `type`, `total`·`balance`(정수), `extra_balance`(정수, 기본 0), `billing_period`, `current_period_end`, `subscription_status`, `stripe_*`, `has_used_trial` 등. [Get User Package](https://docs.fish.audio/api-reference/endpoint/wallet/get-user-package)
+- **2026-10-04 실제 호출 결과: 성공, HTTP 200(무료 플랜 계정).** `type`은 `free`, `balance`가 `total`보다 컸다(추가 크레딧 `extra_balance` 포함). `current_period_end`는 null이라 웹 화면의 '다음 크레딧 갱신' 날짜는 이 응답에 없다. 수치는 기록하지 않는다. 사용자 웹 화면의 '남은 크레딧 N / M'과 같은 값이었다.
+- 이 값은 fish.audio 웹 플랜 크레딧이고 `api-credit`의 충전 잔액과 따로 조회된다(확인한 사실). API 생성(`POST /v1/tts`)이 웹 크레딧을 쓰지 않고 충전 잔액(pay-as-you-go)만 쓰는지는 **미확정**이다. 공식 요금 문서와 플랜 페이지에는 이 구분을 직접 적은 문구가 없다. 플랜 페이지는 "Premium subscribers get access to our flexible pay-as-you-go API"라고만 적는다. 외부 정리 글([smallest.ai](https://smallest.ai/blog/fish-audio-pricing-plans-api-billing-commercial-use-in-2026))은 API가 플랜 크레딧을 쓰지 않는다고 적는다. 그래서 화면은 두 값이 별개라는 것까지만 말한다(문구는 `docs/briefs/provider-status.md` 7절). 실제 생성 호출을 승인받는 T5 설계에서 확인한다.
+- 연결 확인은 `api-credit`이 성공한 뒤 이 조회를 순서대로 부른다. 이 조회가 실패하면 웹 플랜 칸만 빠지고 연결 상태는 바뀌지 않는다. 다만 두 호출이 10초 제한을 함께 쓰므로, 시간을 넘기면 확인 실패다. 과금 여부는 `api-credit`과 같이 문서에 명시가 없다(**미확정**).
 
 ### 요금 단위
 
@@ -183,7 +189,7 @@ QPS/QPM이 아니라 **동시 요청 수(concurrency)** 기준이며, 누적 결
 4. 발음 사전(`pronunciation_dictionary`)을 웹 UI가 아니라 **API로 생성/수정**할 수 있는 엔드포인트 존재 여부.
 5. `features` 배열에 허용되는 전체 기능 플래그 목록(확인된 예시는 `quality-guard` 하나뿐).
 6. `chunk_length` 기본값이 300인지 200인지(엔드포인트 문서와 핵심 가이드 예시가 다름).
-7. `GET /wallet/{user_id}/api-credit` 호출 자체의 과금 여부에 대한 명시적 문서 문구.
+7. `GET /wallet/{user_id}/api-credit`·`GET /wallet/{user_id}/package` 호출 자체의 과금 여부에 대한 명시적 문서 문구. `api-credit`의 단위(USD 추정)와 웹 플랜 크레딧을 API에 쓸 수 없다는 공식 문구.
 8. 클론(모델) 생성 자체의 요금 단가.
 9. WebSocket `StartEvent.request`가 REST의 모든 필드(특히 `pronunciation_dictionary`, `features`)를 동일하게 지원하는지 개별 확인.
 10. 감정 태그 전체 목록의 정확한 철자·개수(요약 결과이며 원문 표를 줄 단위로 대조하지 않음).
