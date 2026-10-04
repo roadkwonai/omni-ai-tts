@@ -6,9 +6,11 @@ export function PageHeader({
 	description: string;
 }) {
 	return (
-		<header className="border-b bg-card px-4 py-5 md:px-7 md:py-6">
-			<h1 className="font-bold text-xl tracking-tight md:text-2xl">{title}</h1>
-			<p className="mt-1 font-medium text-muted-foreground text-sm">
+		<header className="px-4 pt-6 pb-5 md:px-11 md:pt-11 md:pb-8">
+			<h1 className="text-balance font-bold text-2xl tracking-tight md:text-3xl">
+				{title}
+			</h1>
+			<p className="mt-2 text-muted-foreground text-sm md:text-base">
 				{description}
 			</p>
 		</header>

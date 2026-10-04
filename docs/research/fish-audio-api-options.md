@@ -113,6 +113,12 @@ UI 배치: **후속**(단발 생성 UI 우선 구현 후 실시간 재생이 필
 - 응답 필드: `_id`, `user_id`, `credit`, `cumulative_top_up`, `created_at`, `updated_at`, `has_phone_sha256`, `has_free_credit`.
 - **2026-09-28 실제 호출 결과: 성공, HTTP 200.** 응답 JSON의 키 구성이 문서와 일치함을 확인했다(금액·잔액 수치는 이 문서에 기록하지 않음). 이 호출이 과금되는지 여부는 문서에 명시되어 있지 않다(계정 정보 조회 성격상 무료로 추정하나 **미확정**). [Get API Credit](https://docs.fish.audio/api-reference/endpoint/wallet/get-api-credit)
 
+#### 연결 확인 (2026-09-30 재확인, T2)
+- T2 연결 확인은 이 호출(`GET /wallet/self/api-credit`)을 쓴다. 키가 있어야 성공하고 잔액을 함께 준다.
+- OpenAPI상 `credit`과 `cumulative_top_up`은 **문자열**이다. 단위는 문서에 없다(USD로 추정하나 미확정). 초기화 시각은 없다. [OpenAPI](https://docs.fish.audio/api-reference/openapi.json)
+- 문서화된 응답은 200·401·503이다. 402(잔액 부족)·429는 일반 오류 문서에 있고 본문은 `{message, status}`다. `Retry-After`는 명시 없음. 잔액 0 계정이 이 조회에서 200을 받는지는 명시 없음(추정: 200에 잔액 0). [Errors](https://docs.fish.audio/api-reference/errors.md)
+- 정수 `balance`·`total`을 주는 `GET /wallet/self/package`도 있다(T2는 쓰지 않는다).
+
 ### 요금 단위
 
 | 항목 | 단가 |
@@ -163,7 +169,7 @@ QPS/QPM이 아니라 **동시 요청 수(concurrency)** 기준이며, 누적 결
 
 1. **서버 전용 키**: `FISH_AUDIO_API_KEY`는 서버에서만 `Authorization: Bearer` 헤더로 사용하고 클라이언트 번들·로그·응답에 노출하지 않는다. 기존 `X-API-KEY`(Typecast)·`xi-api-key`(ElevenLabs)와 헤더 이름·스킴이 다르므로 공급자 어댑터에서 분기해야 한다.
 2. **모델은 헤더로, 성우는 바디로**: 기존 두 공급자는 모델이 body 필드였지만 Fish Audio는 `model` **요청 헤더**다. 공통 어댑터가 "모델 선택"을 항상 body 필드로 가정하고 있다면 이 예외를 처리해야 한다.
-3. **과금 호출과 무료 호출 구분**: `POST /v1/tts`(생성), `POST /model`(클론 생성), 음성 인식은 명백히 과금 대상이다. `GET /model`·`GET /model/{id}`(목록·상세)는 OpenAPI상 인증 불필요로 표시되어 사실상 무료 조회로 다뤄도 안전하다. `GET /wallet/{user_id}/api-credit`은 계정 조회 성격이라 무료로 추정되나 문서에 명시적 확인 문구는 없다 — 실제 통합 시 이 호출도 과금 여부를 재확인하고, 자동 폴링으로 반복 호출하지 않는다.
+3. **과금 호출과 무료 호출 구분**: `POST /v1/tts`(생성), `POST /model`(클론 생성), 음성 인식은 명백히 과금 대상이다. `GET /model`·`GET /model/{id}`(목록·상세)는 조회라 과금 대상이 아니다(2026-09-30 재확인: 현재 OpenAPI는 둘 다 `BearerAuth`를 요구한다. 예전 판의 "인증 불필요" 표시는 바뀌었다). `GET /wallet/{user_id}/api-credit`은 계정 조회 성격이라 무료로 추정되나 문서에 명시적 확인 문구는 없다 — 실제 통합 시 이 호출도 과금 여부를 재확인하고, 자동 폴링으로 반복 호출하지 않는다.
 4. **바이트 기준 사용량 계산**: 과금이 문자 수가 아닌 UTF-8 바이트다. 한글 대본의 예상 사용량 표시는 `text.length`가 아니라 `Buffer.byteLength(text, 'utf-8')` 같은 바이트 길이로 계산해야 한다.
 5. **중복 요청 억제**: `POST /v1/tts` 응답이 청크 스트림이라 재전송·중복 클릭 시 서버가 멱등하게 처리한다는 보장이 문서에 없다. 기존 REQ-09가 요구하는 "중복 클릭은 생성 요청 1회"를 앱 쪽 요청 ID·버튼 잠금으로 직접 구현해야 한다.
 6. **즉석 클로닝과 저장 클로닝 분리**: `references` 필드로 저장 없이 바로 클로닝해 합성할 수 있지만, 이 앱의 REQ-13(내 보이스)은 영속적인 클론 성우 관리를 요구하므로 초기 구현은 `POST /model`로 만든 저장된 `reference_id` 경로만 쓰고, 즉석 클로닝은 후속으로 분리하는 편이 요구사항과 맞는다.

@@ -153,6 +153,14 @@ v3의 Creative/Natural/Robust **명칭은 공식 문서로 확인**되지만, �
 
 Voice Design의 `guidance_scale`, `loudness`, `quality`, `prompt_strength`, `reference_audio_base64`, `auto_generate_text`, `should_enhance`, `stream_previews`와 remix session ID는 **음성 디자인 endpoint의 필드**다. TTS convert 옵션 목록에 섞지 않는다. [Design 요청 전체](https://elevenlabs.io/docs/api-reference/text-to-voice/design)
 
+## 연결 확인과 잔여 사용량 (2026-09-30 확인, T2)
+
+- 호출: `GET /v1/user/subscription`(키 필요, 조회). 과금 여부 문구는 없다. OpenAPI에 정의된 응답은 200·422뿐이다. [OpenAPI](https://api.elevenlabs.io/openapi.json)
+- 응답: `character_count`, `character_limit`(int), `next_character_count_reset_unix`(int 또는 null), `status`, `max_credit_limit_extension`(int 또는 `"unlimited"`), `current_overage`. 확장이 0이 아니면 한도를 넘어도 생성될 수 있다.
+- 오류 본문은 `{"detail":{"type","code","message","status","request_id"}}`. 401 `invalid_api_key`·`missing_api_key`, 402 `insufficient_credits`, 403 `insufficient_permissions`, 429 `rate_limit_exceeded`·`concurrent_limit_exceeded`. [Errors](https://elevenlabs.io/docs/eleven-api/resources/errors.md)
+- 키 권한 범위: 키를 엔드포인트별로 제한할 수 있다([Authentication](https://elevenlabs.io/docs/api-reference/authentication.md)). 이 호출에 필요한 권한 이름은 공식 문서에 없다. 비공식 자료는 `user_read`가 없으면 401과 `detail.status: "missing_permissions"`라고 한다(미실측). 그래서 상태 코드만으로는 키 오류와 권한 부족을 나눌 수 없고 `detail.code`·`detail.status`를 본다.
+- SDK `@elevenlabs/elevenlabs-js` 2.69.0(npm 최신 2.70.0, `user` 클라이언트와 재시도 코드는 같음): `user.subscription.get(requestOptions)`. 생성자 `{ apiKey, baseUrl, environment, timeoutInSeconds, maxRetries, fetch }`. 키가 없으면 `ELEVENLABS_API_KEY`로 대체하고 그래도 없으면 생성자가 예외를 던진다. 기본 `timeoutInSeconds` 240, `maxRetries` 2(408·429·5xx, `Retry-After` 반영). 오류는 `ElevenLabsError`(`statusCode`, `body`, `rawResponse`), 시간 초과는 `ElevenLabsTimeoutError`. HTTP는 주입한 `fetch` 또는 호출 시점의 전역 `fetch`.
+
 ## 문서 충돌과 미확정 사항
 
 | 항목 | 충돌·불완전한 증거 | 현재 판단·구현 인계 |

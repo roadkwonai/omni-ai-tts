@@ -31,7 +31,8 @@
 		"skills:check": "node scripts/skills-setup.mjs --check",
 		"skills:update": "node scripts/skills-setup.mjs --update",
 		"vercel:deploy": "node scripts/vercel-deploy.mjs",
-		"release": "node scripts/release.mjs"
+		"release": "node scripts/release.mjs",
+		"export:html": "node scripts/export-html.mjs"
 	},
 	"dependencies": {
 		"zod": "catalog:"

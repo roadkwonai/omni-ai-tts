@@ -24,5 +24,17 @@
         "repo": "DietrichGebert/ponytail"
       }
     }
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/load-keys.mjs\""
+          }
+        ]
+      }
+    ]
   }
 }

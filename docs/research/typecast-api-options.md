@@ -119,6 +119,13 @@ v30은 2026-01 공개, 37개 언어·Smart·7개 감정. v21은 2025-07 공개, 
 | Speech-to-speech / voice conversion | 공개 llms 색인·현재 TTS/보이스 API 계약에서 endpoint를 확인하지 못함. **공개 API 지원 미확인**, 클로닝 후 TTS와 구별. 소비자 Studio 기능에서 추정하지 않음 | [문서 색인](https://typecast.ai/docs/llms.txt) |
 | 오디오 upload로 바로 합성 | 일반 TTS에는 입력 audio 없음. 업로드는 클론 생성 계약에만 확인 | [TTS](https://typecast.ai/docs/api-reference/text-to-speech/text-to-speech), [Instant Clone](https://typecast.ai/docs/api-reference/custom-voices/create-instant-clone) |
 
+## 연결 확인과 잔여 사용량 (2026-09-30 확인, T2)
+
+- 호출: `GET /v1/users/me/subscription`(키 필요, 조회). 과금 여부 문구는 없다. [Get subscription](https://typecast.ai/docs/api-reference/subscription/get-subscription.md)
+- 응답: `plan`, `credits.plan_credits`(int), `credits.used_credits`(int), `limits.concurrency_limit`. 잔여는 `plan_credits − used_credits`로 계산한다. 초기화 시각 필드는 없다. 크레딧 단위는 문서에 없다(글자 수로 추정, 미확정).
+- 오류: 이 호출 문서에는 401 `{"detail":"Invalid API key"}`, 429, 500. 공통 오류 표에는 402(크레딧 부족), 403(구형 Starter 키, 휴면 계정, 키에 공백·개행). `Retry-After`는 명시 없음. [llms.txt](https://typecast.ai/docs/llms.txt)
+- SDK `@neosapience/typecast-js` 0.4.14(npm 최신과 같음): `getMySubscription()`. 생성자 `{ apiKey, baseHost }`, 인자가 없으면 `TYPECAST_API_KEY`·`TYPECAST_API_HOST`로 대체하고 키가 없어도 예외 없이 헤더 없이 요청한다. 시간 제한·취소·재시도 옵션이 없고 응답을 검사하지 않는다. 오류는 `TypecastAPIError`(`statusCode`, `response`). HTTP는 호출 시점의 전역 `fetch`. 타입에 문서의 `professional_voice_slot`이 없다.
+
 ## 문서 모순·미확인 사항
 
 1. **v31:** llms와 v3 보이스 model 필터 설명에 `ssfm-v31`이 있으나 같은 문서의 `TTSModel` enum, 모델 표, 생성 API는 v30/v21만 명시한다. v31을 생성 지원 모델로 노출하지 않는다. [List Voices](https://typecast.ai/docs/api-reference/voices/list-voices), [모델](https://typecast.ai/docs/models)

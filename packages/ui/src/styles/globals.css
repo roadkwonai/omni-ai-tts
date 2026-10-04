@@ -7,81 +7,97 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-	/* DESIGN.md Semantic alias — Light */
-	--background: oklch(0.972 0.002 286); /* bg-subtle, 페이지 바탕 */
-	--foreground: oklch(0.259 0.01 273 / 0.88); /* fg-default */
-	--card: oklch(1 0 0); /* bg-surface */
-	--card-foreground: oklch(0.259 0.01 273 / 0.88);
-	--popover: oklch(1 0 0); /* bg-elevated */
-	--popover-foreground: oklch(0.259 0.01 273 / 0.88);
-	--primary: oklch(0.563 0.241 261); /* bg-brand */
-	--primary-foreground: oklch(1 0 0); /* fg-on-brand */
-	--secondary: oklch(0.961 0.002 286); /* bg-muted */
-	--secondary-foreground: oklch(0.148 0.004 277); /* fg-strong */
-	--muted: oklch(0.961 0.002 286); /* bg-muted */
-	--muted-foreground: oklch(0.298 0.01 273 / 0.74); /* fg-secondary, 5.94:1 */
-	--accent: oklch(0.961 0.002 286); /* bg-muted, hover */
-	--accent-foreground: oklch(0.148 0.004 277);
-	--destructive: oklch(0.546 0.22 27); /* fg-danger */
-	--border: oklch(0.521 0.018 273 / 0.22); /* border-default */
-	--input: oklch(0.521 0.018 273 / 0.35); /* border-strong */
-	--ring: oklch(0.563 0.241 261); /* border-brand */
+	/* DESIGN.md(2026-10-03 교체: 채널톡 문법 + TTS Pilot 청록) — Light. 대비는 T2 계획 "계획에서 정한 것"의 토큰 표 */
+	--background: oklch(0.976 0.001 286); /* grey-100, 페이지 바탕 */
+	--foreground: oklch(0 0 0 / 0.85); /* black-85 */
+	--card: oklch(1 0 0);
+	--card-foreground: oklch(0 0 0 / 0.85);
+	--popover: oklch(1 0 0);
+	--popover-foreground: oklch(0 0 0 / 0.85);
+	--primary: oklch(0.51 0.085 200); /* brand-500, 흰 바탕 5.52:1 */
+	--primary-foreground: oklch(1 0 0);
+	--secondary: oklch(0.952 0.001 286); /* grey-200 */
+	--secondary-foreground: oklch(0 0 0 / 0.85);
+	--muted: oklch(0.952 0.001 286); /* grey-200 */
+	--muted-foreground: oklch(0 0 0 / 0.6); /* black-60, grey-200 위 5.50:1 */
+	--accent: oklch(0 0 0 / 0.05); /* hover */
+	--accent-foreground: oklch(0 0 0 / 0.85);
+	--destructive: oklch(0.541 0.166 21); /* red-500, 5.49:1 */
+	--border: oklch(0 0 0 / 0.08); /* black-8 */
+	--input: oklch(0 0 0 / 0.15);
+	--ring: oklch(0.51 0.085 200);
 	--chart-1: oklch(0.809 0.105 251.813);
 	--chart-2: oklch(0.623 0.214 259.815);
 	--chart-3: oklch(0.546 0.245 262.881);
 	--chart-4: oklch(0.488 0.243 264.376);
 	--chart-5: oklch(0.424 0.199 265.638);
-	--radius: 0.5rem; /* radius-8, 컴포넌트 기본 */
-	--sidebar: oklch(1 0 0); /* bg-surface */
-	--sidebar-foreground: oklch(0.259 0.01 273 / 0.88);
-	--sidebar-primary: oklch(0.563 0.241 261);
+	--radius: 0.5rem; /* radius-8, 버튼·입력 */
+	--sidebar: oklch(1 0 0);
+	--sidebar-foreground: oklch(0 0 0 / 0.85);
+	--sidebar-primary: oklch(0.51 0.085 200);
 	--sidebar-primary-foreground: oklch(1 0 0);
-	--sidebar-accent: oklch(0.954 0.022 250); /* bg-brand-subtle, 활성 메뉴 */
+	--sidebar-accent: var(--primary-subtle); /* 활성 메뉴, 흰 바탕 위 */
 	--sidebar-accent-foreground: oklch(
-		0.484 0.205 258
-	); /* blue-900. fg-brand는 bg-brand-subtle 위에서 4.25:1이라 한 단계 어둡게(5.77:1) */
-	--sidebar-border: oklch(0.521 0.018 273 / 0.22);
-	--sidebar-ring: oklch(0.563 0.241 261);
-	--tooltip: oklch(0.196 0.008 273); /* neutral-925 */
+		0.51 0.085 200
+	); /* 활성 메뉴 바탕 위 4.73:1 */
+	--sidebar-border: oklch(0 0 0 / 0.08);
+	--sidebar-ring: oklch(0.51 0.085 200);
+	--tooltip: oklch(0.232 0.006 286); /* grey-900 */
 	--tooltip-foreground: oklch(1 0 0);
+	/* 상태 글자와 아이콘. green-500·orange-500은 흰 바탕 4.39·4.15:1이라 한 단계 짙게 */
+	--success: oklch(0.5 0.1 155); /* 흰 바탕 5.71:1 */
+	--warning: oklch(0.52 0.12 50); /* 5.76:1 */
+	/* 불투명 틴트 바탕: 겹쳐도 색이 변하지 않는다 */
+	--success-subtle: oklch(
+		0.94 0.025 160
+	); /* 상태 배지 바탕, success 글자 4.83:1 */
+	--warning-subtle: oklch(0.945 0.03 60); /* warning 글자 4.88:1 */
+	--primary-subtle: oklch(
+		0.945 0.016 200
+	); /* 요약 띠·활성 메뉴 바탕, primary 글자 4.73:1 */
 	color-scheme: light;
 }
 
 .dark {
-	/* DESIGN.md Semantic alias — Dark (일부 합성값은 DESIGN.md 주석 그대로) */
-	--background: oklch(0.135 0.002 286); /* dark-bg-subtle */
-	--foreground: oklch(1 0 0 / 0.88); /* dark-fg-default */
-	--card: oklch(0.166 0.005 271); /* dark-bg-surface */
-	--card-foreground: oklch(1 0 0 / 0.88);
-	--popover: oklch(0.237 0.008 273); /* dark-bg-elevated */
-	--popover-foreground: oklch(1 0 0 / 0.88);
-	--primary: oklch(0.563 0.241 261);
-	--primary-foreground: oklch(1 0 0);
-	--secondary: oklch(0.196 0.008 273); /* dark-bg-muted */
-	--secondary-foreground: oklch(1 0 0);
-	--muted: oklch(0.196 0.008 273);
-	--muted-foreground: oklch(1 0 0 / 0.61); /* dark-fg-secondary */
-	--accent: oklch(0.196 0.008 273);
-	--accent-foreground: oklch(1 0 0);
-	--destructive: oklch(0.715 0.22 27); /* dark-fg-danger */
-	--border: oklch(1 0 0 / 0.22); /* dark-border-default */
-	--input: oklch(1 0 0 / 0.35); /* dark-border-strong */
-	--ring: oklch(0.715 0.155 255); /* dark-fg-brand */
+	/* DESIGN.md — Dark. 표면은 grey-900(바탕) < grey-850(카드·사이드바) < grey-800(떠 있는 것) */
+	--background: oklch(0.232 0.006 286); /* grey-900 */
+	--foreground: oklch(1 0 0 / 0.9);
+	--card: oklch(0.261 0.004 286); /* grey-850 */
+	--card-foreground: oklch(1 0 0 / 0.9);
+	--popover: oklch(0.283 0.007 286); /* grey-800 */
+	--popover-foreground: oklch(1 0 0 / 0.9);
+	--primary: oklch(0.78 0.105 198); /* brand-350 */
+	--primary-foreground: oklch(0.232 0.006 286); /* grey-900, 8.76:1 */
+	--secondary: oklch(0.283 0.007 286);
+	--secondary-foreground: oklch(1 0 0 / 0.9);
+	--muted: oklch(0.283 0.007 286);
+	--muted-foreground: oklch(1 0 0 / 0.6); /* grey-800 위 6.20:1 */
+	--accent: oklch(1 0 0 / 0.06);
+	--accent-foreground: oklch(1 0 0 / 0.9);
+	--destructive: oklch(0.72 0.15 23); /* grey-850 위 5.85:1, 10% 바탕 5.01:1 */
+	--border: oklch(1 0 0 / 0.12); /* white-12 */
+	--input: oklch(1 0 0 / 0.2);
+	--ring: oklch(0.78 0.105 198);
 	--chart-1: oklch(0.809 0.105 251.813);
 	--chart-2: oklch(0.623 0.214 259.815);
 	--chart-3: oklch(0.546 0.245 262.881);
 	--chart-4: oklch(0.488 0.243 264.376);
 	--chart-5: oklch(0.424 0.199 265.638);
-	--sidebar: oklch(0.166 0.005 271); /* dark-bg-surface */
-	--sidebar-foreground: oklch(1 0 0 / 0.88);
-	--sidebar-primary: oklch(0.563 0.241 261);
-	--sidebar-primary-foreground: oklch(1 0 0);
-	--sidebar-accent: oklch(0.149 0.069 257); /* dark-bg-brand-subtle */
-	--sidebar-accent-foreground: oklch(0.715 0.155 255); /* dark-fg-brand */
-	--sidebar-border: oklch(1 0 0 / 0.22);
-	--sidebar-ring: oklch(0.715 0.155 255);
-	--tooltip: oklch(1 0 0); /* dark-bg-inverse */
-	--tooltip-foreground: oklch(0.148 0.004 277); /* bg-inverse */
+	--sidebar: oklch(0.261 0.004 286); /* grey-850 */
+	--sidebar-foreground: oklch(1 0 0 / 0.9);
+	--sidebar-primary: oklch(0.78 0.105 198);
+	--sidebar-primary-foreground: oklch(0.232 0.006 286);
+	--sidebar-accent: var(--primary-subtle);
+	--sidebar-accent-foreground: oklch(0.78 0.105 198); /* 6.6:1 이상 */
+	--sidebar-border: oklch(1 0 0 / 0.12);
+	--sidebar-ring: oklch(0.78 0.105 198);
+	--tooltip: oklch(0.952 0.001 286); /* grey-200 */
+	--tooltip-foreground: oklch(0.232 0.006 286);
+	--success: oklch(0.732 0.157 150); /* green-300, 카드 위 6.95:1 */
+	--warning: oklch(0.764 0.148 58); /* orange-300, 7.05:1 */
+	--success-subtle: oklch(0.32 0.045 150); /* green-300 글자 5.58:1 */
+	--warning-subtle: oklch(0.33 0.05 58); /* orange-300 글자 5.63:1 */
+	--primary-subtle: oklch(0.31 0.035 198); /* brand-350 글자 6.75:1 */
 	color-scheme: dark;
 }
 
@@ -105,6 +121,11 @@
 	--color-chart-1: var(--chart-1);
 	--color-tooltip: var(--tooltip);
 	--color-tooltip-foreground: var(--tooltip-foreground);
+	--color-success: var(--success);
+	--color-warning: var(--warning);
+	--color-success-subtle: var(--success-subtle);
+	--color-warning-subtle: var(--warning-subtle);
+	--color-primary-subtle: var(--primary-subtle);
 	--color-ring: var(--ring);
 	--color-input: var(--input);
 	--color-border: var(--border);
@@ -135,6 +156,8 @@
 /* HTML 시안의 반응형 기준: 768px(md, 기본값)와 1200px(xl) */
 @theme {
 	--breakpoint-xl: 75rem;
+	--default-transition-duration: 150ms;
+	--default-transition-timing-function: cubic-bezier(0.3, 0, 0, 1);
 }
 
 @layer base {
@@ -145,7 +168,11 @@
 		@apply font-sans bg-background text-foreground break-keep wrap-break-word;
 	}
 	html {
-		@apply font-sans;
+		@apply font-sans max-md:scroll-pt-16;
+	}
+	a,
+	button {
+		touch-action: manipulation;
 	}
 }
 

@@ -14,6 +14,7 @@
 | 리뷰 | `bts-reviewer(<focus>): <verdict>, max=<등급>, 지적 <n> (반영 <a>, 기각 <b>: 사유)` | `bts-reviewer(db): approve, max=none, 지적 0` |
 | UI 평가 | `critique <점수>, P0 <n>, P1 <n>` / `audit <점수>/20, 접근성 <점수>/4` | `audit 17/20, 접근성 4/4` |
 | 스킬 사용 | `<스킬> → <산출물>` | `brainstorming → docs/superpowers/specs/2026-10-01-todo-due.md` |
+| 외부 스킬 | `사용: <스킬>(<적용한 규칙>)` | `사용: vercel-react-best-practices(async-parallel), shadcn` |
 | 대안 사용 | `대안: <스킬·도구> (<1순위> 없음) → <산출물>` | `대안: OMC plan (superpowers 없음) → .omc/plans/todo.md`, `대안: agent-browser (ego-browser 창 표시 불가) → tasks/evidence/todo-list/` |
 | 사용자 확인 (`[confirm]` 행) | `<사용자가 확인한 내용>(<날짜>)` | `사용자가 /todos에서 마감일을 넣고 지난 항목 표시를 확인(2026-10-01)` |
 | 해당 없음 | `N/A: <사유>` | `N/A: 스키마 변화 없음` |

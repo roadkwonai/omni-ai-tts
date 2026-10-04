@@ -37,7 +37,8 @@
 			"!packages/db/src/migrations",
 			"!packages/db/src/schema/auth.ts",
 			"!apps/web/src/env.ts",
-			"!packages/db/src/env.ts"
+			"!packages/db/src/env.ts",
+			"!html"
 		]
 	},
 	"formatter": {

@@ -73,6 +73,12 @@
       "skillPath": "skills/finishing-a-development-branch/SKILL.md",
       "computedHash": "4f571e7befb8b0946d9d7770232c818812412e9ab1dfb811f847edfba1fc6275"
     },
+    "gpt-image": {
+      "source": "GENEXIS-AI/gpt-image-skill",
+      "sourceType": "github",
+      "skillPath": "gpt-image/SKILL.md",
+      "computedHash": "0068ff1f12b2cf62c52da164a2a6d830d097a245ae6dcd4d0067cec269401287"
+    },
     "grill-with-docs": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -210,6 +216,12 @@
       "sourceType": "github",
       "skillPath": "skills/turborepo/SKILL.md",
       "computedHash": "c83a6ff75c62092f71da91408164ed3426f11749b032fd23ecc855e27c2fb538"
+    },
+    "use-design-md": {
+      "source": "CaesiumY/ko-design-md",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/use-design-md/SKILL.md",
+      "computedHash": "cbc8631c135a13bacbf1d5642f2f77178431c010ad55da37398f0d5818db82f1"
     },
     "using-git-worktrees": {
       "source": "obra/superpowers",

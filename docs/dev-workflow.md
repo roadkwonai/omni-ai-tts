@@ -17,17 +17,17 @@
 - [verify] 타입·린트 검사 (commands.typecheck, commands.lint) → 명령과 결과 요약
 
 ### B. UI
-- impeccable context 실행, PRODUCT.md·DESIGN.md 확인 (새 작업이고 PRODUCT.md가 없으면 impeccable init, DESIGN.md는 새 작업이면 마감에서 기록) → 출력 요약
+- impeccable context 실행, PRODUCT.md·DESIGN.md 확인 (새 작업이면: PRODUCT.md가 없을 때 impeccable init, DESIGN.md가 없고 BTS 기본 화면뿐일 때 디자인 카탈로그 스타일 1~3위와 직접 정하기 중 사용자 선택. 카탈로그는 use-design-md로 받고, 직접 정하면 마감에서 기록) → 출력 요약, 고른 스타일, DESIGN.md lint 결과
 - impeccable shape 브리프 확정 (좁은 개선이면 N/A: 사유) → 브리프 경로
-- 구현 (bts-ui, bts-web) → 변경 파일 요약
+- 구현 (bts-ui, bts-web, 컴포넌트 조합·추가는 shadcn, 컴포넌트·훅 작성은 vercel-react-best-practices) → 변경 파일 요약, 사용한 스킬
 - [verify] 타입·린트·빌드 → 명령과 결과
 - [verify] next-dev-loop 런타임 확인과 ego-browser(없으면 agent-browser)로 desktop·mobile 스크린샷 → 확인한 경로, 오류 예산(콘솔·개발 오버레이·get_errors·서버 로그, 환경 탓도 빼지 않음) 수, tasks/evidence/ 경로
 - [review] impeccable critique → Design Health 점수, P0/P1 목록
-- [review] impeccable audit → 점수(/20), 접근성 점수
+- [review] impeccable audit과 web-design-guidelines 코드 검사 → 점수(/20), 접근성 점수, web-design-guidelines 위반 수
 - 수정과 impeccable polish를 한 번에 → 반영 내역
 - [verify] 재확인 1회 → 스크린샷 경로와 점수
 - [review] bts-reviewer(code) → verdict, max_severity, 반영·기각 내역
-- DESIGN.md 갱신 여부 (impeccable document) → 갱신 내역 또는 N/A: 사유
+- DESIGN.md 갱신 여부 (impeccable document. 카탈로그에서 들여온 파일은 merge와 diff 확인) → 갱신 내역과 lint 결과 또는 N/A: 사유
 
 ### C. 버그
 - 재현 테스트 작성, 실패 확인 (systematic-debugging) → 테스트 이름과 실패 출력
@@ -37,22 +37,22 @@
 
 ### D. 서버·API
 - zod 입출력 계약 정의 (bts-api) → 프로시저 이름과 스키마 위치
-- 구현 (protectedProcedure, 세션 기반 소유자) → 변경 파일 요약
+- 구현 (protectedProcedure, 세션 기반 소유자, test-driven-development로 격리 테스트부터, Better Auth 설정은 better-auth-best-practices) → 변경 파일 요약, 사용한 스킬
 - [verify] 2계정 격리 테스트 → 테스트 이름과 통과 출력
 - [verify] 타입·린트·테스트 → 명령과 결과
 - [review] bts-reviewer(code) → verdict, max_severity, 반영·기각 내역
 
 ### E. DB
-- 스키마 수정 + dbGenerate, 생성 SQL 검토 (bts-db) → 마이그레이션 파일 경로와 요약
+- 스키마 수정 + dbGenerate, 생성 SQL 검토 (bts-db, 컬럼 타입·제약·인덱스는 supabase-postgres-best-practices) → 마이그레이션 파일 경로와 요약, 사용한 스킬
 - [verify] 타입·린트 검사 (commands.typecheck, commands.lint) → 명령과 결과 요약
 - [verify] 로컬 개발 DB에 dbMigrate 적용 → 호스트:포트와 출력 요약
-- [verify] 병합 전 Neon 개발 브랜치에 dbMigrate 적용 → 브랜치 이름과 출력 요약 또는 N/A: Neon 미연결(.neon 없음)
+- [verify] 병합 전 Neon 개발 브랜치에 dbMigrate 적용 (neon-postgres-branches) → 브랜치 이름과 출력 요약 또는 N/A: Neon 미연결(.neon 없음)
 - 파괴적 변경 여부 판단 → 없음 또는 2단계 계획
 - [review] bts-reviewer(db) → verdict, max_severity, 반영·기각 내역
 
 ### F. 신규 기능
 - 스펙 작성 (brainstorming + ponytail 사다리로 범위 줄이기, 스펙에 '만들지 않는 것' 절과 인수 조건·테스트 시나리오 절(정상·빈·오류·경계 상태, 너비·테마·키보드), 새 용어는 domain-modeling으로 GLOSSARY.md에 바로 기록, 선택: /grill-with-docs, UI가 있으면 impeccable shape 브리프 링크) → 사용한 스킬, 스펙 경로, 추가·변경한 용어
-- 구현 계획 (writing-plans) → 사용한 스킬과 계획 경로
+- 구현 계획 (writing-plans, 바꿀 계층의 bts-* 스킬과 그 공식 스킬 연결 표를 읽고 계획의 스키마·API·화면 결정에 반영) → 사용한 스킬과 계획 경로
 - [review] 계획 리뷰 (plan-eng-review, UI가 있으면 plan-design-review, ponytail-review로 계획의 과설계 확인) → 결과 요약, ponytail-review 반영·기각 또는 N/A: 사유
 - 구현 방식 (subagent-driven-development + test-driven-development, ponytail 모드) → 사용한 스킬과 위임 내역
 - @include E D B
@@ -69,5 +69,5 @@
 - 스킬을 바꿨으면 skill-creator eval 재실행 → 벤치마크 경로 또는 N/A: 사유
 
 ### 공통
-- 문서 영향 확인 (GLOSSARY.md, docs/adr/, docs/domain/project.md, 미룬 지적은 tasks/todo.md 백로그로) → 갱신 내역 또는 N/A: 사유
+- 문서 영향 확인 (GLOSSARY.md와 docs/adr/는 domain-modeling 형식, docs/domain/project.md, 미룬 지적은 tasks/todo.md 백로그로) → 갱신 내역 또는 N/A: 사유
 - [confirm] 사용자 확인 (결과를 사용자에게 보여 주고 사용자가 직접 보거나 써 본 뒤 확인한다. N/A 불가) → 확인한 내용과 날짜

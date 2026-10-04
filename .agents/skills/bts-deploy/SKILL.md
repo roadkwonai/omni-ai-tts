@@ -22,7 +22,7 @@ Vercel CLI의 일반 사용법(설치, 로그인, 토큰, `vercel env`·`domains
 | develop | Preview | Preview `BETTER_AUTH_URL`의 고정 주소(alias) | 병합 전 확인용 원격 DB | `pnpm vercel:deploy develop` |
 | production | Production | Production `BETTER_AUTH_URL`(프로덕션 도메인) | 운영 DB | `pnpm release` 뒤 `pnpm vercel:deploy production` |
 
-- 두 환경의 DB와 `DATABASE_URL`을 넣는 법은 `.agents/skills/bts-db/references/migration-flow.md`의 "배포 환경" 절에 있다.
+- 두 환경의 DB와 `DATABASE_URL`을 넣는 법은 `.agents/skills/bts-db/references/migration-flow.md`의 "배포 환경" 절에 있다. 배포 준비를 확인하거나 안내할 때는 이 절을 읽고 DB 항목을 그 기준으로 보고한다.
 - 배포 주소의 정본은 그 환경의 `BETTER_AUTH_URL`이다. Better Auth는 이 origin만 신뢰하므로(`trustedOrigins`), 배포마다 생기는 고유 URL(`<프로젝트>-<해시>-<팀>.vercel.app`)에서는 로그인이 실패한다. 확인은 고정 주소에서 한다.
 - 배포는 `pnpm vercel:deploy`(`scripts/vercel-deploy.mjs`)로만 한다. 스크립트는 CLI, 연결, 로그인, 커밋하지 않은 변경, production의 기본 브랜치와 릴리스(HEAD를 가리키는 `origin`의 `vX.Y.Z` 태그와 그 GitHub Release), production의 Vercel Git 자동 배포(켜져 있거나 확인하지 못하면 준비 안 됨), `apps/web/.env.schema`의 필수 변수를 검사하고, 하나라도 걸리면 exit 1로 멈춘다. `--check`는 검사만 하고 지난 배포 이후 새 마이그레이션을 보여 준다.
 
@@ -32,7 +32,7 @@ Vercel CLI의 일반 사용법(설치, 로그인, 토큰, `vercel env`·`domains
 - 프로젝트의 첫 배포는 `--prod` 없이도 production이 된다. 스크립트는 production 배포가 없으면 develop을 막는다.
 - `vercel-deploy-claimable`은 `node_modules`와 `.git`만 빼고 프로젝트를 로그인 없이 외부 서비스에 올린다. `.env`도 함께 나간다. 쓰지 않는다.
 - `deploy-to-vercel`의 흐름 중 확인 없는 `vercel link`, `git add . && git commit && git push` 배포, 로그인 없는 배포(`resources/deploy.sh`, claim URL), "배포 URL을 확인하지 않는다"는 따르지 않는다. 연결은 사용자가 요청할 때, 커밋은 요청할 때와 라운드 끝(`bts-dev-cycle` 5절)에 하고, 배포는 확인까지 한다.
-- `vercel-cli-with-tokens`의 토큰 찾기 중 토큰 줄을 출력하는 명령(`grep '^VERCEL_TOKEN=' .env`)은 쓰지 않는다. 있는지만 `grep -q`로 본다.
+- `vercel-cli-with-tokens`의 토큰 찾기 중 토큰 값을 출력하는 명령(`grep '^VERCEL_TOKEN=' .env`, `printenv VERCEL_TOKEN`, `echo $VERCEL_TOKEN`)은 쓰지 않는다. 있는지만 `grep -q`나 `test -n "$VERCEL_TOKEN"`의 exit로 본다.
 - gstack `ship`, `land-and-deploy`, `setup-deploy`는 커밋, push, PR 병합을 하거나 `CLAUDE.md`를 고치므로 배포에 쓰지 않는다.
 
 ## 준비 (프로젝트마다 한 번, 사용자가 요청할 때)
@@ -64,7 +64,7 @@ Vercel CLI의 일반 사용법(설치, 로그인, 토큰, `vercel env`·`domains
 
 ## 릴리스 (production 배포마다)
 production은 릴리스한 커밋만 배포한다. 배포 스크립트가 `origin`의 `vX.Y.Z` 태그가 HEAD를 가리키는지와 그 GitHub Release를 확인하므로 릴리스를 빼고는 배포되지 않는다(로컬 태그만 있거나 태그를 옮기면 멈춘다). develop은 릴리스하지 않는다. production 배포 요청에는 릴리스가 포함된다고 사용자에게 알린다.
-- **버전**: SemVer이고 정본은 git 태그 `vX.Y.Z`다. 마지막 태그 이후 커밋으로 정한다. 첫 릴리스 `0.1.0`, 제목에 `!`(`feat!:`)가 붙거나 본문에 `BREAKING CHANGE:`가 있으면 major, `feat:`는 minor, 그 밖(`fix:`, `docs:`, `chore:` …)은 patch. 루트와 `apps/web`의 `package.json` `version`은 릴리스 커밋에서 태그를 따라간다. 손으로 고치지 않는다.
+- **버전**: SemVer이고 정본은 git 태그 `vX.Y.Z`다. 마지막 태그 이후 커밋으로 정한다. 첫 릴리스 `0.1.0`, 제목에 느낌표(`feat!:`)가 붙거나 본문에 `BREAKING CHANGE:`가 있으면 major, `feat:`는 minor, 그 밖(`fix:`, `docs:`, `chore:` …)은 patch. 루트와 `apps/web`의 `package.json` `version`은 릴리스 커밋에서 태그를 따라간다. 손으로 고치지 않는다.
 - **노트**: 커밋이 종류별 절(Features, Fixes, Docs, Maintenance 등)로 모이고, 커밋 본문의 `- ` 항목이 함께 옮겨진다. 그래서 커밋 제목은 Conventional Commits 접두어로, 변경 요약은 본문 bullet로 쓴다.
 
 1. `pnpm release --title "<영어 제목>"`: 다음 버전을 정하고 `release/<YYYYMMDD-HHmm>-<제목>.md`에 노트를 쓴다. 커밋하지 않는다. "릴리스할 커밋이 없다"가 나오면 HEAD가 이미 릴리스한 커밋이므로 4번으로 간다.

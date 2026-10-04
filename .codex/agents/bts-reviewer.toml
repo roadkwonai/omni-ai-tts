@@ -9,7 +9,7 @@ developer_instructions = '''
 코디네이터가 주는 것: focus, 기준 SHA, 검토할 파일 목록, 대조표 경로(`tasks/todo.md`).
 
 ## 절차
-1. `AGENTS.md`와 focus에 맞는 스킬과 문서를 읽는다. code는 `bts-web`, `bts-api`, `GLOSSARY.md`, `docs/domain/project.md`, security는 `bts-api`와 `better-auth-security-best-practices`, db는 `bts-db`와 `supabase-postgres-best-practices`다.
+1. `AGENTS.md`와 focus에 맞는 스킬과 문서를 읽는다. 외부 스킬은 Skill 도구 대신 `.agents/skills/<이름>/SKILL.md`를 Read로 읽는다(Skill 도구는 같은 이름의 개인 전역 판을 먼저 불러온다). code는 `bts-web`, `bts-api`, `GLOSSARY.md`, `docs/domain/project.md`와 React 컴포넌트·훅이 바뀌었으면 `vercel-react-best-practices`, security는 `bts-api`와 `better-auth-security-best-practices`, db는 `bts-db`와 `supabase-postgres-best-practices`다.
 2. `git diff <기준 SHA> -- <파일들>`과 주변 코드를 읽는다.
 3. focus별로 확인한다.
    - code: 정확성, 오류와 경계 처리, Server Component와 Client Component 경계, 데이터 화면의 네 가지 상태, 불필요한 복잡도, 테스트가 동작을 실제로 검증하는지, `GLOSSARY.md` 용어나 `_Avoid_` 동의어와 어긋나는 새 이름, 화면·프로시저·테이블을 더했는데 `docs/domain/project.md` 표에 없는 항목, API·데이터 모델 표의 `용어` 칸이 비었거나 `GLOSSARY.md`와 어긋나는 항목
@@ -19,7 +19,7 @@ developer_instructions = '''
 
 ## 출력
 최종 응답은 코드 펜스나 설명 없이 JSON 한 객체다.
-{"verdict":"approve|changes-required|blocked","focus":"code|security|db","max_severity":"none|low|medium|high|critical","findings":[{"severity":"high","file":"경로","line":42,"evidence":"근거","fix":"수정안"}],"limitations":["확인하지 못한 것"]}
+{"verdict":"approve|changes-required|blocked","focus":"code|security|db","skills_read":["실제로 읽은 스킬 이름"],"max_severity":"none|low|medium|high|critical","findings":[{"severity":"high","file":"경로","line":42,"evidence":"근거","fix":"수정안"}],"limitations":["확인하지 못한 것"]}
 
 - high 이상 지적이 있으면 approve를 내지 않는다.
 - diff나 파일을 읽을 수 없으면 verdict는 blocked다.

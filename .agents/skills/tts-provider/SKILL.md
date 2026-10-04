@@ -26,9 +26,9 @@ description: >-
 - 공급자 호출은 `packages/api/src/providers/<공급자>.ts`에만 둔다. 프로시저(`routers/`)는 이 모듈을 부르고 SDK를 직접 부르지 않는다.
 - 공급자 공통 계약(성우, 생성 요청과 결과, 오류)은 zod로 한 번 정의해 화면까지 쓴다. 계약은 SDK나 서버 모듈을 import하지 않는 파일(`providers/contract.ts`)에 두어 클라이언트 번들에 공급자 모듈이 딸려 가지 않게 한다.
 - Typecast와 ElevenLabs는 공식 SDK(`@neosapience/typecast-js`, `@elevenlabs/elevenlabs-js`)를 쓴다. Fish Audio는 REST를 `fetch`로 직접 부른다(ADR 0002).
-- 키는 `apps/web/.env.schema`에 `@sensitive`로 선언된 값을 varlock `ENV`로 읽는다. `apps/web/src/services.ts`가 `createDb(ENV)`처럼 공급자 클라이언트를 만들고 `apps/web/src/context.ts`가 context로 넘긴다. `packages/api`에서 `process.env`를 읽지 않는다.
+- 키는 `apps/web/.env.schema`에 `@sensitive`로 선언된 값을 varlock `ENV`로 읽는다. 공급자 클라이언트는 소유자가 있는 요청마다 `apps/web/src/context.ts`가 `createProviders(키)`(`packages/api/src/providers/index.ts`)로 만들어 context의 `providers`로 넘긴다. 요청마다 만들어 `.env`의 키 교체가 반영된다. 소유자가 없는 요청에는 만들지 않는다. 루프백 요청이면 `publicProcedure`의 context에도 `providers`가 들어 있으므로 `publicProcedure`에서 `context.providers`를 쓰지 않는다. `packages/api`에서 `process.env`를 읽지 않는다.
 - SDK 생성자에는 키와 공식 호스트를 명시적으로 넘긴다. 두 SDK는 인자가 없으면 `process.env`(`TYPECAST_API_KEY`·`TYPECAST_API_HOST`·`ELEVENLABS_API_KEY`)로 조용히 대체한다. 키가 없으면 클라이언트를 만들지 않고 그 공급자를 "연결 안 됨"으로 처리한다.
-- 테스트는 context에 가짜 공급자를 넣는다. `bts-api`의 `references/ownership-test.md`가 `db`를 넣는 방식과 같다.
+- 테스트는 `vi.stubGlobal("fetch", …)`로 HTTP 응답만 흉내 내어 SDK의 오류 처리까지 지나게 한다(두 SDK 모두 호출 시점의 전역 `fetch`를 쓴다). context의 `providers`에는 `createProviders({ … })`로 만든 클라이언트를 넣는다. `bts-api`의 `references/ownership-test.md`가 `db`를 넣는 방식과 같다.
 - 코드 이름도 `GLOSSARY.md`를 따른다. Fish Audio API가 `model`이라 부르는 성우 개체는 코드에서 voice로 부르고, `s1`·`s2.1-pro` 같은 합성 엔진만 model로 부른다.
 
 ## 유료·상태 변경 호출: 생성, 시험 생성, 클론, 클론 삭제
@@ -52,12 +52,15 @@ description: >-
 | 공급자 응답 | `ORPCError` 코드 | `reason` |
 |---|---|---|
 | 401·403 (서버 키 문제) | `BAD_GATEWAY` | `provider_auth` |
+| 401·403이면서 본문 `detail.code`·`detail.status`가 `missing_permissions`·`insufficient_permissions` (키 권한 부족) | `BAD_GATEWAY` | `no_permission` |
 | 잔액·플랜 한도 부족 (402 등 공급자별) | `BAD_GATEWAY` | `quota` |
 | 429 | `TOO_MANY_REQUESTS` | `rate_limit` |
 | 400·422 입력 거절 | `BAD_REQUEST` | `provider_input` |
 | 5xx | `BAD_GATEWAY` | `provider_error` |
 | 타임아웃, 연결 끊김 | `GATEWAY_TIMEOUT` | `unknown_outcome` |
 
+- 판정은 `packages/api/src/providers/errors.ts`의 `reasonFromHttp`가 한다. SDK 오류는 `ProviderHttpError`(상태 코드, 공급자 오류 코드, `Retry-After`)로 바꿔 담는다.
+- 연결 확인(`providerStatus`)은 던지지 않고 연결 상태 값으로 돌려준다(`runCheck`). 입력 거절(400·422)과 표에 없는 상태는 `check_failed`다. 조회의 시간 초과·연결 끊김은 `unknown_outcome`이 아니라 `check_failed`다. 상태를 바꾸지 않는 조회라 처리 여부를 따질 필요가 없다.
 - SDK 오류 객체를 `cause`로 넘기거나 그대로 로그에 쓰지 않는다. rpc 라우트의 `onError`가 오류 전체를 `console.error`한다. 로그에는 공급자, 상태 코드, 공급자 오류 코드만 남긴다.
 - 한 공급자의 장애가 다른 공급자의 목록이나 생성을 막지 않게 공급자별로 따로 처리한다(REQ-02).
 
@@ -91,16 +94,16 @@ description: >-
 - 다운로드는 이미 받은 결과를 쓴다. 다운로드가 생성을 다시 부르지 않는다(REQ-10).
 - 진행률은 공급자가 준 값만 보여 준다. 가짜 진행률을 만들지 않는다(REQ-11).
 
-## 확인한 SDK 동작 (2026-09-28, npm 패키지 소스)
+## 확인한 SDK 동작 (2026-09-28, 2026-09-30, 2026-10-04, npm 패키지 소스)
 | SDK | 판 | 동작 |
 |---|---|---|
-| `@elevenlabs/elevenlabs-js` | 2.69.0 | 기본 `maxRetries` 2, 408·429·5xx 재시도. 키가 없으면 `process.env.ELEVENLABS_API_KEY` |
-| `@neosapience/typecast-js` | 0.4.14 | 키가 없으면 `process.env.TYPECAST_API_KEY`, 호스트는 `TYPECAST_API_HOST`. 클론 파일 상한 25MB, 문자열 인자를 파일 경로로 읽음 |
+| `@elevenlabs/elevenlabs-js` | 2.70.0 | 기본 `maxRetries` 2, 408·429·5xx 재시도(요청 옵션 `maxRetries: 0`으로 끈다). 키가 없으면 `process.env.ELEVENLABS_API_KEY`, 그래도 없으면 생성자가 예외. 요청 옵션 `maxRetries`·`abortSignal`·`timeoutInSeconds`(기본 240초). 구독 조회 `user.subscription.get()`은 응답 전체(필수 필드 20개)를 스키마로 검사하고(어긋나면 `ParseError`) camelCase로 준다. HTTP 오류는 `ElevenLabsError`(`statusCode`, `body`, `rawResponse.headers`), `abortSignal`로 끊으면 `statusCode` 없는 `ElevenLabsError`. SDK 로그는 기본으로 꺼져 있다. HTTP는 호출 시점의 전역 `fetch` |
+| `@neosapience/typecast-js` | 0.4.15 | 키가 없으면 `process.env.TYPECAST_API_KEY`(없어도 헤더 없이 요청), 호스트는 `TYPECAST_API_HOST`. 생성자 `{ apiKey, baseHost, source, generatedBy }`에서 `source`와 `generatedBy`는 함께 줘야 하고 형식이 틀리면 생성자가 예외(연동 식별은 `source: "api-docs"`, 작성 에이전트 토큰). 시간 제한·취소·재시도·응답 검증이 없다. 구독 조회 `getMySubscription()`. HTTP 오류는 `TypecastAPIError`(`statusCode`, `response`)이고 응답 헤더는 없다. 클론 파일 상한 25MB, 문자열 인자를 파일 경로로 읽음. HTTP는 호출 시점의 전역 `fetch`. 0.4.15: TTS 요청에서 `seed`를 보내지 않는다 |
 
 판을 올리면 이 표를 다시 확인한다.
 
 ## 검사
-- `bts-api` 격리 테스트에 가짜 공급자로 다음 경우를 더한다.
+- `bts-api` 격리 테스트에 흉내 낸 fetch 응답으로 다음 경우를 더한다.
   ① 같은 요청 id를 동시에 두 번 보내면 공급자 호출이 1회다. 다른 요청 id 둘을 동시에 보내도 진행은 1건이다.
   ② 공급자 401·429·타임아웃이 위 표의 코드로 바뀐다.
   ③ B가 A의 클론 voice id로 생성하면 `NOT_FOUND`이고 공급자 호출은 0회다. 공급자 목록에 섞여 나온 A의 클론 id, 다른 사용자의 비공개 Fish Audio 모델 id, 삭제를 요청한 자기 클론으로 시도해도 같다.

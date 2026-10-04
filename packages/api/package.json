@@ -11,6 +11,8 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
+		"@elevenlabs/elevenlabs-js": "^2.70.0",
+		"@neosapience/typecast-js": "^0.4.15",
 		"@orpc/client": "catalog:",
 		"@orpc/server": "catalog:",
 		"@tts-pilot-app/auth": "workspace:*",

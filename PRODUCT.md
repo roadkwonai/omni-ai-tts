@@ -29,7 +29,7 @@ Typecast·ElevenLabs·Fish Audio의 성우를 미리 듣고 용도별로 정리�
 
 ## Brand Commitments
 
-`DESIGN.md`의 원티드 스타일과 Pretendard를 사용한다. 제목과 본문 모두 기존 로컬 Pretendard Variable 자산을 쓴다. UI 작업은 bts-ui → impeccable 절차를 따른다. 제품명은 저장소 이름에서 온 TTS Pilot 작업명이다.
+`DESIGN.md`의 시각 언어(2026-10-03 리디자인: getdesign.kr 채널톡 항목, 대표 색 청록 `oklch(0.51 0.085 200)`)와 Pretendard를 사용한다. 제목과 본문 모두 기존 로컬 Pretendard Variable 자산을 쓴다. 화면의 주인공은 대본 텍스트와 그 낭독이고, 돈이 드는 동작에는 앱 전체에서 같은 표식 하나를 쓴다. UI 작업은 bts-ui → impeccable 절차를 따른다. 제품명은 저장소 이름에서 온 TTS Pilot 작업명이다.
 
 ## Evidence on Hand
 

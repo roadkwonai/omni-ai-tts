@@ -28,7 +28,10 @@ description: >-
 
 이 스킬들의 지침이 번들 문서(`apps/web/node_modules/next/dist/docs/`)와 다르면 번들 문서를 따르고, 어긋난 곳을 보고에 적는다. 외부 스킬은 설치한 Next 버전보다 늦게 갱신될 수 있다.
 
+느림, 깜빡임, 번들 크기, 캐시, 프리패치를 다루면 원인 분석이나 개선안을 쓰기 전에 `vercel-react-best-practices`를 읽고, 캐시면 `next-cache-components-*`, 링크 이동이면 `next-partial-prefetching-*`도 읽는다(`.agents/skills/<이름>/SKILL.md`). 원인과 개선안에는 해당 규칙 이름(예: async-parallel, rerender-memo)을 붙이고, 개발 서버의 동작은 `next-dev-loop`의 `/_next/mcp`로 본다.
+
 ## 규칙
+- 화면만 프로젝트(루트 `AGENTS.md` 맨 위 표시)면 아래 데이터 패칭·보호 페이지 규칙 대신 `bts-ui`의 "화면만 프로젝트" 절을 따른다.
 - Server Component가 기본이다. `"use client"`는 상태, 이벤트, 브라우저 API가 필요한 가장 작은 컴포넌트에만 붙인다.
 - 클라이언트 데이터는 `orpc` 유틸과 TanStack Query로 부른다. 조회는 `useQuery(orpc.<라우터>.<프로시저>.queryOptions({ input }))`, 변경은 `useMutation(orpc.<라우터>.<프로시저>.mutationOptions())` 뒤에 관련 쿼리를 무효화한다. `/api/rpc`를 fetch로 직접 부르지 않는다.
 - 서버 전용 모듈(`src/services.ts`, `src/env.server.ts`, DB와 auth 인스턴스)을 Client Component에서 import하지 않는다. 비밀값은 `.env.schema`에서 `@public`이 아닌 값으로 두고 클라이언트로 넘기지 않는다.

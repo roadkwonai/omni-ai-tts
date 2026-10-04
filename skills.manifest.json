@@ -1,5 +1,5 @@
 {
-	"skillsCli": "skills@1.7.0",
+	"skillsCli": "skills@latest",
 	"skills": [
 		{
 			"agents": ["claude-code", "codex"],
@@ -66,6 +66,16 @@
 			"agents": ["claude-code", "codex"],
 			"source": "pbakaus/impeccable",
 			"skills": ["impeccable"]
+		},
+		{
+			"agents": ["claude-code", "codex"],
+			"source": "GENEXIS-AI/gpt-image-skill",
+			"skills": ["gpt-image"]
+		},
+		{
+			"agents": ["claude-code", "codex"],
+			"source": "CaesiumY/ko-design-md",
+			"skills": ["use-design-md"]
 		},
 		{
 			"agents": ["claude-code", "codex"],
@@ -188,10 +198,10 @@
 			"hint": "pnpm skills:setup --with-global (gstack(Claude) 설치 뒤)"
 		},
 		{
-			"name": "agent-browser CLI(0.31.1 이상)",
-			"check": "v=$(agent-browser --version 2>/dev/null | awk '{print $2}') && [ \"$(printf '%s\\n' 0.31.1 \"$v\" | sort -V | head -n1)\" = 0.31.1 ]",
-			"install": "npm install -g agent-browser@0.31.1 && agent-browser install",
-			"hint": "npm install -g agent-browser@0.31.1 && agent-browser install (0.31.1 미만이 npm 밖(brew 등)에 있으면 그 설치 방식으로 올린다)",
+			"name": "agent-browser CLI(npm 최신판)",
+			"check": "v=$(agent-browser --version 2>/dev/null | awk '{print $2}'); want=$(npm view agent-browser version --fetch-timeout=5000 --fetch-retries=0 2>/dev/null); want=${want:-0.31.1}; [ -n \"$v\" ] && [ \"$(printf '%s\\n' \"$want\" \"$v\" | sort -V | head -n1)\" = \"$want\" ]",
+			"install": "if brew list agent-browser >/dev/null 2>&1; then brew upgrade agent-browser; else npm install -g agent-browser@latest; fi && agent-browser install",
+			"hint": "npm install -g agent-browser@latest && agent-browser install (Homebrew 설치본은 brew upgrade agent-browser. 올린 뒤에도 남으면 PATH 앞쪽의 다른 설치본(command -v agent-browser)을 지운다)",
 			"auto": true
 		},
 		{

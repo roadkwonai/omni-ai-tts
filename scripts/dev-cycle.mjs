@@ -335,10 +335,14 @@ export function writeTable(
 		for (const r of rows) r.evidence = old.get(r.text) ?? "";
 		const kept = new Set(rows.map((r) => r.text));
 		// 새 케이스에 없는 이전 행(직접 추가한 행 포함)은 끝의 사용자 확인 행 앞에 둔다.
-		const at = rows.findIndex((r) => r.tag === "confirm");
 		const carried = active.rows
 			.filter((r) => !kept.has(r.text))
 			.map((r) => ({ text: r.text, evidence: r.evidence }));
+		const vitest = carried.findIndex(
+			(r) => r.text === "vitest 도입(최초 1회) → 설정 파일과 실행 결과",
+		);
+		if (vitest >= 0) rows.unshift(carried.splice(vitest, 1)[0]);
+		const at = rows.findIndex((r) => r.tag === "confirm");
 		rows.splice(at < 0 ? rows.length : at, 0, ...carried);
 	}
 	const meta = {

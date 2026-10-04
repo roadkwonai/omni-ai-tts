@@ -33,7 +33,7 @@ describe("protectedProcedure", () => {
 	// 소유자 검사 미들웨어는 db를 쓰지 않는다.
 	const as = (ownerId: string | null) =>
 		createRouterClient(router, {
-			context: { db: {} as Context["db"], ownerId },
+			context: { db: {} as Context["db"], ownerId, providers: null },
 		});
 
 	it("소유자가 없으면 UNAUTHORIZED", async () => {

@@ -201,7 +201,15 @@ export function main(argv, root = process.cwd(), platform = process.platform) {
 					).map((m) => m.name);
 				} catch {}
 				for (const name of Object.keys(manifest.claude.marketplaces)) {
-					if (known.includes(name)) continue;
+					// 등록된 마켓플레이스는 받아 둔 목록이 오래됐을 수 있다. 최신으로 받은 뒤 설치해야 플러그인도 최신판이 된다.
+					if (known.includes(name)) {
+						const r = run("claude", ["plugin", "marketplace", "update", name], {
+							cwd: root,
+						});
+						if (r.status !== 0)
+							bad.push(`marketplace ${name} 갱신: ${firstLine(r)}`);
+						continue;
+					}
 					// 프로젝트 선언(사용자가 바꿨으면 그 값)대로 등록한다. github이면 owner/repo.
 					const src = settings.extraKnownMarketplaces[name].source;
 					const arg = src.repo ?? src.url ?? src.path;

@@ -5,7 +5,7 @@
 갱신은 해당 절의 표와 문장을 고치는 것이다. 날짜별 절이나 진행 경과를 덧붙이지 않는다(경과는 `tasks/archive/`에 남는다). 계획 중인 기능은 `기능` 표에 `계획` 상태로 넣고 스펙을 링크한다. 표의 `용어` 칸에는 `GLOSSARY.md`의 용어를 그대로 적는다.
 
 ## 한 줄 요약
-개인 콘텐츠 제작자가 Typecast·ElevenLabs·Fish Audio 성우와 대본을 재사용하는 TTS 작업실을 계획 중이며, 현재 앱은 로컬 관리자 모드의 작업실 틀(T1)과 별도 HTML 시안 단계다.
+개인 콘텐츠 제작자가 Typecast·ElevenLabs·Fish Audio 성우와 대본을 재사용하는 TTS 작업실을 계획 중이며, 현재 앱은 로컬 관리자 모드의 작업실 틀(T1), 공급자 연결 상태 화면(T2), 별도 HTML 시안 단계다.
 
 ## 사용자와 권한
 | 역할 | 할 수 있는 일 | 확인 위치 |
@@ -17,13 +17,16 @@
 
 ```mermaid
 flowchart LR
-  R["/"] --> S["/studio<br/>음성 작업실(빈 틀)"]
+  R["/"] --> S["/studio<br/>음성 작업실"]
+  S --> C["/connections<br/>연결 상태"]
+  C -->|providerStatus × 3| P["Typecast · ElevenLabs · Fish Audio<br/>계정 조회"]
 ```
 
 ## 기능
 | 기능 | 상태 | 화면 | API | 스펙 |
 |---|---|---|---|---|
 | 작업실 틀 (로컬 관리자 모드) | 구현 | `/studio` | 없음(`healthCheck`는 동작 점검용) | [T1 스펙](../plans/tasks/T01-app-foundation.md) |
+| 공급자 연결 상태 | 구현 | `/connections` | `providerStatus` | [T2 스펙](../plans/tasks/T02-provider-status.md) |
 | 로그인 (소유자 전용) | 계획 | 없음 | 없음 | [구현 로드맵 T14](../plans/implementation-roadmap.md) |
 | TTS 작업실 (P0) | 계획 | 없음 (HTML 시안 `docs/prototypes/tts-studio/index.html`) | 없음 | [요구사항](../plans/tts-service-requirements.md), [실서비스 기획·설계안](../briefs/tts-app-design.md), [구현 로드맵](../plans/implementation-roadmap.md) |
 
@@ -33,13 +36,15 @@ flowchart LR
 | URL | 화면 | 보호 | 파일 |
 |---|---|---|---|
 | `/` | `/studio`로 이동 | 없음 | `apps/web/src/app/page.tsx` |
-| `/studio` | 음성 작업실(빈 틀) | 없음(로컬 관리자 모드) | `apps/web/src/app/(app)/studio/page.tsx` |
-| (없는 주소) | 페이지를 찾을 수 없어요(작업실로 가기) | 없음 | `apps/web/src/app/not-found.tsx` |
+| `/studio` | 음성 작업실(제작 흐름 지도, 연결 상태 링크) | 없음(로컬 관리자 모드) | `apps/web/src/app/(app)/studio/page.tsx` |
+| `/connections` | 연결 상태(세 공급자의 연결 상태와 잔여 사용량, 공급자별 다시 확인) | 없음(데이터는 `protectedProcedure`가 막는다. 소유자가 없으면 주소 안내) | `apps/web/src/app/(app)/connections/page.tsx` |
+| (없는 주소) | 페이지를 찾을 수 없어요(앱 틀 안, 작업실로 가기) | 없음 | `apps/web/src/app/not-found.tsx` |
 
 ## API (oRPC)
 | 프로시저 | 용어 | 보호 | 입력 | 설명 |
 |---|---|---|---|---|
 | `healthCheck` | 해당 없음 | 공개 | 없음 | 상태 확인 |
+| `providerStatus` | 연결 상태, 잔여 사용량 | 보호(`protectedProcedure`) | `{ provider: "typecast" \| "elevenlabs" \| "fish_audio" }` | 서버 키로 공급자 계정을 한 번 조회해 연결 상태 8종과 잔여 사용량을 돌려준다. 키가 없으면 공급자를 부르지 않고 `no_key`다. 공급자 문제는 던지지 않고 값으로 돌려준다 |
 
 ## 데이터 모델과 코드 매핑
 | 테이블 | 용어 | 스키마 파일 | 소유자 컬럼 | 설명 |
