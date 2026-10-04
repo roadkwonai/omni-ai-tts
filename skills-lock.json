@@ -5,7 +5,7 @@
       "source": "vercel/vercel-plugin",
       "sourceType": "github",
       "skillPath": "skills/access-protected-vercel-deployment/SKILL.md",
-      "computedHash": "5f366e137aae644729a8e836ba9dbb803f78f3384a150d97aee825fdf9285042"
+      "computedHash": "781ae332ce584dad0370b6f4912882cccc5e7b5be223508520c496c713bdbe3f"
     },
     "agent-browser": {
       "source": "vercel-labs/agent-browser",
@@ -95,13 +95,13 @@
       "source": "pbakaus/impeccable",
       "sourceType": "github",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "computedHash": "f7c4e03bef91154273d2dc3b62aff829cf4ab1b1f16e6b98c8c6a31be4405318"
+      "computedHash": "6b5ebc0ee592c7d4620827b20f1554706607e3363835a951c78ee37ac63a7df0"
     },
     "neon": {
       "source": "neondatabase/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/neon/SKILL.md",
-      "computedHash": "07ebeb0077c3a10fd82a87ee45a75f0c071bf118b95ea61da90907c8fc05a2f4"
+      "computedHash": "6eebb72805c33e5b8e06a255482e2aeefdd7f994f6b0f8484de8e2c7b76fff2d"
     },
     "neon-postgres": {
       "source": "neondatabase/agent-skills",
@@ -161,7 +161,7 @@
       "source": "DietrichGebert/ponytail",
       "sourceType": "github",
       "skillPath": "skills/ponytail-review/SKILL.md",
-      "computedHash": "4646594fcd75455533f7ff1425f4f1c5ba0fa65f88241bf262b1c4fc275f049a"
+      "computedHash": "18f55cbe8d9afd3a42ef26fd3e4c46509fb7e3fc86078a57c3dd739031be8c44"
     },
     "receiving-code-review": {
       "source": "obra/superpowers",
@@ -221,7 +221,7 @@
       "source": "CaesiumY/ko-design-md",
       "sourceType": "github",
       "skillPath": ".claude/skills/use-design-md/SKILL.md",
-      "computedHash": "cbc8631c135a13bacbf1d5642f2f77178431c010ad55da37398f0d5818db82f1"
+      "computedHash": "64691c6964ac0ea37de1e6f811ab663862caf4b8fb53d26a8539f25c2681668f"
     },
     "using-git-worktrees": {
       "source": "obra/superpowers",

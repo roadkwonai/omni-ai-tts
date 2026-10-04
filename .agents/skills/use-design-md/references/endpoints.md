@@ -1,47 +1,47 @@
 # Endpoints — ko-design-md catalog (getdesign.kr)
 
-Fetch order and fallbacks for the consumer skill. All getdesign.kr endpoints below are
+Fetch order and fallbacks for the consumer skill. The getdesign.kr endpoints in §1–§2b are
 `text/plain`, CORS-open (`access-control-allow-origin: *`), and CDN-cached ~1h.
 
 ## 1. Catalog index (discover)
 
 ```
-GET https://getdesign.kr/llms.txt
+GET https://www.getdesign.kr/llms.txt
 ```
 
 llms.txt format — a header plus one markdown link per entry:
 
 ```
-- [<name>](https://getdesign.kr/services/<slug>/llms.txt): <category> — <tagline>
+- [<name>](https://www.getdesign.kr/services/<slug>/llms.txt): <category> — <tagline>
 ```
 
 Use it to resolve a brand name to a slug and to browse by category. It is generated
-server-side from the live catalog, so it is always current — no stale hardcoded list.
+server-side from the live catalog, so it is always current.
 
 ## 2. Single entry (fetch)
 
 ```
-GET https://getdesign.kr/services/<slug>/llms.txt
+GET https://www.getdesign.kr/services/<slug>/llms.txt
 ```
 
 Returns the entry's DESIGN.md verbatim, in the catalog format: Stitch's section
 structure, DESIGN.md-spec token maps in YAML frontmatter, and the catalog's own
-`[src:N]` citation convention. Prefer `curl -s` over WebFetch to preserve exact
-token values (see SKILL.md Step 2 for why).
+`[src:N]` citation convention. Fetch it as SKILL.md "Fetching" says — to a file, failing
+on HTTP errors, read to the end. A slug that isn't in the catalog returns `404`.
 
-**This is the endpoint to use for applying a design system.** It carries the
-`[src:N]` citations, provenance notes and audit blockquotes — the evidence that lets
-you tell a published value from a reconstructed one.
+The entry carries `[src:N]` citations, provenance notes and audit blockquotes — the
+evidence that lets you tell a published value from a reconstructed one. §2b serves the
+same bytes.
 
 ## 2b. Same entry, spec filename
 
 ```
-GET https://getdesign.kr/services/<slug>/DESIGN.md
+GET https://www.getdesign.kr/services/<slug>/DESIGN.md
 ```
 
 The same bytes as §2, under the filename Google's published DESIGN.md spec uses
-(`github.com/google-labs-code/design.md`, spec `alpha`). No transform: the entry
-file is itself a spec document — `colors` / `typography` / `spacing` / `rounded`
+(`github.com/google-labs-code/design.md`, spec `alpha`). The entry file is itself a
+spec document — `colors` / `typography` / `spacing` / `rounded`
 maps and shadows under `elevation:` in YAML frontmatter, no yaml fence in the body
 (motion tokens and component specs sit in `text` fences, readable but outside the
 token model). Use this URL when a tool expects the standard filename — Stitch, the
@@ -63,24 +63,29 @@ JSON shape: `{ colors[], typography[], spacing[], radius[], elevation?[] }`. Eac
 has `name`/`value` (value usually OKLCH) plus optional `note`/`group`. `elevation` holds
 ready-to-paste CSS `box-shadow` values (comma-joined when a token stacks layers) and is
 **omitted** for entries that publish no shadow values in their frontmatter
-`elevation:` map — read it with `?? []`, not as a guaranteed array. There is no
-getdesign.kr endpoint for tokens yet — GitHub raw is the source of record. If a tokens
-endpoint appears on getdesign.kr later, prefer it and update this file.
+`elevation:` map — read it with `?? []`, not as a guaranteed array. getdesign.kr
+doesn't serve tokens; GitHub raw is the source of record.
 
 ## Fallbacks
 
-- If getdesign.kr is unreachable, the same markdown is on GitHub raw:
-  `https://raw.githubusercontent.com/CaesiumY/ko-design-md/main/services/<slug>.md`
+- If getdesign.kr fails with anything other than a 404 (unreachable, 5xx, 403/429…), the same
+  markdown is on GitHub raw. Fetch it the same way (SKILL.md "Fetching"). Any failure here — a
+  404 included — means the fallback failed too: tell the user you couldn't fetch the entry,
+  not that the brand is missing (SKILL.md Step 2). Only getdesign.kr's own 404 means "not in
+  the catalog".
+  ```
+  curl -fsSL --create-dirs -o "${XDG_CACHE_HOME:-$HOME/.cache}/use-design-md/<slug>.md" https://raw.githubusercontent.com/CaesiumY/ko-design-md/main/services/<slug>.md
+  ```
 - The index has no GitHub-raw equivalent (it's generated server-side). To list entries
   without the index, read the repo's `services/` directory via the GitHub API, or fall
-  back to `https://getdesign.kr/sitemap.xml` (URLs only — no names/categories/taglines).
+  back to `https://www.getdesign.kr/sitemap.xml` (URLs only — no names/categories/taglines).
 
 ## Example
 
 ```bash
-slug=toss
-curl -s https://getdesign.kr/llms.txt                                                   # find the slug
-curl -s https://getdesign.kr/services/$slug/llms.txt                                     # the entry's DESIGN.md, verbatim
-curl -s https://raw.githubusercontent.com/CaesiumY/ko-design-md/main/services/$slug.tokens.json  # tokens (optional)
-curl -s https://getdesign.kr/services/$slug/DESIGN.md                                    # same bytes, spec filename
+# one plain curl per fetch; --create-dirs makes the per-user cache directory
+curl -fsSL --create-dirs -o "${XDG_CACHE_HOME:-$HOME/.cache}/use-design-md/index.txt" https://www.getdesign.kr/llms.txt            # find the slug
+curl -fsSL --create-dirs -o "${XDG_CACHE_HOME:-$HOME/.cache}/use-design-md/toss.md" https://www.getdesign.kr/services/toss/llms.txt # the entry, verbatim
+wc -lc "${XDG_CACHE_HOME:-$HOME/.cache}/use-design-md/toss.md"                       # then read it to its last line
+curl -fsSL --create-dirs -o "${XDG_CACHE_HOME:-$HOME/.cache}/use-design-md/toss.tokens.json" https://raw.githubusercontent.com/CaesiumY/ko-design-md/main/services/toss.tokens.json  # tokens (optional)
 ```
