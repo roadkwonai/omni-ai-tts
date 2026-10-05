@@ -237,6 +237,7 @@ export function TypecastVoiceList({
 			) : null}
 			<CastingWorkspace
 				voices={shown}
+				provider="typecast"
 				chosen={chosen}
 				onChoose={onChoose}
 				pending={loading}

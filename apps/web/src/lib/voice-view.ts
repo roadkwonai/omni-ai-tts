@@ -280,7 +280,7 @@ export function termLines(voice: Voice): TermLine[] {
 }
 
 // Typecast 감정 이름(브리프 5절 패널 4 예시 "ssfm-v30: 기본, 기쁨, 슬픔 …", 공급자 값은 typecast-api-options 감정 프리셋). 표에 없는 값은 공급자 값 그대로다
-const EMOTION_KO = new Map([
+export const EMOTION_KO = new Map([
 	["normal", "기본"],
 	["happy", "기쁨"],
 	["sad", "슬픔"],

@@ -13,6 +13,12 @@ import type {
 	VoiceListPage,
 } from "./contract";
 import { remainingQuotaSchema } from "./contract";
+import type {
+	TrialErrorData,
+	TrialFailure,
+	TrialModelRate,
+} from "./trial-contract";
+import type { TrialRequest } from "./trial-options";
 
 // 공급자 HTTP 실패의 사유. tts-provider 오류 매핑 표의 reason에 no_permission을 더했다. T3부터 목록·생성 호출도 이 판정을 쓴다.
 export type ProviderErrorReason =
@@ -86,6 +92,10 @@ export type ProviderClient = {
 	listVoices?(input: VoiceListInput): Promise<VoiceListPage>;
 	// ElevenLabs만: 언어의 억양 목록(억양 조건의 선택지, T4)
 	listAccents?(language: string): Promise<Accent[]>;
+	// 시험 생성 1회(T5). 유료다(Fish Audio 무료 모델 제외). MP3 바이트를 돌려준다. 재시도하지 않는다
+	synthesize?(request: TrialRequest): Promise<Uint8Array>;
+	// ElevenLabs만: 모델별 크레딧 배율(T5 예상 사용량)
+	listModels?(): Promise<TrialModelRate[]>;
 };
 
 export const CHECK_TIMEOUT_MS = 10_000;
@@ -264,16 +274,10 @@ export async function runList<T>(
 					? "provider_error"
 					: reason;
 			// 429의 Retry-After(초)는 다음 호출 가능 시각으로 담는다. 목록 캐시가 대기 표에 적고 화면이 시각을 보인다(T4 스펙 4절)
-			const seconds =
-				failure === "rate_limit" ? retryAfterSeconds(error.retryAfter) : null;
 			throw providerError(
 				provider,
 				failure,
-				seconds === null
-					? undefined
-					: new Date(
-							Date.now() + Math.min(seconds, MAX_RETRY_SECONDS) * 1000,
-						).toISOString(),
+				failure === "rate_limit" ? retryAtFrom(error.retryAfter) : undefined,
 			);
 		}
 		const prefix = `[voiceList] ${provider} 목록 조회 실패`;
@@ -295,15 +299,14 @@ export async function runList<T>(
 	}
 }
 
-// 공급자 REST 조회 공통(T4 ElevenLabs 목록·억양, Fish Audio 전부). 실패하면 상태 코드·공급자 오류 코드·Retry-After만 바꿔 담는다(본문의 값·메시지는 버린다).
-export async function fetchJson(
+// 응답이 2xx가 아니면 상태 코드·공급자 오류 코드·Retry-After를 담아 던진다.
+// 키 헤더가 다른 호스트로의 리다이렉트를 따라가지 않게 한다(리다이렉트를 만나면 fetch가 TypeError를 던진다)
+export async function fetchOk(
 	url: string,
-	headers: Record<string, string>,
-	signal: AbortSignal,
+	init: RequestInit,
 	codesOf: (body: unknown) => string[] = () => [],
-): Promise<unknown> {
-	// 키 헤더가 다른 호스트로의 리다이렉트를 따라가지 않게 한다(리다이렉트를 만나면 fetch가 TypeError를 던진다)
-	const response = await fetch(url, { headers, signal, redirect: "error" });
+): Promise<Response> {
+	const response = await fetch(url, { ...init, redirect: "error" });
 	if (!response.ok) {
 		const body: unknown = await response.json().catch(() => null);
 		throw new ProviderHttpError(
@@ -312,5 +315,91 @@ export async function fetchJson(
 			response.headers.get("retry-after"),
 		);
 	}
-	return response.json();
+	return response;
+}
+
+export async function fetchJson(
+	url: string,
+	headers: Record<string, string>,
+	signal: AbortSignal,
+	codesOf: (body: unknown) => string[] = () => [],
+): Promise<unknown> {
+	return (await fetchOk(url, { headers, signal }, codesOf)).json();
+}
+
+// 시험 생성 사유별 oRPC 코드(스펙 6절). 공급자 사유는 목록과 같다
+const TRIAL_CODE = {
+	...FAILURE_CODE,
+	provider_input: "BAD_REQUEST",
+	in_progress: "TOO_MANY_REQUESTS",
+	free_ended: "BAD_REQUEST",
+	request_mismatch: "BAD_REQUEST",
+	storage: "SERVICE_UNAVAILABLE",
+} as const satisfies Record<TrialFailure, string>;
+
+// 시험 생성 오류. data에는 공급자·사유(·다음 호출 가능 시각·입력 거절의 공급자 오류 코드)만 담고 원래 오류를 붙이지 않는다
+export function trialError(
+	provider: ProviderId | undefined,
+	reason: TrialFailure,
+	extra: { retryAt?: string; providerCode?: string } = {},
+) {
+	const data: TrialErrorData = { provider, reason, ...extra };
+	return new ORPCError(TRIAL_CODE[reason], { data });
+}
+
+// 시험 생성 시간 제한(스펙 4절). 200자 합성 응답을 기다린다
+export const TRIAL_TIMEOUT_MS = 60_000;
+// ElevenLabs 403 가운데 키가 아니라 성우·플랜·모델 문제인 코드(공식 오류 표). 화면이 문구를 고르도록 입력 거절로 보낸다
+const VOICE_DENIED = new Set([
+	"voice_access_denied",
+	"subscription_required",
+	"feature_not_available",
+	"model_access_denied",
+]);
+
+// 시험 생성의 상태 코드 → 사유. 404(성우·모델 없음)는 입력 거절이다. 표에 없는 상태는 공급자 장애다
+export function trialReason(
+	status: number,
+	codes: readonly string[] = [],
+): TrialFailure {
+	if (status === 403 && codes.some((code) => VOICE_DENIED.has(code)))
+		return "provider_input";
+	if (status === 404) return "provider_input";
+	return reasonFromHttp(status, codes) ?? "provider_error";
+}
+
+// 429 Retry-After(초)를 다음 호출 가능 시각(ISO, 1시간까지)으로. 없거나 못 읽으면 undefined(목록과 시험 생성이 함께 쓴다, 계획 리뷰 E15)
+export function retryAtFrom(retryAfter: string | null): string | undefined {
+	const seconds = retryAfterSeconds(retryAfter);
+	return seconds === null
+		? undefined
+		: new Date(
+				Date.now() + Math.min(seconds, MAX_RETRY_SECONDS) * 1000,
+			).toISOString();
+}
+
+// 시험 생성 공통 틀: 60초, 재시도 없음. 공급자 응답(상태 코드)을 받지 못한 실패는 모두 처리 여부 미확인이다
+// (시간 초과, 연결 끊김의 TypeError, ElevenLabs SDK의 statusCode 없는 오류, 그 밖의 예외). 돈에 안전한 쪽이다:
+// 자동으로 다시 만들지 않고 화면이 "크레딧이 쓰였을 수 있으니 확인한 뒤"를 보인다(tts-provider, 계획 리뷰 E1).
+// 원래 오류 객체는 던지지 않는다(rpc onError가 통째로 로그에 쓴다). 로그는 logFailure 한 줄(이름·필드 이름)뿐이다
+export async function runTrial<T>(
+	provider: ProviderId,
+	call: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
+	try {
+		return await withTimeout(call, TRIAL_TIMEOUT_MS);
+	} catch (error) {
+		if (error instanceof ProviderTimeoutError)
+			throw trialError(provider, "unknown_outcome");
+		if (error instanceof ProviderHttpError) {
+			const reason = trialReason(error.status, error.codes);
+			throw trialError(provider, reason, {
+				retryAt:
+					reason === "rate_limit" ? retryAtFrom(error.retryAfter) : undefined,
+				providerCode: reason === "provider_input" ? error.codes[0] : undefined,
+			});
+		}
+		logFailure(`[trial] ${provider} 생성 실패`, error, []);
+		throw trialError(provider, "unknown_outcome");
+	}
 }

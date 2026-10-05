@@ -7,8 +7,16 @@ import {
 	ProviderHttpError,
 	runCheck,
 	runList,
+	runTrial,
 } from "./errors";
 import { emptyVoice, parseVoiceItems } from "./list";
+import {
+	sentText,
+	type TrialRequest,
+	type TypecastModel,
+	type TypecastSettings,
+	usedSettings,
+} from "./trial-options";
 
 // Typecast SDK는 응답을 검사하지 않는다. 쓰는 필드만 검사한다.
 const subscriptionSchema = z.object({
@@ -43,11 +51,12 @@ const rawVoiceSchema = z.object({
 		.catch(null),
 });
 
-// SDK 오류는 상태 코드만 바꿔 담는다. 응답 헤더를 주지 않는다(Retry-After 없음).
+// SDK 오류는 상태 코드와 본문의 error_code만 바꿔 담는다. 응답 헤더를 주지 않는다(Retry-After 없음, 설치본 lib/index.js 6~15행)
+const typecastCodeSchema = z.object({ error_code: z.string() });
 function toHttpError(error: unknown): never {
-	throw error instanceof TypecastAPIError
-		? new ProviderHttpError(error.statusCode)
-		: error;
+	if (!(error instanceof TypecastAPIError)) throw error;
+	const code = typecastCodeSchema.safeParse(error.response).data?.error_code;
+	throw new ProviderHttpError(error.statusCode, code ? [code] : []);
 }
 
 function toVoice(raw: z.infer<typeof rawVoiceSchema>): Voice {
@@ -78,9 +87,44 @@ export function createTypecast(apiKey: string): ProviderClient {
 		apiKey,
 		baseHost: "https://api.typecast.ai",
 		source: "api-docs",
-		generatedBy: "claude-code",
+		generatedBy: "codex",
 	});
 	return {
+		// 매개변수는 이 공급자의 요청만 받는다(메서드 이변성, ProviderClient 주석)
+		synthesize: (request: Extract<TrialRequest, { provider: "typecast" }>) =>
+			// ponytail: SDK에 취소 신호가 없어 runTrial의 60초 경주로만 끊는다. 끊긴 요청은 뒤에서 끝까지 돌아 과금될 수 있다(처리 여부 미확인으로 알린다, 스펙 13절).
+			// 늦게 온 결과를 저장해 다음 찾기에서 크레딧 0으로 재생하는 일은 하지 않는다(계획 리뷰 E9 기각, 백로그 T9 메모)
+			runTrial("typecast", async () => {
+				const s = usedSettings(request) as Partial<TypecastSettings> & {
+					model: TypecastModel;
+				};
+				const prompt =
+					s.emotion === "smart"
+						? { emotion_type: "smart" as const }
+						: s.model === "ssfm-v30"
+							? {
+									emotion_type: "preset" as const,
+									emotion_preset: s.preset,
+									emotion_intensity: s.intensity,
+								}
+							: { emotion_preset: s.preset, emotion_intensity: s.intensity };
+				const { audioData } = await client
+					.textToSpeech({
+						text: sentText(request),
+						voice_id: request.voiceId,
+						model: s.model,
+						...(s.language === "kor" ? { language: "kor" as const } : {}),
+						prompt,
+						output: {
+							audio_format: "mp3",
+							audio_tempo: s.tempo,
+							audio_pitch: s.pitch,
+							volume: s.volume,
+						},
+					})
+					.catch(toHttpError);
+				return new Uint8Array(audioData);
+			}),
 		checkStatus: () =>
 			// ponytail: SDK에 취소 옵션이 없어 runCheck의 10초 경주로만 끊는다. 끊긴 요청은 뒤에서 끝까지 돈다(상태를 바꾸지 않는 조회라 괜찮다). 생성(T8)은 끊는 방법을 그때 다시 정한다.
 			runCheck("typecast", async () => {

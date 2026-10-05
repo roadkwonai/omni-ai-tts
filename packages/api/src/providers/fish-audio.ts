@@ -3,15 +3,31 @@ import { z } from "zod";
 import type { ListInputOf, Voice, VoiceSource } from "./contract";
 import {
 	fetchJson,
+	fetchOk,
 	logFailure,
 	type ProviderClient,
 	runCheck,
 	runList,
+	runTrial,
 } from "./errors";
 import { clip, emptyVoice, parseVoiceItems, queryOf } from "./list";
+import {
+	type FishModel,
+	type FishSettings,
+	sentText,
+	type TrialRequest,
+	usedSettings,
+} from "./trial-options";
 
 // Fish Audio는 SDK가 초기판이라 REST를 직접 부른다(ADR 0002).
 const FISH_AUDIO_HOST = "https://api.fish.audio";
+
+// 오류 본문 {status, message, reason}의 reason(있으면)
+const fishErrorSchema = z.object({ reason: z.string().min(1) });
+const fishCodes = (body: unknown) => {
+	const reason = fishErrorSchema.safeParse(body).data?.reason;
+	return reason ? [reason] : [];
+};
 
 // credit은 문자열로 온다. 숫자 모양일 때만 받는다. z.coerce.number()는 ""를 0으로 바꾸므로 쓰지 않는다.
 const creditSchema = z.object({ credit: z.string().regex(/^\d+(\.\d+)?$/) });
@@ -125,6 +141,37 @@ export function createFishAudio(apiKey: string): ProviderClient {
 			signal,
 		);
 	return {
+		synthesize: (request: Extract<TrialRequest, { provider: "fish_audio" }>) =>
+			runTrial("fish_audio", async (signal) => {
+				const s = usedSettings(request) as Partial<FishSettings> & {
+					model: FishModel;
+				};
+				const response = await fetchOk(
+					`${FISH_AUDIO_HOST}/v1/tts`,
+					{
+						method: "POST",
+						headers: {
+							Authorization: `Bearer ${apiKey}`,
+							"Content-Type": "application/json",
+							// 늘 보낸다. 빠지거나 모르는 값이면 오류 없이 유료 s2.1-pro로 처리된다(스펙 4절)
+							model: s.model,
+						},
+						// 계약 필드로만 만든다. references(요청 안의 즉석 클론)는 보내지 않는다(tts-provider)
+						body: JSON.stringify({
+							text: sentText(request),
+							reference_id: request.voiceId,
+							temperature: s.temperature,
+							prosody: { speed: s.speed },
+							format: "mp3",
+							mp3_bitrate: 128,
+							latency: "normal",
+						}),
+						signal,
+					},
+					fishCodes,
+				);
+				return new Uint8Array(await response.arrayBuffer());
+			}),
 		checkStatus: () =>
 			runCheck("fish_audio", async (signal) => {
 				const { credit } = creditSchema.parse(

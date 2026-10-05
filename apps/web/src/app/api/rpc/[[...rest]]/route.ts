@@ -13,7 +13,7 @@ const rpcHandler = new RPCHandler(appRouter, {
 	plugins: [new SimpleCsrfProtectionHandlerPlugin()],
 	interceptors: [
 		onError((error) => {
-			// 의도한 4xx 거절(CSRF 403, UNAUTHORIZED, BAD_REQUEST, 공급자 412·429)은 남기지 않는다(AF-11). 그 밖의 오류만 남긴다.
+			// 의도한 4xx 거절(CSRF 403, UNAUTHORIZED, BAD_REQUEST, 공급자 412·429)은 남기지 않는다(AF-11).
 			if (error instanceof ORPCError && error.status < 500) return;
 			if (error instanceof ORPCError) {
 				// 사유가 붙은 공급자 문제(BAD_GATEWAY·GATEWAY_TIMEOUT)는 runList가 필요한 것만 남겼다. 코드·공급자·사유만 한 줄 남긴다.
@@ -22,18 +22,18 @@ const rpcHandler = new RPCHandler(appRouter, {
 					console.error(`[rpc] ${error.code} ${data.provider} ${data.reason}`);
 					return;
 				}
-				// 출력 검증 실패의 cause(ValidationError)는 data에 응답 값이 들어 있다. 코드·메시지·이슈 경로만 한 줄 남긴다.
+				// 출력 검증 실패의 cause(ValidationError)는 data에 응답 값이 들어 있다. 코드·고정 표식·필드 경로만 남긴다.
 				if (error.cause instanceof ValidationError) {
 					const paths = error.cause.issues.map((issue) =>
 						pathToString(issue.path),
 					);
-					console.error(
-						`[rpc] ${error.code} ${error.message}: ${paths.join(", ")}`,
-					);
+					console.error(`[rpc] ${error.code} validation ${paths.join(", ")}`);
 					return;
 				}
 			}
-			console.error(error);
+			console.error(
+				`[rpc] ${error instanceof ORPCError ? error.code : "UNEXPECTED_ERROR"}`,
+			);
 		}),
 	],
 });

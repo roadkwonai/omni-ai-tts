@@ -20,8 +20,18 @@ import {
 	ProviderHttpError,
 	runCheck,
 	runList,
+	runTrial,
 } from "./errors";
 import { clip, emptyVoice, parseVoiceItems, queryOf } from "./list";
+import type { TrialModelRate } from "./trial-contract";
+import {
+	ELEVENLABS_MODELS,
+	type ElevenLabsModel,
+	type ElevenLabsSettings,
+	sentText,
+	type TrialRequest,
+	usedSettings,
+} from "./trial-options";
 
 // 오류 본문 {"detail":{"code","status",...}}에서 코드 후보를 뽑는다(권한 부족은 둘 중 하나에 온다).
 const errorBodySchema = z.object({
@@ -37,6 +47,28 @@ function detailCodes(body: unknown): string[] {
 	const { code, status } = parsed.data.detail;
 	return [code, status].filter((value): value is string => Boolean(value));
 }
+
+// SDK 오류는 상태 코드·공급자 오류 코드·Retry-After만 바꿔 담는다(연결 확인과 시험 생성이 함께 쓴다)
+function toHttpError(error: unknown): never {
+	throw error instanceof ElevenLabsError && error.statusCode !== undefined
+		? new ProviderHttpError(
+				error.statusCode,
+				detailCodes(error.body),
+				error.rawResponse?.headers.get("retry-after") ?? null,
+			)
+		: error;
+}
+// GET /v1/models 항목. 항목마다 검사해 모양이 다르거나 배율이 없는 모델·쓰지 않는 모델은 뺀다
+// (응답 전체를 parse하면 쓰지 않는 모델 하나 때문에 배율 전체가 실패한다, T4 목록과 같은 규칙, 계획 리뷰 E11)
+const modelSchema = z.looseObject({
+	model_id: z.string(),
+	model_rates: z.object({
+		character_cost_multiplier: z.number().positive(),
+		cost_discount_multiplier: z.number().positive().nullish(),
+	}),
+});
+const isTrialModel = (id: string): id is ElevenLabsModel =>
+	(ELEVENLABS_MODELS as readonly string[]).includes(id);
 
 // 목록은 SDK 대신 REST로 부른다: SDK가 응답 전체를 한 번에 검사해 성우 하나의 빠진 필드가 목록 전체를 막는다(T4 계획 '스펙과 다른 점' 1).
 const PAGE_SIZE = 100;
@@ -216,6 +248,8 @@ export function createElevenLabs(apiKey: string): ProviderClient {
 	const client = new ElevenLabsClient({
 		apiKey,
 		environment: ElevenLabsEnvironment.Production,
+		fetch: (input, init) =>
+			globalThis.fetch(input, { ...init, redirect: "error" }),
 	});
 
 	const getJson = (path: string, query: URLSearchParams, signal: AbortSignal) =>
@@ -301,22 +335,64 @@ export function createElevenLabs(apiKey: string): ProviderClient {
 		};
 	}
 	return {
+		synthesize: (request: Extract<TrialRequest, { provider: "elevenlabs" }>) =>
+			runTrial("elevenlabs", async (signal) => {
+				const s = usedSettings(request) as Partial<ElevenLabsSettings> & {
+					model: ElevenLabsModel;
+				};
+				// SDK는 명시적 undefined를 null로 보낸다(설치본 직렬화, 계획 리뷰 E3). 그 모델이 받는 옵션만 키로 남긴다
+				const voiceSettings = Object.fromEntries(
+					Object.entries({
+						stability: s.stability,
+						similarityBoost: s.similarity,
+						style: s.style,
+						speed: s.speed,
+						useSpeakerBoost: s.speakerBoost,
+					}).filter(([, value]) => value !== undefined),
+				);
+				const stream = await client.textToSpeech
+					.convert(
+						request.voiceId,
+						{
+							text: sentText(request),
+							modelId: s.model,
+							outputFormat: "mp3_44100_128",
+							voiceSettings,
+						},
+						// 자동 재시도를 끈다(기본 2회, 408·429·5xx). 시간 제한은 runTrial의 신호로 한다
+						{ maxRetries: 0, abortSignal: signal },
+					)
+					.catch(toHttpError);
+				return new Uint8Array(await new Response(stream).arrayBuffer());
+			}),
+		listModels: () =>
+			runList(
+				"elevenlabs",
+				async (signal): Promise<TrialModelRate[]> =>
+					z
+						.array(z.unknown())
+						.parse(await getJson("/v1/models", new URLSearchParams(), signal))
+						.flatMap((item) => {
+							const model = modelSchema.safeParse(item).data;
+							return model && isTrialModel(model.model_id)
+								? [
+										{
+											model: model.model_id,
+											multiplier:
+												model.model_rates.character_cost_multiplier *
+												(model.model_rates.cost_discount_multiplier ?? 1),
+										},
+									]
+								: [];
+						}),
+			),
 		checkStatus: () =>
 			runCheck("elevenlabs", async (signal) => {
 				// SDK가 응답 전체를 검사한다. 필수 필드가 없거나 숫자가 아니면 ParseError를 던져 확인 실패가 된다.
 				// 재시도는 끈다(기본 2회). 시간 제한은 SDK timeoutInSeconds 대신 runCheck의 신호로 한다.
 				const subscription = await client.user.subscription
 					.get({ maxRetries: 0, abortSignal: signal })
-					.catch((error: unknown) => {
-						throw error instanceof ElevenLabsError &&
-							error.statusCode !== undefined
-							? new ProviderHttpError(
-									error.statusCode,
-									detailCodes(error.body),
-									error.rawResponse?.headers.get("retry-after") ?? null,
-								)
-							: error;
-					});
+					.catch(toHttpError);
 				const { characterCount, characterLimit, maxCreditLimitExtension } =
 					subscription;
 				const remaining = characterLimit - characterCount;

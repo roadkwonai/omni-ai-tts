@@ -1,0 +1,82 @@
+"use client";
+
+import type { ProviderId } from "@tts-pilot-app/api/providers/contract";
+import {
+	codePoints,
+	TRIAL_TEXT_MAX,
+	utf8Bytes,
+} from "@tts-pilot-app/api/providers/trial-options";
+import { Input } from "@tts-pilot-app/ui/components/input";
+import { cn } from "@tts-pilot-app/ui/lib/utils";
+import { Coins, Play } from "lucide-react";
+import { useId, useRef } from "react";
+
+import { plain } from "@/lib/voice-view";
+
+import { useTrial } from "./trial-provider";
+
+// 모든 탭에서 같은 문장. IME 조합 중에는 자르지 않고 완료 시 200코드포인트로 제한한다.
+export function SentenceBar({ provider }: { provider: ProviderId | null }) {
+	const { text, setText } = useTrial();
+	const id = useId();
+	const composing = useRef(false);
+	const count = codePoints(text);
+	const limit = (value: string) => [...value].slice(0, TRIAL_TEXT_MAX).join("");
+	return (
+		<section aria-labelledby={`${id}-label`} className="flex flex-col gap-2">
+			<div className="flex flex-col gap-2 rounded-2xl bg-card p-4 ring-1 ring-border ring-inset md:flex-row md:items-center md:gap-4">
+				<label id={`${id}-label`} htmlFor={id} className="shrink-0 font-bold">
+					내 문장
+				</label>
+				<Input
+					id={id}
+					name="trial-sentence"
+					autoComplete="off"
+					value={text}
+					onCompositionStart={() => {
+						composing.current = true;
+					}}
+					onCompositionEnd={(event) => {
+						composing.current = false;
+						setText(limit(event.currentTarget.value));
+					}}
+					onChange={(event) =>
+						setText(
+							composing.current
+								? event.target.value
+								: limit(event.target.value),
+						)
+					}
+					placeholder="들어 볼 문장을 써 주세요"
+					aria-describedby={`${id}-count ${id}-hint`}
+					className="min-h-11 shrink-0 rounded-xl text-base md:flex-1 md:text-sm"
+				/>
+				<p
+					id={`${id}-count`}
+					className={cn(
+						"shrink-0 self-end text-sm tabular-nums md:self-auto",
+						count >= 190 ? "text-warning" : "text-muted-foreground",
+					)}
+				>
+					{plain.format(count)} / {TRIAL_TEXT_MAX}자
+					{provider === "fish_audio"
+						? ` · ${plain.format(utf8Bytes(text))}바이트`
+						: null}
+				</p>
+			</div>
+			<p id={`${id}-hint`} className="text-muted-foreground text-sm">
+				기본 샘플
+				<Play
+					aria-hidden="true"
+					className="mx-0.5 inline size-3.5 fill-current align-middle"
+				/>
+				은 무료예요. 내 문장 듣기는
+				<Coins
+					aria-hidden="true"
+					className="mx-0.5 inline size-3.5 align-middle text-warning"
+				/>
+				크레딧을 써요(Fish Audio 무료 모델 제외).
+			</p>
+		</section>
+	);
+}

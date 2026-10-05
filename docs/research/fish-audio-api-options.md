@@ -1,6 +1,6 @@
 # Fish Audio TTS API 옵션 조사
 
-확인일: **2026-10-04**(최초 조사 2026-09-28, 연결 확인 절 2026-09-30·2026-10-04). 조사 유형: 공식 API 구현 참조. 시작점은 [API Introduction](https://docs.fish.audio/api-reference/introduction)이며, 먼저 [llms.txt](https://docs.fish.audio/llms.txt) 색인으로 관련 페이지 목록을 확인한 뒤 각 `.md` 페이지와 공개 [OpenAPI](https://api.fish.audio/openapi.json)(39개 경로) 설명을 대조했다. 이는 조회 시점 문서 스냅샷이며 실제 배포 서버 버전을 보장하지 않는다. 2026-09-28판은 일부를 WebFetch 요약으로 적었고, 2026-10-04에 각 `.md`와 OpenAPI 원문을 내려받아 줄 단위로 다시 대조했다. 바뀐 곳은 문서 끝의 "2026-10-04 재확인에서 바뀐 것"에 모았다. 실 API 키로 **읽기 전용·무료 조회**만 수행했다(2026-09-28: 잔액 조회와 성우 목록 조회, 합계 2회. 2026-10-04: 웹 플랜 조회 1회와 성우 목록 조회 5회, 내역 `tasks/evidence/T04/research/calls.md`). 유료·상태 변경 호출(TTS 생성, 클론 생성, 삭제)은 하지 않았다. 실측 값은 "(2026-10-04 실측, 목록 조회)"로 표시한다. "정보 없음"은 공식 문서에서 명시를 찾지 못했다는 뜻이다.
+확인일: **2026-10-05**(최초 조사 2026-09-28, 연결 확인 절 2026-09-30·2026-10-04, T5 약관·무료 모델 재확인 2026-10-05). 조사 유형: 공식 API 구현 참조. 시작점은 [API Introduction](https://docs.fish.audio/api-reference/introduction)이며, 먼저 [llms.txt](https://docs.fish.audio/llms.txt) 색인으로 관련 페이지 목록을 확인한 뒤 각 `.md` 페이지와 공개 [OpenAPI](https://api.fish.audio/openapi.json)(39개 경로) 설명을 대조했다. 이는 조회 시점 문서 스냅샷이며 실제 배포 서버 버전을 보장하지 않는다. 2026-09-28판은 일부를 WebFetch 요약으로 적었고, 2026-10-04에 각 `.md`와 OpenAPI 원문을 내려받아 줄 단위로 다시 대조했다. 2026-10-05에는 무료 모델 안내와 약관을 확인했고 API를 호출하지 않았다. 읽기 전용 실측 내역은 `tasks/evidence/T04/research/calls.md`에 둔다. 초기조사의유료·상태변경(TTS생성/클론/삭제)호출은0이었다. 2026-10-06 사용자승인무료모델TTS1회는아래실측에별도기록한다. 실측 값은 날짜와 조회 종류를 함께 표시한다. "정보 없음"은 공식 문서에서 명시를 찾지 못했다는 뜻이다.
 
 UI 배치는 이 프로젝트를 위한 **제안**이며 Fish Audio 실제 화면 위치를 뜻하지 않는다. `기본`=주 편집 화면, `표현`=감정·말하기 조절, `고급`=접을 수 있는 상세 설정, `서버자동`=사용자 입력 없이 서버가 처리, `후속`=단일 TTS 생성과 분리된 별도 흐름. 이 분류는 구현 우선순위가 아니며, 간편 클로닝의 제품 P0 우선순위는 [요구사항 계획](../plans/tts-service-requirements.md)을 따른다.
 
@@ -432,3 +432,28 @@ QPS/QPM이 아니라 **동시 요청 수(concurrency)** 기준이며, 누적 결
 | 19 | `self=true` | 필터 설명만 | 이 계정의 내 성우는 0명 |
 | 20 | 샘플 주소 | `samples[].audio`가 URL | 실측 호스트 `platform.r2.fish.audio` 97개(쿼리 없음), 샘플 없는 성우 4명. 만료 여부는 정보 없음 |
 | 21 | 동일(재확인) | `model` 헤더 누락·오타는 `s2.1-pro`(유료) 폴백, 가격 $15/M bytes, 동시 요청 5/15/50, 오류 코드 | 변함없음 |
+
+## 2026-10-05 T5 재확인과 구현 대조
+
+무료 모델·생성 계약과 약관을 공식 문서에서 확인했다. API 호출은 하지 않았다.
+
+| 항목 | 확인 및 구현에 반영한 값 | 출처 |
+|---|---|---|
+| `model` 헤더 기본값 | `/v1/tts`에서 헤더를 생략하거나 모르는 모델 이름을 보내면 유료 `s2.1-pro`로 처리될 수 있다. 앱은 `model` 헤더를 항상 명시한다 | [TTS endpoint](https://docs.fish.audio/api-reference/endpoint/openapi-v1/text-to-speech.md), [OpenAPI](https://api.fish.audio/openapi.json) |
+| 무료 모델 조건 | `s2.1-pro-free`는 무료지만 공정 사용 한도·SLA 보장이 없고, 블로그가 무료 기간을 2026-11-30까지로 안내한다. 대본은 모델 개선에 쓰일 수 있고 상업 이용 조건에는 제한 문구가 있다. 무료 경로는 `model` 헤더에 이 이름을 지정하는 것이다 | [Pricing & Rate Limits](https://docs.fish.audio/developer-guide/models-pricing/pricing-and-rate-limits.md), [Models Overview](https://docs.fish.audio/developer-guide/models-pricing/models-overview.md), [S2.1 Pro free API](https://fish.audio/blog/s2-1-pro-free-api/) |
+| 요청 id·history | 네이티브 TTS는 문서화된 요청 id 응답 헤더, 멱등성 키, 생성 기록 조회 API가 없다. 응답을 못 받은 경우 실제 처리 여부를 조회할 수 없다. T5는 같은 소유자·요청 id 재전송을 공급자 호출 전에 막고, 알 수 없는 결과를 자동 재호출하지 않는다 | [OpenAPI](https://api.fish.audio/openapi.json), [TTS endpoint](https://docs.fish.audio/api-reference/endpoint/openapi-v1/text-to-speech.md) |
+| 약관·보관 | Terms of Service에는 Content 저장 제한 문구가 있지만 생성 결과의 소유·서비스 내 재생 권한은 명확히 나뉘지 않는다. 명시적 보관 허용·금지로 단정할 수 없다. 무료 이용은 개인·비상업이며 학습 이용은 약관 일반 조항이다. T5는 결과를 30일 보관하고 사용자가 지운다([ADR 0003](../adr/0003-postgres-cache.md)) | [약관](https://fish.audio/terms/), [개인정보](https://fish.audio/privacy/), [요금제](https://fish.audio/plan/) |
+
+이 프로젝트의 정상 Fish Audio 무료 모델 생성은 확인 창 없이 진행하고 무료 표식을 붙인다. 생성 완료 전에는 무료 모델이 종료됐는지 서버가 확인하며, 종료 뒤에는 공급자를 부르지 않는다. 같은 조합의 저장본 재생은 `trialFind`/`trialAudio`로 앱 DB에서 처리한다.
+
+## T5 승인 무료 생성 실측 (2026-10-06)
+- s2.1-pro-free, 공개성우 announcer Super Smash Bros, “오늘도 만나서 반가워요.”13코드포인트/33UTF-8바이트,속도1·표현력0.70·태그없음. model헤더명시/자동재시도없이1회성공.
+- MP3 2.246438초/35,943바이트/44.1kHz mono128kbps. 앱저장·찾기/오디오조회바이트일치. 로컬전사문장내용일치(마침표생략),사용자청취확인아직없음.
+- 직전/직후/지연조회 API충전잔액0,웹free크레딧10000 유지:관측차이0. API충전잔액0에서도이표본의무료모델은성공했다. 유료모델잔액사용(CS09)은아직검증전이다.
+- 증거 tasks/evidence/T05/real-fish-04-result.json 및MP3/ASR파일. 무료기간/문장개선활용안내와API가격은2026-10-06공식페이지에서다시확인했다. 자동충전·다른모델생성0.
+
+### T5 승인 유료 요청 실측 (2026-10-06)
+- 같은성우·문장33UTF-8바이트·s2.1-pro 유료요청1회(공식$15/100만바이트로예상$0.000495). API충전잔액0/웹free크레딧10000에서공급자잔액부족으로거절됐다. 앱응답 BAD_GATEWAY502/data.reason quota다.
+- 오디오생성없음, SDK/HTTP자동재시도0·충전0. 직전/직후/마지막조회 API0·웹10000유지(관측차감0).
+- 현재free웹크레딧만으로이계정의해당유료API요청을처리하지못했다. 다른웹플랜으로일반화하지않는다. 성공한유료요청의실제차감위치/최소과금단위는확인하지못했으므로 CS09는부분확인으로남긴다.
+- 증거 tasks/evidence/T05/real-fish-05-result.json. 승인된5회실험은끝났으며충전뒤성공실측은사용자의추가승인이필요하다.

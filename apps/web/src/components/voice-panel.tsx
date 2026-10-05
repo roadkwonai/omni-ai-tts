@@ -30,6 +30,8 @@ import {
 } from "@/lib/voice-view";
 
 import { useSample } from "./sample-player";
+import { TrialResults } from "./trial-results";
+import { TrialSection } from "./trial-section";
 import { SampleButton } from "./voice-row";
 
 const SOURCE = { public: "공개 라이브러리", account: "내 계정" } as const;
@@ -192,6 +194,8 @@ export function VoicePanelContent({ voice }: { voice: Voice }) {
 					</ul>
 				</section>
 			) : null}
+			<TrialSection voice={voice} />
+			<TrialResults voice={voice} />
 		</div>
 	);
 }
@@ -248,7 +252,7 @@ export function VoiceSheet({
 								{voice.name}
 							</SheetTitle>
 							<SheetDescription className="sr-only">
-								성우 정보와 기본 샘플
+								성우 정보, 기본 샘플, 내 문장 듣기
 							</SheetDescription>
 						</SheetHeader>
 						<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6">

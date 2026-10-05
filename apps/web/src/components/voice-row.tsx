@@ -4,18 +4,31 @@ import type { Voice } from "@tts-pilot-app/api/providers/contract";
 import { Badge } from "@tts-pilot-app/ui/components/badge";
 import { Button } from "@tts-pilot-app/ui/components/button";
 import { Spinner } from "@tts-pilot-app/ui/components/spinner";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@tts-pilot-app/ui/components/tooltip";
 import { cn } from "@tts-pilot-app/ui/lib/utils";
-import { Play, Square } from "lucide-react";
+import { AudioLines, Coins, Play, Square } from "lucide-react";
 import {
 	type FocusEvent,
 	type KeyboardEvent,
 	type Ref,
 	useId,
+	useRef,
 	useState,
 } from "react";
 
 import { type Cell, type Col, navigate, tabStop } from "@/lib/roving";
 import type { SampleStatus } from "@/lib/sample-state";
+import {
+	needsConfirm,
+	requestOf,
+	TRIAL_SHORT_PROBLEM,
+	trialAriaLabel,
+	trialProblemText,
+} from "@/lib/trial-view";
 import {
 	badgesOf,
 	metaLine,
@@ -25,7 +38,8 @@ import {
 	voiceKey,
 } from "@/lib/voice-view";
 
-import { useSample } from "./sample-player";
+import { usePlayer, useSample } from "./sample-player";
+import { useTrial } from "./trial-provider";
 
 // 행을 고른다(row는 누른 고르기 버튼. 좁은 화면에서 서랍을 닫으면 그리로 포커스를 돌린다)
 export type Select = (voice: Voice, row: HTMLButtonElement) => void;
@@ -38,11 +52,13 @@ const pillClass =
 export function SampleButton({
 	status,
 	subject,
+	describedBy,
 	onToggle,
 	tabIndex,
 }: {
 	status: SampleStatus | "none";
 	subject: string;
+	describedBy?: string;
 	onToggle?: () => void;
 	// 행 목록 안에서는 지금 칸만 0이다(RowList)
 	tabIndex?: number;
@@ -57,6 +73,7 @@ export function SampleButton({
 			className="relative z-10 shrink-0 rounded-full"
 			disabled={status === "none"}
 			aria-label={sampleAriaLabel(status, subject)}
+			aria-describedby={describedBy}
 			aria-busy={status === "loading" || undefined}
 			tabIndex={tabIndex}
 			onClick={onToggle}
@@ -69,6 +86,98 @@ export function SampleButton({
 				<Play aria-hidden="true" className="fill-current" />
 			)}
 		</Button>
+	);
+}
+
+// 행의 '내 문장 듣기'(브리프 12절): 행 격자 셋째 칸. 그 공급자의 지금 설정으로 듣는다.
+// 글자 버튼은 목록 칸 42rem(672px, @2xl) 이상에서만이고, 그 아래는 44px 아이콘 버튼과 툴팁이다(사용자 결정 U1: 1200~1439px에서 이름 칸을 지킨다).
+// 아이콘은 유료면 Coins(경고색), Fish Audio 무료 모델이면 AudioLines다. 어느 너비에서도 유료 표식이 보인다(사용자 결정 U2).
+// 이 성우의 내 문장 결과가 재생 중이면 채운 청록 '정지'가 된다(기본 샘플과 같은 문법, 사용자 결정 U8).
+// 꺼져도 포커스는 받고 마우스를 올리면 툴팁에 이유가 보인다(pointer-events를 끄지 않는다, 계획 리뷰 D18. 누르기는 Base UI focusableWhenDisabled가 막는다)
+function TrialButton({
+	voice,
+	tabIndex,
+	onPick,
+	describedBy,
+}: {
+	voice: Voice;
+	tabIndex: number;
+	// 1200px 이상이면 그 성우를 골라 패널에 결과·오류가 보이게 한다(계획 '스펙과 다른 점' 7)
+	onPick?: () => void;
+	// 행의 실패 전체 문구(계획 리뷰 D4)
+	describedBy?: string;
+}) {
+	const trial = useTrial();
+	const key = voiceKey(voice);
+	const request = requestOf(voice, trial.text, trial.settings);
+	const block = trial.blockOf(voice);
+	const mine = trial.busy?.key === key;
+	const creating = mine && trial.busy?.phase === "creating";
+	const playing = trial.playing(voice);
+	const free = !needsConfirm(request);
+	const reasonId = useId();
+	const describe =
+		[block && !playing ? reasonId : null, describedBy]
+			.filter(Boolean)
+			.join(" ") || undefined;
+	return (
+		<Tooltip>
+			<TooltipTrigger
+				render={
+					<Button
+						variant={playing ? "default" : "outline"}
+						size="lg"
+						className={cn(
+							"relative z-10 @max-2xl:size-11 shrink-0 @max-2xl:px-0",
+							!playing && block !== null && "aria-disabled:opacity-50",
+						)}
+						focusableWhenDisabled
+						disabled={!playing && (block !== null || mine)}
+						tabIndex={tabIndex}
+						aria-label={trialAriaLabel(
+							voice.name,
+							request,
+							playing ? "playing" : creating ? "busy" : "idle",
+						)}
+						aria-describedby={describe}
+						onClick={(event) => {
+							if (playing) {
+								trial.stop();
+								return;
+							}
+							onPick?.();
+							trial.listen(voice, event.currentTarget);
+						}}
+					/>
+				}
+			>
+				{playing ? (
+					<Square aria-hidden="true" className="fill-current" />
+				) : mine ? (
+					<Spinner aria-hidden="true" />
+				) : free ? (
+					<>
+						<AudioLines aria-hidden="true" className="@2xl:hidden" />
+						<Badge variant="success" className="@max-2xl:hidden">
+							무료
+						</Badge>
+					</>
+				) : (
+					<Coins aria-hidden="true" className="text-warning" />
+				)}
+				<span className="@max-2xl:sr-only">
+					{playing ? "정지" : creating ? "만드는 중…" : "내 문장 듣기"}
+				</span>
+			</TooltipTrigger>
+			<TooltipContent>
+				{block && !playing ? block : playing ? "정지" : "내 문장 듣기"}
+			</TooltipContent>
+			{block && !playing ? (
+				<span id={reasonId} className="sr-only">
+					{block}
+				</span>
+			) : null}
+		</Tooltip>
 	);
 }
 
@@ -88,11 +197,18 @@ export function VoiceRow({
 	onSelect: Select;
 	// 1200px 이상에서 고르면 바뀌는 패널(aria-controls). 서랍일 때는 없다
 	panelId?: string;
-	// 목록의 Tab 정지가 이 행이면 그 칸(0 재생, 1 고르기), 아니면 null(두 버튼 모두 tabIndex -1)
+	// 목록의 Tab 정지가 이 행이면 그 칸(0 재생, 1 고르기, 2 내 문장 듣기), 아니면 null(세 버튼 모두 tabIndex -1)
 	tabbable: Col | null;
 }) {
 	const id = useId();
 	const url = voice.previewUrl;
+	const trial = useTrial();
+	const key = voiceKey(voice);
+	const trialProblem = trial.problem(key);
+	const player = usePlayer();
+	const trialPlaying =
+		player.current?.owner === key && player.current.status === "playing";
+	const selectRef = useRef<HTMLButtonElement>(null);
 	// 재생 키는 샘플 주소다. 샘플이 없으면 어떤 키와도 같지 않은 ""
 	const { status, toggle } = useSample(url ?? "");
 	const playing = status === "playing";
@@ -123,7 +239,7 @@ export function VoiceRow({
 				"relative flex min-h-17 items-center gap-3 px-4 py-2 transition-colors",
 				selected ? "bg-primary-subtle" : "hover:bg-muted",
 				// 재생 중: 청록 3px 왼쪽 띠(브리프 3·7절이 정한 표시. craft-floor의 색 있는 왼쪽 테두리 금지보다 브리프가 앞선다)
-				playing &&
+				(playing || trialPlaying) &&
 					"before:absolute before:inset-y-0 before:left-0 before:w-0.75 before:bg-primary",
 			)}
 		>
@@ -142,7 +258,8 @@ export function VoiceRow({
 				aria-labelledby={`${id}-name`}
 				aria-describedby={`${id}-detail`}
 				aria-controls={panelId}
-				tabIndex={tabbable !== null && !playTabbable ? 0 : -1}
+				ref={selectRef}
+				tabIndex={tabbable === 1 || (tabbable === 0 && url === null) ? 0 : -1}
 				onClick={(event) => onSelect(voice, event.currentTarget)}
 				className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-left outline-none after:absolute after:inset-0 focus-visible:after:outline-2 focus-visible:after:outline-ring focus-visible:after:-outline-offset-2"
 			>
@@ -159,7 +276,9 @@ export function VoiceRow({
 								{voice.englishName}
 							</span>
 						) : null}
-						{playing ? <Badge variant="primary">재생 중</Badge> : null}
+						{playing || trialPlaying ? (
+							<Badge variant="primary">재생 중</Badge>
+						) : null}
 					</span>
 					<span
 						id={`${id}-detail`}
@@ -192,6 +311,14 @@ export function VoiceRow({
 						{status === "failed" ? (
 							<span className="shrink-0 text-warning">재생하지 못했어요</span>
 						) : null}
+						{trialProblem ? (
+							<span className="shrink-0 text-warning">
+								{TRIAL_SHORT_PROBLEM}
+								<span id={`${id}-trial`} className="sr-only">
+									: {trialProblemText(voice.provider, trialProblem).text}
+								</span>
+							</span>
+						) : null}
 					</span>
 					{badgeList("flex flex-wrap gap-1 @lg:hidden")}
 				</span>
@@ -210,6 +337,16 @@ export function VoiceRow({
 					{badgeList("flex max-w-full flex-wrap justify-end gap-1")}
 				</span>
 			</button>
+			<TrialButton
+				voice={voice}
+				tabIndex={tabbable === 2 ? 0 : -1}
+				describedBy={trialProblem ? `${id}-trial` : undefined}
+				onPick={
+					panelId
+						? () => selectRef.current && onSelect(voice, selectRef.current)
+						: undefined
+				}
+			/>
 		</article>
 	);
 }
@@ -244,13 +381,13 @@ export function RowList({
 	const keys = voices.map(voiceKey);
 	const stop = tabStop(keys, focused, selectedKey);
 
-	// 포커스한 버튼의 칸: 행 번호와 행 안 버튼 순서(0 재생, 1 고르기)
+	// 포커스한 버튼의 칸: 행 번호와 행 안 버튼 순서(0 재생, 1 고르기, 2 내 문장 듣기)
 	function cellOf(list: HTMLUListElement, target: EventTarget): Cell | null {
 		if (!(target instanceof HTMLButtonElement)) return null;
 		const item = target.closest("li");
 		if (item?.parentElement !== list) return null;
 		const col = [...item.querySelectorAll("button")].indexOf(target);
-		if (col !== 0 && col !== 1) return null;
+		if (col !== 0 && col !== 1 && col !== 2) return null;
 		return { row: [...list.children].indexOf(item), col };
 	}
 	// 사용자가 직접 준 포커스(클릭·Tab·스크립트)는 그 칸을 의도한 칸으로 기억한다

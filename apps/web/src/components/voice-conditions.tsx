@@ -1,5 +1,6 @@
 "use client";
 
+import { Badge } from "@tts-pilot-app/ui/components/badge";
 import { Button } from "@tts-pilot-app/ui/components/button";
 import {
 	DropdownMenu,
@@ -210,32 +211,76 @@ export function SortMenu({
 	sort: { options: Option[]; value: string; onChange: (value: string) => void };
 	disabled: boolean;
 }) {
-	const current =
-		sort.options.find((option) => option.value === sort.value)?.label ??
-		sort.value;
+	return (
+		<RadioMenu
+			label="정렬"
+			separator=": "
+			value={sort.value}
+			options={sort.options}
+			onChange={sort.onChange}
+			disabled={disabled}
+			align="end"
+		/>
+	);
+}
+
+// 한 번에 하나를 고르는 공용 메뉴. 정렬과 패널의 시험 생성 옵션이 함께 쓴다.
+export function RadioMenu<T extends string>({
+	label,
+	value,
+	options,
+	onChange,
+	disabled = false,
+	align,
+	separator = " · ",
+	strong = false,
+}: {
+	label: string;
+	value: T;
+	options: readonly { value: T; label: string; free?: true }[];
+	onChange: (value: T) => void;
+	disabled?: boolean;
+	align?: "start" | "end";
+	separator?: string;
+	strong?: boolean;
+}) {
+	const shown =
+		options.find((option) => option.value === value)?.label ?? value;
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger
 				disabled={disabled}
 				render={
-					<Button variant="outline" size="lg" className={conditionButton(0)} />
+					<Button
+						variant="outline"
+						size="lg"
+						aria-label={`${label}, ${shown} 선택됨`}
+						className={conditionButton(0)}
+					/>
 				}
 			>
-				정렬: {current}
+				<span className="flex min-w-0 items-center">
+					{label}
+					<span className="whitespace-pre">{separator}</span>
+					<span className={cn("max-w-40 truncate", strong && "font-bold")}>
+						{shown}
+					</span>
+				</span>
 				<ChevronDown data-icon="inline-end" aria-hidden="true" />
 			</DropdownMenuTrigger>
-			<DropdownMenuContent className={menuContent} align="end">
+			<DropdownMenuContent className={menuContent} align={align}>
 				<DropdownMenuRadioGroup
-					value={sort.value}
-					onValueChange={(value) => sort.onChange(value)}
+					value={value}
+					onValueChange={(next) => onChange(next as T)}
 				>
-					{sort.options.map((option) => (
+					{options.map((option) => (
 						<DropdownMenuRadioItem
 							key={option.value}
 							value={option.value}
 							closeOnClick
 						>
 							{option.label}
+							{option.free ? <Badge variant="success">무료</Badge> : null}
 						</DropdownMenuRadioItem>
 					))}
 				</DropdownMenuRadioGroup>

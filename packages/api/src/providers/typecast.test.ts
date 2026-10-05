@@ -1,10 +1,14 @@
+import { createRequire } from "node:module";
 import { afterEach, describe, expect, it, vi } from "vitest";
-
 import { CHECK_TIMEOUT_MS } from "./errors";
-import { fetchMock, json, useFetchMock } from "./test-utils";
+import { calledUrl, fetchMock, json, useFetchMock } from "./test-utils";
+import { DEFAULT_SETTINGS, type TypecastSettings } from "./trial-options";
 import { createTypecast } from "./typecast";
 
 const KEY = "typecast-test-key-0001";
+const { TypecastClient: CjsTypecastClient } = createRequire(import.meta.url)(
+	"@neosapience/typecast-js",
+) as typeof import("@neosapience/typecast-js");
 const subscription = (plan_credits: number, used_credits: number) => ({
 	plan: "plus",
 	credits: { plan_credits, used_credits },
@@ -33,13 +37,14 @@ describe("Typecast 연결 확인", () => {
 		});
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 		const [url, init] = fetchMock.mock.calls[0] ?? [];
+		expect(init?.redirect).toBe("error");
 		const target = new URL(String(url));
 		expect(target.origin).toBe("https://api.typecast.ai");
 		expect(target.pathname).toBe("/v1/users/me/subscription");
 		const headers = new Headers(init?.headers);
 		expect(headers.get("x-api-key")).toBe(KEY);
 		expect(headers.get("user-agent")).toContain(
-			"typecast-integration/1 (source=api-docs; generated_by=claude-code)",
+			"typecast-integration/1 (source=api-docs; generated_by=codex)",
 		);
 	});
 
@@ -326,5 +331,133 @@ describe("Typecast 성우 목록", () => {
 		expect(log.mock.calls).toEqual([
 			["[voiceList] typecast 성우 2명 제외: models, voice_id"],
 		]);
+	});
+});
+
+const MP3 = new Uint8Array([0xff, 0xfb, 0x90, 0x64, 9]);
+const audio = () =>
+	new Response(MP3, { status: 200, headers: { "content-type": "audio/mpeg" } });
+const bodyOf = (i = 0) =>
+	JSON.parse(String(fetchMock.mock.calls[i]?.[1]?.body));
+
+describe("Typecast 시험 생성", () => {
+	const synth = (settings: Partial<TypecastSettings> = {}) =>
+		createTypecast(KEY).synthesize?.({
+			provider: "typecast",
+			voiceId: "tc_0001",
+			text: "  안녕하세요 ",
+			settings: { ...DEFAULT_SETTINGS.typecast, ...settings },
+		});
+
+	it("v30 자동 감정: MP3, 받는 옵션만, 언어 자동이면 language를 보내지 않고 바이트를 돌려준다", async () => {
+		fetchMock.mockResolvedValueOnce(audio());
+		await expect(synth({ tempo: 1.2, pitch: 2 })).resolves.toEqual(MP3);
+		expect(fetchMock.mock.calls[0]?.[1]?.redirect).toBe("error");
+		expect(calledUrl().pathname).toBe("/v1/text-to-speech");
+		expect(bodyOf()).toEqual({
+			text: "안녕하세요",
+			voice_id: "tc_0001",
+			model: "ssfm-v30",
+			prompt: { emotion_type: "smart" },
+			output: {
+				audio_format: "mp3",
+				audio_tempo: 1.2,
+				audio_pitch: 2,
+				volume: 100,
+			},
+		});
+	});
+	it("v30 프리셋과 v21, 한국어 고정", async () => {
+		fetchMock.mockImplementation(async () => audio());
+		await synth({
+			emotion: "preset",
+			preset: "happy",
+			intensity: 1.5,
+			language: "kor",
+		});
+		expect(bodyOf(0)).toMatchObject({
+			language: "kor",
+			prompt: {
+				emotion_type: "preset",
+				emotion_preset: "happy",
+				emotion_intensity: 1.5,
+			},
+		});
+		await synth({ model: "ssfm-v21", preset: "sad" });
+		expect(bodyOf(1).prompt).toEqual({
+			emotion_preset: "sad",
+			emotion_intensity: 1,
+		});
+	});
+	it("402는 quota, 422는 공급자 오류 코드를 담은 입력 거절, 500은 한 번만 부른다", async () => {
+		fetchMock.mockResolvedValueOnce(
+			json(402, { detail: "Insufficient credit" }),
+		);
+		await expect(synth()).rejects.toMatchObject({ data: { reason: "quota" } });
+		fetchMock.mockResolvedValueOnce(
+			json(422, { message: "x", error_code: "TEXT_NOT_SYNTHESIZABLE" }),
+		);
+		await expect(synth()).rejects.toMatchObject({
+			data: {
+				reason: "provider_input",
+				providerCode: "TEXT_NOT_SYNTHESIZABLE",
+			},
+		});
+		fetchMock.mockClear();
+		fetchMock.mockResolvedValueOnce(json(500, { detail: "x" }));
+		await expect(synth()).rejects.toMatchObject({
+			data: { reason: "provider_error" },
+		});
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+	it("연결이 끊기면(fetch TypeError) 처리 여부 미확인이고 한 번만 부른다(E1)", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		fetchMock.mockRejectedValueOnce(new TypeError("fetch failed"));
+		await expect(synth()).rejects.toMatchObject({
+			code: "GATEWAY_TIMEOUT",
+			data: { reason: "unknown_outcome" },
+		});
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+	it("리다이렉트 거절은 처리 여부 미확인이고 재전송하지 않는다", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		fetchMock.mockImplementation(async (_url, init) => {
+			if (init?.redirect === "error") throw new TypeError("redirect rejected");
+			return audio();
+		});
+		await expect(synth()).rejects.toMatchObject({
+			code: "GATEWAY_TIMEOUT",
+			data: { provider: "typecast", reason: "unknown_outcome" },
+		});
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("Typecast CJS 전송 경계", () => {
+	it("CJS의 조회와 합성도 전역 fetch를 교체하지 않고 리다이렉트를 막는다", async () => {
+		fetchMock.mockImplementation(async (url) =>
+			new URL(String(url)).pathname.endsWith("/subscription")
+				? json(200, subscription(100, 0))
+				: audio(),
+		);
+		const client = new CjsTypecastClient({
+			apiKey: KEY,
+			baseHost: "https://api.typecast.ai",
+		});
+		await expect(client.getMySubscription()).resolves.toMatchObject({
+			credits: { plan_credits: 100, used_credits: 0 },
+		});
+		const result = await client.textToSpeech({
+			voice_id: "tc_0001",
+			model: "ssfm-v30",
+			text: "안녕",
+			output: { audio_format: "mp3" },
+		});
+		expect(new Uint8Array(result.audioData)).toEqual(MP3);
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+		for (const [, init] of fetchMock.mock.calls) {
+			expect(init?.redirect).toBe("error");
+		}
+		expect(globalThis.fetch).toBe(fetchMock);
 	});
 });

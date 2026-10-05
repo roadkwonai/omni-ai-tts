@@ -33,12 +33,24 @@ describe("행 목록 안 이동(브리프 9절, 격자 패턴)", () => {
 		});
 	});
 
-	it("←→는 같은 행의 재생(0)·고르기(1)다", () => {
+	it("←→는 같은 행의 세 칸을 한 칸씩 이동한다", () => {
 		expect(nextCell("ArrowLeft", { row: 2, col: 1 }, 5)).toEqual({
 			row: 2,
 			col: 0,
 		});
 		expect(nextCell("ArrowRight", { row: 2, col: 0 }, 5)).toEqual({
+			row: 2,
+			col: 1,
+		});
+		expect(nextCell("ArrowRight", { row: 2, col: 1 }, 5)).toEqual({
+			row: 2,
+			col: 2,
+		});
+		expect(nextCell("ArrowRight", { row: 2, col: 2 }, 5)).toEqual({
+			row: 2,
+			col: 2,
+		});
+		expect(nextCell("ArrowLeft", { row: 2, col: 2 }, 5)).toEqual({
 			row: 2,
 			col: 1,
 		});
@@ -171,5 +183,21 @@ describe("방향키 한 번: 의도한 칸 기억(리뷰 판정 2026-10-05)", ()
 		expect(
 			navigate("Enter", { row: 0, col: 0 }, keys, null, playable),
 		).toBeNull();
+	});
+	it("셋째 칸은 세로 이동과 Home·End 및 샘플 없는 행에서도 유지한다", () => {
+		expect(
+			navigate("ArrowDown", { row: 0, col: 2 }, keys, null, playable),
+		).toEqual({ remember: { key: "b", col: 2 }, focus: { row: 1, col: 2 } });
+		expect(
+			navigate("ArrowUp", { row: 2, col: 2 }, keys, null, playable),
+		).toEqual({ remember: { key: "b", col: 2 }, focus: { row: 1, col: 2 } });
+		expect(navigate("Home", { row: 3, col: 2 }, keys, null, playable)).toEqual({
+			remember: { key: "a", col: 2 },
+			focus: { row: 0, col: 2 },
+		});
+		expect(navigate("End", { row: 0, col: 2 }, keys, null, playable)).toEqual({
+			remember: { key: "d", col: 2 },
+			focus: { row: 3, col: 2 },
+		});
 	});
 });

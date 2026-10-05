@@ -1,5 +1,5 @@
-// 행 목록 안 이동(T4 브리프 9절, roving tabindex 격자 패턴). 칸은 행마다 둘이다: 0 재생, 1 고르기(행 안 버튼 순서).
-export type Col = 0 | 1;
+// 행 목록 안 이동. 칸은 0 재생, 1 고르기, 2 내 문장 듣기다.
+export type Col = 0 | 1 | 2;
 export type Cell = { row: number; col: Col };
 
 // ↑↓는 같은 칸의 이전·다음 행, Home·End는 같은 칸의 첫·끝 행, ←→는 같은 행의 재생·고르기. 끝에서는 그 자리에 머문다.
@@ -16,9 +16,9 @@ export function nextCell(key: string, from: Cell, rows: number): Cell | null {
 		case "End":
 			return { row: rows - 1, col: from.col };
 		case "ArrowLeft":
-			return { row: from.row, col: 0 };
+			return { row: from.row, col: Math.max(from.col - 1, 0) as Col };
 		case "ArrowRight":
-			return { row: from.row, col: 1 };
+			return { row: from.row, col: Math.min(from.col + 1, 2) as Col };
 		default:
 			return null;
 	}
@@ -57,6 +57,6 @@ export function navigate(
 	if (!to || toKey === undefined) return null;
 	return {
 		remember: { key: toKey, col: to.col },
-		focus: { row: to.row, col: to.col === 0 && playable(to.row) ? 0 : 1 },
+		focus: { row: to.row, col: to.col === 0 && !playable(to.row) ? 1 : to.col },
 	};
 }

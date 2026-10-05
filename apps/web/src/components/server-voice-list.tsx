@@ -317,6 +317,7 @@ export function ServerVoiceList({
 			) : null}
 			<CastingWorkspace
 				voices={problem ? [] : rows}
+				provider={provider}
 				chosen={chosen}
 				onChoose={onChoose}
 				pending={loading}

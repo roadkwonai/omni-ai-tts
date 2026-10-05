@@ -1,0 +1,185 @@
+import { describe, expect, it } from "vitest";
+
+import {
+	codePoints,
+	comboSignature,
+	DEFAULT_SETTINGS,
+	type ElevenLabsSettings,
+	estimate,
+	FISH_FREE_UNTIL,
+	fieldsOf,
+	fishUsd,
+	freeModelOpen,
+	sentText,
+	snap,
+	type TrialRequest,
+	usedSettings,
+	utf8Bytes,
+} from "./trial-options";
+
+const el = (
+	over: Partial<ElevenLabsSettings> = {},
+	text = "안녕하세요",
+): TrialRequest => ({
+	provider: "elevenlabs",
+	voiceId: "el0001",
+	text,
+	settings: { ...DEFAULT_SETTINGS.elevenlabs, ...over },
+});
+const tc = (
+	over: Partial<typeof DEFAULT_SETTINGS.typecast> = {},
+): TrialRequest => ({
+	provider: "typecast",
+	voiceId: "tc_0001",
+	text: "안녕",
+	settings: { ...DEFAULT_SETTINGS.typecast, ...over },
+});
+const fish = (
+	over: Partial<typeof DEFAULT_SETTINGS.fish_audio> = {},
+	text = "안녕",
+): TrialRequest => ({
+	provider: "fish_audio",
+	voiceId: "a".repeat(32),
+	text,
+	settings: { ...DEFAULT_SETTINGS.fish_audio, ...over },
+});
+
+describe("fieldsOf", () => {
+	it("Typecast v30 자동 감정은 프리셋·강도를 쓰지 않고 v21은 감정 방식이 없다", () => {
+		expect(fieldsOf(tc())).toEqual([
+			"emotion",
+			"language",
+			"tempo",
+			"pitch",
+			"volume",
+		]);
+		expect(fieldsOf(tc({ emotion: "preset" }))).toContain("intensity");
+		expect(fieldsOf(tc({ model: "ssfm-v21" }))).not.toContain("emotion");
+	});
+	it("ElevenLabs 모델마다 받는 옵션이 다르다(스펙 4절)", () => {
+		expect(fieldsOf(el())).toEqual(["stability", "similarity", "tag"]);
+		expect(fieldsOf(el({ model: "eleven_v3" }))).toEqual(["stability", "tag"]);
+		expect(fieldsOf(el({ model: "eleven_multilingual_v2" }))).toEqual([
+			"stability",
+			"similarity",
+			"style",
+			"speed",
+			"speakerBoost",
+		]);
+	});
+});
+
+describe("snap", () => {
+	it("단위로 반올림하고 범위 안에 두며 부동소수 끝자리를 지운다", () => {
+		const range = { min: 0, max: 1, step: 0.05, default: 0.5 };
+		expect(snap(0.1 + 0.2, range)).toBe(0.3);
+		expect(snap(0.33, range)).toBe(0.35);
+		expect(snap(1.2, range)).toBe(1);
+		expect(snap(-3, { min: -12, max: 12, step: 1, default: 0 })).toBe(-3);
+	});
+});
+
+describe("comboSignature (Review Focus 1)", () => {
+	it("같은 소리의 요청은 같은 글자다: 키 순서·받지 않는 옵션·끝자리·NFC·앞뒤 공백·태그 공백", () => {
+		const base = comboSignature(el({ tag: "whispers" }));
+		const reordered: TrialRequest = {
+			provider: "elevenlabs",
+			voiceId: "el0001",
+			text: "안녕하세요",
+			settings: {
+				tag: "whispers",
+				speakerBoost: true,
+				speed: 1,
+				style: 0,
+				similarity: 0.75,
+				stability: 0.5,
+				model: "eleven_v4",
+			},
+		};
+		expect(comboSignature(reordered)).toBe(base);
+		// v4는 스타일·속도를 받지 않는다
+		expect(
+			comboSignature(el({ tag: "whispers", style: 0.9, speed: 1.2 })),
+		).toBe(base);
+		expect(comboSignature(el({ tag: "whispers", stability: 0.1 + 0.4 }))).toBe(
+			base,
+		);
+		expect(comboSignature(el({ tag: "  whispers " }, "  안녕하세요\n"))).toBe(
+			base,
+		);
+		// 분해형 한글(NFD)도 같은 문장이다
+		expect(
+			comboSignature(el({ tag: "whispers" }, "안녕하세요".normalize("NFD"))),
+		).toBe(base);
+	});
+	it("문장·성우·받는 옵션 값이 다르면 다른 글자다", () => {
+		const base = comboSignature(el());
+		expect(comboSignature(el({}, "안녕"))).not.toBe(base);
+		expect(comboSignature({ ...el(), voiceId: "el0002" })).not.toBe(base);
+		expect(comboSignature(el({ stability: 0.6 }))).not.toBe(base);
+		expect(comboSignature(el({ model: "eleven_v3" }))).not.toBe(base);
+	});
+});
+
+describe("usedSettings", () => {
+	it("모델과 받는 옵션만, 정리한 값으로 남긴다", () => {
+		expect(usedSettings(el({ style: 0.9, tag: " sighs " }))).toEqual({
+			model: "eleven_v4",
+			stability: 0.5,
+			similarity: 0.75,
+			tag: "sighs",
+		});
+		expect(
+			usedSettings(tc({ model: "ssfm-v21", preset: "happy", intensity: 1.53 })),
+		).toEqual({
+			model: "ssfm-v21",
+			preset: "happy",
+			intensity: 1.5,
+			language: "auto",
+			tempo: 1,
+			pitch: 0,
+			volume: 100,
+		});
+	});
+});
+
+describe("sentText와 예상 사용량", () => {
+	it("말투 태그는 받는 모델에서만 문장 앞에 붙고 사용량에 든다", () => {
+		expect(sentText(el({ tag: "whispers" }, "안녕"))).toBe("[whispers] 안녕");
+		expect(
+			sentText(
+				el({ model: "eleven_multilingual_v2", tag: "whispers" }, "안녕"),
+			),
+		).toBe("안녕");
+		expect(sentText(fish({ tag: "happy" }))).toBe("[happy] 안녕");
+		expect(estimate(el({ tag: "whispers" }, "안녕"))).toEqual({
+			unit: "credit",
+			amount: 13,
+		});
+	});
+	it("Typecast는 코드 포인트 글자 수, ElevenLabs는 배율을 곱해 올림, 배율이 없으면 1", () => {
+		expect(estimate(tc())).toEqual({ unit: "credit", amount: 2 });
+		expect(codePoints("😀가")).toBe(2);
+		expect(estimate(el({}, "가나다"), 0.5)).toEqual({
+			unit: "credit",
+			amount: 2,
+		});
+		expect(estimate(el({}, "가나다"), null)).toEqual({
+			unit: "credit",
+			amount: 3,
+		});
+	});
+	it("Fish Audio 유료는 UTF-8 바이트(한글 3바이트), 무료 모델은 0", () => {
+		expect(utf8Bytes("안녕")).toBe(6);
+		expect(estimate(fish({ model: "s2.1-pro" }))).toEqual({
+			unit: "byte",
+			amount: 6,
+		});
+		expect(estimate(fish())).toEqual({ unit: "free", amount: 0 });
+		expect(fishUsd(300)).toBeCloseTo(0.0045, 6);
+	});
+	it("무료 모델은 종료일 0시(KST) 전까지만 열려 있다", () => {
+		expect(freeModelOpen(FISH_FREE_UNTIL - 1)).toBe(true);
+		expect(freeModelOpen(FISH_FREE_UNTIL)).toBe(false);
+	});
+});

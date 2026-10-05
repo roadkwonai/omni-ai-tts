@@ -2,10 +2,10 @@
 
 ## 조사 범위와 기준
 
-- 확인일: **2026-10-04 (Asia/Seoul)**. 2026-09-26 최초 조사와 2026-09-30 연결 확인(T2) 위에 2026-10-04 재확인(성우 목록, 내 문장 듣기)을 합쳤다. 최초 조사는 요청된 [TTS 소개](https://elevenlabs.io/text-to-speech-api)와 [API introduction](https://elevenlabs.io/docs/api-reference/introduction)을 먼저 확인했다.
+- 확인일: **2026-10-05 (Asia/Seoul)**. 2026-09-26 최초 조사와 2026-09-30 연결 확인(T2), 2026-10-04 재확인(성우 목록, 내 문장 듣기), 2026-10-05 공식 FAQ·약관 재확인을 합쳤다. 최초 조사는 요청된 [TTS 소개](https://elevenlabs.io/text-to-speech-api)와 [API introduction](https://elevenlabs.io/docs/api-reference/introduction)을 먼저 확인했다.
 - 조사 유형: 구현 참조 및 현재 공식 문서 조사. 중심 계약은 `POST /v1/text-to-speech/{voice_id}`이다. `v1`은 HTTP 경로 버전이며 `eleven_v3` 모델 버전과 다르다.
 - 공식 [Create speech](https://elevenlabs.io/docs/api-reference/text-to-speech/convert), 각 페이지의 `.md`, 공개 [OpenAPI](https://api.elevenlabs.io/openapi.json)를 대조했다. OpenAPI의 `info.version`은 `1.0`이며 배포 날짜나 모델 릴리스를 뜻하지 않는다.
-- **실제 음성 생성, 계정 상태를 바꾸는 호출, 유료 API 호출은 하지 않았다.** 2026-09-26 조사는 공개 문서·스키마 읽기만 수행했다. 2026-10-04 재확인은 공식 문서 `.md`, 공개 OpenAPI, 설치 SDK `.d.ts`를 다시 읽고 **목록 조회만** 실제로 호출했다(공개 라이브러리 `language=ko`, 계정 성우 목록, 한국어 억양 목록). 실측 값은 "(2026-10-04 실측, 목록 조회)"로 표시한다. 따라서 문서 충돌이 있는 합성 동작을 실측 검증했다고 주장하지 않는다.
+- **초기 조사와 2026-10-04 재확인에서는 실제 음성 생성·계정 상태 변경·유료 호출을 하지 않았다.** 2026-10-06 사용자 승인 뒤 계정 성우 `eleven_v4` 생성1회는 아래 실측에 별도로 기록했다. 2026-09-26 조사는 공개 문서·스키마 읽기만 수행했다. 2026-10-04 재확인은 공식 문서 `.md`, 공개 OpenAPI, 설치 SDK `.d.ts`를 다시 읽고 **목록 조회만** 실제로 호출했다(공개 라이브러리 `language=ko`, 계정 성우 목록, 한국어 억양 목록). 실측 값은 "(2026-10-04 실측, 목록 조회)"로 표시한다. 초기 문서 조사만으로 합성 동작을 실측 검증했다고 주장하지 않는다. 이후 승인 실험은 명시한 표본의 결과로만 해석한다.
 - 표의 **배치**는 이 앱을 위한 제안이며 ElevenLabs 실제 화면 위치를 뜻하지 않는다. `기본`=평상시 입력, `표현`=연기·음색, `고급`=접힌 전문 설정, `서버자동`=서버·작업 흐름, `후속`=단일 convert 밖의 별도 흐름 또는 지원 확인이 필요한 도구. **이 분류는 구현 우선순위가 아니다. 음성 복제는 제품 요구의 P0를 유지하며, 우선순위 정본은 계획서다.**
 - 이 문서는 외부 API 계약만 다룬다. 저장소의 현재 구현과 일치하는지는 별도 코드 확인이 필요하다.
 
@@ -467,7 +467,7 @@ HTTP 200, 0.2초(213ms). 6종, 항목 형식 `{accent, language: "ko", code: "ko
 | 단위 | 글자당 과금. 응답 `character-cost` 헤더로 실제 소모를 읽을 수 있다 | [가격 페이지 FAQ](https://elevenlabs.io/pricing/api), [API introduction](https://elevenlabs.io/docs/api-reference/introduction) |
 | UI 크레딧 | UI 생성은 모든 모델이 "1글자 = 1크레딧(크레딧 배율 제외)". API 생성은 할인되며 "API pricing 참고"라고만 적혀 있다 | [모델 안내](https://elevenlabs.io/docs/help-center/technical/what-models-do-you-offer-and-what-is-the-difference-between-them) |
 | API 요금(1,000자) | v4 **$0.022**(72% 할인, 2026-10-12까지, 할인 전 $0.08 표기), v4 Turbo $0.011(같은 할인, 정가 $0.04), v3 $0.08, v3 Conversational $0.04, Multilingual v2 $0.08, Flash/Turbo $0.04. 가격 페이지 FAQ는 "API 사용은 크레딧이 아니라 달러로 청구"라고 적는다 | [API 요금](https://elevenlabs.io/pricing/api) |
-| 모델별 크레딧 배율 | "Flash/Turbo 0.5" 같은 **배율 표는 문서에 없다**(정보 없음). 달러 단가가 Multilingual v2의 절반이라는 사실만 확인된다. 계정이 읽는 `character_count`와 달러 환산의 관계, 구독 플랜 크레딧에서 v4가 며칠 후 정가로 바뀌는 영향은 정보 없음. 실제 값은 `GET /v1/models`의 `model_rates.character_cost_multiplier`·`token_cost_factor`로 읽을 수 있다(값은 미확인) | SDK `ModelRatesResponseModel` |
+| 모델별 크레딧 배율 | `GET /v1/models`의 `model_rates.cost_discount_multiplier`("Discount multiplier applied to cost estimates")를 읽는다. 다른 필드 `character_cost_multiplier`·`token_cost_factor`도 존재한다. 실제 값은 키를 사용한 조회가 필요하므로 조사에서 호출하지 않았다. 플랜 크레딧과 달러 환산의 관계는 정보 없음 | [Models API](https://elevenlabs.io/docs/api-reference/models/list), SDK `ModelRatesResponseModel` |
 | 정규 가격 변동 | v4 할인은 2026-10-12 종료 예정. 예상 비용 표시는 할인 종료 후 바뀔 수 있다 | [API 요금](https://elevenlabs.io/pricing/api) |
 | **사용자 텍스트로 무료 미리듣기** | **없음**. 공식: "There's no way to test or preview a voice using your own text without using credits." 무료 재생성(최대 2회)은 **웹 전용이며 API에는 없다**("not available via the API") | [제품 가이드](https://elevenlabs.io/docs/eleven-creative/playground/text-to-speech) |
 | Voice Design 미리듣기와 구분 | `POST /v1/text-to-voice/design`은 설명문으로 새 성우를 만드는 **다른 기능**이다. 기존 성우를 내 대본으로 듣는 용도가 아니고, 미리듣기 글자 수만큼 크레딧을 쓴다("only charge ... credits to generate your preview text", 3개 샘플에 1회 과금). `eleven_multilingual_ttv_v2`/`eleven_ttv_v3` 모델과 별도 필드 | [Voice Design](https://elevenlabs.io/docs/eleven-creative/voices/voice-design) |
@@ -579,7 +579,7 @@ HTTP 200, 0.2초(213ms). 6종, 항목 형식 `{accent, language: "ko", code: "ko
 
 | 항목 | 상태 |
 | --- | --- |
-| 라이브러리 성우를 add 없이 API로 합성할 수 있는지, 안 되면 오류 코드 | 공식 문서에 없음. 실제 호출로만 확인 가능 |
+| 라이브러리 성우의 add 없는 합성 | 2026-10-06 현재 계정에서 공개 David/eleven_v4/13CP1회 성공. 사전 계정31명에 없었고 별도add호출0이지만 생성 후 계정32명에서 같은id를 관측했다. 다른성우/플랜은미검증 |
 | add 호출이 voice 작업 한도(`voiceAddEditCounter`)에 세어지는지, 응답 `voice_id`가 원본과 같은지 | 정보 없음 |
 | 라이브러리 `locale`에 `ko-KR`을 쿼리로 보낸 동작, `language`·`locale`의 공식 값 목록 | `language=ko`만 실측. 나머지는 공식 enum 없음 |
 | `gender`·`age`·`use_cases`·`descriptives`·`accent` 전체 enum | 스키마에 enum 없음. 한국어 첫 100명의 값만 실측. 전체 5,953명의 분포는 확인하지 않았다 |
@@ -602,3 +602,30 @@ HTTP 200, 0.2초(213ms). 6종, 항목 형식 `{accent, language: "ko", code: "ko
 - 2026-10-04 공개 OpenAPI 재수집. SHA-256: `bcda2b74cf627d3fcbb5f4235bef17845fc823cb5e18a1aaa21362a7cc1702b7`. 필드 수는 같다(body 13, query 3, voice_settings 5, convert 출력 형식 28). 해시가 달라진 원인은 확인하지 않았다(정보 없음).
 - 네 가지 HTTP TTS 경로의 body를 확인했고 효과 파라미터는 없었다. 실제 음성·품질·계정별 권한 검증은 실행하지 않았다.
 - 2026-10-04 실측은 목록 조회 5회다(공개 라이브러리 `language=ko` 2회, 계정 성우 목록 2회, 한국어 억양 목록 1회. 내역 `tasks/evidence/T04/research/calls.md`). 키와 전체 응답은 남기지 않고 통계만 `tasks/evidence/T04/research/list-probe-2026-10-04.json`에 있다(git 제외 증거 폴더).
+
+## 2026-10-05 T5 구현 대조
+
+| 근거 | 구현에 반영한 계약 |
+|---|---|
+| [무료 미리듣기 FAQ](https://elevenlabs.io/docs/help-center/product/core-capabilities/text-to-speech/is-there-a-way-to-preview-audio-without-losing-quota-before-downloading) | 내 텍스트로 듣는 무료 API 경로는 없다. 무료 재생성도 웹 전용이다. T5는 ElevenLabs 생성 전에 확인 창을 표시한다 |
+| [Errors](https://elevenlabs.io/docs/eleven-api/resources/errors) | 402 잔액 부족은 `insufficient_credits`다. `quota_exceeded`는 문서 코드가 아니다 |
+| [Models API](https://elevenlabs.io/docs/api-reference/models/list) | `model_rates.cost_discount_multiplier`를 예상 크레딧 계산에 사용한다. 실제 모델 응답 값은 무료 문서 조사에서 읽지 않았다 |
+| [History API](https://elevenlabs.io/docs/api-reference/history/list) | history 목록·단건·오디오 조회로 완료 기록을 살펴볼 수 있다. 정확한 검색용 `request_id` 필터는 없고 보존 기간도 문서에 없다. 프로젝트는 unknown 상태를 자동 재호출하지 않는다 |
+| 설치 SDK 2.70.0, `errors/handleNonStatusCodeError.js`; `packages/api/src/providers/elevenlabs.ts` | 요청은 `maxRetries: 0`과 60초 `AbortSignal`을 쓴다. SDK의 네트워크 오류는 `statusCode`가 없는 `ElevenLabsError`일 수 있어 처리 여부 미확인으로 매핑한다. 주입한 fetch는 `redirect: "error"`를 적용한다. SDK가 `undefined`를 JSON `null`로 직렬화하므로 voice settings에서는 값이 없는 필드를 빼고 보낸다 |
+| [API 약관](https://elevenlabs.io/terms-of-use), [ElevenAPI Terms](https://elevenlabs.io/elevenapi-terms), [TTS API integration](https://elevenlabs.io/blog/text-to-speech-api-integration) | 저장 허용·금지의 명시 조항은 찾지 못했다. 블로그는 오디오 입력 해시 캐시로 중복 청구를 피하라고 권한다. T5 결과는 앱 DB에 30일 저장되고 사용자 삭제가 가능하다([ADR 0003](../adr/0003-postgres-cache.md)) |
+
+공식 FAQ·오류·history·모델·약관 문서는 2026-10-05에 다시 확인했다. API 키로 모델 조회나 생성은 하지 않았다.
+
+## T5 승인 실측 (2026-10-06)
+
+- 계정 기본 성우 Bella - Professional, Bright, Warm, `eleven_v4`, “오늘도 만나서 반가워요.”13코드포인트, 안정성0.50·유사도0.75·태그없음. 실제생성1회, SDK재시도0.
+- 일반 TTS `convert` 경로에서 성공했다. 이 성우·계정·문장의v4지원은 확인됐으며, 다른성우/스트리밍/발음사전 등의지원까지 일반화하지 않는다.
+- MP3 2.000초,44.1kHz mono 128kbps,33,062바이트. 결과목록저장·찾기·오디오조회바이트일치. 로컬whisper전사가원문과일치하며사용자직접청취확인은아직없다.
+- API모델캐시의 `cost_discount_multiplier` 1을쓴앱예상은13크레딧이었다. 직후잔액38583→38583,지연조회와재확인38582로구독잔액감소1을관측했다. 할인·반영시점·일반과금공식은이표본으로단정하지않는다. 차이조사는T5-05/T9에기록한다.
+- 증거: `tasks/evidence/T05/real-elevenlabs-02-result.json`, `real-elevenlabs-02.mp3`, `real-elevenlabs-02-asr.txt`. 라이브러리계정미추가성우생성은아직승인대기다.
+
+### 공개 라이브러리 승인 실측 (2026-10-06)
+- 공개 David - Warm, Measured and Clear, `eleven_v4`,13CP1회. `freeUsersAllowed=true`,성우배율1. 생성 전 계정전체31명/nextnull에없음을확인했다.
+- 별도add없이일반TTS생성성공1회. MP3 1.840초/30,555바이트/44.1kHz mono 128kbps. 저장·재조회바이트일치, 로컬전사원문일치. 사용자직접청취확인은아직없다.
+- 생성 후캐시무효화·새계정조회는32명이며같은voiceId가포함됐다. 생성과정뒤계정추가상태를관측했고애플리케이션·검증도구의명시적add호출은0이었다. 모든공개성우/플랜에서의보장은아니며voiceAddEditCounter변화는확인하지않았다.
+- 구독잔액38582→38581(감소1관측),앱예상13. T5-05의실측차이를유지한다. 증거 `tasks/evidence/T05/real-elevenlabs-03-result.json` 및MP3/ASR파일.

@@ -9,6 +9,7 @@ import {
 	json,
 	useFetchMock,
 } from "./test-utils";
+import { DEFAULT_SETTINGS, type FishSettings } from "./trial-options";
 
 const KEY = "fish-test-key-0001";
 const check = () => createFishAudio(KEY).checkStatus();
@@ -553,5 +554,69 @@ describe("Fish Audio 목록", () => {
 		);
 		expect((await listFish(fishInput()))?.next).toBe(2);
 		expect((await listFish(fishInput({ page: 2 })))?.next).toBeNull();
+	});
+});
+
+const MP3 = new Uint8Array([0xff, 0xfb, 0x90, 0x64, 9]);
+const audio = () =>
+	new Response(MP3, { status: 200, headers: { "content-type": "audio/mpeg" } });
+const bodyOf = (i = 0) =>
+	JSON.parse(String(fetchMock.mock.calls[i]?.[1]?.body));
+
+describe("Fish Audio 시험 생성 (Review Focus 2)", () => {
+	const synth = (settings: Partial<FishSettings> = {}) =>
+		createFishAudio(KEY).synthesize?.({
+			provider: "fish_audio",
+			voiceId: "f".repeat(32),
+			text: "안녕",
+			settings: { ...DEFAULT_SETTINGS.fish_audio, ...settings },
+		});
+
+	it("두 모델 모두 model 헤더를 그대로 보내고 즉석 클론 필드는 보내지 않는다", async () => {
+		fetchMock.mockImplementation(async () => audio());
+		for (const model of ["s2.1-pro-free", "s2.1-pro"] as const) {
+			fetchMock.mockClear();
+			await expect(synth({ model, tag: "happy", speed: 1.2 })).resolves.toEqual(
+				MP3,
+			);
+			const [url, init] = fetchMock.mock.calls[0] ?? [];
+			expect(String(url)).toBe("https://api.fish.audio/v1/tts");
+			expect(new Headers(init?.headers).get("model")).toBe(model);
+			const body = bodyOf();
+			expect(body).toEqual({
+				text: "[happy] 안녕",
+				reference_id: "f".repeat(32),
+				temperature: 0.7,
+				prosody: { speed: 1.2 },
+				format: "mp3",
+				mp3_bitrate: 128,
+				latency: "normal",
+			});
+			expect(body).not.toHaveProperty("references");
+		}
+	});
+	it("402는 quota, Retry-After 없는 429는 시각 없이 rate_limit", async () => {
+		fetchMock.mockResolvedValueOnce(
+			json(402, { status: 402, message: "x", reason: null }),
+		);
+		await expect(synth()).rejects.toMatchObject({ data: { reason: "quota" } });
+		fetchMock.mockResolvedValueOnce(json(429, { status: 429, message: "x" }));
+		const error = await synth()?.catch((e: unknown) => e);
+		expect(error).toMatchObject({
+			code: "TOO_MANY_REQUESTS",
+			data: { reason: "rate_limit" },
+		});
+		expect(
+			(error as { data: { retryAt?: string } }).data.retryAt,
+		).toBeUndefined();
+	});
+	it("연결이 끊기면(fetch TypeError) 처리 여부 미확인이고 한 번만 부른다(E1)", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		fetchMock.mockRejectedValueOnce(new TypeError("fetch failed"));
+		await expect(synth()).rejects.toMatchObject({
+			code: "GATEWAY_TIMEOUT",
+			data: { reason: "unknown_outcome" },
+		});
+		expect(fetchMock).toHaveBeenCalledTimes(1);
 	});
 });

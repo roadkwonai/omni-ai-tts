@@ -24,10 +24,10 @@ const KEEP_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 // 대기 표에는 1시간 뒤까지만 적는다. providers/errors.ts의 Retry-After 상한과 같고, 이 표에 쓰는 다른 곳(T5 생성)이 긴 값을 넘겨도 풀 방법 없이 며칠씩 막히지 않게 한 번 더 지킨다(계획 리뷰 E16)
 const MAX_COOLDOWN_MS = 60 * 60 * 1000;
 
-// 공개 목록(public·accents)은 ownerId null(소유자끼리 함께 쓴다), 계정 목록은 서버가 정한 소유자.
+// 공개 목록(public·accents·models, models는 ElevenLabs 모델 배율, T5)은 ownerId null(소유자끼리 함께 쓴다), 계정 목록은 서버가 정한 소유자.
 // 계정 행이 ownerId null로 저장되는 실수(남의 계정 목록이 공개로 섞인다)를 타입이 막는다.
 export type CacheScope = { provider: ProviderId } & (
-	| { ownerId: null; kind: "public" | "accents" }
+	| { ownerId: null; kind: "public" | "accents" | "models" }
 	| { ownerId: string; kind: "account" }
 );
 export type Cached<T> = {
@@ -61,27 +61,32 @@ export function cacheKey(params: unknown): string {
 		.digest("hex");
 }
 
+// DB 오류 한 줄. drizzle 오류의 message에는 SQL과 값이 들어 있어 이름과 코드(ECONNREFUSED 등)만 남긴다
+export function logDbFailure(prefix: string, step: string, error: unknown) {
+	const name = error instanceof Error ? error.name : typeof error;
+	const { code, cause } = (error ?? {}) as {
+		code?: unknown;
+		cause?: { code?: unknown };
+	};
+	const tag =
+		typeof cause?.code === "string"
+			? cause.code
+			: typeof code === "string"
+				? code
+				: "";
+	console.error(`${prefix} ${step} 실패: ${name}${tag ? ` ${tag}` : ""}`);
+}
+
 // DB가 꺼져 있거나 실패해도 목록은 보인다: 캐시 없이 공급자를 부른다(T4 계획 '스펙과 다른 점' 2).
-// drizzle 오류의 message에는 SQL과 값이 들어 있어 이름과 코드(ECONNREFUSED 등)만 남긴다.
-async function guard<T>(
+export async function guard<T>(
 	step: string,
 	run: () => Promise<T>,
+	prefix = "[voiceCache]",
 ): Promise<T | undefined> {
 	try {
 		return await run();
 	} catch (error) {
-		const name = error instanceof Error ? error.name : typeof error;
-		const { code, cause } = (error ?? {}) as {
-			code?: unknown;
-			cause?: { code?: unknown };
-		};
-		const tag =
-			typeof cause?.code === "string"
-				? cause.code
-				: typeof code === "string"
-					? code
-					: "";
-		console.error(`[voiceCache] ${step} 실패: ${name}${tag ? ` ${tag}` : ""}`);
+		logDbFailure(prefix, step, error);
 		return undefined;
 	}
 }
@@ -97,7 +102,12 @@ function coalesce<T>(key: string, run: () => Promise<T>): Promise<T> {
 	return started;
 }
 
-async function cooldownOf(db: Database, provider: ProviderId, now: Date) {
+// 목록과 시험 생성(T5)이 함께 쓴다
+export async function cooldownOf(
+	db: Database,
+	provider: ProviderId,
+	now: Date,
+) {
 	const [row] = await db
 		.select({ until: providerCooldown.until })
 		.from(providerCooldown)
@@ -109,6 +119,21 @@ async function cooldownOf(db: Database, provider: ProviderId, now: Date) {
 		)
 		.limit(1);
 	return row?.until ?? null;
+}
+
+// 429 대기 시각을 적는다(목록과 시험 생성이 함께 쓴다). 1시간 뒤까지만(계획 리뷰 E16)
+export async function recordCooldown(
+	db: Database,
+	provider: ProviderId,
+	retryAt: Date,
+) {
+	const until = new Date(
+		Math.min(retryAt.getTime(), Date.now() + MAX_COOLDOWN_MS),
+	);
+	await db
+		.insert(providerCooldown)
+		.values({ provider, until })
+		.onConflictDoUpdate({ target: providerCooldown.provider, set: { until } });
 }
 
 export async function cachedList<T>(
@@ -218,17 +243,12 @@ export async function cachedList<T>(
 		// 사유가 없는 예외(버그)는 그대로 던진다(오류 경계)
 		if (!data?.reason) throw error;
 		if (!dbDown && data.reason === "rate_limit" && data.retryAt) {
-			const until = new Date(
-				Math.min(Date.parse(data.retryAt), Date.now() + MAX_COOLDOWN_MS),
-			);
 			await guard("대기 쓰기", () =>
-				db
-					.insert(providerCooldown)
-					.values({ provider: scope.provider, until })
-					.onConflictDoUpdate({
-						target: providerCooldown.provider,
-						set: { until },
-					}),
+				recordCooldown(
+					db,
+					scope.provider,
+					new Date(Date.parse(data.retryAt as string)),
+				),
 			);
 		}
 		if (fallback) {

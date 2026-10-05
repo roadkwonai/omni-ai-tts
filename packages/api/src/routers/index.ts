@@ -14,6 +14,7 @@ import {
 } from "../providers/contract";
 import { providerError } from "../providers/errors";
 import { cachedList, expireProvider } from "../voice-cache";
+import { trialRouter } from "./trial";
 
 export const appRouter = {
 	healthCheck: publicProcedure.handler(() => {
@@ -87,6 +88,8 @@ export const appRouter = {
 		.handler(({ input, context }) =>
 			expireProvider(context.db, input.provider, context.ownerId),
 		),
+	// 시험 생성 여섯 프로시저(T5)
+	...trialRouter,
 };
 export type AppRouter = typeof appRouter;
 export type AppRouterClient = RouterClient<typeof appRouter>;

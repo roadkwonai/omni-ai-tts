@@ -33,7 +33,7 @@ description: >-
 - 코드 이름도 `GLOSSARY.md`를 따른다. Fish Audio API가 `model`이라 부르는 성우 개체는 코드에서 voice로 부르고, `s1`·`s2.1-pro` 같은 합성 엔진만 model로 부른다.
 
 ## 유료·상태 변경 호출: 생성, 시험 생성, 클론, 클론 삭제
-- 누가 부를 수 있는지부터 막는다. 모든 사용자가 서버 키 하나를 같이 쓴다. 이 호출들을 여는 프로시저는 `protectedProcedure`로만 만들고, 소유자는 `context.ownerId`에서만 얻는다(REQ-01). 과금되지 않는 호출(연결 확인, 성우 목록, 사용량)도 서버 키를 쓰고 계정의 클론 목록을 돌려줄 수 있으므로 `protectedProcedure`로만 연다. 로그인(T14) 전에는 로컬 관리자 모드라서 보호가 네 겹이다. `protectedProcedure`가 production에서 모두 거절하고, 개발 서버는 `127.0.0.1`에서만 열리고, oRPC CSRF 플러그인이 다른 사이트의 호출을 막고, 루프백이 아닌 Host(DNS 리바인딩)에는 소유자를 주지 않는다. 그래서 T14 전에는 배포하지 않고 배포 환경에 공급자 키를 넣지 않는다. T14부터는 공통 미들웨어가 세션 사용자를 서버 환경변수의 허용 목록과 비교해 `FORBIDDEN`을 던지고, 목록이 비면 모두 거부한다. 가입 차단(`disableSignUp`)은 추가 방어일 뿐이다. 가입이 열려 있던 동안 만든 계정은 막지 못하기 때문이다.
+- 누가 부를 수 있는지부터 막는다. 모든 사용자가 서버 키 하나를 같이 쓴다. 이 호출들을 여는 프로시저는 `protectedProcedure`로만 만들고, 소유자는 `context.ownerId`에서만 얻는다(REQ-01). 과금되지 않는 호출(연결 확인, 성우 목록, 사용량)도 서버 키를 쓰고 계정의 클론 목록을 돌려줄 수 있으므로 `protectedProcedure`로만 연다. 로그인(T14) 전에는 로컬 관리자 모드라서 보호가 네 겹이다. `protectedProcedure`가 production에서 모두 거절하고, 개발 서버는 `127.0.0.1`에서만 열리고, oRPC CSRF 플러그인이 다른 사이트의 호출을 막고, 루프백이 아닌 Host(DNS 리바인딩)에는 소유자를 주지 않는다. Better Auth 가입은 현재 열려 있어도 세션은 공급자 권한에 쓰지 않으며 서버가 만든 단일 `context.ownerId`만 권한을 준다. 그래서 T14 전에는 배포하지 않고 배포 환경에 공급자 키를 넣지 않는다. T14부터는 공통 미들웨어가 세션 사용자를 서버 환경변수의 허용 목록과 비교해 `FORBIDDEN`을 던지고, 목록이 비면 모두 거부한다. 가입 차단(`disableSignUp`)은 추가 방어일 뿐이다. 가입이 열려 있던 동안 만든 계정은 막지 못하기 때문이다.
 - 자동 테스트, 타입 검사, 빌드, 브라우저 QA에서는 실제 공급자를 부르지 않는다. 브라우저 QA에서 생성·시험 생성·클론·삭제 버튼은 누르지 않고 그 앞 상태까지만 확인한다.
 - "실제 한국어 생성·청취" 같은 실제 호출 확인은 사용자가 그 호출을 승인한 뒤에만 한다. 승인 요청에는 공급자, 모델, 대본 길이, 호출 횟수를 적는다. 대본 길이는 Fish Audio면 UTF-8 바이트로 적는다. 짧은 대본으로 한 번만 부른다.
 - 증거에는 공급자, 모델, 사용량, 결과 파일 경로를 적는다. 키, 요청 헤더, 전체 응답은 적지 않는다. 청취 결과는 `[confirm]` 행에 사용자가 들은 내용으로 적는다.
@@ -41,11 +41,12 @@ description: >-
 - `bts-implementer`에게는 실제 호출을 맡기지 않는다(외부 서비스 호출 금지 규칙).
 
 ## 중복 과금 막기 (REQ-09, REQ-11)
-- 생성·클론 프로시저는 클라이언트가 사용자 동작 하나에 한 번 만든 요청 id(uuid)를 받는다. 재전송할 때는 같은 값을 쓴다. 서버는 `(userId, requestId)` 유니크 제약이 있는 기록 행을 공급자 호출 **전에** insert해 선점한다. 충돌하면 공급자를 부르지 않고 기존 행의 상태나 결과를 돌려준다. 같은 id에 다른 입력이 오면 `BAD_REQUEST`다. 조회한 뒤 호출하는 방식은 동시에 들어온 두 요청을 막지 못한다. 버튼 잠금은 보조 수단이다.
-- 사용자별 동시 진행은 1건이다. 이것도 조회로 확인하지 않고 선점 insert에서 막는다. 예를 들어 진행 중 상태에만 거는 `userId` 부분 유니크 인덱스를 두고, 충돌하면 `TOO_MANY_REQUESTS`다. 함수 최대 실행 시간(ADR 0002: 300초)보다 오래 진행 중인 행은 "처리 여부 미확인"으로 옮겨 다음 요청을 막지 않게 한다.
+- 생성·클론 프로시저는 클라이언트가 사용자 동작 하나에 한 번 만든 요청 id(uuid)를 받는다. 재전송할 때는 같은 값을 쓴다. 서버는 소유자별 `(owner_id, request_id)` 유니크 제약이 있는 기록 행을 공급자 호출 **전에** insert해 선점한다. 충돌하면 공급자를 부르지 않고 기존 행의 상태나 결과를 돌려준다. 같은 id에 다른 입력이 오면 `BAD_REQUEST`다. 조회한 뒤 호출하는 방식은 동시에 들어온 두 요청을 막지 못한다. 버튼 잠금은 보조 수단이다.
+- T5 순서: 키 없음·무료 모델 종료 검사는 기존 요청 재생보다 먼저 한다. 이미 선점된 같은 요청 id는 429 대기 조회보다 먼저 기존 상태·결과를 재생하고, 새 요청만 대기 시각을 확인한다.
+- 사용자별 동시 진행은 1건이다. 이것도 조회로 확인하지 않고 선점 insert에서 막는다. T5는 진행 중 상태에만 거는 `owner_id` 부분 유니크 인덱스를 쓰고, 충돌하면 `TOO_MANY_REQUESTS`다. 5분 지난 pending 행은 "처리 여부 미확인"으로 옮겨 다음 요청을 막지 않게 한다.
 - 공급자 429의 `Retry-After` 시각은 공급자별로 DB에 두고, 그 전에는 다시 부르지 않는다. 서버리스 인스턴스끼리 메모리를 나누지 않기 때문이다. 잔액·인증·입력 오류는 사용자가 조치하기 전에 반복하지 않는다.
 - 생성·클론 호출은 SDK 자동 재시도를 끈다. ElevenLabs SDK는 408·429·5xx에서 기본 2회 다시 보내므로 요청 옵션에 `maxRetries: 0`을 준다. 과금이 없는 조회 호출은 재시도해도 된다. 다만 성우 목록은 아래 "목록 규칙"대로 자동 재시도하지 않는다.
-- 타임아웃이나 연결 끊김은 실패가 아니라 "처리 여부 미확인"이다. 자동으로 다시 생성하지 않는다. 사용자에게 상태를 알리고, 공급자가 기록을 조회할 수 있으면 확인한 뒤 다시 할지 사용자가 정한다.
+- 공급자 응답 상태 코드를 받지 못한 실패는 "처리 여부 미확인"이다. SDK가 연결 끊김을 statusCode 없는 오류로 바꿔 던질 수 있으므로 네트워크 오류도 포함한다. 자동으로 다시 생성하지 않는다. 일반 재시도는 먼저 같은 조합의 저장본을 찾아 재생하고, 없으면 확인 후 다시 만든다. 명시적 새로 만들기만 저장본 조회를 건너뛴다. T5는 완료 저장이 실패해도 받은 오디오를 반환하고, 그 기록은 pending으로 남아 뒤에 unknown 처리된다.
 
 ## 오류 매핑
 공급자 문제를 `UNAUTHORIZED`나 `FORBIDDEN`으로 던지지 않는다. 클라이언트가 로그인 만료로 처리한다. 아래 코드에 `data: { provider, reason }`을 붙여 던지고, 화면은 `reason`으로 안내를 고른다.
@@ -60,11 +61,11 @@ description: >-
 | 5xx | `BAD_GATEWAY` | `provider_error` |
 | 타임아웃, 연결 끊김 | `GATEWAY_TIMEOUT` | `unknown_outcome` |
 
-- 판정은 `packages/api/src/providers/errors.ts`의 `reasonFromHttp`가 한다. SDK 오류는 `ProviderHttpError`(상태 코드, 공급자 오류 코드, `Retry-After`)로 바꿔 담는다.
+- 판정은 `packages/api/src/providers/errors.ts`의 `reasonFromHttp`가 한다. SDK 오류는 `ProviderHttpError`(상태 코드, 공급자 오류 코드, `Retry-After`)로 바꿔 담는다. 로그에는 허용한 오류 코드·공급자·정규화된 사유 또는 검증 필드 경로만 남긴다. 문장, SQL, 연결 문자열, 키, SDK 오류 객체와 cause, 응답 본문·헤더, 오류 메시지는 로그에 남기지 않는다.
 - 연결 확인(`providerStatus`)은 던지지 않고 연결 상태 값으로 돌려준다(`runCheck`). 입력 거절(400·422)과 표에 없는 상태는 `check_failed`다. 이 확인의 시간 초과·연결 끊김은 `unknown_outcome`이 아니라 `check_failed`다. 상태를 바꾸지 않는 조회라 처리 여부를 따질 필요가 없다.
 - 목록·생성처럼 결과가 필요한 호출은 `runList`처럼 사유를 붙여 던진다(`providers/errors.ts`). 목록 조회의 시간 초과·연결 끊김은 T3 스펙 4절대로 `GATEWAY_TIMEOUT`·`unknown_outcome`(화면 문구 '응답하지 않아요')이고, 응답 검증 실패는 `provider_error`다.
 - 목록 응답은 항목 단위로 검사한다. 응답 모양(배열이 아님, 유형 필드 없음)이 어긋나면 `provider_error`, 성우 하나가 어긋나면 그 성우만 빼고 뺀 수와 필드 이름만 한 줄 남긴다(`[voiceList] typecast 성우 N명 제외: voice_name`). 샘플 주소만 어긋나면(https가 아니거나 공급자 호스트 typecast.ai가 아님) 그 성우의 샘플을 null로 둔다. 모두 빠지면 `provider_error`다.
-- SDK 오류 객체를 `cause`로 넘기거나 그대로 로그에 쓰지 않는다. rpc 라우트의 `onError`는 의도한 4xx를 남기지 않고, 사유(`data.reason`)가 붙은 공급자 오류는 `[rpc] 코드 공급자 사유` 한 줄만 남긴다. 그 밖의 오류만 오류 전체를 `console.error`한다. 로그에는 공급자, 상태 코드, 공급자 오류 코드만 남긴다.
+- SDK 오류 객체를 `cause`로 넘기거나 그대로 로그에 쓰지 않는다. rpc 라우트의 `onError`는 의도한 4xx를 남기지 않고, 사유(`data.reason`)가 붙은 공급자 오류는 `[rpc] 코드 공급자 사유` 한 줄만 남긴다. 출력 검증 오류는 오류 코드, 고정 표식 `validation`, 필드 경로만 남긴다. 그 밖의 오류는 ORPC 코드 또는 고정 코드 `UNEXPECTED_ERROR`만 남긴다. `error.message`나 원시 오류 객체는 기록하지 않는다.
 - 한 공급자의 장애가 다른 공급자의 목록이나 생성을 막지 않게 공급자별로 따로 처리한다(REQ-02).
 
 ## 목록 규칙 (T4)
@@ -81,7 +82,7 @@ description: >-
 
 ## 클론 보이스와 공급자 리소스 소유권 (REQ-01, REQ-13)
 - 모든 사용자가 공급자 계정 하나(서버 키)를 같이 쓴다. 그래서 계정 단위 목록에는 모든 사용자의 클론이 섞인다. ElevenLabs 계정 성우, Fish Audio 내 모델, Typecast custom voice 목록이 그렇고, Typecast 기본 목록 `GET /v3/voices`도 완료된 커스텀 성우를 함께 돌려준다. 이 목록을 그대로 보여 주거나 허용 목록으로 쓰지 않는다.
-- 예외(T4, 2026-10-04 사용자 결정): 이 앱은 소유자가 한 명이라(REQ-01) 성우 캐스팅의 '내 계정'에 계정 성우 목록(ElevenLabs `/v2/voices`, Fish Audio `self=true`)을 그대로 보인다. 보이기만 하고, 그 성우로 합성할 수 있는지는 아래 허용 판정(T5)이 정한다. 목록 캐시의 계정 행은 소유자별로 나눈다. 허용 목록이 두 명 이상이 되면(T14 이후) 이 예외의 근거가 사라지므로 '내 계정'을 숨기거나 소유 매핑으로 거른다(로드맵 T14 메모).
+- 예외(T4 목록, T5 듣기): 앱의 공급자 권한은 development·test의 루프백 Host에서 서버가 정한 단일 `context.ownerId`에서 온다. 가입은 열려 있어도 Better Auth 세션은 공급자 권한에 쓰지 않는다. 현재 이 한 명 소유 예외에서는 `ownerId`가 있는 요청의 계정 성우를 보여 주며, 내 문장 듣기는 성우 소유권을 조회하지 않고 공급자의 거절(과금 없는 오류)에 맡긴다. 목록 캐시의 계정 행은 소유자별이다. 아래의 일반적인 모든 voice id 서버 조회 규칙은 이 단일 소유 예외가 끝난 뒤, 허용 소유자가 둘 이상이 되거나 T14 세션 권한을 도입할 때 적용한다. 그때는 클론 voice id를 앱 소유 매핑 또는 공급자 공개 성우 기준으로 검사한다(로드맵 T14 메모).
 - 클론은 앱 DB의 소유 매핑(`userId`, 공급자, 공급자 voice id)으로 관리한다. 매핑의 voice id는 앱이 부른 클론 생성의 응답에서만 기록한다. voice id를 입력받아 기존 클론을 내 것으로 등록하는 기능은 만들지 않는다. 공용 계정에서는 id를 아는 사람이 남의 클론을 먼저 가져갈 수 있다. 앱 밖(공급자 웹)에서 만든 클론을 가져와야 하면 구현 전에 사용자에게 묻는다(REQ-13 7번: 자동 소유자 배정 금지).
 - 합성과 시험 생성: 요청에 들어가는 모든 voice id(Fish Audio `reference_id` 배열 포함)를 검사한다. 판정에는 서버가 그 id로 직접 조회한 결과만 쓴다. 클라이언트가 보낸 유형 값이나 목록은 믿지 않는다. 허용하는 경우는 둘이고, 둘 다 아니면 공급자를 부르지 않고 `NOT_FOUND`다.
   - 세션 사용자의 매핑에 있고 상태가 "사용 가능"인 클론. 처리 중, 실패, 삭제 대기면 거절한다(REQ-13 9번: 삭제 요청 뒤 신규 합성 차단).
@@ -114,8 +115,8 @@ description: >-
 ## 확인한 SDK 동작 (2026-09-28, 2026-09-30, 2026-10-04, npm 패키지 소스)
 | SDK | 판 | 동작 |
 |---|---|---|
-| `@elevenlabs/elevenlabs-js` | 2.70.0 | 기본 `maxRetries` 2, 408·429·5xx 재시도(요청 옵션 `maxRetries: 0`으로 끈다). 키가 없으면 `process.env.ELEVENLABS_API_KEY`, 그래도 없으면 생성자가 예외. 요청 옵션 `maxRetries`·`abortSignal`·`timeoutInSeconds`(기본 240초). 구독 조회 `user.subscription.get()`은 응답 전체(필수 필드 20개)를 스키마로 검사하고(어긋나면 `ParseError`) camelCase로 준다. 목록 응답 전체 검사(`parseOrThrow`): `voices.search`·`voices.getShared`도 응답 전체를 한 번에 검사해 성우 하나의 필드가 어긋나도 호출 전체가 실패하고, 검사를 끄는 옵션은 없다(옵션이 SDK 안에 고정되어 있다). HTTP 오류는 `ElevenLabsError`(`statusCode`, `body`, `rawResponse.headers`), `abortSignal`로 끊으면 `statusCode` 없는 `ElevenLabsError`. SDK 로그는 기본으로 꺼져 있다. HTTP는 호출 시점의 전역 `fetch` |
-| `@neosapience/typecast-js` | 0.4.15 | 키가 없으면 `process.env.TYPECAST_API_KEY`(없어도 헤더 없이 요청), 호스트는 `TYPECAST_API_HOST`. 생성자 `{ apiKey, baseHost, source, generatedBy }`에서 `source`와 `generatedBy`는 함께 줘야 하고 형식이 틀리면 생성자가 예외(연동 식별은 `source: "api-docs"`, 작성 에이전트 토큰). 시간 제한·취소·재시도·응답 검증이 없다. 구독 조회 `getMySubscription()`. HTTP 오류는 `TypecastAPIError`(`statusCode`, `response`)이고 응답 헤더는 없다. 클론 파일 상한 25MB, 문자열 인자를 파일 경로로 읽음. `getVoicesV3` 필터 타입에 `voice_type` 없음. HTTP는 호출 시점의 전역 `fetch`. 0.4.15: TTS 요청에서 `seed`를 보내지 않는다 |
+| `@elevenlabs/elevenlabs-js` | 2.70.0 | 기본 `maxRetries` 2, 408·429·5xx 재시도(요청 옵션 `maxRetries: 0`으로 끈다). 키가 없으면 `process.env.ELEVENLABS_API_KEY`, 그래도 없으면 생성자가 예외. 요청 옵션 `maxRetries`·`abortSignal`·`timeoutInSeconds`(기본 240초). 네트워크 오류는 `errors/handleNonStatusCodeError.js` 경로에서 `statusCode` 없는 `ElevenLabsError`로 던질 수 있다. 프로젝트는 합성마다 `maxRetries: 0`, 60초 `AbortSignal`, fetch `redirect: "error"`를 적용한다. `undefined` 필드는 SDK 직렬화 때 `null`이 되므로 요청에서 생략한다. 구독 조회 `user.subscription.get()`과 voice 목록은 응답 전체를 검사한다. HTTP는 호출 시점의 전역 `fetch` |
+| `@neosapience/typecast-js` | 0.4.15 | 키가 없으면 `process.env.TYPECAST_API_KEY`(없어도 헤더 없이 요청), 호스트는 `TYPECAST_API_HOST`. 생성자 `{ apiKey, baseHost, source, generatedBy }`에서 `source`와 `generatedBy`는 함께 줘야 하고 형식이 틀리면 생성자가 예외(연동 식별은 `source: "api-docs"`, `generatedBy: "codex"`). SDK에는 시간 제한·취소·재시도·응답 검증이 없다. 구독 조회 `getMySubscription()`. HTTP 오류는 `TypecastAPIError`(`statusCode`, `response`)이고 응답 헤더가 없어 `Retry-After`를 읽지 못한다. 프로젝트는 설치본 fetch를 `redirect: "error"`로 패치했다. T5 대기 종료 뒤에도 공급자 요청은 계속될 수 있다. SDK는 TTS `seed`를 보내지 않는다 |
 
 판을 올리면 이 표를 다시 확인한다.
 

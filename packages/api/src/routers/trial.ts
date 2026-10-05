@@ -1,0 +1,219 @@
+import { ORPCError } from "@orpc/server";
+import { z } from "zod";
+
+import type { Context } from "../context";
+import { protectedProcedure } from "../index";
+import { providerIdSchema } from "../providers/contract";
+import { logFailure, providerError, trialError } from "../providers/errors";
+import {
+	type TrialErrorData,
+	trialAudioSchema,
+	trialCreateInputSchema,
+	trialItemSchema,
+	trialModelRateSchema,
+	trialRequestSchema,
+	voiceIdSchema,
+} from "../providers/trial-contract";
+import {
+	estimate,
+	freeModelOpen,
+	isFreeModel,
+} from "../providers/trial-options";
+import {
+	audioFile,
+	audioOf,
+	claim,
+	comboKey,
+	complete,
+	findSaved,
+	listResults,
+	remove,
+	replay,
+	replayRequest,
+	settle,
+	sweep,
+	withStorage,
+} from "../trial";
+import { cachedList, cooldownOf, guard, recordCooldown } from "../voice-cache";
+
+// 공급자 응답 오디오 상한. 200자 MP3는 1MB 안팎이다(스펙 4절, Vercel 응답 4.5MB). Typecast MP3는 320kbps라
+// 200자를 속도 0.5로 들으면 상한에 닿을 수 있다. 넘으면 이미 과금된 결과라도 버리고 "문장을 줄이거나 속도를 올려"를 보인다(계획 리뷰 E8)
+const MAX_AUDIO_BYTES = 4 * 1024 * 1024;
+
+// ElevenLabs 모델 크레딧 배율. 목록 캐시(24시간, 소유자 없음)를 거친다
+async function elevenLabsRates(context: Context) {
+	const listModels = context.providers?.elevenlabs?.listModels;
+	if (!listModels) throw providerError("elevenlabs", "no_key");
+	return cachedList(
+		context.db,
+		{ ownerId: null, provider: "elevenlabs", kind: "models" },
+		{},
+		z.array(trialModelRateSchema),
+		listModels,
+	);
+}
+
+// 시험 생성('내 문장 듣기', T5 스펙 5절). 크레딧을 쓰는 길은 trialCreate 하나다. 나머지는 DB만 본다(trialModels는 무료 목록 조회)
+export const trialRouter = {
+	trialModels: protectedProcedure
+		.output(z.object({ rates: z.array(trialModelRateSchema) }))
+		.handler(async ({ context }) => ({
+			rates: (await elevenLabsRates(context)).value,
+		})),
+	// 같은 조합의 저장된 결과. 공급자를 부르지 않는다
+	trialFind: protectedProcedure
+		.input(trialRequestSchema)
+		.output(trialAudioSchema.nullable())
+		.handler(({ input, context }) =>
+			withStorage(input.provider, () =>
+				findSaved(context.db, context.ownerId, comboKey(input)),
+			),
+		),
+	trialCreate: protectedProcedure
+		.input(trialCreateInputSchema)
+		.output(trialAudioSchema)
+		.handler(async ({ input: { requestId, request }, context }) => {
+			const { provider } = request;
+			const { db, ownerId } = context;
+			// 무료 모델은 종료일(하루 이르게)부터 보내지 않는다. 공급자에서 없어진 모델 이름은 오류 없이 유료로 처리된다(스펙 13절)
+			if (isFreeModel(request) && !freeModelOpen())
+				throw trialError(provider, "free_ended");
+			const synthesize = context.providers?.[provider]?.synthesize;
+			if (!synthesize) throw trialError(provider, "no_key");
+			const key = comboKey(request);
+			const existing = await withStorage(provider, () =>
+				replayRequest(db, ownerId, requestId, key, provider),
+			);
+			if (existing) return existing;
+			// 대기 시각 표를 읽지 못하면 부르지 않는다(로드맵 T5 메모)
+			const until = await withStorage(provider, () =>
+				cooldownOf(db, provider, new Date()),
+			);
+			if (until)
+				throw trialError(provider, "rate_limit", {
+					retryAt: until.toISOString(),
+				});
+			// 일반 배율 조회 실패는 배율 1로 계속하지만 429와 대기 시각은 버리지 않는다.
+			let rate: number | null = null;
+			let modelRetryAt: string | null | undefined;
+			if (request.provider === "elevenlabs") {
+				try {
+					const models = await elevenLabsRates(context);
+					rate =
+						models.value.find((r) => r.model === request.settings.model)
+							?.multiplier ?? null;
+					if (models.stale?.reason === "rate_limit")
+						modelRetryAt = models.stale.retryAt;
+				} catch (error) {
+					const data =
+						error instanceof ORPCError
+							? (error.data as Partial<TrialErrorData> | undefined)
+							: undefined;
+					if (data?.reason === "rate_limit")
+						modelRetryAt = data.retryAt ?? null;
+				}
+			}
+			const latestUntil = await withStorage(provider, () =>
+				cooldownOf(db, provider, new Date()),
+			);
+			if (latestUntil)
+				throw trialError(provider, "rate_limit", {
+					retryAt: latestUntil.toISOString(),
+				});
+			if (modelRetryAt !== undefined)
+				throw trialError(provider, "rate_limit", {
+					retryAt: modelRetryAt ?? undefined,
+				});
+			const usage = estimate(request, rate);
+			const claimed = await withStorage(provider, () =>
+				claim(db, {
+					ownerId,
+					requestId,
+					request,
+					key,
+					usage,
+				}),
+			);
+			if (claimed.kind === "existing") return replay(provider, claimed.row);
+			let audio: Uint8Array;
+			try {
+				audio = await synthesize(request);
+				if (audio.byteLength > MAX_AUDIO_BYTES) {
+					throw trialError(provider, "provider_input", {
+						providerCode: "audio_too_large",
+					});
+				}
+			} catch (error) {
+				// runTrial이 모든 실패를 사유 있는 ORPCError로 바꾼다. 그래도 아닌 예외가 오면 응답을 받았는지 모르므로
+				// 처리 여부 미확인으로 기록하고 원래 오류는 던지지 않는다(계획 리뷰 E1)
+				if (!(error instanceof ORPCError))
+					logFailure(`[trial] ${provider} 생성 실패`, error, []);
+				const failure =
+					error instanceof ORPCError
+						? error
+						: trialError(provider, "unknown_outcome");
+				const data = failure.data as Partial<TrialErrorData> | undefined;
+				const reason = data?.reason ?? "provider_error";
+				await guard(
+					"실패 기록",
+					() =>
+						settle(
+							db,
+							ownerId,
+							claimed.id,
+							reason === "unknown_outcome" ? "unknown" : "failed",
+							reason,
+						),
+					"[trial]",
+				);
+				const retryAt = data?.retryAt;
+				if (reason === "rate_limit" && retryAt) {
+					await guard(
+						"대기 쓰기",
+						() => recordCooldown(db, provider, new Date(retryAt)),
+						"[trial]",
+					);
+				}
+				throw failure;
+			}
+			// 결과를 저장하지 못해도 오디오는 돌려준다(스펙 5절). 그 행은 pending으로 남고 5분 뒤 unknown이 된다
+			await guard(
+				"완료 기록",
+				async () => {
+					await complete(db, ownerId, claimed.id, audio);
+					await sweep(db, ownerId);
+				},
+				"[trial]",
+			);
+			return {
+				id: claimed.id,
+				createdAt: claimed.createdAt,
+				usage,
+				audio: audioFile(audio),
+			};
+		}),
+	trialList: protectedProcedure
+		.input(z.object({ provider: providerIdSchema, voiceId: voiceIdSchema }))
+		.output(z.array(trialItemSchema))
+		.handler(({ input, context }) =>
+			withStorage(input.provider, () =>
+				listResults(context.db, context.ownerId, input.provider, input.voiceId),
+			),
+		),
+	trialAudio: protectedProcedure
+		.input(z.object({ id: z.uuid() }))
+		.output(trialAudioSchema)
+		.handler(({ input, context }) =>
+			withStorage(undefined, () =>
+				audioOf(context.db, context.ownerId, input.id),
+			),
+		),
+	trialDelete: protectedProcedure
+		.input(z.object({ id: z.uuid() }))
+		.output(z.object({ deleted: z.literal(true) }))
+		.handler(async ({ input, context }) => ({
+			deleted: await withStorage(undefined, () =>
+				remove(context.db, context.ownerId, input.id),
+			),
+		})),
+};

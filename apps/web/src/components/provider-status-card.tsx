@@ -15,10 +15,18 @@ import {
 } from "@tts-pilot-app/ui/components/card";
 import { Skeleton } from "@tts-pilot-app/ui/components/skeleton";
 import { Spinner } from "@tts-pilot-app/ui/components/spinner";
+import { cn } from "@tts-pilot-app/ui/lib/utils";
 import { CircleCheck, KeyRound, TriangleAlert } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useId } from "react";
 
-import { isUpcoming, PROVIDER_LABEL } from "@/lib/connection-view";
+import {
+	isUpcoming,
+	PROVIDER_LABEL,
+	recheckUntil,
+} from "@/lib/connection-view";
+import { retryTime } from "@/lib/voice-view";
+
+import { lockedButton, useCooldown } from "./voice-problem";
 
 // 키 없음 안내에 보이는 변수 이름(apps/web/.env.schema). 키 값은 어디에도 보이지 않는다.
 const ENV_KEY: Record<ProviderId, string> = {
@@ -71,10 +79,11 @@ function timeText(at: Date): string {
 // 브리프 6절 문구. 연결됨과 키 없음은 따로 그린다.
 function reasonText(
 	provider: ProviderId,
-	{ status, retryAfterSeconds, checkedAt }: ProviderStatusResult,
+	result: ProviderStatusResult,
 ): string | null {
 	const name = PROVIDER_LABEL[provider];
-	switch (status) {
+	const until = recheckUntil(result);
+	switch (result.status) {
 		case "provider_auth":
 			return `키가 틀렸거나 만료됐어요. ${name} 대시보드에서 키를 확인해 주세요.`;
 		case "no_permission":
@@ -82,10 +91,9 @@ function reasonText(
 		case "quota":
 			return `남은 사용량이 없어요. ${name}에서 플랜이나 충전 상태를 확인해 주세요.`;
 		case "rate_limit":
-			// 기다릴 초를 받으면 확인 시각에 더한 시각을 보인다.
-			return retryAfterSeconds === null
-				? "잠시 뒤 다시 확인해 주세요."
-				: `${timeText(new Date(Date.parse(checkedAt) + retryAfterSeconds * 1000))} 이후 다시 확인해 주세요.`;
+			return until !== null
+				? `${retryTime(until)} 이후 다시 확인할 수 있어요.`
+				: "잠시 뒤 다시 확인해 주세요.";
 		case "provider_error":
 			return `${name} 서버에 문제가 생겼어요. 잠시 뒤 다시 확인해 주세요.`;
 		case "check_failed":
@@ -180,9 +188,11 @@ function StatusBadge({ status }: { status: ConnectionStatus }) {
 function Details({
 	provider,
 	result,
+	reasonId,
 }: {
 	provider: ProviderId;
 	result: ProviderStatusResult;
+	reasonId: string;
 }) {
 	const reason = reasonText(provider, result);
 	return (
@@ -200,7 +210,7 @@ function Details({
 					를 넣고 다시 확인해 주세요.
 				</p>
 			) : null}
-			{reason === null ? null : <p>{reason}</p>}
+			{reason === null ? null : <p id={reasonId}>{reason}</p>}
 			{result.providerCode === null ? null : (
 				<p>
 					<code
@@ -240,6 +250,9 @@ export function ProviderStatusCard({
 	onRecheck: () => void;
 }) {
 	const name = PROVIDER_LABEL[provider];
+	const reasonId = useId();
+	const until = recheckUntil(result);
+	const waiting = useCooldown(until) !== null;
 	return (
 		<Card>
 			<CardHeader className="gap-3">
@@ -255,7 +268,7 @@ export function ProviderStatusCard({
 			<CardContent className="flex flex-col gap-2">
 				{result ? (
 					<>
-						<Details provider={provider} result={result} />
+						<Details provider={provider} result={result} reasonId={reasonId} />
 						<p className="text-muted-foreground text-sm tabular-nums">
 							{timeText(new Date(result.checkedAt))} 확인
 						</p>
@@ -274,10 +287,11 @@ export function ProviderStatusCard({
 				<Button
 					variant="outline"
 					size="lg"
-					className="w-full aria-disabled:pointer-events-none"
+					className={cn("w-full", lockedButton(waiting))}
 					aria-label={`${name} ${checking ? "확인 중" : "다시 확인하기"}`}
+					aria-describedby={waiting ? reasonId : undefined}
 					focusableWhenDisabled
-					disabled={checking}
+					disabled={checking || waiting}
 					onClick={onRecheck}
 				>
 					{checking ? (

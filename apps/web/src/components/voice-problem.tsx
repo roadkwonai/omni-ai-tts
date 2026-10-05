@@ -14,64 +14,13 @@ import Link from "next/link";
 import { type RefObject, useEffect, useState } from "react";
 
 import { PROVIDER_LABEL } from "@/lib/connection-view";
-import { failureOf, retryAtOf } from "@/lib/voice-failure";
+import { failureOf, problemCopy, retryAtOf } from "@/lib/voice-failure";
+
+export { problemCopy } from "@/lib/voice-failure";
+
 import { latestTime, retryTime } from "@/lib/voice-view";
 
 import { Notice } from "./notice";
-
-type ProblemCopy = {
-	title: string;
-	description: string;
-	connections: boolean;
-	reload: boolean;
-};
-// 키 오류와 권한 부족은 같은 안내다(브리프 8절).
-const authProblem = (name: string): ProblemCopy => ({
-	title: `${name} 키를 확인해 주세요`,
-	description: "키가 틀렸거나 쓸 수 없는 키예요.",
-	connections: true,
-	reload: true,
-});
-// 브리프 8절 화면 상태표. {공급자}는 그 탭(묶음)의 공급자다.
-const PROBLEM: Record<ProviderFailure, (name: string) => ProblemCopy> = {
-	no_key: (name) => ({
-		title: `${name} 키가 없어요`,
-		description: "서버 환경변수에 키를 넣고 개발 서버를 다시 켜 주세요.",
-		connections: true,
-		reload: false,
-	}),
-	provider_auth: authProblem,
-	no_permission: authProblem,
-	quota: (name) => ({
-		title: `${name} 사용량이 부족해요`,
-		description: "남은 사용량을 연결 상태에서 확인해 주세요.",
-		connections: true,
-		reload: true,
-	}),
-	rate_limit: () => ({
-		title: "요청이 많아 잠시 막혔어요",
-		description: "잠시 뒤 다시 불러와 주세요.",
-		connections: false,
-		reload: true,
-	}),
-	provider_error: (name) => ({
-		title: `${name}에 문제가 생겼어요`,
-		description: "잠시 뒤 다시 불러와 주세요.",
-		connections: false,
-		reload: true,
-	}),
-	unknown_outcome: (name) => ({
-		title: `${name}가 응답하지 않아요`,
-		description: "잠시 뒤 다시 불러와 주세요.",
-		connections: false,
-		reload: true,
-	}),
-};
-
-export const problemCopy = (
-	provider: ProviderId,
-	failure: ProviderFailure,
-): ProblemCopy => PROBLEM[failure](PROVIDER_LABEL[provider]);
 
 // 소유자 없음(루프백이 아닌 주소) 안내 제목. 페이지(탭 대신)와 목록·묶음이 같은 문구다
 export const LIST_LOOPBACK_TITLE = "이 주소에서는 성우 목록을 불러올 수 없어요";

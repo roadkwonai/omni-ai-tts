@@ -30,6 +30,7 @@ import { AllProviders } from "./all-providers";
 import { LoopbackNotice } from "./notice";
 import { SamplePlayerProvider } from "./sample-player";
 import { ServerVoiceList, serverListOptions } from "./server-voice-list";
+import { TrialProvider } from "./trial-provider";
 import {
 	type TypecastState,
 	TypecastVoiceList,
@@ -42,7 +43,7 @@ type ListKey = `${ServerProvider}:${VoiceSource}`;
 
 const SERVER_TABS: ServerProvider[] = ["elevenlabs", "fish_audio"];
 // 출처 전환 칸(브리프 5절): muted 바탕 위 고른 칸은 흰 칸 + 경계선 + 굵은 글자, 나머지는 회색 보통 굵기
-const sourceItem =
+export const sourceItem =
 	"min-h-11 shrink-0 px-4 text-muted-foreground focus-visible:z-10 data-pressed:bg-card data-pressed:font-bold data-pressed:text-foreground data-pressed:ring-1 data-pressed:ring-border";
 // 탭 내용은 숨긴 채 남긴다(keepMounted). 패널 자체는 키보드 정지점이 아니다(브리프 9절 순서: 탭 → 출처 전환 → 검색)
 const Panel = (props: ComponentProps<typeof TabsContent>) => (
@@ -151,92 +152,94 @@ export function VoiceCasting() {
 	return (
 		// 탭을 바꿔 그 탭의 행이 숨어도 재생은 이어진다. 페이지를 떠나면 멈춘다(T3)
 		<SamplePlayerProvider>
-			<Tabs value={tab} onValueChange={changeTab} className="gap-4">
-				{/* 767px 이하는 탭 줄만 가로로 넘긴다(페이지는 넘치지 않는다). 넘쳐서 더 있으면 오른쪽 끝이 흐리다(index.css tabs-overflow-fade). 스크롤바는 숨긴다.
+			<TrialProvider>
+				<Tabs value={tab} onValueChange={changeTab} className="gap-4">
+					{/* 767px 이하는 탭 줄만 가로로 넘긴다(페이지는 넘치지 않는다). 넘쳐서 더 있으면 오른쪽 끝이 흐리다(index.css tabs-overflow-fade). 스크롤바는 숨긴다.
 				    방향키로 옮기고 Enter·Space로 연다(Base UI). 공급자 이름은 번역하지 않는다 */}
-				<TabsList
-					ref={tabListRef}
-					className="tabs-overflow-fade overflow-x-auto"
-				>
-					<TabsTrigger value="all" data-tab="all">
-						전체
-					</TabsTrigger>
-					<TabsTrigger value="typecast" data-tab="typecast">
-						<span translate="no">{PROVIDER_LABEL.typecast}</span>
-						{typecastCount === undefined ? null : (
-							<span className="font-normal text-muted-foreground text-sm tabular-nums">
-								{plain.format(typecastCount)}
-							</span>
-						)}
-					</TabsTrigger>
-					{SERVER_TABS.map((p) => (
-						<TabsTrigger key={p} value={p} data-tab={p}>
-							<span translate="no">{PROVIDER_LABEL[p]}</span>
+					<TabsList
+						ref={tabListRef}
+						className="tabs-overflow-fade overflow-x-auto"
+					>
+						<TabsTrigger value="all" data-tab="all">
+							전체
 						</TabsTrigger>
-					))}
-				</TabsList>
-				<Panel value="all">
-					<AllProviders
-						search={allSearch}
-						onSearchChange={setAllSearch}
-						onShowProvider={showProvider}
-						{...choose("all")}
-					/>
-				</Panel>
-				<Panel value="typecast">
-					<TypecastVoiceList
-						state={typecast}
-						onStateChange={setTypecast}
-						{...choose("typecast")}
-						focusRequested={pendingFocus === "typecast"}
-						onFocusHandled={clearFocus}
-					/>
-				</Panel>
-				{SERVER_TABS.map((p) => {
-					const source = sources[p];
-					const listKey: ListKey = `${p}:${source}`;
-					return (
-						<Panel key={p} value={p}>
-							<div className="flex flex-col gap-4">
-								<ToggleGroup
-									value={[source]}
-									// 하나 고르기. 고른 칸을 다시 눌러 비우는 것은 막는다
-									onValueChange={(value) => {
-										const next = value[0] as VoiceSource | undefined;
-										if (next) setSources((all) => ({ ...all, [p]: next }));
-									}}
-									// 칸 글자가 '공개 라이브러리'·'내 계정'이라 그룹 이름만 단다(audit P2-3)
-									aria-label="출처"
-									className="bg-muted p-1"
-								>
-									<Toggle value="public" className={sourceItem}>
-										공개 라이브러리
-									</Toggle>
-									<Toggle value="account" className={sourceItem}>
-										내 계정
-										{accountTotals[p] === null ? null : (
-											<span className="font-normal text-muted-foreground tabular-nums">
-												{accountTotals[p]}
-											</span>
-										)}
-									</Toggle>
-								</ToggleGroup>
-								{/* 출처마다 새 목록이다(앞 출처의 목록이 흐리게 끼워지지 않고 검색 칸 상태도 따로다) */}
-								<ServerVoiceList
-									key={listKey}
-									list={lists[listKey]}
-									onListChange={(list) =>
-										setLists((all) => ({ ...all, [listKey]: list }))
-									}
-									{...choose(listKey)}
-									focusRequested={pendingFocus === listKey}
-									onFocusHandled={clearFocus}
-								/>
-							</div>
-						</Panel>
-					);
-				})}
-			</Tabs>
+						<TabsTrigger value="typecast" data-tab="typecast">
+							<span translate="no">{PROVIDER_LABEL.typecast}</span>
+							{typecastCount === undefined ? null : (
+								<span className="font-normal text-muted-foreground text-sm tabular-nums">
+									{plain.format(typecastCount)}
+								</span>
+							)}
+						</TabsTrigger>
+						{SERVER_TABS.map((p) => (
+							<TabsTrigger key={p} value={p} data-tab={p}>
+								<span translate="no">{PROVIDER_LABEL[p]}</span>
+							</TabsTrigger>
+						))}
+					</TabsList>
+					<Panel value="all">
+						<AllProviders
+							search={allSearch}
+							onSearchChange={setAllSearch}
+							onShowProvider={showProvider}
+							{...choose("all")}
+						/>
+					</Panel>
+					<Panel value="typecast">
+						<TypecastVoiceList
+							state={typecast}
+							onStateChange={setTypecast}
+							{...choose("typecast")}
+							focusRequested={pendingFocus === "typecast"}
+							onFocusHandled={clearFocus}
+						/>
+					</Panel>
+					{SERVER_TABS.map((p) => {
+						const source = sources[p];
+						const listKey: ListKey = `${p}:${source}`;
+						return (
+							<Panel key={p} value={p}>
+								<div className="flex flex-col gap-4">
+									<ToggleGroup
+										value={[source]}
+										// 하나 고르기. 고른 칸을 다시 눌러 비우는 것은 막는다
+										onValueChange={(value) => {
+											const next = value[0] as VoiceSource | undefined;
+											if (next) setSources((all) => ({ ...all, [p]: next }));
+										}}
+										// 칸 글자가 '공개 라이브러리'·'내 계정'이라 그룹 이름만 단다(audit P2-3)
+										aria-label="출처"
+										className="bg-muted p-1"
+									>
+										<Toggle value="public" className={sourceItem}>
+											공개 라이브러리
+										</Toggle>
+										<Toggle value="account" className={sourceItem}>
+											내 계정
+											{accountTotals[p] === null ? null : (
+												<span className="font-normal text-muted-foreground tabular-nums">
+													{accountTotals[p]}
+												</span>
+											)}
+										</Toggle>
+									</ToggleGroup>
+									{/* 출처마다 새 목록이다(앞 출처의 목록이 흐리게 끼워지지 않고 검색 칸 상태도 따로다) */}
+									<ServerVoiceList
+										key={listKey}
+										list={lists[listKey]}
+										onListChange={(list) =>
+											setLists((all) => ({ ...all, [listKey]: list }))
+										}
+										{...choose(listKey)}
+										focusRequested={pendingFocus === listKey}
+										onFocusHandled={clearFocus}
+									/>
+								</div>
+							</Panel>
+						);
+					})}
+				</Tabs>
+			</TrialProvider>
 		</SamplePlayerProvider>
 	);
 }

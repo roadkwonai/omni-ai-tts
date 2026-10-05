@@ -1,0 +1,30 @@
+diff --git a/lib/index.cjs b/lib/index.cjs
+index cfce67949297cca2e38986b677901b541999bfb9..280eb990ccd3adbef4c5fad6351c53f4d5bca4df 100644
+--- a/lib/index.cjs
++++ b/lib/index.cjs
+@@ -8,6 +8,10 @@ function _interopDefault (e) { return e && e.__esModule ? e : { default: e }; }
+ 
+ var path__default = /*#__PURE__*/_interopDefault(path);
+ 
++function fetch(input, init) {
++  return globalThis.fetch(input, { ...init, redirect: "error" });
++}
++
+ // src/errors.ts
+ var TypecastAPIError = class _TypecastAPIError extends Error {
+   constructor(message, statusCode, response) {
+diff --git a/lib/index.js b/lib/index.js
+index e2773fb0fcf4ceb0ff7035f755ef88ec7cd26f2e..3408bd294b6f8df43fb24a8d2052379591edb783 100644
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -2,6 +2,10 @@ import { writeFile } from 'fs/promises';
+ import { promises } from 'fs';
+ import path from 'path';
+ 
++function fetch(input, init) {
++  return globalThis.fetch(input, { ...init, redirect: "error" });
++}
++
+ // src/errors.ts
+ var TypecastAPIError = class _TypecastAPIError extends Error {
+   constructor(message, statusCode, response) {

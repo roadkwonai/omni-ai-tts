@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isUpcoming, toView } from "./connection-view";
+import { isUpcoming, recheckUntil, toView } from "./connection-view";
 
 const failedAt = Date.parse("2026-10-04T07:00:00.000Z");
 
@@ -30,6 +30,23 @@ describe("toView", () => {
 				errorUpdatedAt: failedAt,
 			})?.status,
 		).toBe("check_failed");
+	});
+});
+
+describe("recheckUntil", () => {
+	it("rate_limit과 초가 있을 때만 확인 시각에 초를 더한다", () => {
+		const result = {
+			provider: "typecast",
+			status: "rate_limit",
+			quota: null,
+			providerCode: null,
+			retryAfterSeconds: 60,
+			checkedAt: "2026-10-05T10:00:00.000Z",
+		} as const;
+		expect(recheckUntil(result)).toBe("2026-10-05T10:01:00.000Z");
+		expect(recheckUntil({ ...result, retryAfterSeconds: null })).toBeNull();
+		expect(recheckUntil({ ...result, status: "connected" })).toBeNull();
+		expect(recheckUntil(null)).toBeNull();
 	});
 });
 

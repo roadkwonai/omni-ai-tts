@@ -39,3 +39,13 @@ export const PROVIDER_LABEL: Record<ProviderId, string> = {
 	elevenlabs: "ElevenLabs",
 	fish_audio: "Fish Audio",
 };
+
+export function recheckUntil(
+	result: ProviderStatusResult | null | undefined,
+): string | null {
+	if (result?.status !== "rate_limit" || result.retryAfterSeconds === null)
+		return null;
+	return new Date(
+		Date.parse(result.checkedAt) + result.retryAfterSeconds * 1000,
+	).toISOString();
+}

@@ -9,6 +9,9 @@ import {
 	retryAfterSeconds,
 	runCheck,
 	runList,
+	runTrial,
+	TRIAL_TIMEOUT_MS,
+	trialReason,
 } from "./errors";
 import { fetchMock, json, useFetchMock } from "./test-utils";
 
@@ -221,5 +224,84 @@ describe("fetchJson", () => {
 			signal,
 			redirect: "error",
 		});
+	});
+});
+
+afterEach(() => {
+	vi.useRealTimers();
+	vi.restoreAllMocks();
+});
+
+describe("trialReason", () => {
+	it("성우·플랜 거절(403 코드)과 404는 입력 거절이고 키 문제가 아니다", () => {
+		expect(trialReason(403, ["voice_access_denied"])).toBe("provider_input");
+		expect(trialReason(403, ["subscription_required"])).toBe("provider_input");
+		expect(trialReason(404, [])).toBe("provider_input");
+		expect(trialReason(403, ["insufficient_permissions"])).toBe(
+			"no_permission",
+		);
+		expect(trialReason(401, [])).toBe("provider_auth");
+		expect(trialReason(402, ["insufficient_credits"])).toBe("quota");
+		expect(trialReason(429, [])).toBe("rate_limit");
+		expect(trialReason(422, ["TEXT_NOT_SYNTHESIZABLE"])).toBe("provider_input");
+		expect(trialReason(503, [])).toBe("provider_error");
+		expect(trialReason(418, [])).toBe("provider_error");
+	});
+});
+
+describe("runTrial", () => {
+	it("60초가 지나면 처리 여부 미확인", async () => {
+		vi.useFakeTimers();
+		const pending = runTrial("fish_audio", () => new Promise<never>(() => {}));
+		const assertion = expect(pending).rejects.toMatchObject({
+			code: "GATEWAY_TIMEOUT",
+			data: { provider: "fish_audio", reason: "unknown_outcome" },
+		});
+		await vi.advanceTimersByTimeAsync(TRIAL_TIMEOUT_MS);
+		await assertion;
+	});
+	it("429는 Retry-After를 1시간까지 다음 호출 가능 시각으로, 입력 거절은 공급자 오류 코드를 담는다", async () => {
+		await expect(
+			runTrial("elevenlabs", async () => {
+				throw new ProviderHttpError(429, [], "30");
+			}),
+		).rejects.toMatchObject({
+			code: "TOO_MANY_REQUESTS",
+			data: { reason: "rate_limit", retryAt: expect.any(String) },
+		});
+		await expect(
+			runTrial("elevenlabs", async () => {
+				throw new ProviderHttpError(403, ["voice_access_denied"]);
+			}),
+		).rejects.toMatchObject({
+			code: "BAD_REQUEST",
+			data: { reason: "provider_input", providerCode: "voice_access_denied" },
+		});
+	});
+	it("연결 끊김(TypeError)과 상태 코드 없는 SDK 오류는 처리 여부 미확인(계획 리뷰 E1)", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => {});
+		await expect(
+			runTrial("typecast", async () => {
+				throw new TypeError("fetch failed");
+			}),
+		).rejects.toMatchObject({
+			code: "GATEWAY_TIMEOUT",
+			data: { reason: "unknown_outcome" },
+		});
+		// ElevenLabs SDK는 응답 전 네트워크 오류를 statusCode 없는 ElevenLabsError로 던진다. 원래 오류를 던지지 않는다(로그·화면 '다시 눌러'로 이중 과금)
+		const sdkError = Object.assign(new Error("Network error"), {
+			rawResponse: { headers: {} },
+			body: "secret",
+		});
+		const error = await runTrial("elevenlabs", async () => {
+			throw sdkError;
+		}).catch((e: unknown) => e);
+		expect(error).toMatchObject({
+			code: "GATEWAY_TIMEOUT",
+			data: { reason: "unknown_outcome" },
+		});
+		expect(error).not.toBe(sdkError);
+		// 로그는 한 줄이고 SDK 오류 객체를 넘기지 않는다
+		expect(log.mock.calls.flat().some((arg) => arg === sdkError)).toBe(false);
 	});
 });

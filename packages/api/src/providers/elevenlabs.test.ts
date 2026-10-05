@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-
 import type { ListInputOf } from "./contract";
 import { createElevenLabs } from "./elevenlabs";
 import { CHECK_TIMEOUT_MS } from "./errors";
@@ -11,6 +10,7 @@ import {
 	json,
 	useFetchMock,
 } from "./test-utils";
+import { DEFAULT_SETTINGS, type ElevenLabsSettings } from "./trial-options";
 
 const KEY = "sk_elevenlabs_test_0001";
 // SDK가 필수로 검사하는 필드를 모두 채운 구독 응답이다(2.70.0 serialization/types/Subscription).
@@ -73,6 +73,7 @@ describe("ElevenLabs 연결 확인", () => {
 		});
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 		const [url, init] = fetchMock.mock.calls[0] ?? [];
+		expect(init?.redirect).toBe("error");
 		const target = new URL(String(url));
 		expect(target.origin).toBe("https://api.elevenlabs.io");
 		expect(target.pathname).toBe("/v1/user/subscription");
@@ -731,6 +732,138 @@ describe("ElevenLabs 억양 목록", () => {
 		).rejects.toMatchObject({
 			code: "BAD_GATEWAY",
 			data: { provider: "elevenlabs", reason: "provider_auth" },
+		});
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+});
+
+const MP3 = new Uint8Array([0xff, 0xfb, 0x90, 0x64, 9]);
+const audio = () =>
+	new Response(MP3, { status: 200, headers: { "content-type": "audio/mpeg" } });
+const bodyOf = (i = 0) =>
+	JSON.parse(String(fetchMock.mock.calls[i]?.[1]?.body));
+
+describe("ElevenLabs 시험 생성", () => {
+	const synth = (settings: Partial<ElevenLabsSettings> = {}, text = "안녕") =>
+		createElevenLabs(KEY).synthesize?.({
+			provider: "elevenlabs",
+			voiceId: "el0001",
+			text,
+			settings: { ...DEFAULT_SETTINGS.elevenlabs, ...settings },
+		});
+
+	it("v4: 말투 태그를 문장 앞에, 안정성·유사도만, MP3 128kbps", async () => {
+		fetchMock.mockResolvedValueOnce(audio());
+		await expect(synth({ tag: "whispers", style: 0.9 })).resolves.toEqual(MP3);
+		expect(fetchMock.mock.calls[0]?.[1]?.redirect).toBe("error");
+		expect(calledUrl().pathname).toBe("/v1/text-to-speech/el0001");
+		expect(calledUrl().searchParams.get("output_format")).toBe("mp3_44100_128");
+		expect(bodyOf()).toEqual({
+			text: "[whispers] 안녕",
+			model_id: "eleven_v4",
+			voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+		});
+	});
+	it("multilingual v2는 다섯 옵션, v3는 안정성만(받지 않는 옵션은 null로도 보내지 않는다, E3)", async () => {
+		fetchMock.mockImplementation(async () => audio());
+		await synth({
+			model: "eleven_multilingual_v2",
+			speed: 1.1,
+			speakerBoost: false,
+		});
+		expect(bodyOf(0).voice_settings).toEqual({
+			stability: 0.5,
+			similarity_boost: 0.75,
+			style: 0,
+			speed: 1.1,
+			use_speaker_boost: false,
+		});
+		await synth({ model: "eleven_v3" });
+		expect(bodyOf(1).voice_settings).toEqual({ stability: 0.5 });
+	});
+	it("SDK 재시도를 끈다: 500에도 한 번만, 402 insufficient_credits는 quota, 403 voice_access_denied는 입력 거절", async () => {
+		fetchMock.mockResolvedValueOnce(
+			json(500, { detail: { code: "internal_error" } }),
+		);
+		await expect(synth()).rejects.toMatchObject({
+			data: { reason: "provider_error" },
+		});
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		fetchMock.mockResolvedValueOnce(
+			json(402, { detail: { code: "insufficient_credits" } }),
+		);
+		await expect(synth()).rejects.toMatchObject({ data: { reason: "quota" } });
+		fetchMock.mockResolvedValueOnce(
+			json(403, { detail: { code: "voice_access_denied" } }),
+		);
+		await expect(synth()).rejects.toMatchObject({
+			code: "BAD_REQUEST",
+			data: { reason: "provider_input", providerCode: "voice_access_denied" },
+		});
+	});
+	it("모델 배율: 쓰는 네 모델만, 배율 × 할인", async () => {
+		fetchMock.mockResolvedValueOnce(
+			json(200, [
+				{
+					model_id: "eleven_v4",
+					model_rates: {
+						character_cost_multiplier: 1,
+						cost_discount_multiplier: 0.28,
+					},
+				},
+				{
+					model_id: "eleven_flash_v2_5",
+					model_rates: { character_cost_multiplier: 0.5 },
+				},
+				{
+					model_id: "eleven_english_sts_v2",
+					model_rates: { character_cost_multiplier: 1 },
+				},
+				{ model_id: "eleven_v3" },
+			]),
+		);
+		await expect(createElevenLabs(KEY).listModels?.()).resolves.toEqual([
+			{ model: "eleven_v4", multiplier: 0.28 },
+			{ model: "eleven_flash_v2_5", multiplier: 0.5 },
+		]);
+		expect(calledUrl().pathname).toBe("/v1/models");
+	});
+	it("모양이 다른 모델 항목 하나가 배율 전체를 깨지 않는다(E11)", async () => {
+		fetchMock.mockResolvedValueOnce(
+			json(200, [
+				{
+					model_id: "eleven_v4",
+					model_rates: { character_cost_multiplier: 1 },
+				},
+				{
+					model_id: "eleven_v3",
+					model_rates: { character_cost_multiplier: 0 },
+				},
+				"이상한 항목",
+			]),
+		);
+		await expect(createElevenLabs(KEY).listModels?.()).resolves.toEqual([
+			{ model: "eleven_v4", multiplier: 1 },
+		]);
+	});
+	it("연결이 끊기면(SDK가 statusCode 없는 오류로 바꿔 던짐) 처리 여부 미확인이고 한 번만 부른다(E1)", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		fetchMock.mockRejectedValueOnce(new TypeError("fetch failed"));
+		await expect(synth()).rejects.toMatchObject({
+			code: "GATEWAY_TIMEOUT",
+			data: { reason: "unknown_outcome" },
+		});
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+	it("SDK의 리다이렉트 거절은 처리 여부 미확인이고 재전송하지 않는다", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		fetchMock.mockImplementation(async (_url, init) => {
+			if (init?.redirect === "error") throw new TypeError("redirect rejected");
+			return audio();
+		});
+		await expect(synth()).rejects.toMatchObject({
+			code: "GATEWAY_TIMEOUT",
+			data: { provider: "elevenlabs", reason: "unknown_outcome" },
 		});
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 	});
