@@ -21,6 +21,7 @@ export const EMPTY_FILTERS: VoiceFilters = {
 export const GENDER_LABEL = new Map([
 	["female", "여성"],
 	["male", "남성"],
+	["neutral", "중성"],
 ]);
 export const AGE_LABEL = new Map([
 	["child", "어린이"],
@@ -110,13 +111,13 @@ export function groupByUseCase(
 		: sorted;
 }
 
-export type FilterOption = { value: string; label: string };
+export type Option = { value: string; label: string };
 
 // 아는 값은 표 순서, 모르는 값은 그 뒤에 처음 나온 순서
 function ordered(
 	values: ReadonlySet<string>,
 	labels: Map<string, string>,
-): FilterOption[] {
+): Option[] {
 	const known = [...labels.keys()].filter((value) => values.has(value));
 	const unknown = [...values].filter((value) => !labels.has(value));
 	return [...known, ...unknown].map((value) => ({
@@ -128,7 +129,7 @@ function ordered(
 // 받은 목록에 있는 값으로 선택지를 만든다(공급자가 새 값을 더해도 보인다, 스펙 5절).
 export function filterOptions(
 	voices: readonly Voice[],
-): Record<FilterAxis, FilterOption[]> {
+): Record<FilterAxis, Option[]> {
 	const models = new Set<string>();
 	const genders = new Set<string>();
 	const ages = new Set<string>();

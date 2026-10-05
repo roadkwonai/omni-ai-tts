@@ -121,7 +121,7 @@ const rawVoice = (overrides: Record<string, unknown> = {}) => ({
 	preview_url: "https://static2.typecast.ai/preview/tc_0001.mp3",
 	...overrides,
 });
-const list = () => createTypecast(KEY).listVoices?.();
+const list = () => createTypecast(KEY).listVoices?.({ provider: "typecast" });
 
 describe("Typecast 성우 목록", () => {
 	it("공개 성우를 계약 모양으로 바꾸고 커스텀 성우는 뺀다. 요청은 공식 호스트의 /v3/voices에 필터 없이 1회", async () => {
@@ -138,21 +138,44 @@ describe("Typecast 성우 목록", () => {
 			]),
 		);
 		const result = await list();
-		expect(result?.provider).toBe("typecast");
+		expect(result).toMatchObject({
+			next: null,
+			total: 1,
+			totalExact: true,
+			windowLimited: false,
+		});
 		expect(result?.voices).toEqual([
 			{
 				provider: "typecast",
+				source: "public",
 				voiceId: "tc_0001",
 				name: "민지",
 				englishName: "Minji",
 				gender: "female",
 				age: "young_adult",
+				accent: null,
 				useCases: ["Ads/Promotion", "Game"],
+				descriptives: [],
+				tags: [],
+				languages: [],
+				category: null,
+				origin: null,
+				description: null,
 				models: [
 					{ model: "ssfm-v30", emotions: ["normal", "happy"] },
 					{ model: "ssfm-v21", emotions: ["normal"] },
 				],
 				previewUrl: "https://static2.typecast.ai/preview/tc_0001.mp3",
+				samples: [],
+				usage: null,
+				terms: {
+					freeUsersAllowed: null,
+					noticePeriodDays: null,
+					liveModeration: false,
+					creditRate: null,
+					licensed: false,
+					retiring: false,
+				},
 			},
 		]);
 		expect(fetchMock).toHaveBeenCalledTimes(1);

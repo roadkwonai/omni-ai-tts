@@ -11,14 +11,32 @@ import {
 
 const voice = (voiceId: string, overrides: Partial<Voice> = {}): Voice => ({
 	provider: "typecast",
+	source: "public",
 	voiceId,
 	name: "민지",
 	englishName: "Minji",
 	gender: "female",
 	age: "young_adult",
+	accent: null,
 	useCases: ["Ads/Promotion"],
+	descriptives: [],
+	tags: [],
+	languages: [],
+	category: null,
+	origin: null,
+	description: null,
 	models: [{ model: "ssfm-v30", emotions: ["normal"] }],
 	previewUrl: null,
+	samples: [],
+	usage: null,
+	terms: {
+		freeUsersAllowed: null,
+		noticePeriodDays: null,
+		liveModeration: false,
+		creditRate: null,
+		licensed: false,
+		retiring: false,
+	},
 	...overrides,
 });
 const minji = voice("a");

@@ -1,8 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { ListInputOf } from "./contract";
 import { createElevenLabs } from "./elevenlabs";
 import { CHECK_TIMEOUT_MS } from "./errors";
-import { fetchMock, json, useFetchMock } from "./test-utils";
+import {
+	calledUrl,
+	elAccountInput,
+	elPublicInput,
+	fetchMock,
+	json,
+	useFetchMock,
+} from "./test-utils";
 
 const KEY = "sk_elevenlabs_test_0001";
 // SDK가 필수로 검사하는 필드를 모두 채운 구독 응답이다(2.70.0 serialization/types/Subscription).
@@ -201,5 +209,529 @@ describe("ElevenLabs 연결 확인", () => {
 		await vi.advanceTimersByTimeAsync(CHECK_TIMEOUT_MS);
 		await expect(pending).resolves.toMatchObject({ status: "check_failed" });
 		expect(fetchMock.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
+	});
+});
+
+const SAMPLE_EN =
+	"https://storage.googleapis.com/eleven-public-prod/el_lib_1/en.mp3";
+const SAMPLE_KO =
+	"https://api.us.elevenlabs.io/v1/voices/el_lib_1/previews/audio?payload=abc";
+const libraryVoice = (overrides: Record<string, unknown> = {}) => ({
+	public_owner_id: "owner_1",
+	voice_id: "el_lib_1",
+	name: "Jiyoung - Calm Narrator",
+	gender: "female",
+	age: "young",
+	accent: "seoul",
+	descriptive: "calm",
+	use_case: "narrative_story",
+	category: "professional",
+	language: "ko",
+	locale: "ko-KR",
+	description: "  차분하고 따뜻한 목소리  ",
+	preview_url: SAMPLE_EN,
+	verified_languages: [
+		{
+			language: "en",
+			model_id: "eleven_multilingual_v2",
+			preview_url: SAMPLE_EN,
+		},
+		{ language: "ko", model_id: "eleven_v4", preview_url: SAMPLE_KO },
+	],
+	usage_character_count_1y: 2_100_000,
+	usage_character_count_7d: 10,
+	play_api_usage_character_count_1y: 10,
+	cloned_by_count: 3,
+	rate: 1,
+	free_users_allowed: false,
+	live_moderation_enabled: true,
+	featured: false,
+	notice_period: 730,
+	date_unix: 1_790_000_000,
+	...overrides,
+});
+const libraryPage = (
+	voices: unknown[],
+	extra: Record<string, unknown> = {},
+) => ({
+	voices,
+	has_more: true,
+	total_count: 5953,
+	...extra,
+});
+// 쿼리를 { 키: 값 배열 } 로 만든다(반복 키는 배열 여러 칸)
+const queryOfUrl = (url: URL) =>
+	Object.fromEntries(
+		[...new Set(url.searchParams.keys())].map((key) => [
+			key,
+			url.searchParams.getAll(key),
+		]),
+	);
+const listEl = (input: ListInputOf<"elevenlabs">) =>
+	createElevenLabs(KEY).listVoices?.(input);
+
+describe("ElevenLabs 공개 라이브러리", () => {
+	it("성우를 계약 모양으로 바꾼다. 지금 언어의 샘플이 행 샘플이고 패널 샘플의 맨 앞이며 같은 주소는 한 번이다", async () => {
+		fetchMock.mockResolvedValue(json(200, libraryPage([libraryVoice()])));
+		const page = await listEl(elPublicInput());
+		expect(page).toMatchObject({
+			next: 1,
+			total: 5953,
+			totalExact: true,
+			windowLimited: false,
+		});
+		expect(page?.voices).toEqual([
+			{
+				provider: "elevenlabs",
+				source: "public",
+				voiceId: "el_lib_1",
+				name: "Jiyoung - Calm Narrator",
+				englishName: null,
+				gender: "female",
+				age: "young",
+				accent: "seoul",
+				useCases: ["narrative_story"],
+				descriptives: ["calm"],
+				tags: [],
+				languages: ["ko", "en"],
+				category: "professional",
+				origin: null,
+				description: "차분하고 따뜻한 목소리",
+				models: [],
+				previewUrl: SAMPLE_KO,
+				samples: [
+					{ language: "ko", title: null, url: SAMPLE_KO },
+					{ language: "en", title: null, url: SAMPLE_EN },
+				],
+				usage: { kind: "chars_1y", count: 2_100_000 },
+				terms: {
+					freeUsersAllowed: false,
+					noticePeriodDays: 730,
+					liveModeration: true,
+					creditRate: 1,
+					licensed: false,
+					retiring: false,
+				},
+			},
+		]);
+	});
+
+	it("조건을 쿼리로 보낸다: 보내는 키 전부를 고정한다. 빈 값·false는 빼고, 배열은 반복 키, 키는 xi-api-key 헤더, 한 번만 부른다", async () => {
+		fetchMock.mockResolvedValue(
+			json(200, libraryPage([], { has_more: false })),
+		);
+		await listEl(
+			elPublicInput({
+				page: 2,
+				query: {
+					accent: "seoul",
+					gender: "female",
+					useCases: ["narrative_story", "conversational"],
+					descriptives: ["calm"],
+					category: "professional",
+					sort: "created_date",
+				},
+			}),
+		);
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		const url = calledUrl();
+		expect(url.origin + url.pathname).toBe(
+			"https://api.elevenlabs.io/v1/shared-voices",
+		);
+		// 값은 키마다 getAll 배열이다: 반복 키(use_cases)와 쉼표로 이은 한 값을 구분한다. search·age·featured는 키가 없어야 한다
+		expect(queryOfUrl(url)).toEqual({
+			page_size: ["100"],
+			page: ["2"],
+			language: ["ko"],
+			accent: ["seoul"],
+			gender: ["female"],
+			category: ["professional"],
+			use_cases: ["narrative_story", "conversational"],
+			descriptives: ["calm"],
+			sort: ["created_date"],
+		});
+		const init = fetchMock.mock.calls[0]?.[1];
+		expect(new Headers(init?.headers).get("xi-api-key")).toBe(KEY);
+	});
+
+	it("검색어·연령·추천을 켜면 search·age·featured=true를 보낸다", async () => {
+		fetchMock.mockResolvedValue(
+			json(200, libraryPage([], { has_more: false })),
+		);
+		await listEl(
+			elPublicInput({
+				query: {
+					search: "차분한",
+					age: "young",
+					featured: true,
+					language: null,
+				},
+			}),
+		);
+		expect(queryOfUrl(calledUrl())).toEqual({
+			page_size: ["100"],
+			page: ["0"],
+			search: ["차분한"],
+			age: ["young"],
+			featured: ["true"],
+			sort: ["trending"],
+		});
+	});
+
+	it("마지막 페이지면 next가 null이고, 전체 수가 없으면 total null·totalExact false다", async () => {
+		fetchMock.mockResolvedValue(
+			json(200, { voices: [libraryVoice()], has_more: false }),
+		);
+		expect(await listEl(elPublicInput())).toMatchObject({
+			next: null,
+			total: null,
+			totalExact: false,
+		});
+	});
+
+	it("모든 언어(null)면 기본 샘플이 행 샘플이다. 공급자 호스트가 아니거나 http인 샘플은 버린다", async () => {
+		fetchMock.mockResolvedValue(
+			json(
+				200,
+				libraryPage([
+					libraryVoice({
+						verified_languages: [
+							{ language: "ko", preview_url: "https://evil.example/ko.mp3" },
+							// 호스트 끝이 아닌 곳이나 앞 글자가 붙은 호스트도 버린다(정규식 앵커)
+							{
+								language: "ja",
+								preview_url: "https://elevenlabs.io.evil.example/a.mp3",
+							},
+							{
+								language: "de",
+								preview_url: "https://evilelevenlabs.io/a.mp3",
+							},
+							{
+								language: "fr",
+								preview_url:
+									"https://storage.googleapis.com.evil.example/a.mp3",
+							},
+						],
+					}),
+					libraryVoice({
+						voice_id: "el_lib_2",
+						preview_url: "http://storage.googleapis.com/x.mp3",
+						verified_languages: null,
+					}),
+				]),
+			),
+		);
+		const page = await listEl(elPublicInput({ query: { language: null } }));
+		expect(page?.voices.map((v) => [v.previewUrl, v.samples.length])).toEqual([
+			[SAMPLE_EN, 1],
+			[null, 0],
+		]);
+	});
+
+	it("설명은 1,000자로 자르고, 빈 descriptive·use_case는 배열에 넣지 않는다. 모르는 성별은 null이다", async () => {
+		fetchMock.mockResolvedValue(
+			json(
+				200,
+				libraryPage([
+					libraryVoice({
+						description: "가".repeat(1500),
+						descriptive: "",
+						use_case: "",
+						gender: "Unknown",
+					}),
+				]),
+			),
+		);
+		const [voice] = (await listEl(elPublicInput()))?.voices ?? [];
+		expect(voice?.description).toHaveLength(1000);
+		expect(voice?.descriptives).toEqual([]);
+		expect(voice?.useCases).toEqual([]);
+		expect(voice?.gender).toBeNull();
+	});
+
+	it("이름이 없는 성우만 빼고 한 줄 남긴다", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => {});
+		fetchMock.mockResolvedValue(
+			json(
+				200,
+				libraryPage([
+					libraryVoice({ name: "" }),
+					libraryVoice({ voice_id: "el_lib_2" }),
+				]),
+			),
+		);
+		const page = await listEl(elPublicInput());
+		expect(page?.voices.map((v) => v.voiceId)).toEqual(["el_lib_2"]);
+		expect(log.mock.calls).toEqual([
+			["[voiceList] elevenlabs 성우 1명 제외: name"],
+		]);
+	});
+
+	it.each([
+		[401, {}, "BAD_GATEWAY", "provider_auth"],
+		[
+			401,
+			{ detail: { status: "missing_permissions" } },
+			"BAD_GATEWAY",
+			"no_permission",
+		],
+		[503, {}, "BAD_GATEWAY", "provider_error"],
+	])("%s → %s·%s, 재시도하지 않는다", async (status, body, code, reason) => {
+		fetchMock.mockResolvedValue(json(status, body));
+		await expect(listEl(elPublicInput())).rejects.toMatchObject({
+			code,
+			data: { provider: "elevenlabs", reason },
+		});
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+
+	it("429면 TOO_MANY_REQUESTS이고 Retry-After를 다음 호출 시각으로 담는다", async () => {
+		vi.useFakeTimers({ toFake: ["Date"] });
+		vi.setSystemTime(new Date("2026-10-05T00:00:00.000Z"));
+		fetchMock.mockResolvedValue(
+			json(
+				429,
+				{ detail: { status: "rate_limit_exceeded" } },
+				{ "retry-after": "30" },
+			),
+		);
+		await expect(listEl(elPublicInput())).rejects.toMatchObject({
+			code: "TOO_MANY_REQUESTS",
+			data: { reason: "rate_limit", retryAt: "2026-10-05T00:00:30.000Z" },
+		});
+		vi.useRealTimers();
+	});
+
+	it("10초 안에 답이 없으면 unknown_outcome이다", async () => {
+		vi.useFakeTimers();
+		fetchMock.mockImplementation(() => new Promise<Response>(() => {}));
+		const pending = listEl(elPublicInput());
+		const assertion = expect(pending).rejects.toMatchObject({
+			code: "GATEWAY_TIMEOUT",
+			data: { reason: "unknown_outcome" },
+		});
+		await vi.advanceTimersByTimeAsync(10_000);
+		await assertion;
+		vi.useRealTimers();
+	});
+
+	it("응답 모양이 어긋나면(voices가 배열이 아님) 목록 전체가 provider_error다", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		fetchMock.mockResolvedValue(json(200, { voices: null, has_more: false }));
+		await expect(listEl(elPublicInput())).rejects.toMatchObject({
+			code: "BAD_GATEWAY",
+			data: { provider: "elevenlabs", reason: "provider_error" },
+		});
+	});
+
+	it("Retry-After가 1시간보다 길면 1시간 뒤로 줄인다", async () => {
+		vi.useFakeTimers({ toFake: ["Date"] });
+		vi.setSystemTime(new Date("2026-10-05T00:00:00.000Z"));
+		fetchMock.mockResolvedValue(json(429, {}, { "retry-after": "86400" }));
+		await expect(listEl(elPublicInput())).rejects.toMatchObject({
+			data: { reason: "rate_limit", retryAt: "2026-10-05T01:00:00.000Z" },
+		});
+		vi.useRealTimers();
+	});
+
+	it("같은 언어 샘플이 여럿이면(모델·억양별) 첫 것만 남긴다", async () => {
+		const SAMPLE_KO_2 =
+			"https://api.us.elevenlabs.io/v1/voices/el_lib_1/previews/audio?payload=def";
+		fetchMock.mockResolvedValue(
+			json(
+				200,
+				libraryPage([
+					libraryVoice({
+						verified_languages: [
+							{ language: "ko", model_id: "eleven_v4", preview_url: SAMPLE_KO },
+							{
+								language: "ko",
+								model_id: "eleven_multilingual_v2",
+								preview_url: SAMPLE_KO_2,
+							},
+						],
+					}),
+				]),
+			),
+		);
+		const [voice] = (await listEl(elPublicInput()))?.voices ?? [];
+		expect(voice?.samples.map((sample) => sample.url)).toEqual([
+			SAMPLE_KO,
+			SAMPLE_EN,
+		]);
+	});
+});
+
+describe("ElevenLabs 내 계정", () => {
+	const accountVoice = (overrides: Record<string, unknown> = {}) => ({
+		voice_id: "el_acc_1",
+		name: "Rachel",
+		category: "premade",
+		labels: {
+			gender: "female",
+			age: "young",
+			accent: "american",
+			language: "en",
+			use_case: "narrative_story",
+			descriptive: "calm",
+		},
+		description: null,
+		preview_url:
+			"https://storage.googleapis.com/eleven-public-prod/premade/rachel.mp3",
+		verified_languages: [],
+		is_owner: false,
+		...overrides,
+	});
+
+	it("출처를 정한다: premade는 제공 성우, is_owner는 내가 만든 성우, 그 밖은 라이브러리에서 저장. label을 성별·연령·억양·언어·콘텐츠·분위기로 옮긴다", async () => {
+		fetchMock.mockResolvedValue(
+			json(200, {
+				voices: [
+					accountVoice(),
+					accountVoice({ voice_id: "el_acc_2", category: "professional" }),
+					accountVoice({
+						voice_id: "el_acc_3",
+						category: "cloned",
+						is_owner: true,
+						labels: {},
+					}),
+				],
+				has_more: true,
+				total_count: 31,
+				next_page_token: "tok_2",
+			}),
+		);
+		const page = await listEl(elAccountInput());
+		expect(page).toMatchObject({ next: "tok_2", total: 31, totalExact: true });
+		expect(page?.voices.map((v) => [v.voiceId, v.source, v.origin])).toEqual([
+			["el_acc_1", "account", "premade"],
+			["el_acc_2", "account", "saved"],
+			["el_acc_3", "account", "own"],
+		]);
+		expect(page?.voices[0]).toMatchObject({
+			gender: "female",
+			age: "young",
+			accent: "american",
+			languages: ["en"],
+			useCases: ["narrative_story"],
+			descriptives: ["calm"],
+			category: "premade",
+			terms: { freeUsersAllowed: null, licensed: false },
+		});
+		const url = calledUrl();
+		expect(url.pathname).toBe("/v2/voices");
+		expect(url.searchParams.get("include_total_count")).toBe("true");
+		expect(url.searchParams.get("sort")).toBe("created_at_unix");
+		expect(url.searchParams.get("sort_direction")).toBe("desc");
+		expect(url.searchParams.has("next_page_token")).toBe(false);
+	});
+
+	it("다음 페이지는 커서를 보내고, has_more가 거짓이면 next가 null이다", async () => {
+		fetchMock.mockResolvedValue(
+			json(200, {
+				voices: [],
+				has_more: false,
+				total_count: 31,
+				next_page_token: null,
+			}),
+		);
+		const page = await listEl(elAccountInput({ cursor: "tok_2" }));
+		expect(calledUrl().searchParams.get("next_page_token")).toBe("tok_2");
+		expect(page?.next).toBeNull();
+	});
+
+	it("조건을 쿼리로 보낸다: 출처·성우 종류·label 조건·콘텐츠·정렬과 방향", async () => {
+		fetchMock.mockResolvedValue(
+			json(200, { voices: [], has_more: false, total_count: 0 }),
+		);
+		await listEl(
+			elAccountInput({
+				query: {
+					search: "rachel",
+					voiceType: "community",
+					category: "professional",
+					gender: "female",
+					age: "young",
+					language: "en",
+					accent: "american",
+					useCases: ["narrative_story"],
+					sort: "name",
+					direction: "asc",
+				},
+			}),
+		);
+		expect(queryOfUrl(calledUrl())).toEqual({
+			page_size: ["100"],
+			include_total_count: ["true"],
+			search: ["rachel"],
+			voice_type: ["community"],
+			category: ["professional"],
+			gender: ["female"],
+			age: ["young"],
+			language: ["en"],
+			accent: ["american"],
+			use_cases: ["narrative_story"],
+			sort: ["name"],
+			sort_direction: ["asc"],
+		});
+	});
+});
+
+describe("ElevenLabs 억양 목록", () => {
+	it("언어의 억양을 { value, name }으로 돌려준다", async () => {
+		fetchMock.mockResolvedValue(
+			json(200, {
+				accents: [
+					{ accent: "seoul", language: "ko", code: "ko-seoul", name: "Seoul" },
+					{
+						accent: "gyeongsang",
+						language: "ko",
+						code: "ko-gyeongsang",
+						name: "Gyeongsang",
+					},
+				],
+			}),
+		);
+		const accents = await createElevenLabs(KEY).listAccents?.("ko");
+		expect(accents).toEqual([
+			{ value: "seoul", name: "Seoul" },
+			{ value: "gyeongsang", name: "Gyeongsang" },
+		]);
+		expect(calledUrl().pathname).toBe("/v1/voices/accents");
+		expect(calledUrl().searchParams.get("language")).toBe("ko");
+	});
+
+	it("조건 값 검사를 통과하지 못하는 억양은 선택지에서 빼고 한 줄 남긴다(고르면 BAD_REQUEST가 되므로)", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => {});
+		fetchMock.mockResolvedValue(
+			json(200, {
+				accents: [
+					{ accent: "seoul", language: "ko", code: "ko-seoul", name: "Seoul" },
+					{
+						accent: "new york",
+						language: "en",
+						code: "en-ny",
+						name: "New York",
+					},
+				],
+			}),
+		);
+		expect(await createElevenLabs(KEY).listAccents?.("ko")).toEqual([
+			{ value: "seoul", name: "Seoul" },
+		]);
+		expect(log.mock.calls).toEqual([
+			["[voiceList] elevenlabs 억양 1개 제외: accent"],
+		]);
+	});
+
+	it("억양 조회가 401이면 provider_auth이고 재시도하지 않는다", async () => {
+		fetchMock.mockResolvedValue(json(401, {}));
+		await expect(
+			createElevenLabs(KEY).listAccents?.("ko"),
+		).rejects.toMatchObject({
+			code: "BAD_GATEWAY",
+			data: { provider: "elevenlabs", reason: "provider_auth" },
+		});
+		expect(fetchMock).toHaveBeenCalledTimes(1);
 	});
 });

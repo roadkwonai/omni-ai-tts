@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/client";
 import { describe, expect, it } from "vitest";
 
-import { failureOf } from "./voice-failure";
+import { failureOf, retryAtOf } from "./voice-failure";
 
 const providerFailure = (reason: string) =>
 	new ORPCError("BAD_GATEWAY", { data: { provider: "typecast", reason } });
@@ -31,5 +31,34 @@ describe("failureOf", () => {
 		expect(failureOf(providerFailure("foo"))).toBeNull();
 		expect(failureOf(providerFailure("constructor"))).toBeNull();
 		expect(failureOf(new ORPCError("INTERNAL_SERVER_ERROR"))).toBeNull();
+	});
+});
+
+describe("retryAtOf", () => {
+	it("retryAtOf는 사유 오류의 data.retryAt을, 없거나 다른 오류면 null을 돌려준다", () => {
+		const limited = new ORPCError("TOO_MANY_REQUESTS", {
+			data: {
+				provider: "elevenlabs",
+				reason: "rate_limit",
+				retryAt: "2026-10-05T00:00:30.000Z",
+			},
+		});
+		expect(retryAtOf(limited)).toBe("2026-10-05T00:00:30.000Z");
+		expect(
+			retryAtOf(
+				new ORPCError("BAD_GATEWAY", {
+					data: { provider: "elevenlabs", reason: "quota" },
+				}),
+			),
+		).toBeNull();
+		expect(retryAtOf(new Error("x"))).toBeNull();
+		// 문자열이 아닌 retryAt은 시각으로 쓰지 않는다
+		expect(
+			retryAtOf(
+				new ORPCError("TOO_MANY_REQUESTS", {
+					data: { provider: "elevenlabs", reason: "rate_limit", retryAt: 30 },
+				}),
+			),
+		).toBeNull();
 	});
 });

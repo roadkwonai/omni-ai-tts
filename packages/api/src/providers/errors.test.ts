@@ -3,12 +3,14 @@ import { z } from "zod";
 
 import {
 	CHECK_TIMEOUT_MS,
+	fetchJson,
 	ProviderHttpError,
 	reasonFromHttp,
 	retryAfterSeconds,
 	runCheck,
 	runList,
 } from "./errors";
+import { fetchMock, json, useFetchMock } from "./test-utils";
 
 describe("reasonFromHttp", () => {
 	it("상태 코드를 tts-provider 표의 사유로 바꾼다", () => {
@@ -204,5 +206,20 @@ describe("runList", () => {
 		await vi.advanceTimersByTimeAsync(1);
 		await settled;
 		expect(log).not.toHaveBeenCalled();
+	});
+});
+
+describe("fetchJson", () => {
+	useFetchMock();
+
+	it("다른 호스트로의 리다이렉트를 따라가지 않는다(키 헤더가 새지 않게 redirect: error)", async () => {
+		fetchMock.mockResolvedValue(json(200, { ok: true }));
+		const signal = new AbortController().signal;
+		await fetchJson("https://api.example.com/x", { "x-api-key": "k" }, signal);
+		expect(fetchMock).toHaveBeenCalledWith("https://api.example.com/x", {
+			headers: { "x-api-key": "k" },
+			signal,
+			redirect: "error",
+		});
 	});
 });

@@ -155,10 +155,9 @@
 	--radius-4xl: calc(var(--radius) + 16px);
 }
 
-/* HTML 시안의 반응형 기준: 768px(md, 기본값)와 1200px(xl). 성우 카드 5열은 1440px(2xl) 이상 */
+/* HTML 시안의 반응형 기준: 768px(md, 기본값)와 1200px(xl) */
 @theme {
 	--breakpoint-xl: 75rem;
-	--breakpoint-2xl: 90rem;
 	--default-transition-duration: 150ms;
 	--default-transition-timing-function: cubic-bezier(0.3, 0, 0, 1);
 }

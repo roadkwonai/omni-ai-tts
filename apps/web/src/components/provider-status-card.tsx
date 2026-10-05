@@ -18,13 +18,7 @@ import { Spinner } from "@tts-pilot-app/ui/components/spinner";
 import { CircleCheck, KeyRound, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { isUpcoming } from "@/lib/connection-view";
-
-export const PROVIDER_LABEL: Record<ProviderId, string> = {
-	typecast: "Typecast",
-	elevenlabs: "ElevenLabs",
-	fish_audio: "Fish Audio",
-};
+import { isUpcoming, PROVIDER_LABEL } from "@/lib/connection-view";
 
 // 키 없음 안내에 보이는 변수 이름(apps/web/.env.schema). 키 값은 어디에도 보이지 않는다.
 const ENV_KEY: Record<ProviderId, string> = {

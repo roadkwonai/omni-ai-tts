@@ -9,15 +9,11 @@ import type {
 import { Info } from "lucide-react";
 import { Fragment, useState } from "react";
 
-import { toView } from "@/lib/connection-view";
+import { PROVIDER_LABEL, toView } from "@/lib/connection-view";
 import { orpc } from "@/utils/orpc";
 
 import { LoopbackNotice } from "./notice";
-import {
-	PROVIDER_LABEL,
-	ProviderStatusCard,
-	STATUS_LABEL,
-} from "./provider-status-card";
+import { ProviderStatusCard, STATUS_LABEL } from "./provider-status-card";
 
 const PROVIDER_ORDER = [
 	"typecast",

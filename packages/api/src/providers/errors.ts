@@ -2,13 +2,15 @@ import { ORPCError } from "@orpc/server";
 import { ZodError } from "zod";
 
 import type {
+	Accent,
 	ConnectionStatus,
 	ProviderErrorData,
 	ProviderFailure,
 	ProviderId,
 	ProviderStatusResult,
 	RemainingQuota,
-	VoiceListResult,
+	VoiceListInput,
+	VoiceListPage,
 } from "./contract";
 import { remainingQuotaSchema } from "./contract";
 
@@ -76,10 +78,14 @@ export type CheckOutcome = {
 	quota: RemainingQuota;
 };
 
+// 공급자 클라이언트. 목록·억양은 메서드 문법이다. 메서드 매개변수는 이변이라 공급자 구현이 자기 입력 모양(ListInputOf<P>)만 받아도 들어간다.
+// 라우터는 context.providers?.[input.provider]로 그 공급자의 클라이언트를 고르므로 입력과 구현이 어긋나지 않는다.
 export type ProviderClient = {
-	checkStatus: () => Promise<ProviderStatusResult>;
-	// 공개 성우 목록. Typecast는 T3, ElevenLabs·Fish Audio는 T4·T5에서 채운다
-	listVoices?: () => Promise<VoiceListResult>;
+	checkStatus(): Promise<ProviderStatusResult>;
+	// 성우 목록 한 페이지(T3 Typecast, T4 ElevenLabs·Fish Audio)
+	listVoices?(input: VoiceListInput): Promise<VoiceListPage>;
+	// ElevenLabs만: 언어의 억양 목록(억양 조건의 선택지, T4)
+	listAccents?(language: string): Promise<Accent[]>;
 };
 
 export const CHECK_TIMEOUT_MS = 10_000;
@@ -139,20 +145,21 @@ export function logFailure(
 	);
 }
 
-// 10초가 지나 끊었다. 응답을 받지 못했으므로 처리 여부를 모른다(unknown_outcome).
+// 제한 시간(기본 10초)이 지나 끊었다. 응답을 받지 못했으므로 처리 여부를 모른다(unknown_outcome).
 export class ProviderTimeoutError extends Error {
 	override name = "ProviderTimeoutError";
 }
 
-// 공급자 호출 공통 10초 제한. 신호를 받지 못하는 SDK(Typecast)도 같은 시각에 끊기도록 경주시킨다.
+// 공급자 호출 공통 시간 제한(기본 10초). 신호를 받지 못하는 SDK(Typecast)도 같은 시각에 끊기도록 경주시킨다.
 // 끊긴 요청은 뒤에서 끝까지 돌 수 있다(조회라 괜찮다).
 // timedOut의 abort 리스너가 call보다 먼저 등록되므로, 신호로 끊긴 fetch의 AbortError보다 늘 먼저 거절한다.
 async function withTimeout<T>(
 	call: (signal: AbortSignal) => Promise<T>,
+	timeoutMs = CHECK_TIMEOUT_MS,
 ): Promise<T> {
 	const controller = new AbortController();
 	// AbortSignal.timeout()은 vitest 가짜 타이머로 진행되지 않아 setTimeout을 쓴다.
-	const timer = setTimeout(() => controller.abort(), CHECK_TIMEOUT_MS);
+	const timer = setTimeout(() => controller.abort(), timeoutMs);
 	const timedOut = new Promise<never>((_, reject) => {
 		controller.signal.addEventListener(
 			"abort",
@@ -224,19 +231,27 @@ const FAILURE_CODE = {
 	unknown_outcome: "GATEWAY_TIMEOUT",
 } as const satisfies Record<ProviderFailure, string>;
 
-// 공급자 문제를 화면까지 보낼 오류. data에는 공급자와 사유만 담고 원래 오류(cause)를 붙이지 않는다.
-export function providerError(provider: ProviderId, reason: ProviderFailure) {
-	const data: ProviderErrorData = { provider, reason };
+// 공급자 문제를 화면까지 보낼 오류. data에는 공급자·사유(429면 다음 호출 가능 시각)만 담고 원래 오류(cause)를 붙이지 않는다.
+export function providerError(
+	provider: ProviderId,
+	reason: ProviderFailure,
+	retryAt?: string,
+) {
+	const data: ProviderErrorData = { provider, reason, retryAt };
 	return new ORPCError(FAILURE_CODE[reason], { data });
 }
 
-// 목록 조회 공통 틀(T3 스펙 3·4절): 10초 제한, 재시도 없음, 공급자 문제는 사유를 붙여 던진다.
+// 429 Retry-After는 1시간까지만 따른다. 더 긴 값이 대기 표에 적히면 목록·새로 고침이 며칠씩 막히고 화면에서 풀 방법이 없다(T4 계획 리뷰 E16)
+const MAX_RETRY_SECONDS = 60 * 60;
+
+// 목록 조회 공통 틀(T3 스펙 3·4절): 시간 제한(기본 10초), 재시도 없음, 공급자 문제는 사유를 붙여 던진다.
 export async function runList<T>(
 	provider: ProviderId,
 	call: (signal: AbortSignal) => Promise<T>,
+	timeoutMs = CHECK_TIMEOUT_MS,
 ): Promise<T> {
 	try {
-		return await withTimeout(call);
+		return await withTimeout(call, timeoutMs);
 	} catch (error) {
 		if (error instanceof ProviderTimeoutError) {
 			throw providerError(provider, "unknown_outcome");
@@ -244,11 +259,21 @@ export async function runList<T>(
 		if (error instanceof ProviderHttpError) {
 			const reason = reasonFromHttp(error.status, error.codes);
 			// 목록 조회의 입력 거절(400·422)과 표에 없는 상태는 공급자 장애로 보인다.
-			throw providerError(
-				provider,
+			const failure =
 				reason === null || reason === "provider_input"
 					? "provider_error"
-					: reason,
+					: reason;
+			// 429의 Retry-After(초)는 다음 호출 가능 시각으로 담는다. 목록 캐시가 대기 표에 적고 화면이 시각을 보인다(T4 스펙 4절)
+			const seconds =
+				failure === "rate_limit" ? retryAfterSeconds(error.retryAfter) : null;
+			throw providerError(
+				provider,
+				failure,
+				seconds === null
+					? undefined
+					: new Date(
+							Date.now() + Math.min(seconds, MAX_RETRY_SECONDS) * 1000,
+						).toISOString(),
 			);
 		}
 		const prefix = `[voiceList] ${provider} 목록 조회 실패`;
@@ -268,4 +293,24 @@ export async function runList<T>(
 		// 예상 밖 예외(이미 사유를 붙인 ORPCError 포함)는 그대로 던진다. 사유가 없으면 500(오류 경계)이 된다.
 		throw error;
 	}
+}
+
+// 공급자 REST 조회 공통(T4 ElevenLabs 목록·억양, Fish Audio 전부). 실패하면 상태 코드·공급자 오류 코드·Retry-After만 바꿔 담는다(본문의 값·메시지는 버린다).
+export async function fetchJson(
+	url: string,
+	headers: Record<string, string>,
+	signal: AbortSignal,
+	codesOf: (body: unknown) => string[] = () => [],
+): Promise<unknown> {
+	// 키 헤더가 다른 호스트로의 리다이렉트를 따라가지 않게 한다(리다이렉트를 만나면 fetch가 TypeError를 던진다)
+	const response = await fetch(url, { headers, signal, redirect: "error" });
+	if (!response.ok) {
+		const body: unknown = await response.json().catch(() => null);
+		throw new ProviderHttpError(
+			response.status,
+			codesOf(body),
+			response.headers.get("retry-after"),
+		);
+	}
+	return response.json();
 }

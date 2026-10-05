@@ -25,3 +25,11 @@ export function failureOf(
 	const reason = (error.data as Partial<ProviderErrorData> | undefined)?.reason;
 	return reason !== undefined && Object.hasOwn(KNOWN, reason) ? reason : null;
 }
+
+// 429 Retry-After로 정한 다음 호출 가능 시각(T4 스펙 4절). 없으면 null
+export function retryAtOf(error: unknown): string | null {
+	if (!(error instanceof ORPCError)) return null;
+	const retryAt = (error.data as Partial<ProviderErrorData> | undefined)
+		?.retryAt;
+	return typeof retryAt === "string" ? retryAt : null;
+}

@@ -1,9 +1,47 @@
 @import "@tts-pilot-app/ui/globals.css";
 
-/* 화면 밖 성우 카드는 그리기를 미룬다(T3 스펙 5절, rendering-content-visibility). 결과 격자의 li에만 붙인다.
-   선반은 5장뿐이고, 가로 줄에서는 화면 밖 카드의 자리값이 줄 높이를 늘린다.
-   높이는 카드 한 장의 대략값이다. 실측 216~242px(2026-10-04)이라 auto 14rem(224px)을 쓴다. */
-.voice-card {
+/* 화면 밖 성우 행은 그리기를 미룬다(T4, rendering-content-visibility). 행 높이 약 69px(min-h-17 + divide-y 1px, 실측)이라 auto 4.3125rem. */
+.voice-row {
 	content-visibility: auto;
-	contain-intrinsic-size: auto 14rem;
+	contain-intrinsic-size: auto 4.3125rem;
+}
+
+/* 성우 패널(1200px 이상)은 목록을 따라 화면에 붙어 있고, 화면보다 길면 패널 안에서 스크롤한다(T4 계획 리뷰 D12). 임의 값 대신 이름 붙은 utility로 둔다.
+   패널 끝까지 스크롤해도 페이지가 이어 스크롤되지 않는다(overscroll-behavior). */
+@utility voice-panel-sticky {
+	position: sticky;
+	top: --spacing(6);
+	max-height: calc(100svh - --spacing(12));
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+
+/* 가로로 넘치는 탭 줄(767px 이하)의 오른쪽 끝을 흐려 더 있다는 단서를 준다(audit P2-2).
+   스크롤 타임라인은 넘칠 때만 살아 있어 넘치지 않으면 흐림이 없고(--tabs-fade 기본 0), 끝까지 넘기면 걷힌다.
+   스크롤 타임라인이 없는 브라우저는 흐림 없이 넘기기만 한다. */
+@property --tabs-fade {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+@keyframes tabs-fade {
+	from {
+		--tabs-fade: --spacing(8);
+	}
+	to {
+		--tabs-fade: 0px;
+	}
+}
+@utility tabs-overflow-fade {
+	mask-image: linear-gradient(
+		to right,
+		black calc(100% - var(--tabs-fade)),
+		transparent
+	);
+	animation: tabs-fade linear both;
+	animation-timeline: scroll(self inline);
+	/* 흐림이 그려지는 브라우저에서만 스크롤바 대신 흐림이 넘침을 알린다. 넘기기는 터치·트랙패드·방향키(포커스가 탭을 화면 안으로 옮긴다)로 그대로 된다 */
+	@supports (animation-timeline: scroll()) {
+		scrollbar-width: none;
+	}
 }

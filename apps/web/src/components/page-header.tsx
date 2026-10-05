@@ -3,7 +3,7 @@ export function PageHeader({
 	description,
 }: {
 	title: string;
-	description: string;
+	description: React.ReactNode;
 }) {
 	return (
 		<header className="px-4 pt-6 pb-5 md:px-11 md:pt-11 md:pb-8">

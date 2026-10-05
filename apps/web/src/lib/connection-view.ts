@@ -32,3 +32,10 @@ export function toView(
 // 사용량 초기화 시각이 지금보다 뒤일 때만 보인다(CS-08). 지난 시각은 공급자가 그대로 주는 값이다(무료 플랜으로 보임).
 export const isUpcoming = (at: string, now = Date.now()): boolean =>
 	Date.parse(at) > now;
+
+// 화면 전체가 쓰는 공급자 표시 이름
+export const PROVIDER_LABEL: Record<ProviderId, string> = {
+	typecast: "Typecast",
+	elevenlabs: "ElevenLabs",
+	fish_audio: "Fish Audio",
+};

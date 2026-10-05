@@ -351,6 +351,9 @@ importers:
       '@tts-pilot-app/db':
         specifier: workspace:*
         version: link:../db
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 1.0.0-rc.4(@types/pg@8.23.1)(pg@8.23.0)(zod@4.6.5)
       zod:
         specifier: 'catalog:'
         version: 4.6.5

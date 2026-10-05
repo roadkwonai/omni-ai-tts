@@ -17,6 +17,7 @@ import {
 	type SampleStatus,
 } from "@/lib/sample-state";
 
+// name은 알림의 "{name} 샘플 재생 중"에 들어간다. '샘플'은 알림이 붙이므로 부르는 쪽은 넘기지 않는다(브리프 9절)
 type Toggle = (voiceId: string, name: string, url: string) => void;
 
 const SamplePlayerContext = createContext<{
@@ -24,9 +25,9 @@ const SamplePlayerContext = createContext<{
 	toggle: Toggle;
 } | null>(null);
 
-// 페이지에 오디오 요소 하나를 두고 모든 카드가 함께 쓴다. 한 번에 하나만 재생한다(REQ-03, 스펙 5절).
+// 페이지에 오디오 요소 하나를 두고 모든 행과 패널이 함께 쓴다. 한 번에 하나만 재생한다(REQ-03, 스펙 5절).
 // 기본 샘플은 공급자 주소를 브라우저가 바로 재생한다(과금 없음). 시험 생성과 합치지 않는다.
-// ponytail: 상태가 바뀌면 카드 전부가 다시 그려진다(614장). 느려지면 성우 id별 구독(useSyncExternalStore)으로 바꾼다.
+// ponytail: 상태가 바뀌면 행 전부가 다시 그려진다(최대 수백 행). 느려지면 성우 id별 구독(useSyncExternalStore)으로 바꾼다.
 export function SamplePlayerProvider({ children }: { children: ReactNode }) {
 	const audioRef = useRef<HTMLAudioElement>(null);
 	// 마지막으로 불러온 성우. 앞 성우의 늦은 실패가 다른 성우를 듣는 중에 알림을 띄우지 않게 거른다.
@@ -100,7 +101,7 @@ export function SamplePlayerProvider({ children }: { children: ReactNode }) {
 	);
 }
 
-// 같은 성우의 카드(여러 선반)는 모두 같은 상태를 본다.
+// 재생 키는 T4부터 샘플 오디오 주소다. 행과 패널의 같은 샘플이 같은 상태를 보이고, 공급자끼리 성우 id가 겹쳐도 섞이지 않는다. 이름 voiceId는 T3 그대로다.
 export function useSample(voiceId: string) {
 	const player = useContext(SamplePlayerContext);
 	if (!player)

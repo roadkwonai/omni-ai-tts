@@ -3,13 +3,12 @@ import { z } from "zod";
 
 import type { Voice } from "./contract";
 import {
-	fieldNames,
 	type ProviderClient,
 	ProviderHttpError,
-	providerError,
 	runCheck,
 	runList,
 } from "./errors";
+import { emptyVoice, parseVoiceItems } from "./list";
 
 // Typecast SDK는 응답을 검사하지 않는다. 쓰는 필드만 검사한다.
 const subscriptionSchema = z.object({
@@ -55,7 +54,7 @@ function toVoice(raw: z.infer<typeof rawVoiceSchema>): Voice {
 	const english = raw.voice_name.eng.trim();
 	const name = raw.voice_name.kor.trim() || english;
 	return {
-		provider: "typecast",
+		...emptyVoice("typecast", "public"),
 		voiceId: raw.voice_id,
 		name,
 		englishName: english && english !== name ? english : null,
@@ -106,31 +105,18 @@ export function createTypecast(apiKey: string): ProviderClient {
 				const originals = voiceTypesSchema
 					.parse(raw)
 					.filter((voice) => voice.voice_type === "original");
-				const voices = new Map<string, Voice>();
-				const dropped: unknown[] = [];
-				for (const item of originals) {
-					const parsed = rawVoiceSchema.safeParse(item);
-					if (!parsed.success) {
-						dropped.push(parsed.error);
-						continue;
-					}
-					const voice = toVoice(parsed.data);
-					// 같은 id가 다시 오면 처음 것만 남긴다(화면의 React 키와 재생 상태가 id로 묶인다)
-					if (!voices.has(voice.voiceId)) voices.set(voice.voiceId, voice);
-				}
-				if (dropped.length > 0) {
-					// 뺀 수와 필드 이름만 남긴다(값·메시지 없음).
-					console.error(
-						`[voiceList] typecast 성우 ${dropped.length}명 제외: ${fieldNames(dropped).join(", ")}`,
-					);
-					// 모두 빠지면 공급자가 모양을 바꾼 것이다. 빈 목록이 아니라 응답 이상으로 보인다.
-					if (voices.size === 0)
-						throw providerError("typecast", "provider_error");
-				}
+				const voices = parseVoiceItems(
+					"typecast",
+					originals,
+					rawVoiceSchema,
+					toVoice,
+				);
 				return {
-					provider: "typecast" as const,
-					voices: [...voices.values()],
-					fetchedAt: new Date().toISOString(),
+					voices,
+					next: null,
+					total: voices.length,
+					totalExact: true,
+					windowLimited: false,
 				};
 			}),
 	};

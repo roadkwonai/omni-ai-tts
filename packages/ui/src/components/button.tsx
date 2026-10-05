@@ -30,6 +30,8 @@ const buttonVariants = cva(
 				"icon-lg": "size-11",
 			},
 		},
+		// 링크 버튼은 크기와 상관없이 가로 안쪽 여백이 없다. cva가 크기 뒤에 붙이므로 크기의 px-*를 이긴다
+		compoundVariants: [{ variant: "link", class: "px-0" }],
 		defaultVariants: {
 			variant: "default",
 			size: "default",

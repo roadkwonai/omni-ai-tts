@@ -11,7 +11,14 @@ export default function CastingPage() {
 		<>
 			<PageHeader
 				title="성우 캐스팅"
-				description="Typecast 성우를 찾아 기본 샘플을 들어 보세요."
+				// 공급자 이름은 번역하지 않는다(브리프 16)
+				description={
+					<>
+						<span translate="no">Typecast</span>·
+						<span translate="no">ElevenLabs</span>·
+						<span translate="no">Fish Audio</span> 성우를 찾아 들어 보세요.
+					</>
+				}
 			/>
 			<div className="px-4 pb-10 md:px-11">
 				<VoiceCasting />

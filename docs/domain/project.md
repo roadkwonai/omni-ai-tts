@@ -5,7 +5,7 @@
 갱신은 해당 절의 표와 문장을 고치는 것이다. 날짜별 절이나 진행 경과를 덧붙이지 않는다(경과는 `tasks/archive/`에 남는다). 계획 중인 기능은 `기능` 표에 `계획` 상태로 넣고 스펙을 링크한다. 표의 `용어` 칸에는 `GLOSSARY.md`의 용어를 그대로 적는다.
 
 ## 한 줄 요약
-개인 콘텐츠 제작자가 Typecast·ElevenLabs·Fish Audio 성우와 대본을 재사용하는 TTS 작업실을 계획 중이며, 현재 앱은 로컬 관리자 모드의 작업실 틀(T1), 공급자 연결 상태 화면(T2), Typecast 성우 캐스팅 화면(T3), 별도 HTML 시안 단계다.
+개인 콘텐츠 제작자가 Typecast·ElevenLabs·Fish Audio 성우와 대본을 재사용하는 TTS 작업실을 계획 중이며, 현재 앱은 로컬 관리자 모드의 작업실 틀(T1), 공급자 연결 상태 화면(T2), Typecast·ElevenLabs·Fish Audio 성우 캐스팅 화면(T3·T4), 별도 HTML 시안 단계다.
 
 ## 사용자와 권한
 | 역할 | 할 수 있는 일 | 확인 위치 |
@@ -20,7 +20,10 @@ flowchart LR
   R["/"] --> S["/studio<br/>음성 작업실"]
   S --> C["/connections<br/>연결 상태"]
   C -->|providerStatus × 3| P["Typecast · ElevenLabs · Fish Audio<br/>계정 조회"]
-  S --> V["/casting<br/>성우 캐스팅"] -->|voiceList| T["Typecast 성우 목록"]
+  S --> V["/casting<br/>성우 캐스팅"]
+  V -->|"voiceList · voiceAccents"| K["목록 캐시<br/>Postgres, 24시간"]
+  K -->|"없거나 만료"| L["Typecast · ElevenLabs · Fish Audio<br/>성우 목록·억양 조회"]
+  V -->|voiceListRefresh| K
 ```
 
 ## 기능
@@ -28,7 +31,7 @@ flowchart LR
 |---|---|---|---|---|
 | 작업실 틀 (로컬 관리자 모드) | 구현 | `/studio` | 없음(`healthCheck`는 동작 점검용) | [T1 스펙](../plans/tasks/T01-app-foundation.md) |
 | 공급자 연결 상태 | 구현 | `/connections` | `providerStatus` | [T2 스펙](../plans/tasks/T02-provider-status.md) |
-| 성우 캐스팅(Typecast) | 구현 | `/casting` | `voiceList` | [T3 스펙](../plans/tasks/T03-typecast-voices.md) |
+| 성우 캐스팅(세 공급자) | 구현 | `/casting` | `voiceList`, `voiceAccents`, `voiceListRefresh` | [T4 스펙](../plans/tasks/T04-casting-three-providers.md), [T3 스펙](../plans/tasks/T03-typecast-voices.md)(Typecast 판) |
 | 로그인 (소유자 전용) | 계획 | 없음 | 없음 | [구현 로드맵 T14](../plans/implementation-roadmap.md) |
 | TTS 작업실 (P0) | 계획 | 없음 (HTML 시안 `docs/prototypes/tts-studio/index.html`) | 없음 | [요구사항](../plans/tts-service-requirements.md), [실서비스 기획·설계안](../briefs/tts-app-design.md), [구현 로드맵](../plans/implementation-roadmap.md) |
 
@@ -40,7 +43,7 @@ flowchart LR
 | `/` | `/studio`로 이동 | 없음 | `apps/web/src/app/page.tsx` |
 | `/studio` | 음성 작업실(제작 흐름 지도: 성우 단계는 `/casting` 링크, 연결 상태 링크) | 없음(로컬 관리자 모드) | `apps/web/src/app/(app)/studio/page.tsx` |
 | `/connections` | 연결 상태(세 공급자의 연결 상태와 잔여 사용량, 공급자별 다시 확인) | 없음(데이터는 `protectedProcedure`가 막는다. 소유자가 없으면 주소 안내) | `apps/web/src/app/(app)/connections/page.tsx` |
-| `/casting` | 성우 캐스팅: 콘텐츠별 선반, 검색·필터 격자, 기본 샘플 듣기 | 없음(데이터는 `protectedProcedure`, 소유자가 없으면 주소 안내) | `apps/web/src/app/(app)/casting/page.tsx` |
+| `/casting` | 성우 캐스팅: 공급자 탭(전체·Typecast·ElevenLabs·Fish Audio), 출처 전환(공개 라이브러리·내 계정), 공급자별 조건 줄, 성우 행 목록과 '더 보기', 성우 패널(기본 샘플 듣기), '목록 새로 고침' | 없음(데이터는 `protectedProcedure`, 소유자가 없으면 주소 안내) | `apps/web/src/app/(app)/casting/page.tsx` |
 | (없는 주소) | 페이지를 찾을 수 없어요(앱 틀 안, 작업실로 가기) | 없음 | `apps/web/src/app/not-found.tsx` |
 | (화면 오류) | 문제가 생겼어요(앱 틀 안, 다시 시도하기: 실패한 조회를 처음 상태로 되돌려 다시 부름) | 없음 | `apps/web/src/app/(app)/error.tsx` |
 
@@ -49,13 +52,19 @@ flowchart LR
 |---|---|---|---|---|
 | `healthCheck` | 해당 없음 | 공개 | 없음 | 상태 확인 |
 | `providerStatus` | 연결 상태, 잔여 사용량 | 보호(`protectedProcedure`) | `{ provider: "typecast" \| "elevenlabs" \| "fish_audio" }` | 서버 키로 공급자 계정을 조회해(Fish Audio는 API 충전 잔액 뒤 웹 플랜 크레딧까지 두 번) 연결 상태 8종과 잔여 사용량을 돌려준다. 키가 없으면 공급자를 부르지 않고 `no_key`다. 공급자 문제는 던지지 않고 값으로 돌려준다 |
-| `voiceList` | 성우, 성우 카탈로그, 공급자 분류(콘텐츠), 기본 샘플 | 보호(`protectedProcedure`) | `{ provider: "typecast" }` | 서버 키로 공개 성우 전체를 한 번 조회해 돌려준다. 커스텀 성우는 뺀다. 키가 없으면 공급자를 부르지 않고 `PRECONDITION_FAILED`. 공급자 문제는 사유(`data.reason`)를 붙여 던진다 |
+| `voiceList` | 성우, 성우 카탈로그, 공개 성우 라이브러리, 계정 성우, 공급자 분류(콘텐츠), 기본 샘플, 목록 캐시 | 보호(`protectedProcedure`) | 유니온: `{ provider: "typecast" }` \| `{ provider: "elevenlabs", source: "public", page, query }` \| `{ provider: "elevenlabs", source: "account", cursor, query }` \| `{ provider: "fish_audio", source, page, query }` | 서버 키로 성우 목록 한 페이지(100명씩, Typecast는 공개 성우 전체)를 목록 캐시를 거쳐 돌려준다. 출력은 성우 배열, `next`, `total`, `windowLimited`, 받은 시각 `fetchedAt`, `stale`이다. 공급자가 실패해도 지난 목록(만료 뒤 7일 안)이 있으면 `stale`(사유, 429면 `retryAt`)을 붙여 돌려준다. 계정 목록 행만 소유자별이다. 키가 없으면 공급자와 DB를 부르지 않고 `PRECONDITION_FAILED`. 지난 목록이 없으면 사유(`data.reason`)를 붙여 던진다 |
+| `voiceAccents` | 공급자 분류, 목록 캐시 | 보호(`protectedProcedure`) | `{ language }` | ElevenLabs 억양 목록(억양 조건의 선택지). 공개 캐시 행을 쓴다. 입력 검사를 통과하지 못하는 값은 선택지에서 뺀다. 키가 없으면 `PRECONDITION_FAILED`, 지난 목록은 `stale` |
+| `voiceListRefresh` | 목록 캐시, 계정 성우 | 보호(`protectedProcedure`) | `{ provider }` | '목록 새로 고침'. 공급자를 부르지 않고 그 공급자의 공개·억양 행과 이 소유자의 계정 행을 만료로 바꾼다(행은 지우지 않아 다시 받기가 실패해도 지난 목록을 보인다). 429 대기 시각 전이면 아무것도 바꾸지 않고 `retryAt`을 돌려준다. 화면이 이어서 그 공급자의 열린 목록(지금 목록과 '전체' 묶음)을 다시 받는다. 조건이 '전체' 묶음과 다르면 공급자 호출이 2회다(최종 리뷰 2026-10-05) |
 
 ## 데이터 모델과 코드 매핑
 | 테이블 | 용어 | 스키마 파일 | 소유자 컬럼 | 설명 |
 |---|---|---|---|---|
 | `user` | 사용자 | `packages/db/src/schema/auth.ts` | 해당 없음 | Better Auth 생성물 (`pnpm auth:generate`) |
 | `session`, `account`, `verification` | 해당 없음 | `packages/db/src/schema/auth.ts` | 해당 없음 | Better Auth 내부 테이블 |
+| `provider_list_cache` | 목록 캐시(코드 `providerListCache`) | `packages/db/src/schema/provider-cache.ts` | `owner_id`(null 허용, `user` 외래 키 없음) | 공급자 성우 목록 한 페이지를 조건별로 24시간 보관한다([ADR 0003](../adr/0003-postgres-cache.md)). 키는 소유자·공급자·목록 종류(`public`·`account`·`accents`)·정규화한 조건의 해시·계약 판(`CONTRACT_VERSION`)이고 `NULLS NOT DISTINCT` 유니크다. 계정 목록 행만 소유자 id가 있고 공개·억양 행은 null(소유자끼리 함께 씀). 지워도 되는 데이터라 `user` 외래 키를 걸지 않는다. 만료 뒤 7일이 지난 행은 쓰기 때 지운다 |
+| `provider_cooldown` | 공급자 대기 시각(코드 `providerCooldown`) | `packages/db/src/schema/provider-cache.ts` | 해당 없음(공급자별 한 행) | 공급자 429 `Retry-After`로 정한 다음 호출 가능 시각(1시간 상한). 그 전에는 그 공급자를 부르지 않는다. 서버 인스턴스끼리 메모리를 나누지 않으므로 DB에 둔다. T4 목록이 쓰고, T5 생성 호출도 이 표를 쓴다(계획) |
+
+DB 컨테이너(Podman, 5433)가 꺼져 있으면 목록 캐시 없이 동작한다. 연결·질의가 3초 안에 안 되면 `[voiceCache]` 실패 줄만 남기고 공급자를 바로 부르므로, 같은 조건도 매번 공급자를 부른다.
 
 ## 범위 밖
 아직 하지 않기로 한 것과 그 이유. 뒤로 미룬 기능도 여기에 옮긴다.
