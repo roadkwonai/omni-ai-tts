@@ -34,11 +34,18 @@ import {
 
 import { ModeToggle } from "./mode-toggle";
 
-// 열린 화면. 767px 이하에서는 위 막대에 늘 보인다(4칸: 열린 화면 셋 + 더보기, 성우 캐스팅 브리프 10절).
-const OPEN_ITEMS: { label: string; icon: LucideIcon; href: Route }[] = [
-	{ label: "음성 작업실", icon: WandSparkles, href: "/studio" },
-	{ label: "성우 캐스팅", icon: AudioWaveform, href: "/casting" },
-	{ label: "연결 상태", icon: Link2, href: "/connections" },
+// 열린 화면. 767px 이하 위 막대는 4칸 그대로다(bar 셋 + 더보기, T6 스펙 2절 '휴대폰 위 막대'). bar가 아닌 화면은 더보기 안 '열린 화면' 줄에 둔다.
+// 768px 이상에서는 모두 사이드바 위쪽 목록에 보인다. 뒤 TASK가 여는 화면도 bar: false로 더한다
+const OPEN_ITEMS: {
+	label: string;
+	icon: LucideIcon;
+	href: Route;
+	bar: boolean;
+}[] = [
+	{ label: "음성 작업실", icon: WandSparkles, href: "/studio", bar: true },
+	{ label: "성우 캐스팅", icon: AudioWaveform, href: "/casting", bar: true },
+	{ label: "연결 상태", icon: Link2, href: "/connections", bar: true },
+	{ label: "채널·분류", icon: Tag, href: "/classes", bar: false },
 ];
 
 // 아직 만들지 않은 화면('준비 중', 사이트맵 "예외"). 그 화면을 여는 TASK가 OPEN_ITEMS로 옮긴다.
@@ -47,7 +54,6 @@ const UPCOMING_ITEMS: { label: string; icon: LucideIcon }[] = [
 	{ label: "성우 보관함", icon: UserRound },
 	{ label: "프로젝트", icon: Folder },
 	{ label: "프리셋", icon: SlidersHorizontal },
-	{ label: "채널·분류", icon: Tag },
 	{ label: "내 보이스", icon: Mic },
 ];
 
@@ -87,6 +93,10 @@ function NavTip({
 export function AppNav() {
 	const pathname = usePathname();
 	const [moreOpen, setMoreOpen] = useState(false);
+	// 더보기 안 화면에 있으면 더보기 버튼이 활성 메뉴와 같은 표현이고 접근 이름에 현재 화면을 담는다(provider-status 브리프 96행, 계획 리뷰 D3)
+	const moreCurrent = OPEN_ITEMS.find(
+		(item) => !item.bar && item.href === pathname,
+	);
 	// 접힌 채 시작하고, 레이아웃에 있어 페이지를 옮겨도 펼친 상태가 남는다.
 	const [upcomingOpen, setUpcomingOpen] = useState(false);
 	// 경로가 바뀌면 더보기를 닫는다. effect 대신 렌더 중에 이전 경로와 비교한다(React 문서 "prop이 바뀔 때 state 조정").
@@ -172,7 +182,10 @@ export function AppNav() {
 						// 하위 경로가 없다. 없는 주소(/connections/x)에서 '연결 상태'가 현재 페이지로 보이지 않게 같을 때만 활성이다.
 						const active = pathname === item.href;
 						return (
-							<li key={item.href}>
+							<li
+								key={item.href}
+								className={item.bar ? undefined : "hidden md:block"}
+							>
 								<NavTip
 									label={item.label}
 									trigger={
@@ -205,10 +218,17 @@ export function AppNav() {
 							type="button"
 							aria-expanded={moreOpen}
 							aria-controls="app-nav-more"
+							aria-label={
+								moreCurrent ? `더보기, 현재 ${moreCurrent.label}` : undefined
+							}
 							onClick={() => setMoreOpen((open) => !open)}
 							className={cn(
 								itemClass,
-								"w-full text-muted-foreground hover:bg-accent hover:text-accent-foreground aria-expanded:bg-sidebar-accent aria-expanded:font-bold aria-expanded:text-sidebar-accent-foreground",
+								"w-full aria-expanded:bg-sidebar-accent aria-expanded:font-bold aria-expanded:text-sidebar-accent-foreground",
+								// 현재 위치여도 가리키면 살짝 옅어진다(audit P3)
+								moreCurrent
+									? "bg-sidebar-accent font-bold text-sidebar-accent-foreground hover:bg-sidebar-accent/80"
+									: "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
 							)}
 						>
 							<Ellipsis aria-hidden="true" className="size-4.5 shrink-0" />
@@ -225,6 +245,35 @@ export function AppNav() {
 						"flex-col gap-1 border-t px-2 py-2 md:contents",
 					)}
 				>
+					{/* 767px 이하: 위 막대에 없는 열린 화면(T6 스펙 2절). 768px 이상은 위 목록에 있다 */}
+					<ul aria-label="열린 화면" className="flex flex-col gap-1 md:hidden">
+						{OPEN_ITEMS.filter((item) => !item.bar).map((item) => {
+							const Icon = item.icon;
+							const active = pathname === item.href;
+							return (
+								<li key={item.href}>
+									<Link
+										href={item.href}
+										aria-current={active ? "page" : undefined}
+										onClick={() => {
+											setMoreOpen(false);
+											// 누른 링크는 닫히는 패널과 함께 숨는다. 포커스가 body로 빠지지 않게 더보기 버튼으로 옮긴다
+											moreButtonRef.current?.focus();
+										}}
+										className={cn(
+											rowClass,
+											active
+												? "bg-sidebar-accent font-bold text-sidebar-accent-foreground"
+												: "text-foreground hover:bg-accent hover:text-accent-foreground",
+										)}
+									>
+										<Icon aria-hidden="true" className="size-4.5 shrink-0" />
+										<span className="text-sm">{item.label}</span>
+									</Link>
+								</li>
+							);
+						})}
+					</ul>
 					<div className="md:mt-2">
 						<NavTip
 							label="다음에 열릴 화면"

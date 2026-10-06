@@ -61,19 +61,20 @@ export function cacheKey(params: unknown): string {
 		.digest("hex");
 }
 
-// DB 오류 한 줄. drizzle 오류의 message에는 SQL과 값이 들어 있어 이름과 코드(ECONNREFUSED 등)만 남긴다
-export function logDbFailure(prefix: string, step: string, error: unknown) {
-	const name = error instanceof Error ? error.name : typeof error;
+// DB 오류 코드(ECONNREFUSED, 23505 등). drizzle 오류는 pg 오류를 cause에 넣는다
+export function dbCode(error: unknown): string | null {
 	const { code, cause } = (error ?? {}) as {
 		code?: unknown;
 		cause?: { code?: unknown };
 	};
-	const tag =
-		typeof cause?.code === "string"
-			? cause.code
-			: typeof code === "string"
-				? code
-				: "";
+	if (typeof cause?.code === "string") return cause.code;
+	return typeof code === "string" ? code : null;
+}
+
+// DB 오류 한 줄. drizzle 오류의 message에는 SQL과 값이 들어 있어 이름과 코드(ECONNREFUSED 등)만 남긴다
+export function logDbFailure(prefix: string, step: string, error: unknown) {
+	const name = error instanceof Error ? error.name : typeof error;
+	const tag = dbCode(error);
 	console.error(`${prefix} ${step} 실패: ${name}${tag ? ` ${tag}` : ""}`);
 }
 

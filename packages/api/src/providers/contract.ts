@@ -121,7 +121,7 @@ export const voiceSchema = z.object({
 	tags: z.array(z.string()),
 	// 공급자가 준 언어 코드
 	languages: z.array(z.string()),
-	// 공급자 성우 종류(ElevenLabs category)
+	// 공급자 성우 종류(ElevenLabs category). 사용자 분류의 카테고리(classification 표)와 다르다
 	category: z.string().nullable(),
 	// 계정 성우의 출처: premade 제공 성우, saved 라이브러리에서 저장, own 내가 만든 성우. 공개 목록은 null
 	origin: z.enum(["premade", "saved", "own"]).nullable(),
@@ -218,6 +218,7 @@ export const voiceListInputSchema = z.union([
 		cursor: z.string().min(1).max(1000).nullable(),
 		query: z.object({
 			search: searchSchema,
+			// ElevenLabs 계정 성우 출처 필터(화면 '출처'). 사용자 분류의 타입(classification kind 'type')과 다르다
 			voiceType: z.enum(["personal", "community", "default"]).nullable(),
 			category: z
 				.enum(["premade", "cloned", "generated", "professional"])

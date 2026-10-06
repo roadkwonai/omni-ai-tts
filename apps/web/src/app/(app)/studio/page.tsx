@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "음성 작업실" };
 
 // 열리지 않은 단계는 '준비 중'(사이트맵 "예외"). 단계를 여는 TASK가 href를 더한다.
 const STEPS: { name: string; text: string; href?: Route }[] = [
-	{ name: "채널", text: "영상 채널과 분류를 정해요" },
+	{ name: "채널", text: "영상 채널과 분류를 정해요", href: "/classes" },
 	{ name: "성우", text: "공급자 성우를 듣고 골라요", href: "/casting" },
 	{ name: "대본", text: "원문과 발음용 대본을 써요" },
 	{ name: "검수", text: "생성 전에 숫자 발음을 확인해요" },
