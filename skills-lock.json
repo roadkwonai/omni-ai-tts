@@ -95,7 +95,7 @@
       "source": "pbakaus/impeccable",
       "sourceType": "github",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "computedHash": "6b5ebc0ee592c7d4620827b20f1554706607e3363835a951c78ee37ac63a7df0"
+      "computedHash": "0ec7c50507fd8c0380628e4245095104dc0623427dd5ea489dbf55742f84ffad"
     },
     "neon": {
       "source": "neondatabase/agent-skills",
@@ -161,7 +161,7 @@
       "source": "DietrichGebert/ponytail",
       "sourceType": "github",
       "skillPath": "skills/ponytail-review/SKILL.md",
-      "computedHash": "18f55cbe8d9afd3a42ef26fd3e4c46509fb7e3fc86078a57c3dd739031be8c44"
+      "computedHash": "09c824396581b0048a4feb504e21a9b3f943c9ec06b77eec04737c0f741c6d25"
     },
     "receiving-code-review": {
       "source": "obra/superpowers",
@@ -221,7 +221,7 @@
       "source": "CaesiumY/ko-design-md",
       "sourceType": "github",
       "skillPath": ".claude/skills/use-design-md/SKILL.md",
-      "computedHash": "64691c6964ac0ea37de1e6f811ab663862caf4b8fb53d26a8539f25c2681668f"
+      "computedHash": "6b49421c77fd906af8fc916d0b781d080f919d71dcd2d3196b02dafebca4c391"
     },
     "using-git-worktrees": {
       "source": "obra/superpowers",
