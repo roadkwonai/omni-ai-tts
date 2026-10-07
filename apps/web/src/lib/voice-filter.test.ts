@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
 	EMPTY_FILTERS,
+	filterByNameOrId,
 	filterOptions,
 	filterVoices,
 	groupByUseCase,
@@ -230,5 +231,35 @@ describe("groupByUseCase", () => {
 				["Rapper", 1],
 			],
 		);
+	});
+});
+
+describe("filterByNameOrId (Airy 탭)", () => {
+	const airy = (voiceId: string, name: string, gender: Voice["gender"]) =>
+		voice(voiceId, {
+			provider: "airy",
+			name,
+			englishName: null,
+			gender,
+			age: null,
+			useCases: [],
+			models: [],
+		});
+	const list = [
+		airy("a597bb7a98fc9ec1", "Silvia", "female"),
+		airy("0123456789abcdef", "Mark", "male"),
+	];
+	it("이름·성우 id 부분 일치(대소문자 무시), 성별은 여럿이면 OR", () => {
+		expect(filterByNameOrId(list, "silv", []).map((v) => v.name)).toEqual([
+			"Silvia",
+		]);
+		expect(filterByNameOrId(list, "89AB", []).map((v) => v.name)).toEqual([
+			"Mark",
+		]);
+		expect(filterByNameOrId(list, "", ["male"]).map((v) => v.name)).toEqual([
+			"Mark",
+		]);
+		expect(filterByNameOrId(list, "", ["female", "male"])).toHaveLength(2);
+		expect(filterByNameOrId(list, "silv", ["male"])).toEqual([]);
 	});
 });

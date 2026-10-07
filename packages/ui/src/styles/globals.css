@@ -162,11 +162,6 @@
 	--default-transition-timing-function: cubic-bezier(0.3, 0, 0, 1);
 }
 
-/* 카드 격자: 칸 최소 15rem(240px)으로 열 수를 정한다. 본문 872px(1024 화면)에서 3열(CS-04, 성우 캐스팅 브리프 8절) */
-@utility grid-cols-cards {
-	grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr));
-}
-
 @layer base {
 	* {
 		@apply border-border outline-ring/50;

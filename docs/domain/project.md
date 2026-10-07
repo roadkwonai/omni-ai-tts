@@ -5,7 +5,7 @@
 갱신은 해당 절의 표와 문장을 고치는 것이다. 날짜별 절이나 진행 경과를 덧붙이지 않는다(경과는 `tasks/archive/`에 남는다). 계획 중인 기능은 `기능` 표에 `계획` 상태로 넣고 스펙을 링크한다. 표의 `용어` 칸에는 `GLOSSARY.md`의 용어를 그대로 적는다.
 
 ## 한 줄 요약
-개인 콘텐츠 제작자가 Typecast·ElevenLabs·Fish Audio 성우와 대본을 재사용하는 TTS 작업실이다. 현재 앱은 로컬 관리자 모드의 작업실 틀(T1), 공급자 연결 상태(T2), 세 공급자 성우 캐스팅(T3·T4), 성우별 내 문장 듣기(T5), 채널·카테고리·타입 관리(T6), 성우 보관함(T7)을 제공한다.
+개인 콘텐츠 제작자가 Typecast·ElevenLabs·Fish Audio·Airy 성우와 대본을 재사용하는 TTS 작업실이다. 현재 앱은 로컬 관리자 모드의 작업실 틀(T1), 공급자 연결 상태(T2), 네 공급자 성우 캐스팅(T3·T4, Airy는 T7.5), 성우별 내 문장 듣기(T5), 채널·카테고리·타입 관리(T6), 성우 보관함(T7)을 제공한다.
 
 ## 사용자와 권한
 | 역할 | 할 수 있는 일 | 확인 위치 |
@@ -19,12 +19,12 @@
 flowchart LR
   R["/"] --> S["/studio<br/>음성 작업실"]
   S --> C["/connections<br/>연결 상태"]
-  C -->|providerStatus × 3| P["Typecast · ElevenLabs · Fish Audio<br/>계정 조회"]
+  C -->|providerStatus × 4| P["Typecast · ElevenLabs · Fish Audio · Airy<br/>계정 조회"]
   S --> CL["/classes<br/>채널·분류"]
   CL -->|"channel* · classification* 8개"| CD["channel · classification<br/>Postgres"]
   S --> V["/casting<br/>성우 캐스팅"]
   V -->|"voiceList · voiceAccents"| K["목록 캐시<br/>Postgres, 24시간"]
-  K -->|"없거나 만료"| L["Typecast · ElevenLabs · Fish Audio<br/>성우 목록·억양 조회"]
+  K -->|"없거나 만료"| L["Typecast · ElevenLabs · Fish Audio · Airy<br/>성우 목록·억양 조회"]
   V -->|voiceListRefresh| K
   V -->|문장 입력·성우 설정| TF["내 문장 듣기"]
   TF -->|trialFind · 저장본 없음| TC{"확인 필요?"}
@@ -45,7 +45,7 @@ flowchart LR
 |---|---|---|---|---|
 | 작업실 틀 (로컬 관리자 모드) | 구현 | `/studio` | 없음(`healthCheck`는 동작 점검용) | [T1 스펙](../plans/tasks/T01-app-foundation.md) |
 | 공급자 연결 상태 | 구현 | `/connections` | `providerStatus` | [T2 스펙](../plans/tasks/T02-provider-status.md) |
-| 성우 캐스팅(세 공급자) | 구현 | `/casting` | `voiceList`, `voiceAccents`, `voiceListRefresh` | [T4 스펙](../plans/tasks/T04-casting-three-providers.md), [T3 스펙](../plans/tasks/T03-typecast-voices.md)(Typecast 판) |
+| 성우 캐스팅(네 공급자) | 구현 | `/casting` | `voiceList`, `voiceAccents`, `voiceListRefresh` | [T4 스펙](../plans/tasks/T04-casting-three-providers.md), [T3 스펙](../plans/tasks/T03-typecast-voices.md)(Typecast 판), [T7.5 스펙](../plans/tasks/T07.5-airy-provider.md)(Airy 추가) |
 | 내 문장 듣기(시험 생성) | 구현 | `/casting` | `trialModels`, `trialFind`, `trialCreate`, `trialList`, `trialAudio`, `trialDelete` | [T5 스펙](../plans/tasks/T05-my-sentence-listening.md), [T5 계획](../plans/tasks/T05-my-sentence-listening-plan.md) |
 | 채널·분류 관리(채널, 카테고리, 타입 만들기·고치기·지우기) | 구현 | `/classes` | `channelList`, `channelCreate`, `channelUpdate`, `channelDelete`, `classificationList`, `classificationCreate`, `classificationUpdate`, `classificationDelete` | [T6 스펙](../plans/tasks/T06-channels-and-classifications.md), [T6 계획](../plans/tasks/T06-channels-and-classifications-plan.md), [채널·분류 브리프](../briefs/classes.md) |
 | 성우 보관함(담기, 즐겨찾기·자주 사용·메모, 채널·카테고리·타입 붙이기, 필터, 현재 이용 불가 확인) | 구현 | `/voices`, `/casting`(행의 별, 패널의 담기 칸), `/classes`('성우 N명' 링크) | `savedVoiceList`, `savedVoiceSave`, `savedVoiceLinks`, `savedVoiceRemove`, `savedVoiceCheck`, `channelList`·`classificationList`의 `voiceCount` | [T7 스펙](../plans/tasks/T07-voice-library.md), [T7 계획](../plans/tasks/T07-voice-library-plan.md), [성우 보관함 브리프](../briefs/voices.md) |
@@ -59,7 +59,7 @@ flowchart LR
 |---|---|---|---|
 | `/` | `/studio`로 이동 | 없음 | `apps/web/src/app/page.tsx` |
 | `/studio` | 음성 작업실(제작 흐름 지도: 채널 단계는 `/classes` 링크, 성우 단계는 `/casting` 링크, 연결 상태 링크) | 없음(로컬 관리자 모드) | `apps/web/src/app/(app)/studio/page.tsx` |
-| `/connections` | 연결 상태(세 공급자의 연결 상태와 잔여 사용량, 공급자별 다시 확인) | 없음(데이터는 `protectedProcedure`가 막는다. 소유자가 없으면 주소 안내) | `apps/web/src/app/(app)/connections/page.tsx` |
+| `/connections` | 연결 상태(네 공급자의 연결 상태와 잔여 사용량, 공급자별 다시 확인, 카드 2×2) | 없음(데이터는 `protectedProcedure`가 막는다. 소유자가 없으면 주소 안내) | `apps/web/src/app/(app)/connections/page.tsx` |
 | `/casting` | 성우 캐스팅: 공급자 탭, 출처 전환, 조건 줄, 성우 행·더 보기, 위쪽 문장 바와 행의 '내 문장 듣기', 패널의 이용 조건·내 문장 듣기·담기 칸·내 문장 결과 구역, 행 오른쪽 끝의 별(즐겨찾기, 담은 성우의 내 분류 칩·자주 사용 배지), 유료 생성 확인 창, 기본 샘플 재생. 담기 칸은 즐겨찾기·자주 사용·분류 붙이기(펼침에서 없는 이름 바로 만들기)·메모·'보관함에서 빼기'(확인 창)다 | 없음(데이터는 `protectedProcedure`, 소유자가 없으면 주소 안내) | `apps/web/src/app/(app)/casting/page.tsx` |
 | `/voices` | 성우 보관함: 담은 성우를 최근 담은 순 행 목록으로 보이고(캐스팅과 같은 행, 별과 내 분류 칩, 내 문장 듣기는 없음), 이름 검색·보기(전체·즐겨찾기·자주 사용)·공급자·채널·카테고리·타입 조건 줄(그룹 안은 하나라도 맞으면, 그룹끼리는 모두 맞아야. 값은 주소 쿼리 `q`·`view`·`provider`·`channel`·`category`·`type`에 남는다), 상태 줄, 패널(기본 샘플·이용 조건·담기 칸, 현재 이용 불가 안내). 화면을 열면 24시간 지난 담은 성우를 서버가 공급자에 한 명씩 확인한다. 빈 상태는 '성우 캐스팅에서 찾기'. 1199px 이하 패널은 서랍 | 없음(데이터는 `protectedProcedure`가 막는다. 소유자가 없으면 주소 안내) | `apps/web/src/app/(app)/voices/page.tsx` |
 | `/classes` | 채널·분류: 채널·카테고리·타입 세 묶음을 위아래로 보이고(이름순), 묶음마다 만들기, 행마다 고치기(입력 창)·지우기(확인 창). 행마다 연결된 담은 성우가 있으면 '성우 N명' 링크(그 항목으로 걸러진 `/voices`로 간다), 삭제 확인 창에 "연결된 성우 N명은 보관함에 그대로 남고, 이 {그룹} 연결만 풀려요."가 붙는다. 767px 이하 메뉴는 위 막대 4칸 그대로이고 이 화면과 `/voices`는 더보기 안 '열린 화면' 줄에 있다 | 없음(데이터는 `protectedProcedure`가 막는다. 소유자가 없으면 주소 안내) | `apps/web/src/app/(app)/classes/page.tsx` |
@@ -70,13 +70,13 @@ flowchart LR
 | 프로시저 | 용어 | 보호 | 입력 | 설명 |
 |---|---|---|---|---|
 | `healthCheck` | 해당 없음 | 공개 | 없음 | 상태 확인 |
-| `providerStatus` | 연결 상태, 잔여 사용량 | 보호(`protectedProcedure`) | `{ provider: "typecast" \| "elevenlabs" \| "fish_audio" }` | 서버 키로 공급자 계정을 조회해(Fish Audio는 API 충전 잔액 뒤 웹 플랜 크레딧까지 두 번) 연결 상태 8종과 잔여 사용량을 돌려준다. 키가 없으면 공급자를 부르지 않고 `no_key`다. 공급자 문제는 던지지 않고 값으로 돌려준다 |
-| `voiceList` | 성우, 성우 카탈로그, 공개 성우 라이브러리, 계정 성우, 공급자 분류(콘텐츠), 기본 샘플, 목록 캐시 | 보호(`protectedProcedure`) | 유니온: `{ provider: "typecast" }` \| `{ provider: "elevenlabs", source: "public", page, query }` \| `{ provider: "elevenlabs", source: "account", cursor, query }` \| `{ provider: "fish_audio", source, page, query }` | 서버 키로 성우 목록 한 페이지(100명씩, Typecast는 공개 성우 전체)를 목록 캐시를 거쳐 돌려준다. 출력은 성우 배열, `next`, `total`, `windowLimited`, 받은 시각 `fetchedAt`, `stale`이다. 공급자가 실패해도 지난 목록(만료 뒤 7일 안)이 있으면 `stale`(사유, 429면 `retryAt`)을 붙여 돌려준다. 계정 목록 행만 소유자별이다. 키가 없으면 공급자와 DB를 부르지 않고 `PRECONDITION_FAILED`. 지난 목록이 없으면 사유(`data.reason`)를 붙여 던진다 |
+| `providerStatus` | 연결 상태, 잔여 사용량 | 보호(`protectedProcedure`) | `{ provider: "typecast" \| "elevenlabs" \| "fish_audio" \| "airy" }` | 서버 키로 공급자 계정을 조회해(Fish Audio는 API 충전 잔액 뒤 웹 플랜 크레딧까지 두 번) 연결 상태 8종과 잔여 사용량을 돌려준다. 키가 없으면 공급자를 부르지 않고 `no_key`다. 공급자 문제는 던지지 않고 값으로 돌려준다 |
+| `voiceList` | 성우, 성우 카탈로그, 공개 성우 라이브러리, 계정 성우, 공급자 분류(콘텐츠), 기본 샘플, 목록 캐시 | 보호(`protectedProcedure`) | 유니온: `{ provider: "typecast" }` \| `{ provider: "airy" }`(출처 공개, 조건 없음, 카탈로그 샘플) \| `{ provider: "elevenlabs", source: "public", page, query }` \| `{ provider: "elevenlabs", source: "account", cursor, query }` \| `{ provider: "fish_audio", source, page, query }` | 서버 키로 성우 목록 한 페이지(100명씩, Typecast는 공개 성우 전체)를 목록 캐시를 거쳐 돌려준다. 출력은 성우 배열, `next`, `total`, `windowLimited`, 받은 시각 `fetchedAt`, `stale`이다. 공급자가 실패해도 지난 목록(만료 뒤 7일 안)이 있으면 `stale`(사유, 429면 `retryAt`)을 붙여 돌려준다. 계정 목록 행만 소유자별이다. 키가 없으면 공급자와 DB를 부르지 않고 `PRECONDITION_FAILED`. 지난 목록이 없으면 사유(`data.reason`)를 붙여 던진다 |
 | `voiceAccents` | 공급자 분류, 목록 캐시 | 보호(`protectedProcedure`) | `{ language }` | ElevenLabs 억양 목록(억양 조건의 선택지). 공개 캐시 행을 쓴다. 입력 검사를 통과하지 못하는 값은 선택지에서 뺀다. 키가 없으면 `PRECONDITION_FAILED`, 지난 목록은 `stale` |
 | `voiceListRefresh` | 목록 캐시, 계정 성우 | 보호(`protectedProcedure`) | `{ provider }` | '목록 새로 고침'. 공급자를 부르지 않고 그 공급자의 공개·억양 행과 이 소유자의 계정 행을 만료로 바꾼다(행은 지우지 않아 다시 받기가 실패해도 지난 목록을 보인다). 429 대기 시각 전이면 아무것도 바꾸지 않고 `retryAt`을 돌려준다. 화면이 이어서 그 공급자의 열린 목록(지금 목록과 '전체' 묶음)을 다시 받는다. 조건이 '전체' 묶음과 다르면 공급자 호출이 2회다(최종 리뷰 2026-10-05) |
 | `trialModels` | 예상 사용량 | 보호(`protectedProcedure`) | 없음 | ElevenLabs 모델별 크레딧 배율을 목록 캐시에서 읽는다. 일반 조회 실패는 배율 1로 계산하지만, 조회 중 429 또는 새 대기 시각은 시험 생성을 중단한다 |
 | `trialFind` | 저장된 결과 | 보호(`protectedProcedure`) | `TrialRequest` | 같은 소유자·공급자·성우·모델·정리된 설정·문장의 완료 결과를 찾는다. 있으면 오디오를 돌려주고 보관 만료를 30일 뒤로 늘린다. 공급자를 부르지 않는다 |
-| `trialCreate` | 시험 생성 | 보호(`protectedProcedure`) | `{ requestId, request }` | 키 없음·Fish Audio 무료 기간 종료를 먼저 확인한다. 기존 요청 ID는 429 대기 확인보다 먼저 상태·결과를 재생하고, 새 요청은 429 대기·모델 배율 확인과 기록 선점 뒤 한 번 생성한다. DB 실패면 공급자를 부르지 않으며 자동 재시도하지 않는다. 정상 Fish Audio 무료 모델은 확인 창 없이 생성한다 |
+| `trialCreate` | 시험 생성 | 보호(`protectedProcedure`) | `{ requestId, request }` | 키 없음·Fish Audio 무료 기간 종료를 먼저 확인한다. 기존 요청 ID는 429 대기 확인보다 먼저 상태·결과를 재생하고, 새 요청은 429 대기·모델 배율 확인과 기록 선점 뒤 한 번 생성한다. DB 실패면 공급자를 부르지 않으며 자동 재시도하지 않는다. 정상 Fish Audio 무료 모델은 확인 창 없이 생성한다. Airy는 언어·말투를 받고 예상 크레딧은 한국어 1.5배 올림이다 |
 | `trialList` | 저장된 결과 | 보호(`protectedProcedure`) | `{ provider, voiceId }` | 해당 성우의 완료 결과 최신 20개를 오디오 없이 돌려준다 |
 | `trialAudio` | 저장된 결과 | 보호(`protectedProcedure`) | `{ id }` | 소유자의 완료 오디오를 돌려주고 보관 만료를 30일 뒤로 늘린다 |
 | `trialDelete` | 저장된 결과 | 보호(`protectedProcedure`) | `{ id }` | 진행 중이 아닌 소유자 결과를 앱 DB에서 지운다. 공급자 기록은 지우지 않는다 |
@@ -92,7 +92,7 @@ flowchart LR
 | `savedVoiceSave` | 성우 보관함, 즐겨찾기 성우, 자주 사용하는 성우 | 보호(`protectedProcedure`) | `{ voice, favorite?, frequent?, memo? }` | 담기이자 바꾸기. 소유자 + 공급자 + 성우 id로 upsert한다(유니크 + `on conflict`라 동시에 두 번 담아도 한 행). 없으면 만들고(확인 시각은 지금), 있으면 정보·출처와 준 필드만 바꾼다. 다른 탭에서 뺀 성우도 다시 담긴다. `voice`는 목록에서 받은 값이라 서버가 다시 검사한다: 계약 모양, 샘플 주소가 https이고 그 공급자 호스트이며 해석 가능, JSON 20,000자 이하, voiceId `[A-Za-z0-9_-]` 1~200자, Typecast는 출처 `public`만. 메모는 채널·분류 메모 규칙(0~200자)이다. 담은 성우 한 명을 돌려준다 |
 | `savedVoiceLinks` | 성우 보관함, 채널, 카테고리, 타입 | 보호(`protectedProcedure`) | `{ voice, channelIds, classificationIds }` | 한 트랜잭션에서 그 성우를 담고(이미 있으면 정보·출처를 넘긴 값으로 바꾼다) 채널·분류 연결을 이 목록으로 바꾼다. 목록은 각 50개까지이고 중복은 합친다. 하나라도 이 소유자 것이 아니거나 없으면(연결 중 지워져 외래 키 위반인 경우 포함) `NOT_FOUND`이고 담기까지 되돌린다. 담은 성우 한 명을 돌려준다 |
 | `savedVoiceRemove` | 성우 보관함 | 보호(`protectedProcedure`) | `{ id }` | '보관함에서 빼기'. 소유자의 담은 성우를 지우고(연결도 함께 지워진다) `{ deleted: true }`. 없거나 남의 것이면 `NOT_FOUND` |
-| `savedVoiceCheck` | 현재 이용 불가, 성우 보관함 | 보호(`protectedProcedure`) | 없음 | 확인한 적 없거나 마지막 확인이 24시간 지난 행 가운데 오래된 순 40명을 공급자에 한 명씩 조회하고 `savedVoiceList`와 같은 목록을 돌려준다. ElevenLabs 공개 라이브러리 성우는 조회 방법이 없어 확인하지 않는다(이용 불가로 만들지 않는다). 공급자마다 동시 2건(한 건 10초 제한)이고 공급자끼리는 서로 기다리지 않는다. 키가 없는 공급자와 대기 시각 전인 공급자는 건너뛴다. 공급자가 "없다"고 답하면 `unavailable`을 켜고, 성공하면 저장한 정보를 새 값으로 바꾸고 끈다. `rate_limit`이면 대기 시각(`Retry-After`가 없으면 60초 뒤)을 기록하고 그 공급자를 멈춘다. `provider_auth`·`no_permission`·`quota`면 기록 없이 그 공급자를 멈춘다. 5xx·시간 초과 같은 그 밖의 실패는 그 행을 그대로 둔다 |
+| `savedVoiceCheck` | 현재 이용 불가, 성우 보관함 | 보호(`protectedProcedure`) | 없음 | 확인한 적 없거나 마지막 확인이 24시간 지난 행 가운데 오래된 순 40명을 공급자에 한 명씩 조회하고 `savedVoiceList`와 같은 목록을 돌려준다. ElevenLabs 공개 라이브러리 성우는 조회 방법이 없어 확인하지 않는다(이용 불가로 만들지 않는다). 공급자마다 동시 2건(한 건 10초 제한)이고 공급자끼리는 서로 기다리지 않는다. 키가 없는 공급자와 대기 시각 전인 공급자는 건너뛴다. 공급자가 "없다"고 답하면 `unavailable`을 켜고, 성공하면 저장한 정보를 새 값으로 바꾸고 끈다. `rate_limit`이면 대기 시각(`Retry-After`가 없으면 60초 뒤)을 기록하고 그 공급자를 멈춘다. `provider_auth`·`no_permission`·`quota`면 기록 없이 그 공급자를 멈춘다. 5xx·시간 초과 같은 그 밖의 실패는 그 행을 그대로 둔다. Airy는 한 명 조회가 없어 확인 한 번에 공식 목록을 한 번 불러 id를 찾고, 없으면 unavailable이다. 공식 목록이 비거나 실패하면 판정하지 않는다. 카탈로그만 실패하면 저장한 샘플이 비워진다(T7.5-02) |
 
 채널·분류 입력 규칙(`packages/api/src/classification-rules.ts`, 화면과 서버가 같이 쓴다)은 아래와 같다. 원문이 1,000자를 넘으면 규칙을 보기 전에 입력 검증이 거절한다. 입력은 서버가 정한 `context.ownerId`로만 소유자를 정하고 `ownerId` 같은 키는 버려진다. 이름 중복 말고 저장소 오류는 `INTERNAL_SERVER_ERROR`로 오류 이름·DB 코드 한 줄만 로그에 남긴다.
 - 이름·메모 정리: 보이지 않는 글자(C0·C1 제어 문자, 폭 없는 공백, 단어 결합자, BOM, 양방향 제어 문자 U+202A~202E·U+2066~2069)를 지우고 한글 채움 문자는 공백으로 본다. 이모지를 잇는 ZWJ(U+200D)는 남긴다. 이어서 NFC, 앞뒤 공백 제거, 연속 공백(줄바꿈·탭·전각 공백 포함)을 하나로 바꾼다.
@@ -108,12 +108,12 @@ flowchart LR
 | `provider_cooldown` | 공급자 대기 시각(코드 `providerCooldown`) | `packages/db/src/schema/provider-cache.ts` | 해당 없음(공급자별 한 행) | 공급자 429 `Retry-After`로 정한 다음 호출 가능 시각(1시간 상한). 그 전에는 그 공급자를 부르지 않는다. 서버 인스턴스끼리 메모리를 나누지 않으므로 DB에 둔다. T4 목록과 T5 시험 생성이 이 표를 쓴다 |
 | `channel` | 채널 | `packages/db/src/schema/classification.ts` | `owner_id`(서버가 정한 소유자, `user` 외래 키 없음, [ADR 0004](../adr/0004-channel-classification-storage.md)) | 채널 이름·메모(null 허용)·채널 주소(`url`, null 허용). 같은 소유자 안에서 `lower(name)` 유니크 인덱스 `channel_name`으로 대소문자만 다른 중복을 막는다. 프리셋(T8)·저장 대본(T12)이 하나만 가리킬 예정이다 |
 | `classification` | 분류, 카테고리, 타입 | `packages/db/src/schema/classification.ts` | `owner_id`(서버가 정한 소유자, `user` 외래 키 없음, [ADR 0004](../adr/0004-channel-classification-storage.md)) | 카테고리와 타입을 한 표에 `kind`(`category`·`type`, check `classification_kind`)로 둔다. 이름·메모(null 허용). `(owner_id, kind, lower(name))` 유니크 인덱스 `classification_name`이 같은 `kind` 안 중복을 막는다(카테고리 '경제'와 타입 '경제'는 가능). 성우(`saved_voice_classification`)에 여러 개 붙고, 저장 대본(T12)에도 붙일 예정이다 |
-| `saved_voice` | 성우 보관함, 즐겨찾기 성우, 자주 사용하는 성우, 현재 이용 불가 | `packages/db/src/schema/saved-voice.ts` | `owner_id`(서버가 정한 소유자, `user` 외래 키 없음, [ADR 0004](../adr/0004-channel-classification-storage.md)와 같다) | 담기 = 행 하나. `(owner_id, provider, voice_id)` 유니크 `saved_voice_voice`가 같은 성우를 한 번만 담고 담기 upsert의 충돌 대상이다. `source`(`public`·`account`)는 담은 출처일 뿐 키가 아니다. `favorite`·`frequent`(기본 false), `memo`(null 허용), `voice`(담을 때와 확인에 성공할 때 받은 계약 `Voice` jsonb, 읽을 때 `voiceSchema`로 다시 검사), `unavailable`(공급자가 없다고 답했다), `checked_at`(마지막 확인 시각, 담을 때는 지금), `saved_at`. 인덱스 `saved_voice_owner_saved(owner_id, saved_at desc)`, check `saved_voice_provider`·`saved_voice_source`. 즐겨찾기·자주 사용을 꺼도 남고 '보관함에서 빼기'(`savedVoiceRemove`)로만 지워진다. 작업실 성우 고르기·최근 사용(T9), 프리셋 포함 필터(T8), 내 보이스(T13)가 이 행에 붙을 예정이다 |
+| `saved_voice` | 성우 보관함, 즐겨찾기 성우, 자주 사용하는 성우, 현재 이용 불가 | `packages/db/src/schema/saved-voice.ts` | `owner_id`(서버가 정한 소유자, `user` 외래 키 없음, [ADR 0004](../adr/0004-channel-classification-storage.md)와 같다) | 담기 = 행 하나. `(owner_id, provider, voice_id)` 유니크 `saved_voice_voice`가 같은 성우를 한 번만 담고 담기 upsert의 충돌 대상이다. `source`(`public`·`account`)는 담은 출처일 뿐 키가 아니다. `favorite`·`frequent`(기본 false), `memo`(null 허용), `voice`(담을 때와 확인에 성공할 때 받은 계약 `Voice` jsonb, 읽을 때 `voiceSchema`로 다시 검사), `unavailable`(공급자가 없다고 답했다), `checked_at`(마지막 확인 시각, 담을 때는 지금), `saved_at`. 인덱스 `saved_voice_owner_saved(owner_id, saved_at desc)`, check `saved_voice_provider`(네 공급자, T7.5 마이그레이션)·`saved_voice_source`. 즐겨찾기·자주 사용을 꺼도 남고 '보관함에서 빼기'(`savedVoiceRemove`)로만 지워진다. 작업실 성우 고르기·최근 사용(T9), 프리셋 포함 필터(T8), 내 보이스(T13)가 이 행에 붙을 예정이다 |
 | `saved_voice_channel` | 성우 보관함, 채널 | `packages/db/src/schema/saved-voice.ts` | 없음(`saved_voice`를 따라간다. 붙일 때 `savedVoiceLinks`가 그 채널이 같은 소유자 것인지 검사한다) | 성우 ↔ 채널 연결. 기본 키 `(saved_voice_id, channel_id)`, 두 컬럼 모두 외래 키 `on delete cascade`(어느 쪽을 지워도 연결만 지워지고 성우는 남는다), 채널 쪽 인덱스 `saved_voice_channel_channel`. `channelList`의 `voiceCount`가 이 표의 행 수다 |
 | `saved_voice_classification` | 성우 보관함, 분류, 카테고리, 타입 | `packages/db/src/schema/saved-voice.ts` | 없음(위와 같다) | 성우 ↔ 카테고리·타입 연결. 기본 키 `(saved_voice_id, classification_id)`, 두 컬럼 모두 외래 키 `on delete cascade`, 분류 쪽 인덱스 `saved_voice_classification_classification`. `classificationList`의 `voiceCount`가 이 표의 행 수다 |
-| `trial_generation` | 생성 기록, 저장된 결과 | `packages/db/src/schema/trial-generation.ts` | `owner_id`(서버가 정한 소유자) | 요청 ID를 공급자 호출 전에 소유자별로 선점하고 상태·정리된 요청·예상 사용량을 기록한다. 완료된 MP3를 bytea로 저장하며, 완료 결과는 마지막 재생 뒤 30일 보관한다. 만료 행은 새 결과를 저장할 때 정리하고 사용자가 결과를 지울 수 있다. 동시 생성은 소유자별 한 건이다 |
+| `trial_generation` | 생성 기록, 저장된 결과 | `packages/db/src/schema/trial-generation.ts` | `owner_id`(서버가 정한 소유자) | 요청 ID를 공급자 호출 전에 소유자별로 선점하고 상태·정리된 요청·예상 사용량을 기록한다. 공급자 검사 제약에 `airy`가 들어 있다(T7.5 마이그레이션). 완료된 MP3를 bytea로 저장하며, 완료 결과는 마지막 재생 뒤 30일 보관한다. 만료 행은 새 결과를 저장할 때 정리하고 사용자가 결과를 지울 수 있다. 동시 생성은 소유자별 한 건이다 |
 
-DB 컨테이너(Podman, 5433)가 꺼져 있으면 목록 캐시 없이 동작한다. 연결·질의가 3초 안에 안 되면 `[voiceCache]` 실패 줄만 남기고 목록 공급자를 바로 부르므로, 같은 조건도 매번 공급자를 부른다. 유료 시험 생성은 생성 기록·429 대기 조회가 실패하면 공급자를 부르지 않는다. 채널·분류는 캐시가 아니라 원본이라 DB가 꺼져 있으면 목록 조회와 저장이 실패하고 `/classes`가 오류와 '다시 불러오기'를 보인다. 성우 보관함(`saved_voice`)도 원본이라 같다: 담기·연결이 실패하면 저장 실패 알림이 뜨고 별·칩은 서버 값으로 돌아간다. 목록 조회가 실패하면 `/voices`는 오류와 '다시 불러오기'를 보인다(알림 없음). 이용 가능 확인의 실패는 알리지 않는다. 이용 가능 확인은 공급자를 읽기로만 부르고(조회 과금 문구가 세 공급자 문서에 없다), 확인에 실패해도 담은 성우 목록은 저장한 정보 그대로 보인다.
+DB 컨테이너(Podman, 5433)가 꺼져 있으면 목록 캐시 없이 동작한다. 연결·질의가 3초 안에 안 되면 `[voiceCache]` 실패 줄만 남기고 목록 공급자를 바로 부르므로, 같은 조건도 매번 공급자를 부른다. 유료 시험 생성은 생성 기록·429 대기 조회가 실패하면 공급자를 부르지 않는다. 채널·분류는 캐시가 아니라 원본이라 DB가 꺼져 있으면 목록 조회와 저장이 실패하고 `/classes`가 오류와 '다시 불러오기'를 보인다. 성우 보관함(`saved_voice`)도 원본이라 같다: 담기·연결이 실패하면 저장 실패 알림이 뜨고 별·칩은 서버 값으로 돌아간다. 목록 조회가 실패하면 `/voices`는 오류와 '다시 불러오기'를 보인다(알림 없음). 이용 가능 확인의 실패는 알리지 않는다. 이용 가능 확인은 공급자를 읽기로만 부르고(조회 과금 문구가 네 공급자 문서에 없다), 확인에 실패해도 담은 성우 목록은 저장한 정보 그대로 보인다.
 
 ## 범위 밖
 아직 하지 않기로 한 것과 그 이유. 뒤로 미룬 기능도 여기에 옮긴다.

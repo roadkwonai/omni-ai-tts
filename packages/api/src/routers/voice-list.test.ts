@@ -69,6 +69,31 @@ const fishVoice = {
 		{ title: "기본", audio: "https://platform.r2.fish.audio/task/t1.mp3" },
 	],
 };
+const AIRY_ID = "a597bb7a98fc9ec1";
+const airyAsset = (lang: string) =>
+	`https://assets.airy.so/airy/voice_pack/vp-v9/audio/${lang}/${AIRY_ID}.opus`;
+const routeAiry = () =>
+	fetchMock.mockImplementation(async (url) =>
+		new URL(String(url)).pathname === "/v1/studio/voices"
+			? json(200, {
+					voices: [
+						{
+							id: AIRY_ID,
+							audio_url: { ko: airyAsset("ko"), en: airyAsset("en") },
+						},
+					],
+				})
+			: json(200, {
+					voices: [
+						{
+							id: AIRY_ID,
+							name: "Silvia",
+							gender: "female",
+							langs: ["en", "ko"],
+						},
+					],
+				}),
+	);
 useFetchMock();
 beforeEach(() => {
 	dbTouches = 0;
@@ -264,5 +289,41 @@ describe("voiceList", () => {
 			accents: [{ value: "seoul", name: "Seoul" }],
 			stale: null,
 		});
+	});
+
+	it("Airy: 입력은 { provider: 'airy' }뿐이고 공개 출처로 돌려주며 결과에 키가 없다", async () => {
+		routeAiry();
+		const result = await as(
+			"local-admin",
+			createProviders({ airy: KEY }),
+		).voiceList({ provider: "airy" });
+		expect(result).toMatchObject({
+			provider: "airy",
+			source: "public",
+			stale: null,
+		});
+		expect(result.voices[0]?.samples).toHaveLength(2);
+		expect(JSON.stringify(result)).not.toContain(KEY);
+	});
+
+	it("Airy 키가 없으면 no_key이고 공급자·DB를 건드리지 않는다", async () => {
+		await expect(
+			as("local-admin", createProviders({})).voiceList({ provider: "airy" }),
+		).rejects.toMatchObject({
+			code: "PRECONDITION_FAILED",
+			data: { provider: "airy", reason: "no_key" },
+		});
+		expect(fetchMock).not.toHaveBeenCalled();
+		expect(dbTouches).toBe(0);
+	});
+
+	it("Airy 입력에 출처·조건을 끼워도 무시된다", async () => {
+		routeAiry();
+		const client = as("local-admin", createProviders({ airy: KEY }));
+		const result = await client.voiceList({
+			provider: "airy",
+			source: "account",
+		} as never);
+		expect(result.source).toBe("public");
 	});
 });

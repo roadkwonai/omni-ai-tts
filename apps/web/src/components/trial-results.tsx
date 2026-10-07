@@ -21,7 +21,7 @@ import {
 	TooltipTrigger,
 } from "@tts-pilot-app/ui/components/tooltip";
 import { Trash2 } from "lucide-react";
-import { useId, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useId, useLayoutEffect, useRef, useState } from "react";
 
 import { resultLine, resultSubject } from "@/lib/trial-view";
 import { orpc } from "@/utils/orpc";
@@ -222,7 +222,17 @@ function ResultRow({
 					className="line-clamp-2 text-muted-foreground text-sm tabular-nums"
 					translate="no"
 				>
-					{line}
+					{/* 모델 이름(띄어쓰기 없음)만 하이픈에서 갈라지지 않게 nowrap으로 묶는다. 띄어쓰기 있는 긴 자유 태그는 line-clamp 안에서 줄을 바꾼다. 조각은 위치만 의미가 있어 index key다 */}
+					{line.split(" · ").map((part, i) => (
+						<Fragment key={i}>
+							{i > 0 ? " · " : null}
+							<span
+								className={/\s/.test(part) ? undefined : "whitespace-nowrap"}
+							>
+								{part}
+							</span>
+						</Fragment>
+					))}
 				</span>
 			</span>
 			<Tooltip>

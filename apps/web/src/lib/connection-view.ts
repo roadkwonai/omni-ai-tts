@@ -33,12 +33,30 @@ export function toView(
 export const isUpcoming = (at: string, now = Date.now()): boolean =>
 	Date.parse(at) > now;
 
+// 화면 전체가 쓰는 공급자 순서(카드·보관함 필터)
+export const PROVIDER_IDS = [
+	"typecast",
+	"elevenlabs",
+	"fish_audio",
+	"airy",
+] as const satisfies readonly ProviderId[];
+
 // 화면 전체가 쓰는 공급자 표시 이름
 export const PROVIDER_LABEL: Record<ProviderId, string> = {
 	typecast: "Typecast",
 	elevenlabs: "ElevenLabs",
 	fish_audio: "Fish Audio",
+	airy: "Airy",
 };
+
+// Airy 잔액(total_balance)은 소수가 올 수 있다. 한 자리까지 버림으로 보인다(실제보다 크게 보이지 않게, 연결 상태 브리프 카드 절).
+// 카드와 내 문장 듣기 확인 창이 같은 형식을 쓴다(계획 리뷰 E4·D4)
+const creditFormat = new Intl.NumberFormat("ko-KR", {
+	maximumFractionDigits: 1,
+	roundingMode: "trunc",
+});
+export const creditNumber = (remaining: number) =>
+	creditFormat.format(Math.max(0, remaining));
 
 export function recheckUntil(
 	result: ProviderStatusResult | null | undefined,

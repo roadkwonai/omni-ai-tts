@@ -1,10 +1,10 @@
 ---
 name: tts-provider
 description: >-
-  TTS Pilot에서 Typecast·ElevenLabs·Fish Audio 공급자 연동을 만들거나 바꾸거나 검토하거나 실제로 호출해 확인할 때
+  TTS Pilot에서 Typecast·ElevenLabs·Fish Audio·Airy 공급자 연동을 만들거나 바꾸거나 검토하거나 실제로 호출해 확인할 때
   사용한다. 성우 카탈로그와 기본 샘플, 음성 생성과 시험 생성, 클론 보이스 만들기·삭제, 공급자별 모델과 생성 옵션,
   예상 사용량과 요금 표시, 공급자 오류(키, 잔액, 429, 타임아웃)와 중복 과금, 오디오 업로드·다운로드·재생, 공급자
-  API 키를 다룬다. TTS 붙여줘, 음성 생성 API, 성우 목록 불러오기, 내 보이스 클론, ElevenLabs·Typecast·Fish Audio
+  API 키를 다룬다. TTS 붙여줘, 음성 생성 API, 성우 목록 불러오기, 내 보이스 클론, ElevenLabs·Typecast·Fish Audio·Airy
   연결, 생성 버튼, 크레딧이 두 번 빠졌어요, 실제로 생성해서 들어봐 같은 요청에 사용한다. 프로시저와 소유권 일반
   규칙은 bts-api, 테이블은 bts-db, 화면은 bts-web·bts-ui와 함께 읽는다.
 ---
@@ -14,7 +14,7 @@ description: >-
 정본은 다음과 같다. 이 스킬은 `bts-api`·`bts-db`·`bts-web` 위에 공급자 연동에만 있는 규칙을 더한다.
 - 결정: `docs/adr/0002-orpc-only-api.md`. 공급자 호출은 `packages/api`의 TypeScript로 하고 Python 서비스는 두지 않는다.
 - 요구사항: `docs/plans/tts-service-requirements.md`(REQ-01~13)와 `tasks/todo.md`의 P0 항목
-- 공급자 계약: `docs/research/<typecast|elevenlabs|fish-audio>-api-options.md`
+- 공급자 계약: `docs/research/<typecast|elevenlabs|fish-audio|airy>-api-options.md`
 - 용어: `GLOSSARY.md`
 
 ## 먼저
@@ -25,7 +25,7 @@ description: >-
 ## 구조
 - 공급자 호출은 `packages/api/src/providers/<공급자>.ts`에만 둔다. 프로시저(`routers/`)는 이 모듈을 부르고 SDK를 직접 부르지 않는다.
 - 공급자 공통 계약(성우, 생성 요청과 결과, 오류)은 zod로 한 번 정의해 화면까지 쓴다. 계약은 SDK나 서버 모듈을 import하지 않는 파일(`providers/contract.ts`)에 두어 클라이언트 번들에 공급자 모듈이 딸려 가지 않게 한다.
-- Typecast와 ElevenLabs는 공식 SDK(`@neosapience/typecast-js`, `@elevenlabs/elevenlabs-js`)를 쓴다. Fish Audio는 REST를 `fetch`로 직접 부른다(ADR 0002).
+- Typecast와 ElevenLabs는 공식 SDK(`@neosapience/typecast-js`, `@elevenlabs/elevenlabs-js`)를 쓴다. Fish Audio·Airy는 REST를 `fetch`로 직접 부른다(ADR 0002). Airy 호스트는 `https://api.airy.so` 고정, 키는 `Authorization: Bearer`.
 - 단, ElevenLabs 성우 목록·억양 조회는 REST로 부른다. SDK가 응답 전체를 한 번에 검사해(`parseOrThrow`) 성우 하나의 빠진 필드가 목록 전체를 막기 때문이다(T4). 키는 `xi-api-key` 헤더, 호스트는 `https://api.elevenlabs.io`로 고정한다.
 - 키는 `apps/web/.env.schema`에 `@sensitive`로 선언된 값을 varlock `ENV`로 읽는다. 공급자 클라이언트는 소유자가 있는 요청마다 `apps/web/src/context.ts`가 `createProviders(키)`(`packages/api/src/providers/index.ts`)로 만들어 context의 `providers`로 넘긴다. 요청마다 만들어 `.env`의 키 교체가 반영된다. 소유자가 없는 요청에는 만들지 않는다. 루프백 요청이면 `publicProcedure`의 context에도 `providers`가 들어 있으므로 `publicProcedure`에서 `context.providers`를 쓰지 않는다. `packages/api`에서 `process.env`를 읽지 않는다.
 - SDK 생성자에는 키와 공식 호스트를 명시적으로 넘긴다. 두 SDK는 인자가 없으면 `process.env`(`TYPECAST_API_KEY`·`TYPECAST_API_HOST`·`ELEVENLABS_API_KEY`)로 조용히 대체한다. 키가 없으면 클라이언트를 만들지 않고 그 공급자를 "연결 안 됨"으로 처리한다.
@@ -61,6 +61,7 @@ description: >-
 | 5xx | `BAD_GATEWAY` | `provider_error` |
 | 타임아웃, 연결 끊김 | `GATEWAY_TIMEOUT` | `unknown_outcome` |
 
+- Airy는 본문 `error.code`만 읽는다(`airyCodes`). 403 `account_banned`는 `provider_auth`다. 입력 거절 화면 문구는 공급자 코드를 보이지 않는다.
 - 판정은 `packages/api/src/providers/errors.ts`의 `reasonFromHttp`가 한다. SDK 오류는 `ProviderHttpError`(상태 코드, 공급자 오류 코드, `Retry-After`)로 바꿔 담는다. 로그에는 허용한 오류 코드·공급자·정규화된 사유 또는 검증 필드 경로만 남긴다. 문장, SQL, 연결 문자열, 키, SDK 오류 객체와 cause, 응답 본문·헤더, 오류 메시지는 로그에 남기지 않는다.
 - 연결 확인(`providerStatus`)은 던지지 않고 연결 상태 값으로 돌려준다(`runCheck`). 입력 거절(400·422)과 표에 없는 상태는 `check_failed`다. 이 확인의 시간 초과·연결 끊김은 `unknown_outcome`이 아니라 `check_failed`다. 상태를 바꾸지 않는 조회라 처리 여부를 따질 필요가 없다.
 - 목록·생성처럼 결과가 필요한 호출은 `runList`처럼 사유를 붙여 던진다(`providers/errors.ts`). 목록 조회의 시간 초과·연결 끊김은 T3 스펙 4절대로 `GATEWAY_TIMEOUT`·`unknown_outcome`(화면 문구 '응답하지 않아요')이고, 응답 검증 실패는 `provider_error`다.
@@ -75,9 +76,11 @@ description: >-
 - 429 `Retry-After`(1시간 상한)는 `provider_cooldown` 표에 적고, 그 전에는 부르지 않는다. '목록 새로 고침'(`voiceListRefresh`)도 대기 중이면 아무것도 바꾸지 않고 시각만 돌려준다.
 - 목록 조회는 서버(`runList`)·화면(`LIST_QUERY`의 `retry: false`) 모두 자동 재시도하지 않는다. 다시 부르는 것은 사용자가 누를 때뿐이다.
 - Fish Audio 목록의 시간 제한은 20초다(그 밖의 목록·연결 확인은 10초).
-- 샘플 주소 허용 호스트는 셋이다: Typecast `*.typecast.ai`, ElevenLabs `storage.googleapis.com`·`*.elevenlabs.io`, Fish Audio `*.fish.audio`. 샘플은 주소가 같으면 처음 것만 남긴다(화면 패널의 key가 주소다).
+- 샘플 주소 허용 호스트는 넷이다: Typecast `*.typecast.ai`, ElevenLabs `storage.googleapis.com`·`*.elevenlabs.io`, Fish Audio `*.fish.audio`, Airy `assets.airy.so`(정확히 하나). 샘플은 주소가 같으면 처음 것만 남긴다(화면 패널의 key가 주소다).
 - Fish Audio 목록은 `svc`·학습 전·삭제 요청 성우를 응답에서 거르고, 여러 태그·언어는 반복 키이며 모두 포함(AND)이다. 공개 출처는 `visibility`가 `public`인 성우만 보인다. 공용 공개 캐시 행에 워크스페이스 비공개 성우가 섞이지 않게 하려는 것이다.
 - 입력 상한: 조건 배열 40개(화면 선택지 최대치보다 크게), 조건 값 40자(`[A-Za-z0-9_-]`), 검색어 100자. Fish Audio 페이지는 1~10(조건마다 1,000명)이다.
+- Airy 목록은 공식 `GET /v1/voices`(키)와 공개 카탈로그 `GET /v1/studio/voices`(키 보내지 않음, 문서 없음)를 함께 부르고 id로 샘플(한국어 → 영어)을 붙인다. 카탈로그는 `withTimeout` 8초로 끊고, 실패하면 목록은 그대로 두고 `[voiceList] airy 샘플 카탈로그 실패: <오류 이름>` 한 줄만 남긴다.
+- 카탈로그 실패 목록도 24시간 공용 캐시에 남는다. 화면은 모든 성우에 샘플이 없으면 '목록 새로 고침'을 안내하고(`samplesMissing`), 새로 고침이 회복한다(U1).
 - ElevenLabs 목록·억양은 `fetchJson`(`providers/errors.ts`)으로 부른다. 리다이렉트를 따라가지 않고(`redirect: "error"`), 실패하면 상태 코드·공급자 오류 코드·`Retry-After`만 바꿔 담는다.
 
 ## 성우 한 명 조회 (T7 보관함 이용 가능 확인)
@@ -85,10 +88,11 @@ description: >-
 - "없음"은 `errors.ts`의 `nullOnStatus`로 판정한다. Typecast·ElevenLabs는 404만이다. Fish Audio는 403·404와, 응답이 왔어도 `fishVoice`가 `null`인 성우(학습 전·삭제 요청·공개 출처인데 비공개)다. 그 밖의 오류는 `runList`의 목록 매핑(401·403 → `provider_auth`·`no_permission`, 429 → `rate_limit`, 5xx → `provider_error`, 시간 초과 → `unknown_outcome`)을 그대로 따른다.
 - ElevenLabs 공개 라이브러리 성우(`source: "public"`)는 한 명 조회 방법이 공식 문서에 없어 확인하지 않는다. 라우터가 확인 대상에서 빼고, 공급자 모듈은 불러도 `provider_error`로 거절한다. 계정에 추가하는 호출(`POST /v1/voices/add/…`)은 계정 상태를 바꾸므로 쓰지 않는다. 계정 성우는 REST `GET /v1/voices/{id}`로 부르고 담을 때 고른 샘플 언어(`preferred`)를 지킨다.
 - 라우터가 이 오류를 다루는 규칙: `rate_limit`이면 대기 시각(`Retry-After`가 없으면 60초. Typecast SDK는 헤더를 주지 않는다)을 `provider_cooldown`에 적고 그 공급자를 멈춘다. `provider_auth`·`no_permission`·`quota`면 기록 없이 그 공급자를 멈춘다. 5xx·시간 초과는 그 행을 그대로 둔다.
+- Airy는 한 명 조회 호출이 없어 목록에서 찾는다. 목록 약속을 클라이언트 하나(요청 하나)에 한 번만 만든다. 없으면 null. 카탈로그만 실패한 확인에서는 저장한 샘플이 비워진다(백로그 T7.5-02).
 - 시험 생성·생성의 voice id 허용 검사("클론 보이스" 절)도 이 호출을 쓸 수 있다. Typecast 단건 조회는 `voice_type`을 거르지 않고, Fish Audio는 공개 출처에서만 `visibility`를 거른다.
 
 ## 클론 보이스와 공급자 리소스 소유권 (REQ-01, REQ-13)
-- 모든 사용자가 공급자 계정 하나(서버 키)를 같이 쓴다. 그래서 계정 단위 목록에는 모든 사용자의 클론이 섞인다. ElevenLabs 계정 성우, Fish Audio 내 모델, Typecast custom voice 목록이 그렇고, Typecast 기본 목록 `GET /v3/voices`도 완료된 커스텀 성우를 함께 돌려준다. 이 목록을 그대로 보여 주거나 허용 목록으로 쓰지 않는다.
+- 모든 사용자가 공급자 계정 하나(서버 키)를 같이 쓴다. 그래서 계정 단위 목록에는 모든 사용자의 클론이 섞인다. ElevenLabs 계정 성우, Fish Audio 내 모델, Typecast custom voice 목록이 그렇고, Typecast 기본 목록 `GET /v3/voices`도 완료된 커스텀 성우를 함께 돌려준다. Airy는 미확인(T14에서 확인). 이 목록을 그대로 보여 주거나 허용 목록으로 쓰지 않는다.
 - 예외(T4 목록, T5 듣기): 앱의 공급자 권한은 development·test의 루프백 Host에서 서버가 정한 단일 `context.ownerId`에서 온다. 가입은 열려 있어도 Better Auth 세션은 공급자 권한에 쓰지 않는다. 현재 이 한 명 소유 예외에서는 `ownerId`가 있는 요청의 계정 성우를 보여 주며, 내 문장 듣기는 성우 소유권을 조회하지 않고 공급자의 거절(과금 없는 오류)에 맡긴다. 목록 캐시의 계정 행은 소유자별이다. 아래의 일반적인 모든 voice id 서버 조회 규칙은 이 단일 소유 예외가 끝난 뒤, 허용 소유자가 둘 이상이 되거나 T14 세션 권한을 도입할 때 적용한다. 그때는 클론 voice id를 앱 소유 매핑 또는 공급자 공개 성우 기준으로 검사한다(로드맵 T14 메모).
 - 클론은 앱 DB의 소유 매핑(`userId`, 공급자, 공급자 voice id)으로 관리한다. 매핑의 voice id는 앱이 부른 클론 생성의 응답에서만 기록한다. voice id를 입력받아 기존 클론을 내 것으로 등록하는 기능은 만들지 않는다. 공용 계정에서는 id를 아는 사람이 남의 클론을 먼저 가져갈 수 있다. 앱 밖(공급자 웹)에서 만든 클론을 가져와야 하면 구현 전에 사용자에게 묻는다(REQ-13 7번: 자동 소유자 배정 금지).
 - 합성과 시험 생성: 요청에 들어가는 모든 voice id(Fish Audio `reference_id` 배열 포함)를 검사한다. 판정에는 서버가 그 id로 직접 조회한 결과만 쓴다. 클라이언트가 보낸 유형 값이나 목록은 믿지 않는다. 허용하는 경우는 둘이고, 둘 다 아니면 공급자를 부르지 않고 `NOT_FOUND`다.
@@ -110,6 +114,7 @@ description: >-
 
 ## 사용량 표시 (REQ-11)
 - 예상 사용량 단위는 공급자마다 다르다. Typecast·ElevenLabs는 글자 수, Fish Audio는 UTF-8 바이트다(서버 `Buffer.byteLength(text, "utf8")`, 브라우저 `new TextEncoder().encode(text).length`). 한글은 대부분 한 글자가 3바이트다. 교정을 반영한 발음용 대본으로 계산한다.
+- Airy는 크레딧 = 코드 포인트 × 1.5(ko) 또는 × 1(en), 올림(`AIRY_CREDITS_PER_CHAR`). 확인 창 근거 '(Airy 요금 기준: 한국어 1글자 1.5크레딧)'. 근거는 고른 언어를 따른다(영어는 '영어 1글자 1크레딧'). 남은 크레딧은 소수 한 자리 버림(`creditNumber`).
 - 금액은 공급자 문서에 근거가 있을 때만 출처와 함께 보여 준다. 예상치와 공급자가 돌려준 실제 사용량을 구분한다.
 
 ## 화면 (`bts-web`, `bts-ui`와 함께)

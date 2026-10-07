@@ -17,6 +17,7 @@ export function createContext(req: Request): Context {
 					typecast: ENV.TYPECAST_API_KEY,
 					elevenlabs: ENV.ELEVENLABS_API_KEY,
 					fish_audio: ENV.FISH_AUDIO_API_KEY,
+					airy: ENV.AIRY_API_KEY,
 				})
 			: null,
 	};

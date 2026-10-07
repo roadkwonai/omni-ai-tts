@@ -28,14 +28,17 @@ import { plain } from "@/lib/voice-view";
 
 import { AllProviders } from "./all-providers";
 import { LoopbackNotice } from "./notice";
+import {
+	type AiryState,
+	AiryVoiceList,
+	airyListOptions,
+	EMPTY_AIRY,
+	typecastListOptions,
+} from "./one-list";
 import { SamplePlayerProvider } from "./sample-player";
 import { ServerVoiceList, serverListOptions } from "./server-voice-list";
 import { TrialProvider } from "./trial-provider";
-import {
-	type TypecastState,
-	TypecastVoiceList,
-	typecastListOptions,
-} from "./typecast-voice-list";
+import { type TypecastState, TypecastVoiceList } from "./typecast-voice-list";
 import { LIST_LOOPBACK_TITLE } from "./voice-problem";
 
 type Tab = "all" | ProviderId;
@@ -60,7 +63,22 @@ function totalOf(query: {
 	return `${plain.format(first.total)}${first.totalExact ? "" : " 이상"}`;
 }
 
-// 성우 캐스팅(브리프 5·9절): '전체'와 공급자 탭, ElevenLabs·Fish Audio 출처 전환, 탭마다 목록과 패널
+// 한 목록으로 받는 탭(Typecast·Airy)의 이름과 인원. 인원은 받은 뒤에만 보인다
+const countedLabel = (
+	provider: "typecast" | "airy",
+	count: number | undefined,
+) => (
+	<>
+		<span translate="no">{PROVIDER_LABEL[provider]}</span>
+		{count === undefined ? null : (
+			<span className="font-normal text-muted-foreground text-sm tabular-nums">
+				{plain.format(count)}
+			</span>
+		)}
+	</>
+);
+
+// 성우 캐스팅(브리프 5·9·13절): '전체'와 공급자 탭 넷, ElevenLabs·Fish Audio 출처 전환, 탭마다 목록과 패널
 export function VoiceCasting() {
 	const [tab, setTab] = useState<Tab>("all");
 	const tabListRef = useRef<HTMLDivElement>(null);
@@ -82,6 +100,7 @@ export function VoiceCasting() {
 		filters: EMPTY_FILTERS,
 		showAll: false,
 	});
+	const [airy, setAiry] = useState<AiryState>(EMPTY_AIRY);
 	const [chosen, setChosen] = useState<Record<string, string | null>>({});
 	const choose = (k: string) => ({
 		chosen: chosen[k] ?? null,
@@ -89,12 +108,14 @@ export function VoiceCasting() {
 	});
 	// '모두 보기 →'가 포커스를 넘길 목록 키(ElevenLabs·Fish Audio는 `${공급자}:public`, Typecast는 "typecast").
 	// 그 목록이 인원 글자로 포커스를 옮기고 지운다(계획 리뷰 D8). 한 번 쓰고 없어지므로 다시 마운트된 목록이 포커스를 가져가지 않는다
-	const [pendingFocus, setPendingFocus] = useState<ListKey | "typecast" | null>(
-		null,
-	);
+	const [pendingFocus, setPendingFocus] = useState<
+		ListKey | "typecast" | "airy" | null
+	>(null);
 	const clearFocus = () => setPendingFocus(null);
 	// 탭 이름의 'Typecast 614'(받은 뒤 인원). '전체' 탭 Typecast 묶음·Typecast 탭과 같은 키라 따로 부르지 않는다
 	const typecastList = useQuery({ ...typecastListOptions, enabled: false });
+	// 탭 이름의 'Airy 104'. '전체' 탭 Airy 묶음·Airy 탭과 같은 키라 따로 부르지 않는다
+	const airyList = useQuery({ ...airyListOptions, enabled: false });
 	// 출처 칸 '내 계정 N'. 그 출처 목록과 같은 키의 캐시만 읽는다
 	const elevenlabsAccount = useInfiniteQuery({
 		...serverListOptions(lists["elevenlabs:account"]),
@@ -133,6 +154,11 @@ export function VoiceCasting() {
 			setPendingFocus("typecast");
 			return;
 		}
+		if (provider === "airy") {
+			setAiry({ query: allSearch, genders: [] });
+			setPendingFocus("airy");
+			return;
+		}
 		const listKey: ListKey = `${provider}:public`;
 		setSources((all) => ({ ...all, [provider]: "public" }));
 		setLists((all) => ({
@@ -148,6 +174,7 @@ export function VoiceCasting() {
 	}
 
 	const typecastCount = typecastList.data?.voices.length;
+	const airyCount = airyList.data?.voices.length;
 
 	return (
 		// 탭을 바꿔 그 탭의 행이 숨어도 재생은 이어진다. 페이지를 떠나면 멈춘다(T3)
@@ -164,18 +191,16 @@ export function VoiceCasting() {
 							전체
 						</TabsTrigger>
 						<TabsTrigger value="typecast" data-tab="typecast">
-							<span translate="no">{PROVIDER_LABEL.typecast}</span>
-							{typecastCount === undefined ? null : (
-								<span className="font-normal text-muted-foreground text-sm tabular-nums">
-									{plain.format(typecastCount)}
-								</span>
-							)}
+							{countedLabel("typecast", typecastCount)}
 						</TabsTrigger>
 						{SERVER_TABS.map((p) => (
 							<TabsTrigger key={p} value={p} data-tab={p}>
 								<span translate="no">{PROVIDER_LABEL[p]}</span>
 							</TabsTrigger>
 						))}
+						<TabsTrigger value="airy" data-tab="airy">
+							{countedLabel("airy", airyCount)}
+						</TabsTrigger>
 					</TabsList>
 					<Panel value="all">
 						<AllProviders
@@ -238,6 +263,15 @@ export function VoiceCasting() {
 							</Panel>
 						);
 					})}
+					<Panel value="airy">
+						<AiryVoiceList
+							state={airy}
+							onStateChange={setAiry}
+							{...choose("airy")}
+							focusRequested={pendingFocus === "airy"}
+							onFocusHandled={clearFocus}
+						/>
+					</Panel>
 				</Tabs>
 			</TrialProvider>
 		</SamplePlayerProvider>

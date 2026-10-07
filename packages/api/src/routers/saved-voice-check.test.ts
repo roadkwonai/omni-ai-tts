@@ -8,6 +8,7 @@ import type { Context } from "../context";
 import type { Providers } from "../providers";
 import type { Voice } from "../providers/contract";
 import { providerError } from "../providers/errors";
+import { createProviders } from "../providers/index";
 import { emptyVoice } from "../providers/list";
 import { testDb as db, testDatabaseUrl as url } from "../test-db";
 import { appRouter } from "./index";
@@ -213,5 +214,40 @@ describe.skipIf(!url)("이용 가능 확인(T7 스펙 2·3절)", () => {
 		await saveStale(make(OWNER), fish("nokey"));
 		await make(OWNER).savedVoiceCheck();
 		expect(getVoice).not.toHaveBeenCalled();
+	});
+
+	it("Airy는 한 번의 확인에서 목록을 한 번만 부르고, 목록에 없는 id는 현재 이용 불가다(스펙 8절 8번)", async () => {
+		const here = "a597bb7a98fc9ec1";
+		const gone = "0000000000000000";
+		const fetchMock = vi.fn(async (url: string | URL | Request) =>
+			new URL(String(url)).pathname === "/v1/studio/voices"
+				? Response.json({ voices: [] })
+				: Response.json({
+						voices: [
+							{ id: here, name: "Silvia", gender: "female", langs: ["ko"] },
+						],
+					}),
+		);
+		vi.stubGlobal("fetch", fetchMock);
+		try {
+			// sk-로 시작하지 않는다(dev-cycle secrets 패턴)
+			const as = setup(createProviders({ airy: "test-airy-check-key-0001" }))(
+				OWNER,
+			);
+			await saveStale(as, voiceOf("airy", "public", here));
+			await saveStale(as, voiceOf("airy", "public", gone));
+			const list = await as.savedVoiceCheck();
+			expect(byId(list, gone)?.unavailable).toBe(true);
+			expect(byId(list, here)).toMatchObject({
+				unavailable: false,
+				voice: { name: "Silvia", gender: "female" },
+			});
+			const paths = fetchMock.mock.calls.map(
+				([url]) => new URL(String(url)).pathname,
+			);
+			expect(paths.filter((p) => p === "/v1/voices")).toHaveLength(1);
+		} finally {
+			vi.unstubAllGlobals();
+		}
 	});
 });

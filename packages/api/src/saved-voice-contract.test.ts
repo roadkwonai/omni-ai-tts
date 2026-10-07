@@ -82,6 +82,35 @@ describe("담기 입력(T7 스펙 3절)", () => {
 			}).success,
 		).toBe(false);
 	});
+	it("Airy: assets.airy.so의 https 샘플과 공개 출처만 받는다", () => {
+		const url =
+			"https://assets.airy.so/airy/voice_pack/vp-v9/audio/ko/a597bb7a98fc9ec1.opus";
+		const airy = {
+			...emptyVoice("airy", "public"),
+			voiceId: "a597bb7a98fc9ec1",
+			name: "Silvia",
+			previewUrl: url,
+			samples: [{ language: "ko", title: null, url }],
+		};
+		expect(savedVoiceSaveInputSchema.safeParse({ voice: airy }).success).toBe(
+			true,
+		);
+		for (const bad of [
+			"https://cdn.airy.so/a.opus",
+			"https://assets.airy.so.evil.example/a.opus",
+			"https://platform.r2.fish.audio/a.mp3",
+		])
+			expect(
+				savedVoiceSaveInputSchema.safeParse({
+					voice: { ...airy, previewUrl: bad },
+				}).success,
+			).toBe(false);
+		expect(
+			savedVoiceSaveInputSchema.safeParse({
+				voice: { ...airy, source: "account" },
+			}).success,
+		).toBe(false);
+	});
 	it("JSON 20,000자를 넘는 성우 정보는 거절한다", () => {
 		const big = {
 			...voice,

@@ -61,6 +61,7 @@
 		}
 	},
 	"globalEnv": [
+		"AIRY_API_KEY",
 		"BETTER_AUTH_SECRET",
 		"BETTER_AUTH_URL",
 		"CI",

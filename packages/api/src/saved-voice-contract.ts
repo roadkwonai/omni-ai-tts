@@ -24,12 +24,14 @@ export const savedVoiceInputSchema = voiceSchema
 			),
 		{ message: "sample_host" },
 	)
-	// voiceId는 공급자 REST 경로에 들어간다(encodeURIComponent 앞에서 모양을 한 번 더 제한). Typecast는 공개 목록만 한 명 조회할 수 있다
+	// voiceId는 공급자 REST 경로에 들어간다(encodeURIComponent 앞에서 모양을 한 번 더 제한). Typecast·Airy는 공개 목록만 있다
 	.refine((voice) => /^[A-Za-z0-9_-]{1,200}$/.test(voice.voiceId), {
 		message: "voice_id",
 	})
 	.refine(
-		(voice) => voice.provider !== "typecast" || voice.source === "public",
+		(voice) =>
+			(voice.provider !== "typecast" && voice.provider !== "airy") ||
+			voice.source === "public",
 		{
 			message: "source",
 		},

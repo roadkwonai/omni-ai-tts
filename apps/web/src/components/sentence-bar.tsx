@@ -13,11 +13,11 @@ import { useId, useRef } from "react";
 
 import { plain } from "@/lib/voice-view";
 
-import { useTrial } from "./trial-provider";
+import { useSentence } from "./trial-provider";
 
 // 모든 탭에서 같은 문장. IME 조합 중에는 자르지 않고 완료 시 200코드포인트로 제한한다.
 export function SentenceBar({ provider }: { provider: ProviderId | null }) {
-	const { text, setText } = useTrial();
+	const { text, setText } = useSentence();
 	const id = useId();
 	const composing = useRef(false);
 	const count = codePoints(text);

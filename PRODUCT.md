@@ -12,7 +12,7 @@ web
 
 ## Product Purpose
 
-Typecast·ElevenLabs·Fish Audio의 성우를 미리 듣고 용도별로 정리하며, 저장 대본의 숫자 발음을 검수한 뒤 음성을 생성·다운로드한다. 본인 음성으로 간편 클론 보이스를 만들어 같은 작업에 사용한다.
+Typecast·ElevenLabs·Fish Audio·Airy의 성우를 미리 듣고 용도별로 정리하며, 저장 대본의 숫자 발음을 검수한 뒤 음성을 생성·다운로드한다. 본인 음성으로 간편 클론 보이스를 만들어 같은 작업에 사용한다.
 
 ## Operating Context
 

@@ -83,6 +83,14 @@ describe("주소 쿼리 ↔ 필터", () => {
 			).channel,
 		).toEqual(["a"]);
 	});
+	it("보관함 공급자 쿼리는 airy를 받는다", () => {
+		expect(
+			filtersFromQuery(new URLSearchParams("provider=airy")).provider,
+		).toBe("airy");
+		expect(
+			queryFromFilters({ ...EMPTY_LIBRARY_FILTERS, provider: "airy" }),
+		).toBe("provider=airy");
+	});
 });
 
 describe("filterSaved(그룹 안 OR, 그룹끼리 AND)", () => {

@@ -106,6 +106,7 @@ Run standalone Node/Bun tools that use Varlock from the owning app directory so 
 | `TYPECAST_API_KEY` | Typecast API | 실제 TTS 연동에 필요. UI 개발 중에는 비워 둘 수 있음 |
 | `ELEVENLABS_API_KEY` | ElevenLabs API | 실제 TTS 연동에 필요. UI 개발 중에는 비워 둘 수 있음 |
 | `FISH_AUDIO_API_KEY` | Fish Audio API | 실제 TTS 연동에 필요. UI 개발 중에는 비워 둘 수 있음 |
+| `AIRY_API_KEY` | Airy API | 실제 TTS 연동에 필요. UI 개발 중에는 비워 둘 수 있음 |
 
 Neon은 콘솔의 **Connect**에서 사용할 브랜치·데이터베이스·역할을 선택하고 연결 문자열을
 복사해 `DATABASE_URL`에 넣습니다. 웹 앱에는 pooled 연결을 사용하고 SSL 등 연결 옵션을
@@ -131,6 +132,7 @@ Neon 연결에는 `DB_PORT`를 사용하지 않습니다.
 TYPECAST_API_KEY=
 ELEVENLABS_API_KEY=
 FISH_AUDIO_API_KEY=
+AIRY_API_KEY=
 ```
 
 각 공급자의 API 키를 입력하고 실행 중인 개발 서버를 재시작하세요. 키는 Varlock에서
@@ -139,9 +141,10 @@ FISH_AUDIO_API_KEY=
 다시 생성할 필요가 없습니다.
 
 서버 코드에서는 `apps/web/src/env.server.ts`의 `ENV.TYPECAST_API_KEY`,
-`ENV.ELEVENLABS_API_KEY`, `ENV.FISH_AUDIO_API_KEY`로 접근합니다. `NEXT_PUBLIC_` 접두사를 붙이거나 클라이언트로
+`ENV.ELEVENLABS_API_KEY`, `ENV.FISH_AUDIO_API_KEY`, `ENV.AIRY_API_KEY`로 접근합니다. `NEXT_PUBLIC_` 접두사를 붙이거나 클라이언트로
 전달하지 마세요. `.env`는 Git에서 제외되고 `.env.example`에는 실제 키를 넣지 않습니다.
 배포 환경에서는 같은 이름의 서버 환경변수를 설정합니다.
+새 키는 `apps/web/.env.schema`와 `turbo.json` `globalEnv`에 함께 더합니다.
 
 ## Git Hooks and Formatting
 

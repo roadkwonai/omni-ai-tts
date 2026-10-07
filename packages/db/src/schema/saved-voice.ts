@@ -23,7 +23,7 @@ export const savedVoice = pgTable(
 		id: uuid("id").primaryKey().defaultRandom(),
 		ownerId: text("owner_id").notNull(),
 		provider: text("provider")
-			.$type<"typecast" | "elevenlabs" | "fish_audio">()
+			.$type<"typecast" | "elevenlabs" | "fish_audio" | "airy">()
 			.notNull(),
 		voiceId: text("voice_id").notNull(),
 		// 담은 출처. 키가 아니다(같은 성우를 공개·계정 어느 쪽에서 담아도 한 행). 이용 가능 확인이 조회 방법을 고르는 데 쓴다
@@ -47,7 +47,7 @@ export const savedVoice = pgTable(
 		index("saved_voice_owner_saved").on(t.ownerId, t.savedAt.desc()),
 		check(
 			"saved_voice_provider",
-			sql`${t.provider} in ('typecast', 'elevenlabs', 'fish_audio')`,
+			sql`${t.provider} in ('typecast', 'elevenlabs', 'fish_audio', 'airy')`,
 		),
 		check("saved_voice_source", sql`${t.source} in ('public', 'account')`),
 	],

@@ -9,17 +9,11 @@ import type {
 import { Info } from "lucide-react";
 import { Fragment, useState } from "react";
 
-import { PROVIDER_LABEL, toView } from "@/lib/connection-view";
+import { PROVIDER_IDS, PROVIDER_LABEL, toView } from "@/lib/connection-view";
 import { orpc, QUIET } from "@/utils/orpc";
 
 import { LoopbackNotice } from "./notice";
 import { ProviderStatusCard, STATUS_LABEL } from "./provider-status-card";
-
-const PROVIDER_ORDER = [
-	"typecast",
-	"elevenlabs",
-	"fish_audio",
-] as const satisfies readonly ProviderId[];
 
 const isUnauthorized = (error: unknown) =>
 	error instanceof ORPCError && error.code === "UNAUTHORIZED";
@@ -64,10 +58,10 @@ function SummaryBanner({
 	);
 }
 
-// 세 공급자의 조회를 한곳에서 든다. 소유자 없음 판단과 스크린 리더 알림을 여기서만 한다.
+// 네 공급자의 조회를 한곳에서 든다. 소유자 없음 판단과 스크린 리더 알림을 여기서만 한다.
 export function ConnectionStatus() {
 	const queries = useQueries({
-		queries: PROVIDER_ORDER.map((provider) =>
+		queries: PROVIDER_IDS.map((provider) =>
 			orpc.providerStatus.queryOptions({
 				input: { provider },
 				// 5분 안에 다시 열면 이전 결과를 쓴다. 그 밖의 확인은 '다시 확인하기' 버튼으로만 한다(스펙 2절).
@@ -89,7 +83,7 @@ export function ConnectionStatus() {
 		);
 	}
 
-	const views = PROVIDER_ORDER.map((provider, index) => ({
+	const views = PROVIDER_IDS.map((provider, index) => ({
 		provider,
 		view: toView(provider, queries[index]),
 	}));
@@ -97,7 +91,8 @@ export function ConnectionStatus() {
 	return (
 		<div className="flex flex-col gap-7">
 			<SummaryBanner views={views} />
-			<div className="grid grid-cols-cards gap-4 lg:grid-cols-3">
+			{/* 카드 넷: 768px 이상 2열(2×2), 767px 이하 1열(연결 상태 브리프 카드 절, T7.5) */}
+			<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 				{views.map(({ provider, view }, index) => {
 					const query = queries[index];
 					return (

@@ -6,6 +6,7 @@ export const providerIdSchema = z.enum([
 	"typecast",
 	"elevenlabs",
 	"fish_audio",
+	"airy",
 ]);
 export type ProviderId = z.infer<typeof providerIdSchema>;
 
@@ -22,11 +23,11 @@ export const connectionStatusSchema = z.enum([
 ]);
 export type ConnectionStatus = z.infer<typeof connectionStatusSchema>;
 
-// 잔여 사용량. 공급자가 준 값만 담는다. 단위는 공급자마다 다르다(Typecast 크레딧, ElevenLabs 글자, Fish Audio API 충전 잔액).
+// 잔여 사용량. 공급자가 준 값만 담는다. 단위는 공급자마다 다르다(Typecast·Airy 크레딧, ElevenLabs 글자, Fish Audio API 충전 잔액).
 export const remainingQuotaSchema = z.object({
 	remaining: z.number(),
-	total: z.number().nullable(), // Fish Audio는 전체 값이 없다
-	plan: z.string().nullable(), // Typecast만
+	total: z.number().nullable(), // Fish Audio·Airy는 전체 값이 없다
+	plan: z.string().nullable(), // Typecast·Airy(tier)
 	resetAt: z.iso.datetime().nullable(), // ElevenLabs만
 	overageAllowed: z.boolean(), // ElevenLabs 한도 확장(max_credit_limit_extension이 0이 아님)
 	// Fish Audio만: fish.audio 웹 플랜(구독 패키지) 크레딧. remaining(API 충전 잔액)과 따로 조회한다. 조회에 실패하면 없다
@@ -188,6 +189,8 @@ const optionalValue = conditionValueSchema.nullable();
 // 목록 입력(T4 스펙 3절). 페이지 크기는 공급자 모듈이 100으로 정한다.
 export const voiceListInputSchema = z.union([
 	z.object({ provider: z.literal("typecast") }),
+	// Airy: 공식 목록 하나(공개 출처, 조건 없음, T7.5 스펙 3절)
+	z.object({ provider: z.literal("airy") }),
 	z.object({
 		provider: z.literal("elevenlabs"),
 		source: z.literal("public"),

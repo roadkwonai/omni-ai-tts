@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 	// 페이지는 제목만 정하고 뒤에 " · TTS Pilot"이 붙는다(WCAG 2.4.2).
 	title: { template: "%s · TTS Pilot", default: "TTS Pilot" },
 	description:
-		"Typecast·ElevenLabs·Fish Audio 성우로 한국어 음성을 만드는 개인 작업실",
+		"Typecast·ElevenLabs·Fish Audio·Airy 성우로 한국어 음성을 만드는 개인 작업실",
 };
 
 // 주소창·상태 막대 색. 값은 globals.css의 --background(:root, .dark)와 같다.

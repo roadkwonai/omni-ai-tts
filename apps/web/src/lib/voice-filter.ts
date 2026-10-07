@@ -89,6 +89,22 @@ export function filterVoices(
 	);
 }
 
+// Airy 탭(T7.5 브리프 13절): 이름·성우 id 부분 일치(대소문자 무시) + 성별(여럿이면 OR). Typecast 검색(filterVoices, 이름만)은 그대로다
+export function filterByNameOrId(
+	voices: readonly Voice[],
+	query: string,
+	genders: readonly string[],
+): Voice[] {
+	const needle = normalize(query);
+	return voices.filter(
+		(voice) =>
+			(needle === "" ||
+				normalize(voice.name).includes(needle) ||
+				voice.voiceId.toLowerCase().includes(needle)) &&
+			anyOf(genders, [voice.gender]),
+	);
+}
+
 // 콘텐츠별 선반. 인원 많은 순, 같으면 처음 나온 순(정렬은 안정적이다). 콘텐츠가 없는 성우는 마지막 묶음(null)이다.
 export function groupByUseCase(
 	voices: readonly Voice[],

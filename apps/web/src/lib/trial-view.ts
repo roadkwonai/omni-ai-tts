@@ -10,6 +10,9 @@ import type {
 	TrialItem,
 } from "@tts-pilot-app/api/providers/trial-contract";
 import {
+	AIRY_CREDITS_PER_CHAR,
+	AIRY_MODELS,
+	type AiryStyle,
 	DEFAULT_SETTINGS,
 	ELEVENLABS_MODELS,
 	EMOTION_PRESETS,
@@ -30,7 +33,8 @@ import {
 	V21_PRESETS,
 } from "@tts-pilot-app/api/providers/trial-options";
 
-import { PROVIDER_LABEL } from "./connection-view";
+import { creditNumber, PROVIDER_LABEL } from "./connection-view";
+import { languageName } from "./provider-conditions";
 import { problemCopy, retryAtOf } from "./voice-failure";
 import { labelOf } from "./voice-filter";
 import { agoText, EMOTION_KO, plain, retryTime } from "./voice-view";
@@ -53,6 +57,13 @@ export const FIELD_LABEL: Record<string, string> = {
 	speed: "속도",
 	speakerBoost: "화자 증폭",
 	temperature: "표현력",
+};
+// Airy 말투(GLOSSARY '말투'). ElevenLabs '스타일'(수치 슬라이더, FIELD_LABEL.style)과 다른 설정이다
+export const AIRY_STYLE_LABEL: Record<AiryStyle, string> = {
+	normal: "보통",
+	bright: "밝게",
+	calm: "차분하게",
+	whisper: "속삭임",
 };
 // 말투 태그(공식 목록, 계획 '계획에서 정한 것'). 화면에는 한국어 이름과 원문을 함께 보인다
 export const ELEVENLABS_TAGS = [
@@ -107,7 +118,9 @@ export function modelOptionsOf(
 			? typecastModelsOf(voice)
 			: voice.provider === "elevenlabs"
 				? [...ELEVENLABS_MODELS]
-				: fishModelsOf(now);
+				: voice.provider === "airy"
+					? [...AIRY_MODELS]
+					: fishModelsOf(now);
 	return models.map((model) =>
 		model === "s2.1-pro-free"
 			? { value: model, label: model, free: true }
@@ -167,6 +180,13 @@ export function requestOf(
 					: { ...fish, model: "s2.1-pro" },
 			};
 		}
+		case "airy":
+			return {
+				provider: "airy",
+				voiceId,
+				text,
+				settings: settings.airy,
+			};
 	}
 }
 
@@ -212,6 +232,13 @@ export function usageText(usage: Usage): string {
 	return `약 ${plain.format(usage.amount)}크레딧`;
 }
 
+// 확인 창 예상 사용량의 근거 규칙(T7.5 스펙 2절 '확인 창 근거', U4). 공급자 문서의 과금 규칙이 언어 기준인 Airy만. 'Airy 요금 기준:'은 화면이 붙인다
+export function usageBasis(request: TrialRequest): string | null {
+	if (request.provider !== "airy") return null;
+	const { language } = request.settings;
+	return `${languageName(language)} 1글자 ${AIRY_CREDITS_PER_CHAR[language]}크레딧`;
+}
+
 // 확인 창의 남은 값(T2 연결 상태 값). 어느 잔액인지 이름으로 알린다(lessons 2026-10-04).
 // Fish Audio는 '남은 잔액'으로 API 충전 잔액과(있으면) 웹 플랜 크레딧을 두 줄로 보인다. 어느 잔액에서 빠지는지는 CS-09(사용자 테스트 5번)로 정한다(계획 리뷰 D14)
 export const remainingLabel = (provider: ProviderId) =>
@@ -221,6 +248,8 @@ export function remainingLines(
 	quota: RemainingQuota | null,
 ): string[] {
 	if (quota === null) return ["확인하지 못했어요"];
+	// Airy는 카드와 같은 버림 한 자리(실제보다 크게 보이지 않게, E4·D4)
+	if (provider === "airy") return [`${creditNumber(quota.remaining)}크레딧`];
 	const remaining = plain.format(Math.max(0, quota.remaining));
 	if (provider !== "fish_audio") return [`${remaining}크레딧`];
 	const web = quota.webCredit;
@@ -270,10 +299,18 @@ export function settingsSummary(request: TrialRequest): string {
 			parts.push(`감정 ${emotionLabel(String(value))}`);
 			continue;
 		}
-		if (value === defaults[field] || value === "") continue;
+		// Airy 언어는 과금 기준이라 기본값(ko)이어도 늘 보인다
+		const airyLanguage = request.provider === "airy" && field === "language";
+		if ((value === defaults[field] && !airyLanguage) || value === "") continue;
 		if (field === "tag") parts.push(`[${value}]`);
 		else if (field === "language")
-			parts.push(LANGUAGE_LABEL[value as "auto" | "kor"]);
+			parts.push(
+				request.provider === "airy"
+					? languageName(String(value))
+					: LANGUAGE_LABEL[value as "auto" | "kor"],
+			);
+		else if (request.provider === "airy" && field === "style")
+			parts.push(`말투 ${AIRY_STYLE_LABEL[value as AiryStyle]}`);
 		else
 			parts.push(`${FIELD_LABEL[field] ?? field} ${valueText(field, value)}`);
 	}
@@ -363,6 +400,17 @@ export function trialProblemText(
 			if (code === "audio_too_large")
 				return {
 					text: "결과 오디오가 너무 커요. 문장을 줄이거나 속도를 올려 주세요",
+					connections: false,
+				};
+			// Airy 입력 거절(400). 공급자 코드는 보이지 않는다(D7, 새 문구는 사용자 테스트에서 확인)
+			if (provider === "airy")
+				return {
+					text:
+						code === "unsupported_characters"
+							? "Airy가 읽지 못하는 글자가 있어요. 문장이나 언어 설정을 확인해 주세요"
+							: code === "invalid_value"
+								? "Airy가 이 설정을 받지 않았어요. 언어와 말투를 확인해 주세요"
+								: "Airy가 이 문장을 받지 않았어요. 문장이나 언어 설정을 확인해 주세요",
 					connections: false,
 				};
 			if (provider === "elevenlabs" && code && FREE_PLAN_CODES.has(code))

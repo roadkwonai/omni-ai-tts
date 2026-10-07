@@ -143,10 +143,12 @@ export function VoicePanelContent({ voice }: { voice: Voice }) {
 					{LIBRARY_TEXT.unavailableNotice}
 				</p>
 			) : null}
-			{/* Typecast는 출처 구분이 없어 공급자 이름만 보인다(critique 2026-10-05) */}
+			{/* Typecast·Airy는 출처 구분이 없어 공급자 이름만 보인다(critique 2026-10-05, T7.5 브리프 13절) */}
 			<p className="text-muted-foreground text-sm">
 				<span translate="no">{PROVIDER_LABEL[voice.provider]}</span>
-				{voice.provider === "typecast" ? null : ` · ${SOURCE[voice.source]}`}
+				{voice.provider === "typecast" || voice.provider === "airy"
+					? null
+					: ` · ${SOURCE[voice.source]}`}
 			</p>
 			{chips.length > 0 ? (
 				<ul className="flex flex-wrap gap-1.5" aria-label="공급자 분류">

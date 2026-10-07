@@ -9,6 +9,7 @@ import type {
 import {
 	comboSignature,
 	DEFAULT_SETTINGS,
+	normalizeText,
 	type SettingsOf,
 	TRIAL_RESULTS_SHOWN,
 	type TrialRequest,
@@ -16,7 +17,9 @@ import {
 import {
 	createContext,
 	type ReactNode,
+	type RefObject,
 	useContext,
+	useDeferredValue,
 	useEffect,
 	useRef,
 	useState,
@@ -40,8 +43,6 @@ import { TrialConfirm, type TrialPending } from "./trial-confirm";
 import { useCooldown } from "./voice-problem";
 
 type TrialApi = {
-	text: string;
-	setText: (text: string) => void;
 	settings: SettingsOf;
 	setSetting: (
 		provider: ProviderId,
@@ -50,7 +51,8 @@ type TrialApi = {
 	resetSettings: (provider: ProviderId) => void;
 	busy: { key: string; phase: "finding" | "creating" } | null;
 	hasSaved: (request: TrialRequest) => boolean;
-	blockOf: (voice: Voice) => string | null;
+	// text는 useShownText()의 늦춘 문장
+	blockOf: (voice: Voice, text: string) => string | null;
 	problem: (key: string) => TrialProblem | null;
 	playing: (voice: Voice) => boolean;
 	stop: () => void;
@@ -65,8 +67,40 @@ type TrialApi = {
 };
 
 const TrialContext = createContext<TrialApi | null>(null);
+const SentenceContext = createContext<{
+	text: string;
+	setText: (text: string) => void;
+} | null>(null);
+const ShownTextContext = createContext("");
+
+// 문장은 TrialProvider 아래 이 컴포넌트가 든다. 탭 다섯 개의 행 수백 개가 TrialContext를 읽으므로
+// 글자를 쳐도 TrialProvider는 다시 그리지 않고, 입력 칸(SentenceContext)만 바로 그린다.
+// 행·패널은 늦춘 문장(ShownTextContext)으로 낮은 우선순위에서 다시 그린다(입력이 끊는다).
+function SentenceProvider({
+	latest,
+	children,
+}: {
+	latest: RefObject<string>;
+	children: ReactNode;
+}) {
+	const [text, setText] = useState("");
+	const shown = useDeferredValue(text);
+	const sentence = {
+		text,
+		setText: (next: string) => {
+			latest.current = next;
+			setText(next);
+		},
+	};
+	return (
+		<SentenceContext value={sentence}>
+			<ShownTextContext value={shown}>{children}</ShownTextContext>
+		</SentenceContext>
+	);
+}
 
 // 캐스팅 화면의 문장·설정·생성 상태 하나. 화면을 떠나면 결과 오디오 주소를 해제한다.
+// 유료 호출은 늘 입력 칸의 최신 문장(latestText)으로 만든다.
 export function TrialProvider({ children }: { children: ReactNode }) {
 	const queryClient = useQueryClient();
 	const player = usePlayer();
@@ -74,7 +108,7 @@ export function TrialProvider({ children }: { children: ReactNode }) {
 		...orpc.trialCreate.mutationOptions(),
 		retry: false,
 	});
-	const [text, setText] = useState("");
+	const latestText = useRef("");
 	const [settings, setSettings] = useState<SettingsOf>(DEFAULT_SETTINGS);
 	const [busy, setBusy] = useState<TrialApi["busy"]>(null);
 	const [retryAts, setRetryAts] = useState<Partial<Record<ProviderId, string>>>(
@@ -103,6 +137,7 @@ export function TrialProvider({ children }: { children: ReactNode }) {
 		typecast: useCooldown(retryAts.typecast),
 		elevenlabs: useCooldown(retryAts.elevenlabs),
 		fish_audio: useCooldown(retryAts.fish_audio),
+		airy: useCooldown(retryAts.airy),
 	};
 
 	useEffect(() => {
@@ -203,11 +238,17 @@ export function TrialProvider({ children }: { children: ReactNode }) {
 		opener: HTMLElement | null,
 		options: { regenerate?: boolean } = {},
 	) {
-		if (creating.current || !mounted.current) return;
+		// 버튼 막힘은 늦춘 문장으로 정하므로, 막 지운 문장은 여기서 거른다
+		if (
+			creating.current ||
+			!mounted.current ||
+			normalizeText(latestText.current) === ""
+		)
+			return;
 		const ticket = ++findTicket.current;
 		audioTicket.current += 1;
 		const key = voiceKey(voice);
-		const request = requestOf(voice, text, settings);
+		const request = requestOf(voice, latestText.current, settings);
 		const signature = comboSignature(request);
 		const retryUnknown =
 			problems[key]?.reason === "unknown_outcome" &&
@@ -333,8 +374,6 @@ export function TrialProvider({ children }: { children: ReactNode }) {
 	}
 
 	const api: TrialApi = {
-		text,
-		setText,
 		settings,
 		setSetting: (provider, patch) =>
 			setSettings(
@@ -351,7 +390,7 @@ export function TrialProvider({ children }: { children: ReactNode }) {
 			})),
 		busy,
 		hasSaved: (request) => savedReceipts.has(comboSignature(request)),
-		blockOf: (voice) =>
+		blockOf: (voice, text) =>
 			trialBlock({
 				provider: voice.provider,
 				text,
@@ -377,7 +416,7 @@ export function TrialProvider({ children }: { children: ReactNode }) {
 	};
 	return (
 		<TrialContext value={api}>
-			{children}
+			<SentenceProvider latest={latestText}>{children}</SentenceProvider>
 			<TrialConfirm
 				pending={pending}
 				onClose={() => setPending(null)}
@@ -396,6 +435,18 @@ export function TrialProvider({ children }: { children: ReactNode }) {
 // TrialProvider 밖(성우 보관함)에서는 null이다. 내 문장 듣기 UI는 이것이 있을 때만 그린다(T7 스펙 2절 '보관함 패널')
 export function useOptionalTrial(): TrialApi | null {
 	return useContext(TrialContext);
+}
+
+// 행·패널이 읽는 늦춘 문장
+export function useShownText(): string {
+	return useContext(ShownTextContext);
+}
+
+// 문장 입력 칸 전용(최신 값)
+export function useSentence() {
+	const sentence = useContext(SentenceContext);
+	if (!sentence) throw new Error("useSentence는 TrialProvider 안에서만 쓴다");
+	return sentence;
 }
 
 export function useTrial(): TrialApi {

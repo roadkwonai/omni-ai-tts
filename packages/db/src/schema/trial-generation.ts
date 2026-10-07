@@ -63,7 +63,7 @@ export const trialGeneration = pgTable(
 		),
 		check(
 			"trial_generation_provider",
-			sql`${t.provider} in ('typecast', 'elevenlabs', 'fish_audio')`,
+			sql`${t.provider} in ('typecast', 'elevenlabs', 'fish_audio', 'airy')`,
 		),
 		check(
 			"trial_generation_status",

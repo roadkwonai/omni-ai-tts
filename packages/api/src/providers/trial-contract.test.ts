@@ -67,6 +67,27 @@ describe("trialRequestSchema", () => {
 				.success,
 		).toBe(true);
 	});
+	it("Airy: 빠진 설정은 기본값(ko·normal)이고 모르는 언어·말투·모델은 거절한다", () => {
+		const base = {
+			provider: "airy",
+			voiceId: "a597bb7a98fc9ec1",
+			text: "안녕",
+		} as const;
+		expect(
+			trialRequestSchema.parse({ ...base, settings: {} }).settings,
+		).toEqual(DEFAULT_SETTINGS.airy);
+		for (const settings of [
+			{ language: "ja" },
+			{ style: "angry" },
+			{ model: "airy-tts-v2" },
+			{ language: "kor" },
+		])
+			expect(parse({ ...base, settings }).success).toBe(false);
+		expect(
+			parse({ ...base, settings: { language: "en", style: "whisper" } })
+				.success,
+		).toBe(true);
+	});
 	it("만들기 입력은 uuid 요청 id를 받는다", () => {
 		expect(
 			trialCreateInputSchema.safeParse({

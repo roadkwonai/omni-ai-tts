@@ -50,7 +50,8 @@ export const appRouter = {
 			const listVoices = context.providers?.[input.provider]?.listVoices;
 			// 키가 없으면 공급자와 DB를 부르지 않는다.
 			if (!listVoices) throw providerError(input.provider, "no_key");
-			const source = input.provider === "typecast" ? "public" : input.source;
+			// Typecast·Airy는 출처가 공개 하나라 입력에 출처가 없다
+			const source = "source" in input ? input.source : "public";
 			const { value, fetchedAt, stale } = await cachedList(
 				context.db,
 				// 계정 목록만 소유자로 나눈다. 소유자는 서버가 정한 값뿐이다(입력에 없다)

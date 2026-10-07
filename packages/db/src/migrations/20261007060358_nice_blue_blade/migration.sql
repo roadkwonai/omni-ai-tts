@@ -1,0 +1,2 @@
+ALTER TABLE "saved_voice" DROP CONSTRAINT "saved_voice_provider", ADD CONSTRAINT "saved_voice_provider" CHECK ("provider" in ('typecast', 'elevenlabs', 'fish_audio', 'airy'));--> statement-breakpoint
+ALTER TABLE "trial_generation" DROP CONSTRAINT "trial_generation_provider", ADD CONSTRAINT "trial_generation_provider" CHECK ("provider" in ('typecast', 'elevenlabs', 'fish_audio', 'airy'));

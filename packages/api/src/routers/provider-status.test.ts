@@ -29,7 +29,12 @@ describe("providerStatus", () => {
 			"local-admin",
 			createProviders({ typecast: "", elevenlabs: "  " }),
 		);
-		for (const provider of ["typecast", "elevenlabs", "fish_audio"] as const) {
+		for (const provider of [
+			"typecast",
+			"elevenlabs",
+			"fish_audio",
+			"airy",
+		] as const) {
 			await expect(client.providerStatus({ provider })).resolves.toMatchObject({
 				provider,
 				status: "no_key",

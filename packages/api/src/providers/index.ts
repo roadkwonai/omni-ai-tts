@@ -1,3 +1,4 @@
+import { createAiry } from "./airy";
 import type { ProviderId } from "./contract";
 import { createElevenLabs } from "./elevenlabs";
 import type { ProviderClient } from "./errors";
@@ -18,5 +19,6 @@ export function createProviders(keys: ProviderKeys): Providers {
 		typecast: withKey(keys.typecast, createTypecast),
 		elevenlabs: withKey(keys.elevenlabs, createElevenLabs),
 		fish_audio: withKey(keys.fish_audio, createFishAudio),
+		airy: withKey(keys.airy, createAiry),
 	};
 }

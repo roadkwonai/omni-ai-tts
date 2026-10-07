@@ -1,6 +1,6 @@
 # TTS Pilot — 개인 음성 제작 작업실
 
-Typecast·ElevenLabs·Fish Audio 성우를 탐색하고 개인 분류와 대본을 재사용하여 음성을 제작하는 작업실이다. 이 문서는 제품 용어의 정본이며 기능 요구사항과 구현 결정은 별도 문서에 둔다.
+Typecast·ElevenLabs·Fish Audio·Airy 성우를 탐색하고 개인 분류와 대본을 재사용하여 음성을 제작하는 작업실이다. 이 문서는 제품 용어의 정본이며 기능 요구사항과 구현 결정은 별도 문서에 둔다.
 
 ## Language
 
@@ -9,7 +9,7 @@ Typecast·ElevenLabs·Fish Audio 성우를 탐색하고 개인 분류와 대본�
 _Avoid_: 회원, 유저, account
 
 **공급자(Provider)**:
-합성 성우와 음성 생성 기능을 제공하는 서비스. 이 작업실의 공급자는 Typecast, ElevenLabs, Fish Audio다.
+합성 성우와 음성 생성 기능을 제공하는 서비스. 이 작업실의 공급자는 Typecast, ElevenLabs, Fish Audio, Airy다(Airy는 T7.5에서 더함).
 _Avoid_: 엔진, 모델
 
 **성우(Voice)**:
@@ -79,6 +79,10 @@ _Avoid_: 즐겨찾기, 청취 이력
 **모델(Model)**:
 공급자가 제공하는 음성 합성 방식의 제품 단위. 같은 성우도 선택한 모델에 따라 지원 설정이나 이용 가능 여부가 달라질 수 있다. Fish Audio API는 성우 개체도 `model`로 부르지만, 이 작업실에서는 그 개체를 성우로 부르고 `s1`·`s2.1-pro` 같은 합성 엔진만 모델로 부른다.
 _Avoid_: 성우, 공급자
+
+**말투(Speaking Style)**:
+Airy 합성 요청의 `style` 값. 보통·밝게·차분하게·속삭임 가운데 하나를 고르는 생성 설정이다. 문장 앞에 붙이는 ElevenLabs·Fish Audio의 말투 태그, ElevenLabs의 '스타일'(과장 정도 수치)과 다르다.
+_Avoid_: 스타일, 감정
 
 **프리셋(Voice Preset)**:
 반복 제작에 쓰는 성우·모델·생성 설정·교정 모드의 저장된 조합. 필요하면 특정 채널과 연결한다.

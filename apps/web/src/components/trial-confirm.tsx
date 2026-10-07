@@ -26,6 +26,7 @@ import {
 	remainingLines,
 	settingsSummary,
 	typecastOverdrawn,
+	usageBasis,
 	usageText,
 } from "@/lib/trial-view";
 import { orpc } from "@/utils/orpc";
@@ -110,6 +111,7 @@ function ConfirmBody({
 		meta: { toast: false },
 	});
 	const rate = useRate(request);
+	const basis = usageBasis(request);
 	const quota = status.data?.quota ?? null;
 	const sample = voice.previewUrl;
 	const { status: sampleStatus, toggle } = useSample(sample ?? "");
@@ -140,10 +142,18 @@ function ConfirmBody({
 						</dd>
 					</div>
 					<div className="flex justify-between gap-4">
-						<dt className="text-muted-foreground">예상 사용량</dt>
+						<dt className="whitespace-nowrap text-muted-foreground">
+							예상 사용량
+						</dt>
 						<dd className="flex flex-wrap items-center justify-end gap-1.5 tabular-nums">
 							<Coins aria-hidden="true" className="size-4 text-warning" />
 							{usageText(estimate(request, rate.multiplier))}
+							{basis ? (
+								<span className="text-muted-foreground">
+									(<span translate="no">Airy</span> 요금 기준:{" "}
+									<span className="whitespace-nowrap">{basis}</span>)
+								</span>
+							) : null}
 							{rate.missing ? (
 								<span className="text-muted-foreground">
 									(배율을 확인하지 못했어요)

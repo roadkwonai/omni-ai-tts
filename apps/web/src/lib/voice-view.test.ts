@@ -21,6 +21,7 @@ import {
 	sampleAriaLabel,
 	sampleLabel,
 	sampleSubject,
+	samplesMissing,
 	secondaryLines,
 	termLines,
 	voiceKey,
@@ -547,5 +548,32 @@ describe("상태 줄과 묶음 문구", () => {
 		expect(
 			bundleOf([], { total: null, totalExact: false }).countLabel,
 		).toBeNull();
+	});
+});
+
+describe("Airy 행", () => {
+	const airy = {
+		...base,
+		provider: "airy",
+		gender: "female",
+		age: null,
+		accent: null,
+		languages: ["en", "ko", "ko"],
+	} as Voice;
+	it("메타 줄은 성별과 언어(한국어 먼저, 중복 없이)이고 연령 자리는 없다", () => {
+		expect(metaLine(airy)).toBe("여성 · 한국어·영어");
+		expect(metaLine({ ...airy, gender: null, languages: [] })).toBe(
+			"성별 정보 없음",
+		);
+	});
+	it("목록의 모든 성우에 샘플이 없을 때만 샘플 못 받음이다(빈 목록은 아니다, U1)", () => {
+		const sample = {
+			language: "ko",
+			title: null,
+			url: "https://assets.airy.so/a.opus",
+		};
+		expect(samplesMissing([airy, airy])).toBe(true);
+		expect(samplesMissing([airy, { ...airy, samples: [sample] }])).toBe(false);
+		expect(samplesMissing([])).toBe(false);
 	});
 });

@@ -21,6 +21,11 @@ export const ELEVENLABS_MODELS = [
 	"eleven_flash_v2_5",
 ] as const;
 export const FISH_MODELS = ["s2.1-pro-free", "s2.1-pro"] as const;
+export const AIRY_MODELS = ["airy-tts-v1"] as const;
+export const AIRY_LANGUAGES = ["ko", "en"] as const;
+export const AIRY_STYLES = ["normal", "bright", "calm", "whisper"] as const;
+// Airy 과금(공식 문서 2026-10-07): 입력 한 글자에 language가 ko면 1.5, en이면 1크레딧. 글자는 다른 공급자처럼 코드 포인트로 센다
+export const AIRY_CREDITS_PER_CHAR = { ko: 1.5, en: 1 } as const;
 export const EMOTION_PRESETS = [
 	"normal",
 	"happy",
@@ -33,6 +38,9 @@ export const EMOTION_PRESETS = [
 export type TypecastModel = (typeof TYPECAST_MODELS)[number];
 export type ElevenLabsModel = (typeof ELEVENLABS_MODELS)[number];
 export type FishModel = (typeof FISH_MODELS)[number];
+export type AiryModel = (typeof AIRY_MODELS)[number];
+export type AiryLanguage = (typeof AIRY_LANGUAGES)[number];
+export type AiryStyle = (typeof AIRY_STYLES)[number];
 export type EmotionPreset = (typeof EMOTION_PRESETS)[number];
 // ssfm-v21이 받는 프리셋(공식 문서)
 export const V21_PRESETS: readonly EmotionPreset[] = [
@@ -72,6 +80,8 @@ export const RANGES = {
 		speed: range(0.5, 2, 0.05, 1),
 		temperature: range(0, 1, 0.05, 0.7),
 	},
+	// 슬라이더가 없다(언어·말투는 고르기)
+	airy: {},
 } as const;
 
 export type TypecastSettings = {
@@ -100,10 +110,18 @@ export type FishSettings = {
 	temperature: number;
 	tag: string;
 };
+// 형식(mp3)은 서버가 정하고 끝 무음(trailing_silence)은 두지 않는다(T7.5 스펙 2절)
+export type AirySettings = {
+	model: AiryModel;
+	language: AiryLanguage;
+	// 말투(GLOSSARY). ElevenLabs의 '스타일'(수치)과 다르다
+	style: AiryStyle;
+};
 export type SettingsOf = {
 	typecast: TypecastSettings;
 	elevenlabs: ElevenLabsSettings;
 	fish_audio: FishSettings;
+	airy: AirySettings;
 };
 // 시험 생성 요청 하나(성우·문장·설정). 화면이 만들고 프로시저가 받는 모양이다
 export type TrialRequest = {
@@ -141,6 +159,7 @@ export const DEFAULT_SETTINGS: SettingsOf = {
 		temperature: RANGES.fish_audio.temperature.default,
 		tag: "",
 	},
+	airy: { model: "airy-tts-v1", language: "ko", style: "normal" },
 };
 
 type Field<P extends ProviderId> = Exclude<keyof SettingsOf[P], "model"> &
@@ -178,6 +197,7 @@ export const FIELDS: {
 		"s2.1-pro-free": ["speed", "temperature", "tag"],
 		"s2.1-pro": ["speed", "temperature", "tag"],
 	},
+	airy: { "airy-tts-v1": ["language", "style"] },
 };
 
 // 이 요청의 모델이 받는 옵션. Typecast v30 '자동' 감정은 프리셋·강도를 쓰지 않는다
@@ -240,10 +260,11 @@ export function comboSignature(request: TrialRequest): string {
 	]);
 }
 
-// 공급자에게 보내는 문장. 말투 태그를 받는 모델이면 문장 앞에 붙인다(두 공급자 문서 모두 문장 앞을 권한다)
+// 공급자에게 보내는 문장. 말투 태그를 받는 모델이면 문장 앞에 붙인다(두 공급자 문서 모두 문장 앞을 권한다). Typecast·Airy는 태그가 없다
 export function sentText(request: TrialRequest): string {
 	const text = normalizeText(request.text);
-	if (request.provider === "typecast") return text;
+	if (request.provider === "typecast" || request.provider === "airy")
+		return text;
 	const tag = request.settings.tag.trim();
 	return tag && fieldsOf(request).includes("tag") ? `[${tag}] ${text}` : text;
 }
@@ -266,12 +287,12 @@ export function estimate(
 			: { unit: "byte", amount: utf8Bytes(sent) };
 	}
 	const chars = codePoints(sent);
-	return {
-		unit: "credit",
-		amount:
-			request.provider === "elevenlabs"
-				? Math.ceil(chars * (multiplier ?? 1))
-				: chars,
-	};
+	const rate =
+		request.provider === "airy"
+			? AIRY_CREDITS_PER_CHAR[request.settings.language]
+			: request.provider === "elevenlabs"
+				? (multiplier ?? 1)
+				: 1;
+	return { unit: "credit", amount: Math.ceil(chars * rate) };
 }
 export const fishUsd = (bytes: number) => bytes * FISH_USD_PER_BYTE;

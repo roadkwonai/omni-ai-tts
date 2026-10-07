@@ -9,6 +9,7 @@ import {
 	groupLists,
 	type Named,
 } from "./classes-view";
+import { PROVIDER_IDS } from "./connection-view";
 import { anyOf } from "./voice-filter";
 
 // 보관함의 같은 성우: 공급자 + 성우 id(REQ-04). 목록 행 키 voiceKey는 출처까지 넣으므로 따로 둔다
@@ -34,11 +35,6 @@ export const EMPTY_LIBRARY_FILTERS: LibraryFilters = {
 };
 
 const VIEWS: readonly LibraryView[] = ["all", "favorite", "frequent"];
-const PROVIDERS: readonly ProviderId[] = [
-	"typecast",
-	"elevenlabs",
-	"fish_audio",
-];
 
 // 필터는 주소 쿼리가 정본이다('성우 N명' 링크가 이 주소로 온다, 스펙 2절). 모르는 값은 기본값이다
 export function filtersFromQuery(params: URLSearchParams): LibraryFilters {
@@ -48,7 +44,7 @@ export function filtersFromQuery(params: URLSearchParams): LibraryFilters {
 	return {
 		q: params.get("q") ?? "",
 		view: VIEWS.find((v) => v === view) ?? "all",
-		provider: PROVIDERS.find((p) => p === provider) ?? null,
+		provider: PROVIDER_IDS.find((p) => p === provider) ?? null,
 		channel: ids("channel"),
 		category: ids("category"),
 		type: ids("type"),

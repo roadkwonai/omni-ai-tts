@@ -38,6 +38,7 @@ const providers: Providers = {
 	typecast: { checkStatus: vi.fn(), synthesize },
 	elevenlabs: { checkStatus: vi.fn(), synthesize, listModels },
 	fish_audio: { checkStatus: vi.fn(), synthesize },
+	airy: { checkStatus: vi.fn(), synthesize },
 };
 const as = (ownerId: string | null, ctx: Partial<Context> = {}) =>
 	createRouterClient(appRouter, {
@@ -572,5 +573,36 @@ describe.skipIf(!url)("시험 생성 프로시저", () => {
 		const { rates } = await as(OWNER).trialModels();
 		expect(rates).toEqual([{ model: "eleven_v4", multiplier: 0.5 }]);
 		expect(listModels).toHaveBeenCalledTimes(1);
+	});
+
+	it("Airy: 예상 사용량은 한국어 1.5배 올림이고 생성 기록에 airy·모델이 남는다(DB 검사 제약)", async () => {
+		const airyRequest: TrialRequest = {
+			provider: "airy",
+			voiceId: "a597bb7a98fc9ec1",
+			text: "가나다",
+			settings: DEFAULT_SETTINGS.airy,
+		};
+		const made = await as(OWNER).trialCreate({
+			requestId: crypto.randomUUID(),
+			request: airyRequest,
+		});
+		expect(made.usage).toEqual({ unit: "credit", amount: 5 });
+		expect(synthesize).toHaveBeenCalledTimes(1);
+		expect(listModels).not.toHaveBeenCalled();
+		const [row] = await db
+			.select()
+			.from(trialGeneration)
+			.where(eq(trialGeneration.provider, "airy"));
+		expect(row).toMatchObject({
+			provider: "airy",
+			model: "airy-tts-v1",
+			usageUnit: "credit",
+			usageAmount: 5,
+			status: "done",
+		});
+		// 같은 조합은 공급자를 다시 부르지 않고 저장본이다(스펙 8절 6번)
+		const found = await as(OWNER).trialFind(airyRequest);
+		expect(found?.id).toBe(made.id);
+		expect(synthesize).toHaveBeenCalledTimes(1);
 	});
 });

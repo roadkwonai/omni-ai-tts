@@ -23,6 +23,7 @@ import {
 	trialFailureOf,
 	trialProblemText,
 	typecastOverdrawn,
+	usageBasis,
 	usageText,
 } from "./trial-view";
 
@@ -88,6 +89,23 @@ describe("requestOf", () => {
 			{ value: "s2.1-pro-free", label: "s2.1-pro-free", free: true },
 			{ value: "s2.1-pro", label: "s2.1-pro" },
 		]);
+	});
+	it("Airy: 공급자 설정 그대로, 모델 선택지는 airy-tts-v1 하나(무료 표시 없음)", () => {
+		const v = voice({ provider: "airy", voiceId: "a597bb7a98fc9ec1" });
+		const settings = {
+			...DEFAULT_SETTINGS,
+			airy: { ...DEFAULT_SETTINGS.airy, style: "calm" as const },
+		};
+		expect(requestOf(v, "안녕", settings)).toEqual({
+			provider: "airy",
+			voiceId: "a597bb7a98fc9ec1",
+			text: "안녕",
+			settings: { model: "airy-tts-v1", language: "ko", style: "calm" },
+		});
+		expect(modelOptionsOf(v)).toEqual([
+			{ value: "airy-tts-v1", label: "airy-tts-v1" },
+		]);
+		expect(needsConfirm(requestOf(v, "안녕", DEFAULT_SETTINGS))).toBe(true);
 	});
 });
 
@@ -231,6 +249,68 @@ describe("문구", () => {
 			),
 		).toBeNull();
 	});
+	it("설정 요약: Airy 언어·말투는 한국어 이름, ElevenLabs 스타일과 태그는 그대로(Review Focus 4)", () => {
+		const airy = (settings: Partial<typeof DEFAULT_SETTINGS.airy>) =>
+			({
+				provider: "airy",
+				voiceId: "a597bb7a98fc9ec1",
+				text: "안녕",
+				settings: { ...DEFAULT_SETTINGS.airy, ...settings },
+			}) as const;
+		expect(settingsSummary(airy({}))).toBe("airy-tts-v1 · 한국어");
+		expect(settingsSummary(airy({ language: "en", style: "bright" }))).toBe(
+			"airy-tts-v1 · 영어 · 말투 밝게",
+		);
+		expect(
+			settingsSummary({
+				provider: "elevenlabs",
+				voiceId: "el0001",
+				text: "안녕",
+				settings: {
+					...DEFAULT_SETTINGS.elevenlabs,
+					model: "eleven_multilingual_v2",
+					style: 0.3,
+				},
+			}),
+		).toBe("eleven_multilingual_v2 · 스타일 0.30");
+		expect(
+			settingsSummary({
+				provider: "elevenlabs",
+				voiceId: "el0001",
+				text: "안녕",
+				settings: { ...DEFAULT_SETTINGS.elevenlabs, tag: "whispers" },
+			}),
+		).toBe("eleven_v4 · [whispers]");
+	});
+	it("예상 사용량 근거는 Airy만, 언어에 따라. 남은 크레딧은 카드와 같은 버림 한 자리(E4·D4)", () => {
+		const airy = (language: "ko" | "en") =>
+			({
+				provider: "airy",
+				voiceId: "a597bb7a98fc9ec1",
+				text: "안녕",
+				settings: { ...DEFAULT_SETTINGS.airy, language },
+			}) as const;
+		expect(usageBasis(airy("ko"))).toBe("한국어 1글자 1.5크레딧");
+		expect(usageBasis(airy("en"))).toBe("영어 1글자 1크레딧");
+		expect(
+			usageBasis({
+				provider: "typecast",
+				voiceId: "tc_1",
+				text: "안녕",
+				settings: DEFAULT_SETTINGS.typecast,
+			}),
+		).toBeNull();
+		const quota = (remaining: number) => ({
+			remaining,
+			total: null,
+			plan: "plan_a",
+			resetAt: null,
+			overageAllowed: false,
+		});
+		expect(remainingLabel("airy")).toBe("남은 크레딧");
+		expect(remainingLines("airy", quota(12.56))).toEqual(["12.5크레딧"]);
+		expect(remainingLines("airy", quota(9.9996))).toEqual(["9.9크레딧"]);
+	});
 });
 
 describe("오류", () => {
@@ -281,6 +361,25 @@ describe("오류", () => {
 		// 모르는 사유 문자열(객체 기본 속성 이름 포함)은 switch의 default가 거른다
 		expect(text("constructor")).toBe(
 			"내 문장을 듣지 못했어요. 잠시 뒤 다시 눌러 주세요",
+		);
+	});
+	it("Airy 입력 거절은 공급자 코드 없이 고칠 방법을 말한다(D7)", () => {
+		const text = (providerCode: string) =>
+			trialProblemText(
+				"airy",
+				trialFailureOf(error("provider_input", { providerCode })),
+			).text;
+		expect(text("unsupported_characters")).toBe(
+			"Airy가 읽지 못하는 글자가 있어요. 문장이나 언어 설정을 확인해 주세요",
+		);
+		expect(text("invalid_value")).toBe(
+			"Airy가 이 설정을 받지 않았어요. 언어와 말투를 확인해 주세요",
+		);
+		expect(text("not_found")).toBe(
+			"Airy가 이 문장을 받지 않았어요. 문장이나 언어 설정을 확인해 주세요",
+		);
+		expect(text("audio_too_large")).toBe(
+			"결과 오디오가 너무 커요. 문장을 줄이거나 속도를 올려 주세요",
 		);
 	});
 });

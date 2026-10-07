@@ -43,6 +43,15 @@ const fish = (
 	text,
 	settings: { ...DEFAULT_SETTINGS.fish_audio, ...over },
 });
+const airy = (
+	over: Partial<typeof DEFAULT_SETTINGS.airy> = {},
+	text = "안녕",
+): TrialRequest => ({
+	provider: "airy",
+	voiceId: "a597bb7a98fc9ec1",
+	text,
+	settings: { ...DEFAULT_SETTINGS.airy, ...over },
+});
 
 describe("fieldsOf", () => {
 	it("Typecast v30 자동 감정은 프리셋·강도를 쓰지 않고 v21은 감정 방식이 없다", () => {
@@ -181,5 +190,27 @@ describe("sentText와 예상 사용량", () => {
 	it("무료 모델은 종료일 0시(KST) 전까지만 열려 있다", () => {
 		expect(freeModelOpen(FISH_FREE_UNTIL - 1)).toBe(true);
 		expect(freeModelOpen(FISH_FREE_UNTIL)).toBe(false);
+	});
+	it("Airy 예상 크레딧: 한국어 1.5배 올림, 영어 1배, 태그 없이 보낸 문장 그대로(Review Focus 3)", () => {
+		expect(sentText(airy({}, "  가나다 "))).toBe("가나다");
+		expect(estimate(airy({}, "가나다"))).toEqual({ unit: "credit", amount: 5 });
+		expect(estimate(airy({}, "가나"))).toEqual({ unit: "credit", amount: 3 });
+		expect(estimate(airy({ language: "en" }, "abc"))).toEqual({
+			unit: "credit",
+			amount: 3,
+		});
+		// 이모지 하나는 한 글자(코드 포인트)다
+		expect(estimate(airy({}, "😀"))).toEqual({ unit: "credit", amount: 2 });
+	});
+	it("Airy는 언어·말투만 받고 같은 조합 글자에 들어간다", () => {
+		expect(fieldsOf(airy())).toEqual(["language", "style"]);
+		expect(usedSettings(airy({ style: "calm" }))).toEqual({
+			model: "airy-tts-v1",
+			language: "ko",
+			style: "calm",
+		});
+		expect(comboSignature(airy({ style: "calm" }))).not.toBe(
+			comboSignature(airy()),
+		);
 	});
 });

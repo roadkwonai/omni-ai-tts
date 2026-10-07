@@ -2,6 +2,8 @@
 
 import type { Voice } from "@tts-pilot-app/api/providers/contract";
 import {
+	AIRY_LANGUAGES,
+	AIRY_STYLES,
 	comboSignature,
 	DEFAULT_SETTINGS,
 	estimate,
@@ -23,7 +25,9 @@ import { Coins, Info, Square } from "lucide-react";
 import Link from "next/link";
 import { useId, useState } from "react";
 
+import { languageName } from "@/lib/provider-conditions";
 import {
+	AIRY_STYLE_LABEL,
 	dataNote,
 	ELEVENLABS_TAGS,
 	emotionLabel,
@@ -41,7 +45,7 @@ import {
 import { voiceKey } from "@/lib/voice-view";
 
 import { useRate } from "./trial-confirm";
-import { useTrial } from "./trial-provider";
+import { useShownText, useTrial } from "./trial-provider";
 import { useTrialItems } from "./trial-results";
 import { sourceItem } from "./voice-casting";
 import { RadioMenu } from "./voice-conditions";
@@ -145,7 +149,7 @@ function TagControl({
 }
 
 // 그 모델이 받는 옵션만 FIELDS 표 순서로 그린다(fieldsOf). 범위가 있는 필드는 슬라이더 한 줄이고,
-// 나머지 다섯(감정 모드·감정·언어·화자 증폭·말투 태그)만 따로 그린다(계획 리뷰 ponytail 2).
+// 나머지 여섯(감정 모드·감정·언어·화자 증폭·말투 태그·Airy 말투)만 따로 그린다(계획 리뷰 ponytail 2).
 // 값은 공급자 설정을 고치고(setSetting), 성우에 맞춘 보정은 요청에서만 한다
 function Options({ voice, request }: { voice: Voice; request: TrialRequest }) {
 	const { setSetting } = useTrial();
@@ -193,19 +197,42 @@ function Options({ voice, request }: { voice: Voice; request: TrialRequest }) {
 					/>
 				) : null;
 			case "language":
+				// Typecast는 자동 감지·한국어, Airy는 한국어·영어(T7.5 스펙 2절)
 				return (
 					<RadioMenu
 						key={field}
 						label="언어"
 						value={String(values.language)}
 						strong={values.language !== defaults.language}
-						options={(["auto", "kor"] as const).map((language) => ({
-							value: language,
-							label: LANGUAGE_LABEL[language],
-						}))}
+						options={
+							request.provider === "airy"
+								? AIRY_LANGUAGES.map((language) => ({
+										value: language,
+										label: languageName(language),
+									}))
+								: (["auto", "kor"] as const).map((language) => ({
+										value: language,
+										label: LANGUAGE_LABEL[language],
+									}))
+						}
 						onChange={(language) => set("language", language)}
 					/>
 				);
+			case "style":
+				// Airy 말투. ElevenLabs 스타일은 범위가 있어 위 슬라이더로 그려지고 여기 오지 않는다(Review Focus 4)
+				return request.provider === "airy" ? (
+					<RadioMenu
+						key={field}
+						label="말투"
+						value={request.settings.style}
+						strong={request.settings.style !== DEFAULT_SETTINGS.airy.style}
+						options={AIRY_STYLES.map((style) => ({
+							value: style,
+							label: AIRY_STYLE_LABEL[style],
+						}))}
+						onChange={(style) => set("style", style)}
+					/>
+				) : null;
 			case "speakerBoost":
 				return (
 					<div
@@ -265,7 +292,8 @@ function Options({ voice, request }: { voice: Voice; request: TrialRequest }) {
 // 바닥 줄은 패널(칸은 voice-panel-sticky, 서랍은 본문)의 스크롤 칸 바닥에 붙고, 제자리가 보이면 풀린다
 export function TrialSection({ voice }: { voice: Voice }) {
 	const trial = useTrial();
-	const request = requestOf(voice, trial.text, trial.settings);
+	const text = useShownText();
+	const request = requestOf(voice, text, trial.settings);
 	const key = voiceKey(voice);
 	const rate = useRate(request);
 	const items = useTrialItems(voice);
@@ -274,7 +302,7 @@ export function TrialSection({ voice }: { voice: Voice }) {
 		trial.hasSaved(request) ||
 		items.data?.some((item) => comboSignature(item.request) === signature) ===
 			true;
-	const block = trial.blockOf(voice);
+	const block = trial.blockOf(voice, text);
 	const mine = trial.busy?.key === key;
 	const creating = mine && trial.busy?.phase === "creating";
 	const playing = trial.playing(voice);

@@ -41,7 +41,7 @@ import {
 
 import { usePlayer, useSample } from "./sample-player";
 import { SavedStar, useClassLists, useSavedItem } from "./saved-voices";
-import { useOptionalTrial, useTrial } from "./trial-provider";
+import { useOptionalTrial, useShownText, useTrial } from "./trial-provider";
 
 // 행을 고른다(row는 누른 고르기 버튼. 좁은 화면에서 서랍을 닫으면 그리로 포커스를 돌린다)
 export type Select = (voice: Voice, row: HTMLButtonElement) => void;
@@ -110,9 +110,10 @@ function TrialButton({
 	describedBy?: string;
 }) {
 	const trial = useTrial();
+	const text = useShownText();
 	const key = voiceKey(voice);
-	const request = requestOf(voice, trial.text, trial.settings);
-	const block = trial.blockOf(voice);
+	const request = requestOf(voice, text, trial.settings);
+	const block = trial.blockOf(voice, text);
 	const mine = trial.busy?.key === key;
 	const creating = mine && trial.busy?.phase === "creating";
 	const playing = trial.playing(voice);

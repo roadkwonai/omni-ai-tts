@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { isUpcoming, recheckUntil, toView } from "./connection-view";
+import {
+	creditNumber,
+	isUpcoming,
+	recheckUntil,
+	toView,
+} from "./connection-view";
 
 const failedAt = Date.parse("2026-10-04T07:00:00.000Z");
 
@@ -56,5 +61,15 @@ describe("isUpcoming", () => {
 		expect(isUpcoming("2026-10-20T00:00:00.000Z", now)).toBe(true);
 		expect(isUpcoming("2026-09-20T00:00:00.000Z", now)).toBe(false);
 		expect(isUpcoming("2026-10-04T00:00:00.000Z", now)).toBe(false);
+	});
+});
+
+describe("creditNumber", () => {
+	it("소수 한 자리까지 버림, 0 아래는 0(실제보다 크게 보이지 않게, 연결 상태 브리프 카드 절)", () => {
+		expect(creditNumber(12.56)).toBe("12.5");
+		expect(creditNumber(9.9996)).toBe("9.9");
+		expect(creditNumber(1234.5)).toBe("1,234.5");
+		expect(creditNumber(7)).toBe("7");
+		expect(creditNumber(-3)).toBe("0");
 	});
 });

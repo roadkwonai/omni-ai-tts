@@ -107,3 +107,7 @@
 - **규칙:**
   - `invalidateQueries`·`cancelQueries`에는 `.key()`(접두 일치), `setQueryData`·`getQueryData`에는 그 쿼리의 `queryOptions(...).queryKey`(정확 일치)를 쓴다. 한 파일에 키 상수를 하나 두고 그 값은 `queryKey`로 만든다.
   - 캐시를 직접 고치는 화면은 리뷰 통과와 별개로 런타임에서 "누른 직후 화면이 바뀌는지"를 새로 고침 없이 확인한다.
+
+## 2026-10-07 T7.5: 입력 지연은 QA가 잡지 못했다
+- 패턴: 탭을 keepMounted로 남긴 화면에서 행 수백 개가 읽는 컨텍스트에 입력 값을 두면 글자마다 모든 행이 동기로 다시 그려진다. 스크린샷 QA로는 보이지 않는다.
+- 규칙: 자주 바뀌는 입력 값(문장, 검색어)은 그 값만 읽는 작은 컨텍스트나 하위 컴포넌트에 두고, 많은 행이 읽는 값은 useDeferredValue로 넘긴다. React Compiler가 Provider를 메모이즈한다고 가정하지 않는다(번들의 `_c(`로 확인). 행이 많은 화면의 QA에는 Event Timing으로 글자당 입력 지연을 잰다.

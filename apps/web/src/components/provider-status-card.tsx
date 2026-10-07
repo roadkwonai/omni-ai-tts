@@ -20,6 +20,7 @@ import { CircleCheck, KeyRound, TriangleAlert } from "lucide-react";
 import { type ReactNode, useId } from "react";
 
 import {
+	creditNumber,
 	isUpcoming,
 	PROVIDER_LABEL,
 	recheckUntil,
@@ -33,6 +34,7 @@ const ENV_KEY: Record<ProviderId, string> = {
 	typecast: "TYPECAST_API_KEY",
 	elevenlabs: "ELEVENLABS_API_KEY",
 	fish_audio: "FISH_AUDIO_API_KEY",
+	airy: "AIRY_API_KEY",
 };
 
 export const STATUS_LABEL: Record<ConnectionStatus, string> = {
@@ -114,6 +116,20 @@ function quotaText(provider: ProviderId, quota: RemainingQuota): ReactNode {
 	const total = quota.total === null ? "" : numberFormat.format(quota.total);
 	// 단위는 공급자 문서에 없어 붙이지 않는다. 웹 플랜 크레딧은 FishWebCredit이 따로 보인다.
 	if (provider === "fish_audio") return chunk(`API 충전 잔액 ${remaining}`);
+	if (provider === "airy") {
+		const credit = chunk(`남은 크레딧 ${creditNumber(quota.remaining)}`);
+		// 플랜은 공급자 값 그대로(예 plan_a, 사용자 결정 U3). Typecast 카드처럼 'X 플랜 · …'. 값은 번역하지 않는다
+		return quota.plan ? (
+			<>
+				<span className="whitespace-nowrap">
+					<span translate="no">{quota.plan}</span> 플랜
+				</span>{" "}
+				· {credit}
+			</>
+		) : (
+			credit
+		);
+	}
 	if (provider === "typecast") {
 		return (
 			<>
@@ -184,7 +200,7 @@ function StatusBadge({ status }: { status: ConnectionStatus }) {
 	);
 }
 
-// 공급자 이름과 변수 이름은 카드의 provider로, 사용량 형식은 결과의 provider로 고른다(흉내 낸 응답 하나로 세 카드를 볼 때도 어긋나지 않는다).
+// 공급자 이름과 변수 이름은 카드의 provider로, 사용량 형식은 결과의 provider로 고른다(흉내 낸 응답 하나로 카드를 볼 때도 어긋나지 않는다).
 function Details({
 	provider,
 	result,
@@ -281,7 +297,7 @@ export function ProviderStatusCard({
 					</>
 				)}
 			</CardContent>
-			{/* 시안처럼 버튼이 카드 바닥에 붙어 세 카드에서 한 줄에 선다 */}
+			{/* 시안처럼 버튼이 카드 바닥에 붙어 카드에서 한 줄에 선다 */}
 			<CardFooter className="mt-auto pt-0">
 				{/* 확인 중에도 포커스는 남기고(focusableWhenDisabled) 누르기만 막는다. 같은 공급자로 두 번째 호출이 나가지 않는다 */}
 				<Button

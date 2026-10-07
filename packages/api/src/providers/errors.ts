@@ -184,7 +184,7 @@ export class ProviderTimeoutError extends Error {
 // 공급자 호출 공통 시간 제한(기본 10초). 신호를 받지 못하는 SDK(Typecast)도 같은 시각에 끊기도록 경주시킨다.
 // 끊긴 요청은 뒤에서 끝까지 돌 수 있다(조회라 괜찮다).
 // timedOut의 abort 리스너가 call보다 먼저 등록되므로, 신호로 끊긴 fetch의 AbortError보다 늘 먼저 거절한다.
-async function withTimeout<T>(
+export async function withTimeout<T>(
 	call: (signal: AbortSignal) => Promise<T>,
 	timeoutMs = CHECK_TIMEOUT_MS,
 ): Promise<T> {

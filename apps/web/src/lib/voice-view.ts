@@ -87,9 +87,19 @@ function personOf(voice: Voice) {
 	};
 }
 
-// 메타 줄(브리프 6절, 계획 리뷰 U6): 세 공급자 모두 성별·연령이 없으면 '정보 없음'이고 억양은 있을 때만 붙인다
+// 메타 줄(브리프 6절, 계획 리뷰 U6): 세 공급자 모두 성별·연령이 없으면 '정보 없음'이고 억양은 있을 때만 붙인다.
+// Airy는 연령 값이 없고 언어를 보인다(T7.5 브리프 13절 "성별, 언어 '한국어·영어'", 한국어 먼저, 중복 없이)
 export function metaLine(voice: Voice): string {
 	const { gender, age, accent } = personOf(voice);
+	if (voice.provider === "airy") {
+		const languages = [...new Set(voice.languages)]
+			.sort((a, b) => Number(b === "ko") - Number(a === "ko"))
+			.map(languageName);
+		return [
+			gender ?? "성별 정보 없음",
+			...(languages.length > 0 ? [languages.join("·")] : []),
+		].join(" · ");
+	}
 	return [
 		gender ?? "성별 정보 없음",
 		age ?? "연령 정보 없음",
@@ -382,6 +392,12 @@ export function listEnd(page: {
 	if (page.next !== null) return "more";
 	return page.windowLimited ? "limit" : "end";
 }
+
+// Airy 카탈로그를 못 받은 목록(T7.5 스펙 2절 '샘플을 못 받았을 때', 사용자 결정 U1). 서버·캐시는 그대로이고 화면이 판정한다
+export const samplesMissing = (voices: readonly Voice[]) =>
+	voices.length > 0 && voices.every((voice) => voice.samples.length === 0);
+export const SAMPLES_MISSING_TEXT =
+	"기본 샘플을 받지 못했어요. '목록 새로 고침'으로 다시 받아 보세요.";
 
 // '전체' 탭 묶음(브리프 5절, 스펙 AC2): 앞 5명과 머리의 인원 글자. Typecast는 검색어가 있으면 "{전체}명 중 {n}명"이다(of: 전체 수)
 export const BUNDLE_SIZE = 5;

@@ -16,7 +16,8 @@ export default function CastingPage() {
 					<>
 						<span translate="no">Typecast</span>·
 						<span translate="no">ElevenLabs</span>·
-						<span translate="no">Fish Audio</span> 성우를 찾아 들어 보세요.
+						<span translate="no">Fish Audio</span>·
+						<span translate="no">Airy</span> 성우를 찾아 들어 보세요.
 					</>
 				}
 			/>

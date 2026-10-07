@@ -91,6 +91,30 @@ describe.skipIf(!url)("성우 보관함 소유자 격리(스펙 8절 8번)", () 
 		expect(await as(A).savedVoiceList()).toEqual([]);
 		expect(await as(B).savedVoiceList()).toHaveLength(1);
 	});
+
+	it("Airy 성우도 같은 소유자 규칙이다: B는 A의 Airy 성우를 보지 못하고 따로 담는다(샘플 호스트·DB 검사 제약 포함)", async () => {
+		const url =
+			"https://assets.airy.so/airy/voice_pack/vp-v9/audio/ko/a597bb7a98fc9ec1.opus";
+		const airy = {
+			...emptyVoice("airy", "public"),
+			voiceId: "a597bb7a98fc9ec1",
+			name: "Silvia",
+			previewUrl: url,
+			samples: [{ language: "ko", title: null, url }],
+		};
+		const mine = await as(A).savedVoiceSave({ voice: airy, memo: "A 메모" });
+		expect(mine.voice.previewUrl).toBe(url);
+		expect(await as(B).savedVoiceList()).toEqual([]);
+		await expect(as(B).savedVoiceRemove({ id: mine.id })).rejects.toMatchObject(
+			{
+				code: "NOT_FOUND",
+			},
+		);
+		const theirs = await as(B).savedVoiceSave({ voice: airy });
+		expect(theirs.id).not.toBe(mine.id);
+		expect(theirs.memo).toBeNull();
+		expect(await as(A).savedVoiceList()).toEqual([mine]);
+	});
 });
 
 describe("소유자 없음(스펙 8절 9번)", () => {
