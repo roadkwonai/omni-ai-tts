@@ -97,7 +97,7 @@ Fish Audio는 감정을 **별도 request 필드가 아니라 `text` 안의 인�
 
 사용 규칙(문서): 문장 수준 감정은 문장 맨 앞에 두는 것이 가장 잘 먹는다. 톤·효과음은 어디든 가능. 한 문장에 감정은 하나, 많아야 3개 조합. 강도 숫자 필드는 없다. 감정 마커는 토큰 한도에 포함되지 않고 추가 지연이 없고 모든 요금제에서 쓸 수 있다고 적혀 있다.
 
-한국어 동작: 문서는 "13개 지원 언어 전체(한국어 포함)에서 감정 마커를 쓸 수 있다"고만 적는다(그 13개가 S1의 13개와 같은지는 문서가 구분하지 않는다). 문서의 모든 예시 태그는 영어다. 한국어로 쓴 태그(예 `[기쁘게]`)가 동작하는지는 정보 없음. 한국어 문장에서 영어 태그가 효과를 내는지, 태그가 소리 내어 읽히는지도 정보 없음(청취 필요).
+한국어 동작: 문서는 "13개 지원 언어 전체(한국어 포함)에서 감정 마커를 쓸 수 있다"고만 적는다(그 13개가 S1의 13개와 같은지는 문서가 구분하지 않는다). 문서의 모든 예시 태그는 영어다. 다만 공식 블로그(2026-03-12, [S2 word-level control](https://fish.audio/blog/fish-audio-s2-fine-grained-ai-voice-control-at-the-word-level/))는 한국어 태그 예(`[속삭이며]`, `[화나서]`)를 싣고 "태그를 대본과 같은 언어로 써도 된다"고 적는다(2026-10-07 확인). 한국어 태그와 영어 태그 중 무엇이 더 잘 먹는지는 정보 없음. 태그 전체 표와 뱃지 제안은 [tts-emotion-tags](tts-emotion-tags.md) 4-3절. 한국어 문장에서 영어 태그가 효과를 내는지, 태그가 소리 내어 읽히는지도 정보 없음(청취 필요).
 
 정규화(`normalize`)를 끄면 숫자·날짜·URL 낭독 안정성이 떨어질 수 있다고 명시한다. SSML 지원 여부는 문서에서 언급되지 않았다(비공식 지원 미확인). [Emotions](https://docs.fish.audio/developer-guide/core-features/emotions.md), [Fine-grained control](https://docs.fish.audio/developer-guide/core-features/fine-grained-control.md)
 

@@ -142,9 +142,9 @@ v3의 안정성 표현: 2026-09-26판은 "Creative/Natural/Robust **명칭은 �
 
 | 기능 | 실제 API 표현 | 조건 | 배치 |
 | --- | --- | --- | --- |
-| 감정·톤 | `text`에 `[excited]`, `[curious]`, `[sarcastic]`, `[crying]` 등 | v3 audio tag 예시. v4·v4 Turbo도 오디오 태그를 지원한다(2026-10-04). 고정 enum이나 정확한 감정 강도 보장 아님. 태그를 지원하지 않는 모델에 넣으면 괄호를 읽는지, 한국어 대본에서 영어 태그의 효과는 정보 없음 | 표현: 태그 삽입 |
+| 감정·톤 | `text`에 `[excited]`, `[curious]`, `[sarcastic]`, `[crying]` 등 | v3 audio tag 예시. v4·v4 Turbo도 오디오 태그를 지원한다(2026-10-04). 고정 enum이나 정확한 감정 강도 보장 아님. 태그를 지원하지 않는 모델에 넣으면 "보통 소리 내어 읽는다"(공식 블로그 [Audio Tags list](https://elevenlabs.io/blog/elevenlabs-audio-tags-list) FAQ, 2026-10-07 확인). 한국어 대본에서 영어 태그의 효과는 정보 없음. 공식 자료의 태그 198개와 뱃지 제안은 [tts-emotion-tags](tts-emotion-tags.md) 4-2절 | 표현: 태그 삽입 |
 | 음성 행위 | `[whispers]`, `[laughs]`, `[sighs]`, `[exhales]` 등 | 음성과 학습 데이터에 따라 효과 다름 | 표현 |
-| 속도·멈춤 | v3에서는 audio tag·구두점·문장 구조 | v3는 SSML `<break>` 미지원. v4도 SSML 없음(2026-10-04). 다른 모델은 break 가이드 확인 | 표현: 모델별 |
+| 속도·멈춤 | v3·v4에서는 `[pause]`·`[long pause]` 태그·구두점·문장 구조(2026-10-07: 공식 블로그 [pauses](https://elevenlabs.io/blog/how-to-add-pauses-in-ai-voiceover)가 `[pause]`·`[long pause]`를 권한다. 길이는 문맥으로 정해진다) | v3는 SSML `<break>` 미지원. v4도 SSML 없음(2026-10-04). 다른 모델은 break 가이드 확인 | 표현: 모델별 |
 | 배경 효과 태그 | 공식 v3 가이드 예시 `[applause]`, `[clapping]` 등 | 태그 결과는 비결정적. 동일 페이지의 태그 자동 보정용 프롬프트는 음악/SFX 태그를 넣지 말라고 하므로 문맥 구분 | 표현: 실험적 표시 |
 | 확정적인 효과·음악·볼륨·피치 | convert에 해당 파라미터 없음 | 별도 Sound Effects 생성, 믹싱·후처리·플레이어 제어 | 후속 도구 |
 | `apply_audio_effects` | 현재 공개 convert/stream/timestamp 스키마 모두 없음 | 과거 예제·타 endpoint의 값을 현재 convert로 복사 금지 | 후속 / 미지원 |
@@ -589,7 +589,7 @@ HTTP 200, 0.2초(213ms). 6종, 항목 형식 `{accent, language: "ko", code: "ko
 | 크레딧 배율 숫자(Flash/Turbo 0.5 등), 구독 크레딧에서 v4 할인 종료의 영향 | 달러 단가만 확인 |
 | 목록 조회(`/v2/voices`, `/v1/shared-voices`, `/v1/models`, accents)의 과금 여부와 분당 요청 제한 | 정보 없음 |
 | 실패한 유료 호출(5xx, 타임아웃)의 과금 여부 | 정보 없음 |
-| 오디오 태그를 지원하지 않는 모델에 넣으면 괄호를 읽는지, 한국어 대본에 영어 태그 효과 | 정보 없음 |
+| 오디오 태그를 지원하지 않는 모델에 넣으면 괄호를 읽는지, 한국어 대본에 영어 태그 효과 | 미지원 모델은 "보통 소리 내어 읽는다"(공식 블로그 FAQ, 2026-10-07). 한국어 효과는 정보 없음 |
 | 48kHz PCM/WAV의 플랜 제한, mp3 외 형식의 응답 content-type | 정보 없음 |
 | `GET /v1/models`·구독 조회에 필요한 API 키 권한 이름 | 정보 없음("Voices (read)", "Text to Speech"만 확인) |
 | 쿼리 토큰 샘플 주소(`api.us.elevenlabs.io/.../previews/audio?payload=`)의 만료 여부 | 정보 없음 |

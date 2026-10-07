@@ -196,7 +196,7 @@ v30은 2026-01 공개, 37개 언어(llms·models 문구는 "35+", API 문서 표
 
 문서 예시 `use_cases=Ads`가 실제 값 `Ads/Promotion`과 일치하는지는 정보 없음. 화면 선택지는 문서 열거형이 아니라 **받은 응답의 값**에서 만들어야 한다.
 
-감정 목록 주의: 실제 `models[].emotions`는 string[]이다. T3 실측으로 모델당 최대 10개였는데 `EmotionEnum`은 7개다. 7개 밖의 값을 `emotion_preset`에 보내도 되는지는 정보 없음(요청 스키마는 7개 열거형이다). 또 문서끼리 어긋난다. [models](https://typecast.ai/docs/models)와 changelog(2026-01)는 v30 프리셋이 "모든 보이스에서 가능"이라 하는데, List Voices 응답 예시에는 v30 성우가 `normal, happy, sad, angry` 4개만 가진다.
+감정 목록 주의: 실제 `models[].emotions`는 string[]이다. T3 실측으로 모델당 최대 10개였는데 `EmotionEnum`은 7개다. 7개 밖의 값을 `emotion_preset`에 보내도 되는지는 정보 없음(요청 스키마는 7개 열거형이다). 또 문서끼리 어긋난다. [models](https://typecast.ai/docs/models)와 changelog(2026-01)는 v30 프리셋이 "모든 보이스에서 가능"이라 하는데, List Voices 응답 예시에는 v30 성우가 `normal, happy, sad, angry` 4개만 가진다. **2026-10-07 실측(2026-10-06에 받은 공개 목록 614명):** v30 성우 608명은 전원 7개 프리셋을 가진다(1명만 `tonemid`가 더 있다). 10개까지 가는 것은 v21이다. 기본 4개에 성우마다 `toneup`·`tonemid`·`tonedown`·`cheer`·`soft`·`whisper`·`shout`·`cute`·`urgent`·`casual`·`sarcasm`·`trustful`·`scream`·`cold`·`inspire`·`regret`이 붙는다. 표는 [tts-emotion-tags](tts-emotion-tags.md) 4-1절.
 
 #### 단건 조회와 `voice_type`
 
@@ -339,7 +339,7 @@ v30은 2026-01 공개, 37개 언어(llms·models 문구는 "35+", API 문서 표
 1. **과금:** 시험 듣기 한 번이 곧 유료 호출이다(글자당 1크레딧, 무료 미리듣기 없음). 자동 테스트·브라우저 QA에서 실제 호출을 하지 않는다는 프로젝트 규칙과 같은 이유다. 무료 플랜이면 100자 시험이 월 150회로 끝난다.
 2. **무료 플랜 약관:** 무료 플랜 오디오는 상업 이용 불가·출처 표기가 필요하다. 시험 오디오를 영상 제작물에 쓸 계획이면 플랜을 확인해야 한다. 이 계정의 플랜은 정보 없음.
 3. **한국어 지원은 호출 전에 알 수 없다:** 메타데이터에 지원 언어가 없다. 한글 이름이 있다고 한국어 발음이 되는 것은 아니다. `preview_url` 샘플이 어느 언어인지도 정보 없음. 그래서 "내 대본으로 듣기"가 한국어 적합성을 확인하는 사실상 유일한 방법이다.
-4. **감정 선택지는 성우×모델마다 다르다:** `models[].emotions`를 그대로 존중한다. v30 "모든 보이스 가능" 문구와 응답 예시가 어긋나므로 문서 문구를 믿고 7개를 다 열면 안 된다. 열거형 밖 감정 값(T3 실측 모델당 최대 10개)이 `emotion_preset`으로 통하는지는 정보 없음.
+4. **감정 선택지는 성우×모델마다 다르다:** `models[].emotions`를 그대로 존중한다. v30 "모든 보이스 가능" 문구와 응답 예시가 어긋나므로 문서 문구를 믿고 7개를 다 열면 안 된다. 열거형 밖 감정 값(v21 성우의 추가 값 16종은 v21 열거형 4개 밖이고, 그중 13종은 v30 열거형 7개에도 없다. 2026-10-07 실측)이 `emotion_preset`으로 통하는지는 정보 없음.
 5. **`prompt`를 생략했을 때 기본 감정은 정보 없음:** 자동 감정을 원하면 v30에서 `emotion_type: "smart"`를 명시한다.
 6. **재현성 없음:** `seed`가 없고 동일 출력 보장 문구도 없다. 같은 설정을 다시 눌러도 다른 소리가 나올 수 있다고 보고, 다시 듣기는 받아 둔 오디오를 재생하고 새 호출을 만들지 않는다.
 7. **끊어도 과금될 수 있다:** SDK 0.4.15에는 요청 취소가 없다. T5 합성은 60초 뒤 기다리기를 끝내지만 이미 간 SDK 요청은 뒤에서 끝까지 돌아 과금될 수 있고, 늦은 결과를 저장하지 않는다. 처리 여부를 확인할 Typecast 요청 id·생성 기록 조회 API도 없다. UI는 결과를 미확인으로 안내한다. 합성 소요 시간은 정보 없음.
@@ -360,7 +360,7 @@ v30은 2026-01 공개, 37개 언어(llms·models 문구는 "35+", API 문서 표
 5. **응답 MIME:** 일반 TTS 응답 OpenAPI는 audio/wav만 열거하지만 output.audio_format과 설명은 mp3도 지원한다. 요청 포맷에 맞는 MIME 처리 필요. 2026-10-04: compose 문서와 스트리밍 changelog는 `audio/mpeg`를 적는다. [TTS](https://typecast.ai/docs/api-reference/text-to-speech/text-to-speech)
 6. **자동 감정 기본값:** prompt 생략이 smart를 뜻하는지 명확하지 않다. 제품의 자동 감정 모드는 v30에서 `emotion_type: smart`를 명시한다.
 7. **SDK 지연 가능성:** raw API 옵션과 설치된 SDK 지원은 별개다. `remove_silence_ms`는 API 2026-09-15, SDK 일괄 지원은 09-17 변경 이력에 기록되어 있다. 설치 버전 검증은 구현 담당자의 후속 작업이다. [변경 이력](https://typecast.ai/docs/changelog), [SDK Overview](https://typecast.ai/docs/sdk/overview)
-8. **감정 목록:** `models[].emotions`(string[])는 T3 실측으로 모델당 최대 10개인데 `EmotionEnum`은 7개다. 문서는 v30 프리셋이 "모든 보이스에서 가능"이라 하나 List Voices 응답 예시의 v30 성우는 4개만 가진다(2026-10-04).
+8. **감정 목록:** `models[].emotions`(string[])는 T3 실측으로 모델당 최대 10개인데 `EmotionEnum`은 7개다. 문서는 v30 프리셋이 "모든 보이스에서 가능"이라 하나 List Voices 응답 예시의 v30 성우는 4개만 가진다(2026-10-04). 실제 목록은 v30 608명 모두 7개다(1명만 `tonemid`까지 8개, 2026-10-07 실측).
 9. **`use_cases` 서버 필터:** 문서 예시 `Ads`와 실측 값 `Ads/Promotion`이 같은 값인지 정보 없음. 문서 열거형 13개와 실측 13개는 이름으로 1:1 대응한다(추론, 2026-10-04).
 10. **SDK 타입 주석:** `TTSRequest.text`의 `@maxLength 5000`은 문서의 1~2,000자와 다르다. 문서 값을 쓴다(2026-10-04).
 
