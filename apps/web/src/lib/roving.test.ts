@@ -4,67 +4,82 @@ import { navigate, nextCell, tabStop } from "./roving";
 
 describe("행 목록 안 이동(브리프 9절, 격자 패턴)", () => {
 	it("↑↓는 같은 칸의 이전·다음 행, 끝에서는 그 자리에 머문다", () => {
-		expect(nextCell("ArrowDown", { row: 1, col: 0 }, 5)).toEqual({
+		expect(nextCell("ArrowDown", { row: 1, col: 0 }, 5, 2)).toEqual({
 			row: 2,
 			col: 0,
 		});
-		expect(nextCell("ArrowUp", { row: 1, col: 1 }, 5)).toEqual({
+		expect(nextCell("ArrowUp", { row: 1, col: 1 }, 5, 2)).toEqual({
 			row: 0,
 			col: 1,
 		});
-		expect(nextCell("ArrowUp", { row: 0, col: 1 }, 5)).toEqual({
+		expect(nextCell("ArrowUp", { row: 0, col: 1 }, 5, 2)).toEqual({
 			row: 0,
 			col: 1,
 		});
-		expect(nextCell("ArrowDown", { row: 4, col: 0 }, 5)).toEqual({
+		expect(nextCell("ArrowDown", { row: 4, col: 0 }, 5, 2)).toEqual({
 			row: 4,
 			col: 0,
 		});
 	});
 
 	it("Home·End는 같은 칸의 첫·끝 행이다", () => {
-		expect(nextCell("Home", { row: 3, col: 0 }, 5)).toEqual({
+		expect(nextCell("Home", { row: 3, col: 0 }, 5, 2)).toEqual({
 			row: 0,
 			col: 0,
 		});
-		expect(nextCell("End", { row: 1, col: 1 }, 5)).toEqual({
+		expect(nextCell("End", { row: 1, col: 1 }, 5, 2)).toEqual({
 			row: 4,
 			col: 1,
 		});
 	});
 
 	it("←→는 같은 행의 세 칸을 한 칸씩 이동한다", () => {
-		expect(nextCell("ArrowLeft", { row: 2, col: 1 }, 5)).toEqual({
+		expect(nextCell("ArrowLeft", { row: 2, col: 1 }, 5, 2)).toEqual({
 			row: 2,
 			col: 0,
 		});
-		expect(nextCell("ArrowRight", { row: 2, col: 0 }, 5)).toEqual({
+		expect(nextCell("ArrowRight", { row: 2, col: 0 }, 5, 2)).toEqual({
 			row: 2,
 			col: 1,
 		});
-		expect(nextCell("ArrowRight", { row: 2, col: 1 }, 5)).toEqual({
+		expect(nextCell("ArrowRight", { row: 2, col: 1 }, 5, 2)).toEqual({
 			row: 2,
 			col: 2,
 		});
-		expect(nextCell("ArrowRight", { row: 2, col: 2 }, 5)).toEqual({
+		expect(nextCell("ArrowRight", { row: 2, col: 2 }, 5, 2)).toEqual({
 			row: 2,
 			col: 2,
 		});
-		expect(nextCell("ArrowLeft", { row: 2, col: 2 }, 5)).toEqual({
+		expect(nextCell("ArrowLeft", { row: 2, col: 2 }, 5, 2)).toEqual({
 			row: 2,
 			col: 1,
 		});
-		expect(nextCell("ArrowLeft", { row: 2, col: 0 }, 5)).toEqual({
+		expect(nextCell("ArrowLeft", { row: 2, col: 0 }, 5, 2)).toEqual({
 			row: 2,
 			col: 0,
 		});
 	});
 
+	it("오른쪽 끝은 lastCol이다(캐스팅 3 = 별, 보관함 2 = 별)", () => {
+		expect(nextCell("ArrowRight", { row: 0, col: 2 }, 3, 3)).toEqual({
+			row: 0,
+			col: 3,
+		});
+		expect(nextCell("ArrowRight", { row: 0, col: 3 }, 3, 3)).toEqual({
+			row: 0,
+			col: 3,
+		});
+		expect(nextCell("ArrowRight", { row: 0, col: 2 }, 3, 2)).toEqual({
+			row: 0,
+			col: 2,
+		});
+	});
+
 	it("목록 밖 키(Enter·Space·Tab 등)와 빈 목록은 null이다", () => {
-		expect(nextCell("Enter", { row: 0, col: 1 }, 5)).toBeNull();
-		expect(nextCell(" ", { row: 0, col: 1 }, 5)).toBeNull();
-		expect(nextCell("Tab", { row: 0, col: 1 }, 5)).toBeNull();
-		expect(nextCell("ArrowDown", { row: 0, col: 1 }, 0)).toBeNull();
+		expect(nextCell("Enter", { row: 0, col: 1 }, 5, 2)).toBeNull();
+		expect(nextCell(" ", { row: 0, col: 1 }, 5, 2)).toBeNull();
+		expect(nextCell("Tab", { row: 0, col: 1 }, 5, 2)).toBeNull();
+		expect(nextCell("ArrowDown", { row: 0, col: 1 }, 0, 2)).toBeNull();
 	});
 });
 
@@ -106,6 +121,7 @@ describe("방향키 한 번: 의도한 칸 기억(리뷰 판정 2026-10-05)", ()
 				keys,
 				{ key: "a", col: 0 },
 				playable,
+				2,
 			),
 		).toEqual({ remember: { key: "b", col: 0 }, focus: { row: 1, col: 1 } });
 	});
@@ -118,6 +134,7 @@ describe("방향키 한 번: 의도한 칸 기억(리뷰 판정 2026-10-05)", ()
 				keys,
 				{ key: "b", col: 0 },
 				playable,
+				2,
 			),
 		).toEqual({ remember: { key: "c", col: 0 }, focus: { row: 2, col: 0 } });
 		expect(
@@ -127,6 +144,7 @@ describe("방향키 한 번: 의도한 칸 기억(리뷰 판정 2026-10-05)", ()
 				keys,
 				{ key: "c", col: 0 },
 				playable,
+				2,
 			),
 		).toEqual({ remember: { key: "b", col: 0 }, focus: { row: 1, col: 1 } });
 	});
@@ -139,6 +157,7 @@ describe("방향키 한 번: 의도한 칸 기억(리뷰 판정 2026-10-05)", ()
 				keys,
 				{ key: "d", col: 0 },
 				() => false,
+				2,
 			),
 		).toEqual({ remember: { key: "a", col: 0 }, focus: { row: 0, col: 1 } });
 	});
@@ -151,6 +170,7 @@ describe("방향키 한 번: 의도한 칸 기억(리뷰 판정 2026-10-05)", ()
 				keys,
 				{ key: "b", col: 0 },
 				playable,
+				2,
 			),
 		).toEqual({ remember: { key: "b", col: 1 }, focus: { row: 1, col: 1 } });
 		expect(
@@ -160,6 +180,7 @@ describe("방향키 한 번: 의도한 칸 기억(리뷰 판정 2026-10-05)", ()
 				keys,
 				{ key: "b", col: 1 },
 				playable,
+				2,
 			),
 		).toEqual({ remember: { key: "b", col: 0 }, focus: { row: 1, col: 1 } });
 	});
@@ -172,30 +193,35 @@ describe("방향키 한 번: 의도한 칸 기억(리뷰 판정 2026-10-05)", ()
 				keys,
 				{ key: "a", col: 0 },
 				playable,
+				2,
 			),
 		).toEqual({ remember: { key: "d", col: 1 }, focus: { row: 3, col: 1 } });
 		expect(
-			navigate("ArrowDown", { row: 2, col: 1 }, keys, null, playable),
+			navigate("ArrowDown", { row: 2, col: 1 }, keys, null, playable, 2),
 		).toEqual({ remember: { key: "d", col: 1 }, focus: { row: 3, col: 1 } });
 	});
 
 	it("목록 밖 키는 null이다", () => {
 		expect(
-			navigate("Enter", { row: 0, col: 0 }, keys, null, playable),
+			navigate("Enter", { row: 0, col: 0 }, keys, null, playable, 2),
 		).toBeNull();
 	});
 	it("셋째 칸은 세로 이동과 Home·End 및 샘플 없는 행에서도 유지한다", () => {
 		expect(
-			navigate("ArrowDown", { row: 0, col: 2 }, keys, null, playable),
+			navigate("ArrowDown", { row: 0, col: 2 }, keys, null, playable, 2),
 		).toEqual({ remember: { key: "b", col: 2 }, focus: { row: 1, col: 2 } });
 		expect(
-			navigate("ArrowUp", { row: 2, col: 2 }, keys, null, playable),
+			navigate("ArrowUp", { row: 2, col: 2 }, keys, null, playable, 2),
 		).toEqual({ remember: { key: "b", col: 2 }, focus: { row: 1, col: 2 } });
-		expect(navigate("Home", { row: 3, col: 2 }, keys, null, playable)).toEqual({
+		expect(
+			navigate("Home", { row: 3, col: 2 }, keys, null, playable, 2),
+		).toEqual({
 			remember: { key: "a", col: 2 },
 			focus: { row: 0, col: 2 },
 		});
-		expect(navigate("End", { row: 0, col: 2 }, keys, null, playable)).toEqual({
+		expect(
+			navigate("End", { row: 0, col: 2 }, keys, null, playable, 2),
+		).toEqual({
 			remember: { key: "d", col: 2 },
 			focus: { row: 3, col: 2 },
 		});

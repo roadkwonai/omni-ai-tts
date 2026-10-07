@@ -8,12 +8,15 @@ import {
 	TooltipTrigger,
 } from "@tts-pilot-app/ui/components/tooltip";
 import {
+	ArrowRight,
 	ExternalLink,
 	type LucideIcon,
 	Pencil,
 	Plus,
 	Trash2,
 } from "lucide-react";
+import type { Route } from "next";
+import Link from "next/link";
 import { useRef, useState } from "react";
 
 import {
@@ -25,6 +28,7 @@ import {
 	neighborId,
 	shortUrl,
 } from "@/lib/classes-view";
+import { voiceCountText } from "@/lib/saved-voice-view";
 
 import { ClassDeleteDialog } from "./class-delete-dialog";
 import { ClassFormDialog } from "./class-form-dialog";
@@ -35,6 +39,8 @@ export type ClassItem = {
 	name: string;
 	memo: string | null;
 	url?: string | null;
+	// 연결된 담은 성우 수(T7). 0이면 '성우 N명' 링크가 없다
+	voiceCount?: number;
 };
 
 // 행의 아이콘 버튼(44px, 툴팁). 접근 이름은 '{이름} 고치기'처럼 항목 이름을 담는다(사용자 결정 2026-10-06, T5 결과 행과 같다)
@@ -75,6 +81,10 @@ function RowAction({
 
 // 지운 뒤 다음 행으로 포커스를 옮길 때 찾는 id(그 행의 고치기 버튼)
 const editButtonId = (id: string) => `class-${id}-edit`;
+
+// 행의 글자 링크('성우 N명', 채널 주소). 글자는 14px이고 누르는 영역은 44px이다
+const linkClass =
+	"flex min-h-11 w-fit items-center gap-1 rounded-md text-primary text-sm underline-offset-4 outline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-ring";
 
 // 목록 그릇. 빈 상태도 같은 그릇이라 첫 항목을 만들 때 자리가 튀지 않는다(브리프 5절 B1)
 const boxClass = "rounded-2xl bg-card ring-1 ring-border ring-inset";
@@ -142,57 +152,79 @@ export function ClassGroup({
 	else
 		body = (
 			<ul className={`divide-y overflow-hidden ${boxClass}`}>
-				{sorted.map((item) => (
-					<li key={item.id} className="flex items-start gap-3 p-4">
-						<div className="min-w-0 flex-1">
-							<p className="wrap-break-word font-bold">{item.name}</p>
-							{item.memo ? (
-								<p className="wrap-break-word mt-1 text-muted-foreground text-sm">
-									{item.memo}
-								</p>
-							) : null}
-							{item.url ? (
-								<a
-									href={item.url}
-									target="_blank"
-									rel="noopener noreferrer"
-									title={item.url}
-									// 44px 타깃은 지키고 음수 여백으로 보이는 간격을 메모(mt-1)와 맞춘다(critique P2)
-									className="-mt-2 -mb-3 flex min-h-11 w-fit max-w-full items-center gap-1 rounded-md text-primary text-sm underline-offset-4 outline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
-								>
-									<span className="truncate">{shortUrl(item.url)}</span>
-									<ExternalLink
-										aria-hidden="true"
-										className="size-3.5 shrink-0"
-									/>
-									<span className="sr-only">(새 탭)</span>
-								</a>
-							) : null}
-						</div>
-						{/* 44px 버튼 가운데를 이름 첫 줄(24px)에 맞춘다(critique P2) */}
-						<div className="-my-2.5 flex shrink-0">
-							<RowAction
-								id={editButtonId(item.id)}
-								label={`${item.name} 고치기`}
-								tip="고치기"
-								icon={Pencil}
-								onClick={(button) => open(button, () => setEditing(item))}
-							/>
-							<RowAction
-								label={`${item.name} 지우기`}
-								tip="지우기"
-								icon={Trash2}
-								onClick={(button) => {
-									nextRef.current = neighborId(
-										sorted.map((i) => i.id),
-										item.id,
-									);
-									open(button, () => setRemoving(item));
-								}}
-							/>
-						</div>
-					</li>
-				))}
+				{sorted.map((item) => {
+					const voices = voiceCountText(item.voiceCount ?? 0);
+					return (
+						<li key={item.id} className="flex items-start gap-3 p-4">
+							<div className="min-w-0 flex-1">
+								<p className="wrap-break-word font-bold">{item.name}</p>
+								{item.memo ? (
+									<p className="wrap-break-word mt-1 text-muted-foreground text-sm">
+										{item.memo}
+									</p>
+								) : null}
+								{voices || item.url ? (
+									// 44px 타깃은 지키고 음수 여백으로 보이는 간격을 메모(mt-1)와 맞춘다(critique P2).
+									// '성우 N명'과 주소 링크는 한 줄에 놓고 좁으면 줄을 바꾼다(위아래로 쌓으면 음수 여백끼리 누르는 영역이 겹친다)
+									<div className="-mt-2 -mb-3 flex flex-wrap items-center gap-x-4">
+										{voices ? (
+											<Link
+												href={`/voices?${group}=${item.id}` as Route}
+												// 링크 목록에서 구별되게 항목 이름을 더한다. 보이는 글자로 시작한다(QA F6, WCAG 2.5.3)
+												aria-label={`${voices}, ${item.name}`}
+												className={linkClass}
+											>
+												{voices}
+												<ArrowRight
+													aria-hidden="true"
+													className="size-3.5 shrink-0"
+												/>
+											</Link>
+										) : null}
+										{item.url ? (
+											<a
+												href={item.url}
+												target="_blank"
+												rel="noopener noreferrer"
+												title={item.url}
+												className={`${linkClass} max-w-full`}
+											>
+												<span className="truncate">{shortUrl(item.url)}</span>
+												<ExternalLink
+													aria-hidden="true"
+													className="size-3.5 shrink-0"
+												/>
+												<span className="sr-only">(새 탭)</span>
+											</a>
+										) : null}
+									</div>
+								) : null}
+							</div>
+							{/* 44px 버튼 가운데를 이름 첫 줄(24px)에 맞춘다(critique P2) */}
+							<div className="-my-2.5 flex shrink-0">
+								<RowAction
+									id={editButtonId(item.id)}
+									label={`${item.name} 고치기`}
+									tip="고치기"
+									icon={Pencil}
+									onClick={(button) => open(button, () => setEditing(item))}
+								/>
+								<RowAction
+									label={`${item.name} 지우기`}
+									tip="지우기"
+									icon={Trash2}
+									onClick={(button) => {
+										nextRef.current = neighborId(
+											sorted.map((i) => i.id),
+											item.id,
+										);
+										open(button, () => setRemoving(item));
+									}}
+								/>
+							</div>
+						</li>
+					);
+				})}
 			</ul>
 		);
 

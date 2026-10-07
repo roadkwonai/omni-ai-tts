@@ -5,12 +5,14 @@ import {
 	fetchJson,
 	fetchOk,
 	logFailure,
+	nullOnStatus,
 	type ProviderClient,
 	runCheck,
 	runList,
 	runTrial,
 } from "./errors";
 import { clip, emptyVoice, parseVoiceItems, queryOf } from "./list";
+import { SAMPLE_HOST } from "./sample-hosts";
 import {
 	type FishModel,
 	type FishSettings,
@@ -54,7 +56,7 @@ export const FISH_LIST_TIMEOUT_MS = 20_000;
 // 샘플은 https이고 Fish Audio 호스트일 때만(실측 platform.r2.fish.audio)
 const sampleUrl = z.url({
 	protocol: /^https$/,
-	hostname: /(^|\.)fish\.audio$/,
+	hostname: SAMPLE_HOST.fish_audio,
 	normalize: true,
 });
 // 응답 모양. 어긋나면 목록 전체가 provider_error다
@@ -242,5 +244,17 @@ export function createFishAudio(apiKey: string): ProviderClient {
 				},
 				FISH_LIST_TIMEOUT_MS,
 			),
+		// 404·403과 합성할 수 없게 된 성우(fishVoice가 null: 학습 전·삭제 요청·공개 출처인데 비공개)는 '없음'이다(T7 계획 '스펙과 다른 점' 4)
+		getVoice: (source: VoiceSource, voiceId: string) =>
+			runList("fish_audio", async (signal) => {
+				const raw = await nullOnStatus(
+					getJson(`/model/${encodeURIComponent(voiceId)}`, signal),
+					403,
+					404,
+				);
+				return raw === null
+					? null
+					: fishVoice(rawVoiceSchema.parse(raw), source);
+			}),
 	};
 }

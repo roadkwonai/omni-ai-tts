@@ -291,3 +291,28 @@ export async function expireProvider(
 	);
 	return { retryAt: null };
 }
+
+// 소유 데이터 프로시저의 저장소 오류 틀(T6에서 뽑음, T7 두 번째 사용처). mapError가 고른 오류(CONFLICT·NOT_FOUND 등)는 그대로,
+// 그 밖은 한 줄(오류 이름·DB 코드)만 남기고 500이다. 오류 객체(쿼리 파라미터 = 사용자 입력)는 로그와 cause에 넘기지 않는다
+export async function stored<T>(
+	prefix: string,
+	step: string,
+	run: () => Promise<T>,
+	mapError: (error: unknown) => ORPCError<string, unknown> | null = () => null,
+): Promise<T> {
+	try {
+		return await run();
+	} catch (error) {
+		if (error instanceof ORPCError) throw error;
+		const mapped = mapError(error);
+		if (mapped) throw mapped;
+		logDbFailure(prefix, step, error);
+		throw new ORPCError("INTERNAL_SERVER_ERROR");
+	}
+}
+
+// 바뀐 행이 없으면 NOT_FOUND. 남의 것인지 없는 것인지 드러내지 않는다(bts-api 불변식 3)
+export function found<T>(row: T | undefined): T {
+	if (!row) throw new ORPCError("NOT_FOUND");
+	return row;
+}

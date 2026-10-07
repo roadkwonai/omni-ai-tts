@@ -423,3 +423,16 @@ SDK 버전과 현재 프로젝트 연결 동작은 위 계약과 별도로 관�
 - 생성1회 성공. MP3 1.650초, 44.1kHz mono 320kbps, 69,006바이트. 앱 저장과 저장본 조회 바이트가 같고 로컬 전사가 원문과 일치했다. 사용자 직접 청취 평가는 아직 없다.
 - 공급자 잔액14949→14936: 실측13크레딧. 직후에는차이가없었고 약3분후무료조회에서확인됐다. 이 문장에서는 공백·문장부호를 포함한 총길이와차감량이일치했다. 모든문장/휴지표기/최소과금규칙으로 일반화하지 않는다.
 - 증거: `tasks/evidence/T05/real-typecast-01-result-corrected.json`, `real-typecast-01.mp3`, `real-typecast-01-asr.txt`. 최초도구입력검증400은SDK호출전거절이고, 공급자 생성은1회다.
+
+## 성우 한 명 조회 (2026-10-07, T7 성우 보관함 이용 가능 확인)
+
+공식 [Get Voice Details](https://typecast.ai/docs/api-reference/voices/get-voice-details)와 설치 SDK `@neosapience/typecast-js` 0.4.15를 읽었다. 공급자 API는 부르지 않았다. 위 "단건 조회와 `voice_type`" 절의 계약이 정본이고 이 절은 구현이 고른 값만 적는다.
+
+| 항목 | 내용 |
+| --- | --- |
+| 호출 | `GET /v3/voices/{voice_id}`, SDK `client.getVoiceV3(voiceId)`(경로에 `encodeURIComponent`). 쿼리·본문 없음. 응답은 목록의 한 항목과 같은 `VoiceV3`라 목록과 같은 변환(`rawVoiceSchema` → `toVoice`)을 쓴다 |
+| 없음 판정 | 404만 "없음"이다(`VOICE_NOT_FOUND`: 없거나 이 계정에서 쓸 수 없음). 400(`INVALID_VOICE_ID`)·401·403·429·5xx는 "없음"이 아니라 공급자 오류다(`reasonFromHttp`). 판정은 `providers/errors.ts`의 `nullOnStatus(…, 404)`다 |
+| `voice_type` | 단건 조회는 `custom`(`uc_`)도 줄 수 있지만 `voice_type`을 거르지 않는다. 보관함 입력이 공개 목록 성우(출처 `public`)만 받고 voiceId를 `[A-Za-z0-9_-]{1,200}`로 제한한다. 클라이언트가 보낸 id를 서버 키로 조회하므로 소유자가 둘 이상이 되면 다시 본다(로드맵 T14 메모) |
+| 과금 | 문서에 과금·크레딧 문구가 없다 = 정보 없음(무료라고 명시하지도 않는다). 목록 조회와 같은 읽기 호출로 다루고 24시간에 한 번·한 번에 40명·동시 2건·429면 그 공급자를 멈춘다 |
+| 시간 제한·재시도 | SDK에 시간 제한·취소·재시도가 없다. `runList`의 10초 경주로 끊고 자동 재시도하지 않는다. SDK 오류는 `Retry-After`를 주지 않아 429 대기 시각이 없으면 앱이 60초를 적는다 |
+| 샘플 주소 | 서명 없는 고정 주소라 만료 문구가 없다(위 "정보 없음" 그대로) |

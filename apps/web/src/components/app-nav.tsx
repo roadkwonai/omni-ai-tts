@@ -44,6 +44,7 @@ const OPEN_ITEMS: {
 }[] = [
 	{ label: "음성 작업실", icon: WandSparkles, href: "/studio", bar: true },
 	{ label: "성우 캐스팅", icon: AudioWaveform, href: "/casting", bar: true },
+	{ label: "성우 보관함", icon: UserRound, href: "/voices", bar: false },
 	{ label: "연결 상태", icon: Link2, href: "/connections", bar: true },
 	{ label: "채널·분류", icon: Tag, href: "/classes", bar: false },
 ];
@@ -51,7 +52,6 @@ const OPEN_ITEMS: {
 // 아직 만들지 않은 화면('준비 중', 사이트맵 "예외"). 그 화면을 여는 TASK가 OPEN_ITEMS로 옮긴다.
 const UPCOMING_ITEMS: { label: string; icon: LucideIcon }[] = [
 	{ label: "대본 보관함", icon: FileText },
-	{ label: "성우 보관함", icon: UserRound },
 	{ label: "프로젝트", icon: Folder },
 	{ label: "프리셋", icon: SlidersHorizontal },
 	{ label: "내 보이스", icon: Mic },

@@ -1,8 +1,9 @@
 import { TypecastAPIError, TypecastClient } from "@neosapience/typecast-js";
 import { z } from "zod";
 
-import type { Voice } from "./contract";
+import type { Voice, VoiceSource } from "./contract";
 import {
+	nullOnStatus,
 	type ProviderClient,
 	ProviderHttpError,
 	runCheck,
@@ -10,6 +11,7 @@ import {
 	runTrial,
 } from "./errors";
 import { emptyVoice, parseVoiceItems } from "./list";
+import { SAMPLE_HOST } from "./sample-hosts";
 import {
 	sentText,
 	type TrialRequest,
@@ -44,7 +46,7 @@ const rawVoiceSchema = z.object({
 	preview_url: z
 		.url({
 			protocol: /^https$/,
-			hostname: /(^|\.)typecast\.ai$/,
+			hostname: SAMPLE_HOST.typecast,
 			normalize: true,
 		})
 		.nullish()
@@ -162,6 +164,15 @@ export function createTypecast(apiKey: string): ProviderClient {
 					totalExact: true,
 					windowLimited: false,
 				};
+			}),
+		// 404만 '없음'이다. 보관함에는 공개 목록에서 담은 성우만 있고 id의 종류는 바뀌지 않는다(계획 리뷰 P4)
+		getVoice: (_source: VoiceSource, voiceId: string) =>
+			runList("typecast", async () => {
+				const raw = await nullOnStatus(
+					client.getVoiceV3(voiceId).catch(toHttpError),
+					404,
+				);
+				return raw === null ? null : toVoice(rawVoiceSchema.parse(raw));
 			}),
 	};
 }

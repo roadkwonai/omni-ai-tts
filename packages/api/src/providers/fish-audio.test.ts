@@ -620,3 +620,51 @@ describe("Fish Audio 시험 생성 (Review Focus 2)", () => {
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 	});
 });
+
+describe("Fish Audio 성우 한 명 조회(T7)", () => {
+	const raw = {
+		_id: "fish1",
+		type: "tts",
+		state: "trained",
+		visibility: "public",
+		title: "차분한 남자",
+		tags: ["male"],
+		languages: ["ko"],
+		samples: [{ title: "샘플", audio: "https://platform.r2.fish.audio/a.mp3" }],
+	};
+	const get = (source: "public" | "account" = "public", id = "fish1") =>
+		createFishAudio(KEY).getVoice?.(source, id);
+
+	it("200이면 Voice, 경로는 /model/{id}(인코딩)", async () => {
+		fetchMock.mockResolvedValue(json(200, raw));
+		expect(await get()).toMatchObject({
+			provider: "fish_audio",
+			voiceId: "fish1",
+			name: "차분한 남자",
+		});
+		expect(calledUrl().pathname).toBe("/model/fish1");
+		fetchMock.mockResolvedValue(json(200, raw));
+		await get("public", "a/b");
+		expect(calledUrl(1).pathname).toBe("/model/a%2Fb");
+	});
+	it("404·403이면 null", async () => {
+		fetchMock.mockResolvedValueOnce(json(404, {}));
+		expect(await get()).toBeNull();
+		fetchMock.mockResolvedValueOnce(json(403, {}));
+		expect(await get()).toBeNull();
+	});
+	it("공개 출처인데 비공개로 바뀌었거나 학습 전이면 null", async () => {
+		fetchMock.mockResolvedValueOnce(
+			json(200, { ...raw, visibility: "private" }),
+		);
+		expect(await get()).toBeNull();
+		fetchMock.mockResolvedValueOnce(json(200, { ...raw, state: "training" }));
+		expect(await get()).toBeNull();
+	});
+	it("401은 null이 아니라 provider_auth", async () => {
+		fetchMock.mockResolvedValue(json(401, {}));
+		await expect(get()).rejects.toMatchObject({
+			data: { provider: "fish_audio", reason: "provider_auth" },
+		});
+	});
+});

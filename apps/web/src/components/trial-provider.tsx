@@ -393,8 +393,13 @@ export function TrialProvider({ children }: { children: ReactNode }) {
 	);
 }
 
+// TrialProvider 밖(성우 보관함)에서는 null이다. 내 문장 듣기 UI는 이것이 있을 때만 그린다(T7 스펙 2절 '보관함 패널')
+export function useOptionalTrial(): TrialApi | null {
+	return useContext(TrialContext);
+}
+
 export function useTrial(): TrialApi {
-	const trial = useContext(TrialContext);
+	const trial = useOptionalTrial();
 	if (!trial) throw new Error("useTrial은 TrialProvider 안에서만 쓴다");
 	return trial;
 }

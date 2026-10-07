@@ -629,3 +629,15 @@ HTTP 200, 0.2초(213ms). 6종, 항목 형식 `{accent, language: "ko", code: "ko
 - 별도add없이일반TTS생성성공1회. MP3 1.840초/30,555바이트/44.1kHz mono 128kbps. 저장·재조회바이트일치, 로컬전사원문일치. 사용자직접청취확인은아직없다.
 - 생성 후캐시무효화·새계정조회는32명이며같은voiceId가포함됐다. 생성과정뒤계정추가상태를관측했고애플리케이션·검증도구의명시적add호출은0이었다. 모든공개성우/플랜에서의보장은아니며voiceAddEditCounter변화는확인하지않았다.
 - 구독잔액38582→38581(감소1관측),앱예상13. T5-05의실측차이를유지한다. 증거 `tasks/evidence/T05/real-elevenlabs-03-result.json` 및MP3/ASR파일.
+
+## 성우 한 명 조회 (2026-10-07, T7 성우 보관함 이용 가능 확인)
+
+공식 [Get voice](https://elevenlabs.io/docs/api-reference/voices/get)·[Get shared voices](https://elevenlabs.io/docs/api-reference/voices/voice-library/get-shared)·[Errors](https://elevenlabs.io/docs/eleven-api/resources/errors)와 설치 SDK 2.70.0(`VoicesGetRequest`, `VoicesGetSharedRequest`)을 읽었다. 공급자 API는 부르지 않았다.
+
+| 항목 | 내용 |
+| --- | --- |
+| 계정 성우 | `GET /v1/voices/{voice_id}`. 응답은 목록(`GET /v2/voices`)의 `Voice`와 같은 계열이라 `accountVoiceSchema` → `elVoice(…, "account")`를 그대로 쓴다. SDK `voices.get`은 응답 전체를 한 번에 검사(`parseOrThrow`)해 필드 하나가 어긋나면 실패하므로 목록처럼 REST(`getJson`, `redirect: "error"`)로 부른다. 담을 때 고른 샘플 언어를 지키려 행의 샘플 언어를 `preferred`로 넘긴다 |
+| 없음 판정 | 404만 "없음"이다(오류 표 `voice_not_found`). `voice_access_denied`(403)가 계정에 없는 남의 성우일 때 오는지는 정보 없음이라 "없음"으로 보지 않고 키 문제로 매핑한다 |
+| 공개 라이브러리 성우 | **한 명 조회 방법이 문서에 없다.** `GET /v1/shared-voices`(쿼리 18개)에 voice id 필터가 없고 `search`가 id를 찾는지 문구가 없다. `GET /v1/voices/{id}`가 계정 밖 공유 성우에 200을 주는지도 정보 없음이다. `GET /v2/voices`의 `voice_ids`는 내 계정 범위다. `POST /v1/voices/add/…`는 계정 상태를 바꾸는 호출이라 쓰지 않는다. 그래서 출처 `public`인 성우는 확인하지 않고 저장한 정보를 그대로 쓰며 '현재 이용 불가'로 만들지 않는다(앱이 확인 대상에서 빼고 패널에 "공개 라이브러리 성우는 이용 가능 여부를 확인하지 않아요"로 알린다) |
+| 과금 | 목록·모델·억양과 마찬가지로 문서에 과금·크레딧 문구가 없다 = 정보 없음(생성류만 명시). 읽기 호출로 다룬다 |
+| 샘플 주소 | `preview_url`의 만료는 문서에 없다(정보 없음). 계정 성우는 24시간 확인에서 새 값을 받고 공개 성우는 캐스팅에서 다시 담을 때(별 등) 새 값으로 바뀐다 |

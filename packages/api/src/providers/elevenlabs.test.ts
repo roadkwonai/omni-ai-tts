@@ -868,3 +868,72 @@ describe("ElevenLabs 시험 생성", () => {
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 	});
 });
+
+describe("ElevenLabs 성우 한 명 조회(T7)", () => {
+	const raw = {
+		voice_id: "el1",
+		name: "Jiyoung",
+		category: "professional",
+		description: "차분함",
+		preview_url: "https://storage.googleapis.com/a.mp3",
+		labels: { gender: "female", accent: "seoul" },
+		verified_languages: [],
+	};
+	const get = (source: "public" | "account" = "account", id = "el1") =>
+		createElevenLabs(KEY).getVoice?.(source, id);
+
+	it("계정 성우 200이면 Voice(account), 경로는 /v1/voices/{id}", async () => {
+		fetchMock.mockResolvedValue(json(200, raw));
+		expect(await get()).toMatchObject({
+			provider: "elevenlabs",
+			source: "account",
+			voiceId: "el1",
+			name: "Jiyoung",
+			gender: "female",
+		});
+		expect(calledUrl().pathname).toBe("/v1/voices/el1");
+	});
+	it("404면 null", async () => {
+		fetchMock.mockResolvedValue(
+			json(404, { detail: { code: "voice_not_found" } }),
+		);
+		expect(await get()).toBeNull();
+	});
+	it("403은 null이 아니라 키 문제(목록과 같은 매핑)", async () => {
+		fetchMock.mockResolvedValue(
+			json(403, { detail: { code: "voice_access_denied" } }),
+		);
+		await expect(get()).rejects.toMatchObject({
+			data: { provider: "elevenlabs" },
+		});
+	});
+	it("preferred 언어의 샘플을 행 샘플로 고른다(확인 뒤에도 담을 때의 언어, E14)", async () => {
+		fetchMock.mockResolvedValue(
+			json(200, {
+				...raw,
+				verified_languages: [
+					{
+						language: "en",
+						preview_url: "https://storage.googleapis.com/en.mp3",
+					},
+					{
+						language: "ko",
+						preview_url: "https://storage.googleapis.com/ko.mp3",
+					},
+				],
+			}),
+		);
+		const voice = await createElevenLabs(KEY).getVoice?.(
+			"account",
+			"el1",
+			"ko",
+		);
+		expect(voice?.previewUrl).toBe("https://storage.googleapis.com/ko.mp3");
+	});
+	it("공개 라이브러리 성우는 부르지 않는다(한 명 조회 방법 없음)", async () => {
+		await expect(get("public")).rejects.toMatchObject({
+			data: { provider: "elevenlabs", reason: "provider_error" },
+		});
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+});

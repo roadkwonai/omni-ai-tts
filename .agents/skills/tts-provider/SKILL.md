@@ -80,6 +80,13 @@ description: >-
 - 입력 상한: 조건 배열 40개(화면 선택지 최대치보다 크게), 조건 값 40자(`[A-Za-z0-9_-]`), 검색어 100자. Fish Audio 페이지는 1~10(조건마다 1,000명)이다.
 - ElevenLabs 목록·억양은 `fetchJson`(`providers/errors.ts`)으로 부른다. 리다이렉트를 따라가지 않고(`redirect: "error"`), 실패하면 상태 코드·공급자 오류 코드·`Retry-After`만 바꿔 담는다.
 
+## 성우 한 명 조회 (T7 보관함 이용 가능 확인)
+- `ProviderClient.getVoice(source, voiceId, preferred?)`는 읽기 호출이다. 결과는 `Voice` 또는 `null`(공급자가 "없다"고 답함)이다. 세 공급자 문서 모두 이 조회의 과금 문구가 없고 무료라고 명시하지도 않는다(2026-10-07). 그래서 목록 조회와 같은 읽기 호출로 다루되 `savedVoiceCheck`는 24시간에 한 번, 한 번에 40명, 공급자마다 동시 2건으로 부르고 자동 재시도하지 않는다. 시간 제한은 `runList`의 10초다.
+- "없음"은 `errors.ts`의 `nullOnStatus`로 판정한다. Typecast·ElevenLabs는 404만이다. Fish Audio는 403·404와, 응답이 왔어도 `fishVoice`가 `null`인 성우(학습 전·삭제 요청·공개 출처인데 비공개)다. 그 밖의 오류는 `runList`의 목록 매핑(401·403 → `provider_auth`·`no_permission`, 429 → `rate_limit`, 5xx → `provider_error`, 시간 초과 → `unknown_outcome`)을 그대로 따른다.
+- ElevenLabs 공개 라이브러리 성우(`source: "public"`)는 한 명 조회 방법이 공식 문서에 없어 확인하지 않는다. 라우터가 확인 대상에서 빼고, 공급자 모듈은 불러도 `provider_error`로 거절한다. 계정에 추가하는 호출(`POST /v1/voices/add/…`)은 계정 상태를 바꾸므로 쓰지 않는다. 계정 성우는 REST `GET /v1/voices/{id}`로 부르고 담을 때 고른 샘플 언어(`preferred`)를 지킨다.
+- 라우터가 이 오류를 다루는 규칙: `rate_limit`이면 대기 시각(`Retry-After`가 없으면 60초. Typecast SDK는 헤더를 주지 않는다)을 `provider_cooldown`에 적고 그 공급자를 멈춘다. `provider_auth`·`no_permission`·`quota`면 기록 없이 그 공급자를 멈춘다. 5xx·시간 초과는 그 행을 그대로 둔다.
+- 시험 생성·생성의 voice id 허용 검사("클론 보이스" 절)도 이 호출을 쓸 수 있다. Typecast 단건 조회는 `voice_type`을 거르지 않고, Fish Audio는 공개 출처에서만 `visibility`를 거른다.
+
 ## 클론 보이스와 공급자 리소스 소유권 (REQ-01, REQ-13)
 - 모든 사용자가 공급자 계정 하나(서버 키)를 같이 쓴다. 그래서 계정 단위 목록에는 모든 사용자의 클론이 섞인다. ElevenLabs 계정 성우, Fish Audio 내 모델, Typecast custom voice 목록이 그렇고, Typecast 기본 목록 `GET /v3/voices`도 완료된 커스텀 성우를 함께 돌려준다. 이 목록을 그대로 보여 주거나 허용 목록으로 쓰지 않는다.
 - 예외(T4 목록, T5 듣기): 앱의 공급자 권한은 development·test의 루프백 Host에서 서버가 정한 단일 `context.ownerId`에서 온다. 가입은 열려 있어도 Better Auth 세션은 공급자 권한에 쓰지 않는다. 현재 이 한 명 소유 예외에서는 `ownerId`가 있는 요청의 계정 성우를 보여 주며, 내 문장 듣기는 성우 소유권을 조회하지 않고 공급자의 거절(과금 없는 오류)에 맡긴다. 목록 캐시의 계정 행은 소유자별이다. 아래의 일반적인 모든 voice id 서버 조회 규칙은 이 단일 소유 예외가 끝난 뒤, 허용 소유자가 둘 이상이 되거나 T14 세션 권한을 도입할 때 적용한다. 그때는 클론 voice id를 앱 소유 매핑 또는 공급자 공개 성우 기준으로 검사한다(로드맵 T14 메모).
@@ -112,11 +119,11 @@ description: >-
 - 다운로드는 이미 받은 결과를 쓴다. 다운로드가 생성을 다시 부르지 않는다(REQ-10).
 - 진행률은 공급자가 준 값만 보여 준다. 가짜 진행률을 만들지 않는다(REQ-11).
 
-## 확인한 SDK 동작 (2026-09-28, 2026-09-30, 2026-10-04, npm 패키지 소스)
+## 확인한 SDK 동작 (2026-09-28, 2026-09-30, 2026-10-04, 2026-10-07, npm 패키지 소스)
 | SDK | 판 | 동작 |
 |---|---|---|
 | `@elevenlabs/elevenlabs-js` | 2.70.0 | 기본 `maxRetries` 2, 408·429·5xx 재시도(요청 옵션 `maxRetries: 0`으로 끈다). 키가 없으면 `process.env.ELEVENLABS_API_KEY`, 그래도 없으면 생성자가 예외. 요청 옵션 `maxRetries`·`abortSignal`·`timeoutInSeconds`(기본 240초). 네트워크 오류는 `errors/handleNonStatusCodeError.js` 경로에서 `statusCode` 없는 `ElevenLabsError`로 던질 수 있다. 프로젝트는 합성마다 `maxRetries: 0`, 60초 `AbortSignal`, fetch `redirect: "error"`를 적용한다. `undefined` 필드는 SDK 직렬화 때 `null`이 되므로 요청에서 생략한다. 구독 조회 `user.subscription.get()`과 voice 목록은 응답 전체를 검사한다. HTTP는 호출 시점의 전역 `fetch` |
-| `@neosapience/typecast-js` | 0.4.15 | 키가 없으면 `process.env.TYPECAST_API_KEY`(없어도 헤더 없이 요청), 호스트는 `TYPECAST_API_HOST`. 생성자 `{ apiKey, baseHost, source, generatedBy }`에서 `source`와 `generatedBy`는 함께 줘야 하고 형식이 틀리면 생성자가 예외(연동 식별은 `source: "api-docs"`, `generatedBy: "codex"`). SDK에는 시간 제한·취소·재시도·응답 검증이 없다. 구독 조회 `getMySubscription()`. HTTP 오류는 `TypecastAPIError`(`statusCode`, `response`)이고 응답 헤더가 없어 `Retry-After`를 읽지 못한다. 프로젝트는 설치본 fetch를 `redirect: "error"`로 패치했다. T5 대기 종료 뒤에도 공급자 요청은 계속될 수 있다. SDK는 TTS `seed`를 보내지 않는다 |
+| `@neosapience/typecast-js` | 0.4.15 | 키가 없으면 `process.env.TYPECAST_API_KEY`(없어도 헤더 없이 요청), 호스트는 `TYPECAST_API_HOST`. 생성자 `{ apiKey, baseHost, source, generatedBy }`에서 `source`와 `generatedBy`는 함께 줘야 하고 형식이 틀리면 생성자가 예외(연동 식별은 `source: "api-docs"`, `generatedBy: "codex"`). SDK에는 시간 제한·취소·재시도·응답 검증이 없다. 구독 조회 `getMySubscription()`. HTTP 오류는 `TypecastAPIError`(`statusCode`, `response`)이고 응답 헤더가 없어 `Retry-After`를 읽지 못한다. 프로젝트는 설치본 fetch를 `redirect: "error"`로 패치했다. T5 대기 종료 뒤에도 공급자 요청은 계속될 수 있다. SDK는 TTS `seed`를 보내지 않는다. 한 명 조회 `getVoiceV3(voiceId)`(`GET /v3/voices/{id}`, 경로에 `encodeURIComponent`)는 시간 제한·취소·재시도가 없어 `runList`의 10초 경주로만 끊는다. 404는 `TypecastAPIError.statusCode`로 오고 헤더가 없어 429의 `Retry-After`는 읽지 못한다(2026-10-07) |
 
 판을 올리면 이 표를 다시 확인한다.
 

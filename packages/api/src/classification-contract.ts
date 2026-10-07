@@ -19,7 +19,7 @@ const nameSchema = z
 	.max(RAW_MAX)
 	.refine((value) => nameProblem(value) === null, { message: "name" })
 	.transform(cleanText);
-const memoSchema = z
+export const memoSchema = z
 	.string()
 	.max(RAW_MAX)
 	.refine((value) => memoProblem(value) === null, { message: "memo" })
@@ -66,3 +66,11 @@ export const classificationSchema = z.object({
 	memo: z.string().nullable(),
 });
 export const deletedSchema = z.object({ deleted: z.literal(true) });
+
+// 목록 항목은 연결된 성우 수가 더 있다(T7). 만들기·고치기 결과에는 없다(화면은 결과의 이름만 쓰고 목록을 다시 받는다)
+export const channelListItemSchema = channelSchema.extend({
+	voiceCount: z.number().int().nonnegative(),
+});
+export const classificationListItemSchema = classificationSchema.extend({
+	voiceCount: z.number().int().nonnegative(),
+});

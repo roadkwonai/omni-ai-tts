@@ -60,7 +60,7 @@ export function hasConditions(query: string, filters: VoiceFilters): boolean {
 }
 
 // 고른 값이 없는 축은 거르지 않는다. 값이 없는(null) 성우는 그 축을 고르면 빠진다.
-const anyOf = (
+export const anyOf = (
 	selected: readonly string[],
 	values: readonly (string | null)[],
 ) =>

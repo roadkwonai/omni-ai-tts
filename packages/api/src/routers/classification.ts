@@ -4,21 +4,27 @@ import {
 	channel,
 	classification,
 } from "@tts-pilot-app/db/schema/classification";
+import {
+	savedVoiceChannel,
+	savedVoiceClassification,
+} from "@tts-pilot-app/db/schema/saved-voice";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import {
 	channelInputSchema,
+	channelListItemSchema,
 	channelSchema,
 	channelUpdateInputSchema,
 	classificationCreateInputSchema,
+	classificationListItemSchema,
 	classificationSchema,
 	classificationUpdateInputSchema,
 	deletedSchema,
 	deleteInputSchema,
 } from "../classification-contract";
 import { protectedProcedure } from "../index";
-import { dbCode, logDbFailure } from "../voice-cache";
+import { dbCode, found, stored as sharedStored } from "../voice-cache";
 
 // 같은 그룹 같은 이름: 이름 유니크 인덱스(schema/classification.ts) 위반 23505만 본다. drizzle은 pg 오류를 cause에 넣는다(계획 리뷰 E9)
 const NAME_INDEXES = new Set(["channel_name", "classification_name"]);
@@ -32,25 +38,16 @@ function isDuplicateName(error: unknown): boolean {
 	);
 }
 
-// 같은 이름은 CONFLICT로 바꾼다. 그 밖의 저장소 오류는 한 줄(오류 이름·DB 코드)만 남기고,
-// 오류 객체(쿼리 파라미터 = 사용자 입력)는 로그와 cause에 넘기지 않는다(T6 스펙 5절)
-async function stored<T>(step: string, run: () => Promise<T>): Promise<T> {
-	try {
-		return await run();
-	} catch (error) {
-		if (error instanceof ORPCError) throw error;
-		if (isDuplicateName(error))
-			throw new ORPCError("CONFLICT", { data: { reason: "duplicate_name" } });
-		logDbFailure("[classes]", step, error);
-		throw new ORPCError("INTERNAL_SERVER_ERROR");
-	}
-}
+const duplicateName = (error: unknown) =>
+	isDuplicateName(error)
+		? new ORPCError("CONFLICT", { data: { reason: "duplicate_name" } })
+		: null;
 
-// 바뀐 행이 없으면 NOT_FOUND. 남의 것인지 없는 것인지 드러내지 않는다(bts-api 불변식 3)
-function found<T>(row: T | undefined): T {
-	if (!row) throw new ORPCError("NOT_FOUND");
-	return row;
-}
+const stored = <T>(
+	step: string,
+	run: () => Promise<T>,
+	mapError?: (error: unknown) => ORPCError<string, unknown> | null,
+) => sharedStored("[classes]", step, run, mapError);
 
 const channelColumns = {
 	id: channel.id,
@@ -70,11 +67,19 @@ const classificationColumns = {
 // 정렬은 화면이 한다(이름순, 스펙 3절)
 export const classificationRouter = {
 	channelList: protectedProcedure
-		.output(z.array(channelSchema))
+		.output(z.array(channelListItemSchema))
 		.handler(({ context: { db, ownerId } }) =>
 			stored("채널 목록", () =>
 				db
-					.select(channelColumns)
+					.select({
+						...channelColumns,
+						// 연결은 소유자 검사를 거쳐서만 생기므로(savedVoiceLinks) 연결 행 수가 곧 내 담은 성우 수다.
+						// $count는 상관 서브쿼리의 열 이름을 표 이름으로 한정한다(sql 템플릿은 "channel_id" = "id"로 나간다, 계획 리뷰 E3)
+						voiceCount: db.$count(
+							savedVoiceChannel,
+							eq(savedVoiceChannel.channelId, channel.id),
+						),
+					})
 					.from(channel)
 					.where(eq(channel.ownerId, ownerId)),
 			),
@@ -83,26 +88,34 @@ export const classificationRouter = {
 		.input(channelInputSchema)
 		.output(channelSchema)
 		.handler(({ input, context: { db, ownerId } }) =>
-			stored("채널 만들기", async () => {
-				const [row] = await db
-					.insert(channel)
-					.values({ ...input, ownerId })
-					.returning(channelColumns);
-				return found(row);
-			}),
+			stored(
+				"채널 만들기",
+				async () => {
+					const [row] = await db
+						.insert(channel)
+						.values({ ...input, ownerId })
+						.returning(channelColumns);
+					return found(row);
+				},
+				duplicateName,
+			),
 		),
 	channelUpdate: protectedProcedure
 		.input(channelUpdateInputSchema)
 		.output(channelSchema)
 		.handler(({ input: { id, name, memo, url }, context: { db, ownerId } }) =>
-			stored("채널 고치기", async () => {
-				const [row] = await db
-					.update(channel)
-					.set({ name, memo, url })
-					.where(and(eq(channel.id, id), eq(channel.ownerId, ownerId)))
-					.returning(channelColumns);
-				return found(row);
-			}),
+			stored(
+				"채널 고치기",
+				async () => {
+					const [row] = await db
+						.update(channel)
+						.set({ name, memo, url })
+						.where(and(eq(channel.id, id), eq(channel.ownerId, ownerId)))
+						.returning(channelColumns);
+					return found(row);
+				},
+				duplicateName,
+			),
 		),
 	channelDelete: protectedProcedure
 		.input(deleteInputSchema)
@@ -118,11 +131,17 @@ export const classificationRouter = {
 			}),
 		),
 	classificationList: protectedProcedure
-		.output(z.array(classificationSchema))
+		.output(z.array(classificationListItemSchema))
 		.handler(({ context: { db, ownerId } }) =>
 			stored("분류 목록", () =>
 				db
-					.select(classificationColumns)
+					.select({
+						...classificationColumns,
+						voiceCount: db.$count(
+							savedVoiceClassification,
+							eq(savedVoiceClassification.classificationId, classification.id),
+						),
+					})
 					.from(classification)
 					.where(eq(classification.ownerId, ownerId)),
 			),
@@ -131,28 +150,39 @@ export const classificationRouter = {
 		.input(classificationCreateInputSchema)
 		.output(classificationSchema)
 		.handler(({ input, context: { db, ownerId } }) =>
-			stored("분류 만들기", async () => {
-				const [row] = await db
-					.insert(classification)
-					.values({ ...input, ownerId })
-					.returning(classificationColumns);
-				return found(row);
-			}),
+			stored(
+				"분류 만들기",
+				async () => {
+					const [row] = await db
+						.insert(classification)
+						.values({ ...input, ownerId })
+						.returning(classificationColumns);
+					return found(row);
+				},
+				duplicateName,
+			),
 		),
 	classificationUpdate: protectedProcedure
 		.input(classificationUpdateInputSchema)
 		.output(classificationSchema)
 		.handler(({ input: { id, name, memo }, context: { db, ownerId } }) =>
-			stored("분류 고치기", async () => {
-				const [row] = await db
-					.update(classification)
-					.set({ name, memo })
-					.where(
-						and(eq(classification.id, id), eq(classification.ownerId, ownerId)),
-					)
-					.returning(classificationColumns);
-				return found(row);
-			}),
+			stored(
+				"분류 고치기",
+				async () => {
+					const [row] = await db
+						.update(classification)
+						.set({ name, memo })
+						.where(
+							and(
+								eq(classification.id, id),
+								eq(classification.ownerId, ownerId),
+							),
+						)
+						.returning(classificationColumns);
+					return found(row);
+				},
+				duplicateName,
+			),
 		),
 	classificationDelete: protectedProcedure
 		.input(deleteInputSchema)

@@ -4,9 +4,11 @@ import {
 	channel,
 	classification,
 } from "@tts-pilot-app/db/schema/classification";
+import { savedVoice } from "@tts-pilot-app/db/schema/saved-voice";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Context } from "../context";
+import { emptyVoice } from "../providers/list";
 import { testDb as db, testDatabaseUrl as url } from "../test-db";
 import { appRouter } from "./index";
 
@@ -17,6 +19,14 @@ const as = (ownerId: string | null, database: Context["db"] = db) =>
 	});
 const me = as(OWNER);
 const blank = { memo: "", url: "" };
+const voiceOf = (voiceId: string, name: string) => ({
+	...emptyVoice("typecast", "public"),
+	voiceId,
+	name,
+	previewUrl: "https://static.typecast.ai/a.mp3",
+});
+const VOICE_A = voiceOf("tc_a", "민지");
+const VOICE_B = voiceOf("tc_b", "준호");
 // 접근하면 그 오류를 던지는 DB(DB 없이 저장소 오류를 흉내 낸다)
 const throwingDb = (error: unknown) =>
 	new Proxy(
@@ -30,10 +40,12 @@ const throwingDb = (error: unknown) =>
 
 describe.skipIf(!url)("채널·분류 프로시저(T6 스펙 8·9절)", () => {
 	beforeEach(async () => {
+		await db.delete(savedVoice);
 		await db.delete(channel);
 		await db.delete(classification);
 	});
 	afterAll(async () => {
+		await db.delete(savedVoice);
 		await db.delete(channel);
 		await db.delete(classification);
 		await db.$client.end();
@@ -47,7 +59,7 @@ describe.skipIf(!url)("채널·분류 프로시저(T6 스펙 8·9절)", () => {
 			memo: null,
 			url: null,
 		});
-		expect(await me.channelList()).toEqual([made]);
+		expect(await me.channelList()).toEqual([{ ...made, voiceCount: 0 }]);
 		const fixed = await me.channelUpdate({
 			id: made.id,
 			name: "주말 레터",
@@ -60,7 +72,7 @@ describe.skipIf(!url)("채널·분류 프로시저(T6 스펙 8·9절)", () => {
 			memo: "토요일 아침",
 			url: "https://youtube.com/@weekend",
 		});
-		expect(await me.channelList()).toEqual([fixed]);
+		expect(await me.channelList()).toEqual([{ ...fixed, voiceCount: 0 }]);
 		expect(await me.channelDelete({ id: made.id })).toEqual({ deleted: true });
 		expect(await me.channelList()).toEqual([]);
 	});
@@ -78,7 +90,12 @@ describe.skipIf(!url)("채널·분류 프로시저(T6 스펙 8·9절)", () => {
 		});
 		const list = await me.classificationList();
 		expect(list).toHaveLength(2);
-		expect(list).toEqual(expect.arrayContaining([category, type]));
+		expect(list).toEqual(
+			expect.arrayContaining([
+				{ ...category, voiceCount: 0 },
+				{ ...type, voiceCount: 0 },
+			]),
+		);
 		const fixed = await me.classificationUpdate({
 			id: type.id,
 			name: "차분함·신뢰",
@@ -93,7 +110,30 @@ describe.skipIf(!url)("채널·분류 프로시저(T6 스펙 8·9절)", () => {
 		expect(await me.classificationDelete({ id: category.id })).toEqual({
 			deleted: true,
 		});
-		expect(await me.classificationList()).toEqual([fixed]);
+		expect(await me.classificationList()).toEqual([
+			{ ...fixed, voiceCount: 0 },
+		]);
+	});
+
+	it("목록의 voiceCount는 연결된 담은 성우 수다(T7)", async () => {
+		const ch = await me.channelCreate({ name: "경제", memo: "", url: "" });
+		const cat = await me.classificationCreate({
+			kind: "category",
+			name: "뉴스",
+			memo: "",
+		});
+		await me.savedVoiceLinks({
+			voice: VOICE_A,
+			channelIds: [ch.id],
+			classificationIds: [cat.id],
+		});
+		await me.savedVoiceLinks({
+			voice: VOICE_B,
+			channelIds: [ch.id],
+			classificationIds: [],
+		});
+		expect((await me.channelList())[0]?.voiceCount).toBe(2);
+		expect((await me.classificationList())[0]?.voiceCount).toBe(1);
 	});
 
 	it("같은 그룹 같은 이름은 대소문자·공백·NFC·보이지 않는 글자 차이까지 CONFLICT다(Review Focus 1)", async () => {

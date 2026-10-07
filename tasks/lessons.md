@@ -101,3 +101,9 @@
 - `Page.addScriptToEvaluateOnNewDocument`와 Network 차단은 Node 실행 사이에 남는다고 가정하지 않는다. 주입·차단·about:blank 증명·앱 이동을 한 실행에 묶고 앱에서 hits를 확인한다. reload/새 이동마다 같은 실행에서 다시 주입하며, 매 상호작용 실행에 네트워크 차단을 재적용한다.
 
 - T5 진행 안내에 한자가 섞인 단어가 반복됐다. 한국어 문장으로 안내하고 보내기 직전에 한자·가나가 섞이지 않았는지 확인한다. 도구 출력의 영어 코드명과 사용자 안내 문장을 구분한다.
+
+## 2026-10-07 · oRPC `key()`로 `setQueryData`를 써서 캐시가 엉뚱한 칸에 들어감 (T7)
+- **무슨 일:** 보관함 훅이 `orpc.savedVoiceList.key()`(`[["savedVoiceList"],{}]`, 접두 키)로 `setQueryData`·`getQueryData`를 불렀다. 실제 캐시 키는 `queryOptions(...).queryKey`(`[["savedVoiceList"],{"type":"query"}]`)라 처음 담기·낙관적 갱신·연결 계산·빼기·확인 결과가 화면에 반영되지 않았다. 계획 코드에서 온 실수이고, 실행 없이 읽는 태스크 리뷰 5회가 모두 놓쳤다. 런타임 확인에서 별이 저장 뒤에도 꺼진 채인 것으로 잡았다.
+- **규칙:**
+  - `invalidateQueries`·`cancelQueries`에는 `.key()`(접두 일치), `setQueryData`·`getQueryData`에는 그 쿼리의 `queryOptions(...).queryKey`(정확 일치)를 쓴다. 한 파일에 키 상수를 하나 두고 그 값은 `queryKey`로 만든다.
+  - 캐시를 직접 고치는 화면은 리뷰 통과와 별개로 런타임에서 "누른 직후 화면이 바뀌는지"를 새로 고침 없이 확인한다.

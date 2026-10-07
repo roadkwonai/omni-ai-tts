@@ -50,8 +50,10 @@ describe.skipIf(!url)("채널·분류 소유자 격리(스펙 8절 6번)", () =>
 			() => as(B).classificationDelete({ id: cat.id }),
 		])
 			await expect(attempt()).rejects.toMatchObject({ code: "NOT_FOUND" });
-		expect(await as(A).channelList()).toEqual([ch]);
-		expect(await as(A).classificationList()).toEqual([cat]);
+		expect(await as(A).channelList()).toEqual([{ ...ch, voiceCount: 0 }]);
+		expect(await as(A).classificationList()).toEqual([
+			{ ...cat, voiceCount: 0 },
+		]);
 	});
 
 	it("B는 A와 같은 이름을 만들 수 있다", async () => {

@@ -10,7 +10,7 @@ import {
 	TooltipTrigger,
 } from "@tts-pilot-app/ui/components/tooltip";
 import { cn } from "@tts-pilot-app/ui/lib/utils";
-import { AudioLines, Coins, Play, Square } from "lucide-react";
+import { AudioLines, Coins, Play, Square, Tag } from "lucide-react";
 import {
 	type FocusEvent,
 	type KeyboardEvent,
@@ -22,6 +22,7 @@ import {
 
 import { type Cell, type Col, navigate, tabStop } from "@/lib/roving";
 import type { SampleStatus } from "@/lib/sample-state";
+import { chipGroups, LIBRARY_TEXT } from "@/lib/saved-voice-view";
 import {
 	needsConfirm,
 	requestOf,
@@ -39,7 +40,8 @@ import {
 } from "@/lib/voice-view";
 
 import { usePlayer, useSample } from "./sample-player";
-import { useTrial } from "./trial-provider";
+import { SavedStar, useClassLists, useSavedItem } from "./saved-voices";
+import { useOptionalTrial, useTrial } from "./trial-provider";
 
 // 행을 고른다(row는 누른 고르기 버튼. 좁은 화면에서 서랍을 닫으면 그리로 포커스를 돌린다)
 export type Select = (voice: Voice, row: HTMLButtonElement) => void;
@@ -181,9 +183,10 @@ function TrialButton({
 	);
 }
 
-// 브리프 5절 '성우 행'(높이 약 69px)과 7절 샘플 상태. 재생 버튼 밖 행 전체가 '고르기' 버튼이다.
+// 브리프 5절 '성우 행'(높이 약 69px)과 7절 샘플 상태. 재생 버튼 밖 행 전체가 '고르기' 버튼이다. 행 안 버튼 순서는 roving.ts의 칸 번호다.
 // 칸 숨김은 뷰포트가 아니라 목록 칸 너비로 정한다(목록 ul의 @container, 계획 리뷰 D2):
-// 28rem 이상이면 둘째 줄에 알약, 32rem 이상이면 오른쪽 고정 칸(보조 정보 위, 배지 아래). 그 아래면 배지가 메타 줄 아래로 내려가고 보조 정보는 빠진다.
+// 28rem 이상이면 둘째 줄에 알약, 36rem 이상이면 오른쪽 고정 칸(보조 정보 위, 배지 아래. 별 칸이 늘어 32rem에서 올렸다, T7 브리프 B7). 그 아래면 배지가 메타 줄 아래로 내려가고 보조 정보는 빠진다.
+// 담은 성우는 알약 자리에 내 분류(채널 → 카테고리 → 타입)를 같은 알약 모양으로, 이름 옆에 '자주 사용', 배지 맨 앞에 '현재 이용 불가'를 둔다(T7 브리프 B6·B8)
 // 둘째 줄은 메타 줄이 먼저다. 알약은 남는 자리만 쓰고, 모자라면 말줄임이 되고 들어가지 못한 알약은 숨는다(critique 2026-10-05)
 export function VoiceRow({
 	voice,
@@ -197,14 +200,20 @@ export function VoiceRow({
 	onSelect: Select;
 	// 1200px 이상에서 고르면 바뀌는 패널(aria-controls). 서랍일 때는 없다
 	panelId?: string;
-	// 목록의 Tab 정지가 이 행이면 그 칸(0 재생, 1 고르기, 2 내 문장 듣기), 아니면 null(세 버튼 모두 tabIndex -1)
+	// 목록의 Tab 정지가 이 행이면 그 칸(0 재생, 1 고르기, 캐스팅은 2 내 문장 듣기·3 별, 보관함은 2 별), 아니면 null(모든 버튼 tabIndex -1)
 	tabbable: Col | null;
 }) {
 	const id = useId();
 	const url = voice.previewUrl;
-	const trial = useTrial();
+	const trial = useOptionalTrial();
 	const key = voiceKey(voice);
-	const trialProblem = trial.problem(key);
+	const trialProblem = trial?.problem(key) ?? null;
+	const saved = useSavedItem(voice);
+	const { channels, classes } = useClassLists();
+	const mine = saved
+		? chipGroups(saved, channels, classes).flatMap((group) => group.items)
+		: [];
+	const own = mine.length > 0;
 	const player = usePlayer();
 	const trialPlaying =
 		player.current?.owner === key && player.current.status === "playing";
@@ -214,9 +223,28 @@ export function VoiceRow({
 	const playing = status === "playing";
 	// 샘플이 없으면 재생 버튼이 비활성이라 포커스를 받지 못한다. 그 행의 Tab 정지는 고르기 버튼이다
 	const playTabbable = tabbable === 0 && url !== null;
-	const pills = pillsOf(voice);
+	// 내 분류가 있으면 공급자 알약 대신 보인다(사용자 결정 U3). 담았지만 분류가 없으면 공급자 알약 그대로
+	// 알약 key: 내 분류는 id(채널과 카테고리에 같은 이름이 있을 수 있다), 공급자 알약은 이름
+	const providerPills = pillsOf(voice);
+	const pills = own
+		? {
+				all: mine.map((entry) => entry.name),
+				shown: mine
+					.slice(0, 2)
+					.map((entry) => ({ key: entry.id, label: entry.name })),
+				rest: Math.max(0, mine.length - 2),
+				// 목록 칸 28rem 미만에서는 내 분류 1개와 나머지 수만 보인다(critique P2)
+				narrowRest: mine.length - 1,
+			}
+		: {
+				...providerPills,
+				shown: providerPills.shown.map((label) => ({ key: label, label })),
+				narrowRest: 0,
+			};
 	const secondary = secondaryLines(voice);
-	const badges = badgesOf(voice);
+	const badges = saved?.unavailable
+		? [LIBRARY_TEXT.unavailable, ...badgesOf(voice)]
+		: badgesOf(voice);
 	// 오른쪽 칸은 144px이라 가장 긴 배지 '라이브러리에서 저장'이 한 줄에 다 들어간다(audit P3-3, 코디네이터 판정). 더 긴 값은 칸을 넘지 않고 말줄임이 된다(전체 이름은 화면 밖 설명에 있다).
 	// 행 배지는 회색 보통 굵기(400)라 굵은 이름보다 낮다(사용자 결정 2026-10-05, 재확인)
 	const badgeList = (className: string) =>
@@ -258,6 +286,8 @@ export function VoiceRow({
 				aria-labelledby={`${id}-name`}
 				aria-describedby={`${id}-detail`}
 				aria-controls={panelId}
+				// 이름이 잘리면 마우스를 올려 전체 이름을 본다. 행을 덮는 after 덮개가 안쪽 span 위에 그려지므로 버튼에 둔다(접근 이름은 aria-labelledby가 앞선다)
+				title={voice.name}
 				ref={selectRef}
 				tabIndex={tabbable === 1 || (tabbable === 0 && url === null) ? 0 : -1}
 				onClick={(event) => onSelect(voice, event.currentTarget)}
@@ -268,13 +298,24 @@ export function VoiceRow({
 						<span id={`${id}-name`} className="truncate font-bold">
 							{voice.name}
 						</span>
+						{/* 영문 이름은 남는 자리만 쓴다(basis 0, 내용 너비까지). 좁은 행에서 이름보다 먼저 줄어든다(audit P2-1) */}
 						{voice.englishName ? (
 							<span
 								translate="no"
-								className="truncate text-muted-foreground text-sm"
+								className="min-w-0 max-w-fit grow basis-0 truncate text-muted-foreground text-sm"
 							>
 								{voice.englishName}
 							</span>
+						) : null}
+						{saved?.frequent ? (
+							// 목록 칸 20rem 미만(320px)에서는 이름 자리를 위해 숨긴다. 화면 밖 설명이 '자주 사용'을 읽는다(QA F3)
+							<Badge
+								aria-hidden="true"
+								variant="secondary"
+								className="@max-xs:hidden font-normal"
+							>
+								{LIBRARY_TEXT.frequent}
+							</Badge>
 						) : null}
 						{playing || trialPlaying ? (
 							<Badge variant="primary">재생 중</Badge>
@@ -286,24 +327,74 @@ export function VoiceRow({
 					>
 						<span className="truncate">{metaLine(voice)}</span>
 						{/* 남는 자리만 쓴다(basis 0, 내용 너비까지). 한 줄 높이에 줄바꿈을 두어 들어가지 못한 알약은 다음 줄로 넘어가 숨는다 */}
+						{/* 내 분류는 앞에 태그 아이콘을 두어 공급자 알약과 구별하고(critique P2), 좁은 칸에서도 1개 + '+N'으로 남는다.
+						    한 줄에는 항목이 적어도 하나 들어가므로 맨 앞의 폭 0·높이 20px 자리가 첫 줄을 맡는다. 내 분류는 한 덩어리라
+						    다 들어가지 못하면 조각으로 잘리지 않고 통째로 숨은 다음 줄로 간다(r24 320px 캐스팅) */}
 						{pills.all.length > 0 ? (
 							<span
 								aria-hidden="true"
-								className="@md:flex hidden h-5 min-w-0 max-w-fit grow basis-0 flex-wrap gap-x-1.5 overflow-hidden"
+								className={cn(
+									"h-5 min-w-0 max-w-fit grow basis-0 flex-wrap items-center gap-x-1.5 overflow-hidden",
+									own ? "flex" : "@md:flex hidden",
+								)}
 							>
-								{pills.shown.map((label) => (
-									<span key={label} className={pillClass}>
-										{label}
-									</span>
-								))}
-								{pills.rest > 0 ? (
-									<span className={pillClass}>+{pills.rest}</span>
-								) : null}
+								{own ? (
+									<>
+										<span className="-mr-1.5 h-5" />
+										{/* 태그·칩·'+N'은 한 덩어리다. basis 0이라 줄바꿈 기준이 최소 너비(칩은 글자 하나)이고, 자리가 모자라면 칩이 먼저 말줄임되며 '+N'은 늘 보인다.
+										    좁은 칸(28rem 미만)은 첫 칩이 줄지 않는다(1개 + '+N'). 최소 너비도 들어가지 않으면 덩어리가 통째로 다음 줄로 가 숨는다(QA F2, 브리프 B8) */}
+										<span className="flex grow basis-0 items-center gap-1.5">
+											<Tag className="size-3 shrink-0 text-muted-foreground" />
+											{pills.shown.map(({ key: pillKey, label }, index) => (
+												<span
+													key={pillKey}
+													className={cn(
+														pillClass,
+														index === 0
+															? "@md:line-clamp-1 @max-md:shrink-0 @md:whitespace-normal @md:break-all"
+															: "line-clamp-1 @max-md:hidden whitespace-normal break-all",
+													)}
+												>
+													{label}
+												</span>
+											))}
+											{pills.narrowRest > 0 ? (
+												<span className={cn(pillClass, "@md:hidden shrink-0")}>
+													+{pills.narrowRest}
+												</span>
+											) : null}
+											{pills.rest > 0 ? (
+												<span
+													className={cn(pillClass, "@max-md:hidden shrink-0")}
+												>
+													+{pills.rest}
+												</span>
+											) : null}
+										</span>
+									</>
+								) : (
+									<>
+										{pills.shown.map(({ key: pillKey, label }, index) => (
+											<span
+												key={pillKey}
+												className={cn(pillClass, index > 0 && "@max-md:hidden")}
+											>
+												{label}
+											</span>
+										))}
+										{pills.rest > 0 ? (
+											<span className={cn(pillClass, "@max-md:hidden")}>
+												+{pills.rest}
+											</span>
+										) : null}
+									</>
+								)}
 							</span>
 						) : null}
 						<span className="sr-only">
+							{saved?.frequent ? `, ${LIBRARY_TEXT.frequent}` : ""}
 							{pills.all.length > 0
-								? `, 공급자 분류: ${pills.all.join(", ")}`
+								? `, ${own ? "내 분류" : "공급자 분류"}: ${pills.all.join(", ")}`
 								: ""}
 							{secondary.length > 0 ? `, ${secondary.join(", ")}` : ""}
 							{badges.length > 0 ? `, ${badges.join(", ")}` : ""}
@@ -320,9 +411,9 @@ export function VoiceRow({
 							</span>
 						) : null}
 					</span>
-					{badgeList("flex flex-wrap gap-1 @lg:hidden")}
+					{badgeList("flex flex-wrap gap-1 @[36rem]:hidden")}
 				</span>
-				<span className="@lg:flex hidden w-36 shrink-0 flex-col items-end gap-1">
+				<span className="@[36rem]:flex hidden w-36 shrink-0 flex-col items-end gap-1">
 					{secondary.length > 0 ? (
 						<span
 							aria-hidden="true"
@@ -337,15 +428,21 @@ export function VoiceRow({
 					{badgeList("flex max-w-full flex-wrap justify-end gap-1")}
 				</span>
 			</button>
-			<TrialButton
+			{trial ? (
+				<TrialButton
+					voice={voice}
+					tabIndex={tabbable === 2 ? 0 : -1}
+					describedBy={trialProblem ? `${id}-trial` : undefined}
+					onPick={
+						panelId
+							? () => selectRef.current && onSelect(voice, selectRef.current)
+							: undefined
+					}
+				/>
+			) : null}
+			<SavedStar
 				voice={voice}
-				tabIndex={tabbable === 2 ? 0 : -1}
-				describedBy={trialProblem ? `${id}-trial` : undefined}
-				onPick={
-					panelId
-						? () => selectRef.current && onSelect(voice, selectRef.current)
-						: undefined
-				}
+				tabIndex={tabbable === (trial ? 3 : 2) ? 0 : -1}
 			/>
 		</article>
 	);
@@ -378,17 +475,20 @@ export function RowList({
 		null,
 	);
 	const hintId = useId();
+	// 마지막 칸은 별이다(캐스팅은 내 문장 듣기 뒤 3, 보관함은 2)
+	const trial = useOptionalTrial();
+	const lastCol: Col = trial ? 3 : 2;
 	const keys = voices.map(voiceKey);
 	const stop = tabStop(keys, focused, selectedKey);
 
-	// 포커스한 버튼의 칸: 행 번호와 행 안 버튼 순서(0 재생, 1 고르기, 2 내 문장 듣기)
+	// 포커스한 버튼의 칸: 행 번호와 행 안 버튼 순서(roving.ts의 칸 번호)
 	function cellOf(list: HTMLUListElement, target: EventTarget): Cell | null {
 		if (!(target instanceof HTMLButtonElement)) return null;
 		const item = target.closest("li");
 		if (item?.parentElement !== list) return null;
 		const col = [...item.querySelectorAll("button")].indexOf(target);
-		if (col !== 0 && col !== 1 && col !== 2) return null;
-		return { row: [...list.children].indexOf(item), col };
+		if (col < 0 || col > lastCol) return null;
+		return { row: [...list.children].indexOf(item), col: col as Col };
 	}
 	// 사용자가 직접 준 포커스(클릭·Tab·스크립트)는 그 칸을 의도한 칸으로 기억한다
 	function onFocus(event: FocusEvent<HTMLUListElement>) {
@@ -408,10 +508,17 @@ export function RowList({
 			list.children[row]?.querySelectorAll("button");
 		const from = cellOf(list, event.target);
 		const move = from
-			? navigate(event.key, from, keys, focused, (row) => {
-					const play = buttons(row)?.[0];
-					return play !== undefined && !play.disabled;
-				})
+			? navigate(
+					event.key,
+					from,
+					keys,
+					focused,
+					(row) => {
+						const play = buttons(row)?.[0];
+						return play !== undefined && !play.disabled;
+					},
+					lastCol,
+				)
 			: null;
 		if (!move) return;
 		event.preventDefault();
@@ -450,7 +557,7 @@ export function RowList({
 				})}
 			</ul>
 			<span id={hintId} className="sr-only">
-				방향키로 성우 사이를 옮겨요
+				방향키로 성우와 버튼 사이를 옮겨요
 			</span>
 		</>
 	);

@@ -20,6 +20,7 @@ import {
 } from "react";
 
 import { PROVIDER_LABEL } from "@/lib/connection-view";
+import { LIBRARY_TEXT } from "@/lib/saved-voice-view";
 import {
 	chipsOf,
 	emotionLines,
@@ -30,6 +31,9 @@ import {
 } from "@/lib/voice-view";
 
 import { useSample } from "./sample-player";
+import { SavedSection } from "./saved-section";
+import { useSavedItem } from "./saved-voices";
+import { useOptionalTrial } from "./trial-provider";
 import { TrialResults } from "./trial-results";
 import { TrialSection } from "./trial-section";
 import { SampleButton } from "./voice-row";
@@ -106,8 +110,11 @@ function Description({ text }: { text: string }) {
 	);
 }
 
-// 패널 내용(머리의 제목은 칸에서는 h2, 서랍에서는 SheetTitle이 맡는다)
+// 패널 내용(머리의 제목은 칸에서는 h2, 서랍에서는 SheetTitle이 맡는다).
+// 구역 순서는 사용자 결정 U2: … 이용 조건 → 내 문장 듣기 → 담기 → 내 문장 결과. 성우 보관함(TrialProvider 밖)에는 내 문장 듣기 구역이 없고 담기가 기본 샘플 바로 뒤다
 export function VoicePanelContent({ voice }: { voice: Voice }) {
+	const trial = useOptionalTrial();
+	const saved = useSavedItem(voice);
 	const samples: VoiceSample[] =
 		voice.samples.length > 0
 			? voice.samples
@@ -117,9 +124,25 @@ export function VoicePanelContent({ voice }: { voice: Voice }) {
 	const chips = chipsOf(voice);
 	const terms = termLines(voice);
 	const emotions = emotionLines(voice);
+	// ElevenLabs 공개 라이브러리 성우는 이용 가능 확인을 하지 않는다는 것을 숨기지 않는다(계획 리뷰 D16, PRODUCT 원칙 4). 담긴 성우에만.
+	// 캐스팅은 이용 조건 뒤, 보관함은 담기 칸 바로 위(담기 칸을 올린 뒤에도 붙어 있게)
+	const notChecked =
+		saved && voice.provider === "elevenlabs" && voice.source === "public" ? (
+			<p className="text-muted-foreground text-sm">{LIBRARY_TEXT.notChecked}</p>
+		) : null;
 	// 본문 글자는 칸과 서랍 모두 16px이다(SheetContent 기본 14px을 덮는다)
 	return (
 		<div className="flex flex-col gap-5 text-base">
+			{/* 이용 불가 안내는 무채색 안내 상자(T7 브리프 B6, trial-confirm 안내 상자와 같은 모양) */}
+			{saved?.unavailable ? (
+				<p role="note" className="flex gap-2 rounded-xl bg-muted p-3 text-sm">
+					<TriangleAlert
+						aria-hidden="true"
+						className="mt-0.5 size-4 shrink-0"
+					/>
+					{LIBRARY_TEXT.unavailableNotice}
+				</p>
+			) : null}
 			{/* Typecast는 출처 구분이 없어 공급자 이름만 보인다(critique 2026-10-05) */}
 			<p className="text-muted-foreground text-sm">
 				<span translate="no">{PROVIDER_LABEL[voice.provider]}</span>
@@ -149,6 +172,13 @@ export function VoicePanelContent({ voice }: { voice: Voice }) {
 					<p className="text-muted-foreground text-sm">기본 샘플이 없어요</p>
 				)}
 			</section>
+			{/* 성우 보관함은 정리가 일이라 담기 칸을 기본 샘플 바로 뒤에 둔다(critique P2). 캐스팅은 U2 자리 그대로 */}
+			{trial ? null : (
+				<>
+					{notChecked}
+					<SavedSection voice={voice} />
+				</>
+			)}
 			{voice.provider === "typecast" ? (
 				emotions.length > 0 ? (
 					<section className="flex flex-col gap-2">
@@ -194,8 +224,14 @@ export function VoicePanelContent({ voice }: { voice: Voice }) {
 					</ul>
 				</section>
 			) : null}
-			<TrialSection voice={voice} />
-			<TrialResults voice={voice} />
+			{trial ? notChecked : null}
+			{trial ? (
+				<>
+					<TrialSection voice={voice} />
+					<SavedSection voice={voice} />
+					<TrialResults voice={voice} />
+				</>
+			) : null}
 		</div>
 	);
 }
@@ -233,6 +269,7 @@ export function VoiceSheet({
 	finalFocus: RefObject<HTMLButtonElement | null>;
 }) {
 	const titleRef = useRef<HTMLHeadingElement>(null);
+	const trial = useOptionalTrial();
 	return (
 		<Sheet open={open && voice !== null} onOpenChange={onOpenChange}>
 			<SheetContent
@@ -252,7 +289,9 @@ export function VoiceSheet({
 								{voice.name}
 							</SheetTitle>
 							<SheetDescription className="sr-only">
-								성우 정보, 기본 샘플, 내 문장 듣기
+								{trial
+									? "성우 정보, 기본 샘플, 내 문장 듣기, 담기"
+									: "성우 정보, 기본 샘플, 담기"}
 							</SheetDescription>
 						</SheetHeader>
 						<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6">

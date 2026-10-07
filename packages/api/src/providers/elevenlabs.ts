@@ -16,13 +16,16 @@ import {
 } from "./contract";
 import {
 	fetchJson,
+	nullOnStatus,
 	type ProviderClient,
 	ProviderHttpError,
+	providerError,
 	runCheck,
 	runList,
 	runTrial,
 } from "./errors";
 import { clip, emptyVoice, parseVoiceItems, queryOf } from "./list";
+import { SAMPLE_HOST } from "./sample-hosts";
 import type { TrialModelRate } from "./trial-contract";
 import {
 	ELEVENLABS_MODELS,
@@ -76,7 +79,7 @@ const PAGE_SIZE = 100;
 // 샘플은 https이고 ElevenLabs 저장소일 때만 오디오 src에 넣는다(2026-10-04 실측 호스트: storage.googleapis.com, api.us.elevenlabs.io)
 const sampleUrl = z.url({
 	protocol: /^https$/,
-	hostname: /^(storage\.googleapis\.com|([a-z0-9-]+\.)*elevenlabs\.io)$/,
+	hostname: SAMPLE_HOST.elevenlabs,
 	normalize: true,
 });
 // 빈 글자는 null이다(실측: descriptive가 ""인 성우 1명)
@@ -415,6 +418,33 @@ export function createElevenLabs(apiKey: string): ProviderClient {
 			}),
 		listVoices: (input: ListInputOf<"elevenlabs">) =>
 			runList("elevenlabs", (signal) => listPage(input, signal)),
+		// 계정 성우만 확인한다. 공개 라이브러리 성우는 한 명 조회 방법이 문서에 없어 부르지 않는다(T7 계획 '스펙과 다른 점' 2).
+		// 이 거절은 라우터 조건과 겹치지만 둔다: 계정 조회로 부르면 404가 와 이용 불가로 오판한다(계획 리뷰 P5 기각).
+		// SDK voices.get은 응답 전체를 한 번에 검사하므로 목록처럼 REST로 부른다. 404만 '없음'이다(P6)
+		getVoice: (
+			source: VoiceSource,
+			voiceId: string,
+			preferred?: string | null,
+		) =>
+			runList("elevenlabs", async (signal) => {
+				if (source === "public")
+					throw providerError("elevenlabs", "provider_error");
+				const body = await nullOnStatus(
+					getJson(
+						`/v1/voices/${encodeURIComponent(voiceId)}`,
+						new URLSearchParams(),
+						signal,
+					),
+					404,
+				);
+				return body === null
+					? null
+					: elVoice(
+							accountVoiceSchema.parse(body),
+							"account",
+							preferred ?? null,
+						);
+			}),
 		listAccents: (language: string) =>
 			runList("elevenlabs", async (signal): Promise<Accent[]> => {
 				const { accents } = accentsSchema.parse(

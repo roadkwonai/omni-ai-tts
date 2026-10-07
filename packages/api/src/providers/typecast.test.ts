@@ -461,3 +461,43 @@ describe("Typecast CJS 전송 경계", () => {
 		expect(globalThis.fetch).toBe(fetchMock);
 	});
 });
+
+describe("Typecast 성우 한 명 조회(T7)", () => {
+	const raw = {
+		voice_id: "tc_abc",
+		voice_name: { eng: "Minji", kor: "민지" },
+		voice_type: "original",
+		gender: "female",
+		age: "young_adult",
+		use_cases: ["Audiobook"],
+		models: [{ version: "ssfm-v30", emotions: ["normal"] }],
+		preview_url: "https://static.typecast.ai/a.mp3",
+	};
+	const get = (id = "tc_abc") => createTypecast(KEY).getVoice?.("public", id);
+
+	it("200이면 목록과 같은 Voice, 경로는 /v3/voices/{id}", async () => {
+		fetchMock.mockResolvedValue(json(200, raw));
+		const voice = await get();
+		expect(voice).toMatchObject({
+			provider: "typecast",
+			source: "public",
+			voiceId: "tc_abc",
+			name: "민지",
+			previewUrl: "https://static.typecast.ai/a.mp3",
+		});
+		expect(calledUrl().pathname).toBe("/v3/voices/tc_abc");
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+	it("404면 null(현재 이용 불가)", async () => {
+		fetchMock.mockResolvedValue(
+			json(404, { message: "Voice not found", error_code: "VOICE_NOT_FOUND" }),
+		);
+		expect(await get()).toBeNull();
+	});
+	it("5xx는 null이 아니라 provider_error", async () => {
+		fetchMock.mockResolvedValue(json(503, {}));
+		await expect(get()).rejects.toMatchObject({
+			data: { provider: "typecast", reason: "provider_error" },
+		});
+	});
+});

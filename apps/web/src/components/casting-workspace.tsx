@@ -13,6 +13,7 @@ import {
 import { pickSelected, voiceKey } from "@/lib/voice-view";
 
 import { SentenceBar } from "./sentence-bar";
+import { useOptionalTrial } from "./trial-provider";
 import { VoicePanel, VoiceSheet } from "./voice-panel";
 import type { Select } from "./voice-row";
 
@@ -52,6 +53,8 @@ export function CastingWorkspace({
 	}) => ReactNode;
 }) {
 	const wide = useWide();
+	// 성우 보관함(TrialProvider 밖)에는 문장 막대가 없다
+	const trial = useOptionalTrial();
 	// 탭을 숨긴 채 남겨 둬 작업대가 여럿이므로 패널 id는 작업대마다 만든다(행의 aria-controls와 패널 id가 같다)
 	const panelId = useId();
 	const [sheetOpen, setSheetOpen] = useState(false);
@@ -81,7 +84,7 @@ export function CastingWorkspace({
 	return (
 		// 약 62:38(시안). 8칸 중 5·3
 		<div className="flex flex-col gap-4">
-			<SentenceBar provider={barProvider} />
+			{trial ? <SentenceBar provider={barProvider} /> : null}
 			<div className="flex flex-col gap-6 xl:grid xl:grid-cols-8 xl:items-start">
 				<div className="min-w-0 xl:col-span-5">
 					{children({

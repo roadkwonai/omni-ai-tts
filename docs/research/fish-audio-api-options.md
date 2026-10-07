@@ -457,3 +457,16 @@ QPS/QPM이 아니라 **동시 요청 수(concurrency)** 기준이며, 누적 결
 - 오디오생성없음, SDK/HTTP자동재시도0·충전0. 직전/직후/마지막조회 API0·웹10000유지(관측차감0).
 - 현재free웹크레딧만으로이계정의해당유료API요청을처리하지못했다. 다른웹플랜으로일반화하지않는다. 성공한유료요청의실제차감위치/최소과금단위는확인하지못했으므로 CS09는부분확인으로남긴다.
 - 증거 tasks/evidence/T05/real-fish-05-result.json. 승인된5회실험은끝났으며충전뒤성공실측은사용자의추가승인이필요하다.
+
+## 성우 한 명 조회 (2026-10-07, T7 성우 보관함 이용 가능 확인)
+
+공식 [Get Model](https://docs.fish.audio/api-reference/endpoint/model/get-model.md), agent skill 문서, [Pricing & Rate Limits](https://docs.fish.audio/developer-guide/models-pricing/pricing-and-rate-limits.md)를 읽었다. 공급자 API는 부르지 않았다. 이 API가 모델이라 부르는 개체를 이 앱은 성우로 부른다.
+
+| 항목 | 내용 |
+| --- | --- |
+| 호출 | `GET /model/{id}`(헤더 `Authorization: Bearer`). 응답은 목록과 같은 `ModelEntity`라 `rawVoiceSchema` → `fishVoice(raw, source)`를 쓴다. REST `getJson`(`redirect: "error"`)에 `/model/${encodeURIComponent(id)}` |
+| 없음 판정 | 404와 403을 "없음"으로 본다(문서: 404 "Nothing matches the given URI", 403 "Request forbidden". 안 보이는 성우는 404라고 agent skill이 적는다. 남의 `private`·`unlist` 모델의 실제 응답은 문서에 명시가 없다). 응답이 왔어도 `fishVoice`가 `null`이면(합성할 수 없는 성우: 학습 전·삭제 요청·공개 출처인데 비공개) 같은 "없음"이다. 목록이 거르는 규칙과 같아 행과 보관함이 어긋나지 않는다. 401·429·5xx와 그 밖의 오류는 공급자 오류다. 판정은 `nullOnStatus(…, 403, 404)`다 |
+| 과금 | 요금표(TTS, ASR, Voice Design)에 `GET /model/{id}` 항목이 없고 "무료" 문구도 없다 = 정보 없음(무료로 보는 것은 추정). 목록 조회와 같은 읽기 호출로 다룬다 |
+| 요청 제한 | 동시 요청 수 한도(Starter 5)이고 429에 `Retry-After`가 없다. 앱은 공급자당 동시 2건으로 부르고, 429면 60초를 적고 그 공급자를 멈춘다 |
+| 시간 제한 | 목록의 20초가 아니라 `runList` 기본 10초다 |
+| 샘플 주소 | `samples[].audio`(호스트 `platform.r2.fish.audio`)의 만료는 정보 없음이다. 확인에 성공하면 새 값으로 바뀐다 |

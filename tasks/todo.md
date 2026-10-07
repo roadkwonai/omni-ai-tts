@@ -112,6 +112,19 @@ critique 27/40, audit 18/20(접근성 3/4) 결과 가운데 브리프·스펙을
 - [ ] T6-07 (T5 기존) `trial-results.tsx` 47행 `try` without `catch`로 React Compiler가 그 컴포넌트를 건너뛴다(T6 Step 7 대조군에서 발견).
 - [ ] T6-08 (minor, UI) 채널 주소 링크의 음수 여백이 메모 아래 8px을 덮어 그 자리 텍스트 선택을 가로챈다. 행 아이콘 툴팁 id를 render Button 대신 TooltipTrigger로 옮긴다. 휴지통을 누른 뒤 다른 탭에서 이웃이 지워지면 포커스가 '만들기'로 간다(안전한 대체).
 
+### 성우 보관함 (T7에서 미룬 것, 2026-10-07)
+- [ ] T7-01 (P1, 기존 T4 버그, T14 전 필수) `packages/db/src/index.ts` `createDb`가 drizzle 내부 pg Pool에 `error` 처리기를 두지 않아, DB가 유휴 연결을 끊으면(컨테이너 정지, 운영 Neon 유휴 끊김) `uncaughtException: terminating connection due to administrator command`가 난다(T7 QA S11에서 12쌍). Pool을 직접 만들고 `pool.on("error", …)`로 한 줄 로그만 남긴다. C 라운드.
+- [ ] T7-02 (P3, UI) 공통 Button의 `focusableWhenDisabled` 비활성이 흐려지지 않는다(aria-disabled에 `disabled:opacity-50`이 안 먹음). '진행 중 버튼은 흐리지 않는다'(voice-problem.tsx lockedButton) 관례와 함께 정한다. 이번엔 '메모 저장'·행 별만 따로 흐림.
+- [ ] T7-03 (P3, UI) 토스트(1440×900 오른쪽 아래)가 패널의 '보관함에서 빼기'를 약 4초 가린다. 앱 전역 sonner 위치·오프셋.
+- [ ] T7-04 (P3, 동작) 1ms 안 두 번 들어온 별 클릭은 한 번만 반영된다(사람 속도 연타는 정상, QA S15).
+- [ ] T7-05 (P3, 접근성) 메모 초안이 성우를 바꾸면 경고 없이 사라진다(힌트는 있음). 동작 줄이기에서 스피너가 멈추지 않는다(앱 전역). 채널·분류 목록 상태를 그룹별로 나누지 않아 분류만 실패해도 채널 드롭다운에 실패 문구가 보인다.
+- [ ] T7-06 (테스트) Fish getVoice 403을 '없음'으로 보는 판단(키 권한 403이면 전체 이용 불가로 보일 수 있음)을 실제 계정에서 관찰한다. Typecast getVoice 401·429 매핑 단위 테스트, savedVoiceCheck checkedAt 갱신 단언, 보관함 훅(캐시 키·writeBack)의 단위 테스트는 web vitest `@/` 별칭 설정이 생기면 더한다.
+- [ ] T7-07 (DB, 규모) `saved_voice_owner_saved` 인덱스(saved_at DESC NULLS LAST)와 목록 쿼리 `desc()`(NULLS FIRST) 정렬 방향 차이. 담은 성우가 수천이 되면 쿼리를 맞춘다.
+- [ ] T7-08 (공통화, 27행 건너뜀) 보관함 검색 대기를 `useSearchCommit`으로, 상태 줄을 `ListStatusBar`로 합치려면 두 훅·컴포넌트가 타이머 취소 시점·좁은 화면 간격을 맞춰야 한다. 보관함 코드 이름(VoiceLibrary·library-*)과 '공개 라이브러리'가 헷갈린다(GLOSSARY에 한 줄 적음, 이름 변경은 후속).
+- [ ] T7-09 (T14 메모와 같음) 담기 upsert가 이미 담긴 행의 voice·source를 클라이언트 값으로 덮고 checked_at은 유지한다(소유자 한 명이라 보류). 여러 소유자면 클라이언트 voiceId로 서버 키 상세 조회 → 남의 클론 메타데이터 저장 가능성, ElevenLabs 샘플 호스트 storage.googleapis.com은 어떤 버킷이든 통과.
+- [ ] T7-10 (P3, 동작) 보관함 검색 타이머 정리 effect가 `[raw.q]` 의존이라, 0.5초 쉬고 바로 이어 친 글자의 타이머까지 지울 수 있다(목록은 맞고 주소·화면 밖 개수만 한 박자 늦음). `lastWrittenQ` ref로 이 화면이 쓴 주소와 밖에서 바뀐 주소를 가르고 biome-ignore를 없앤다.
+- [ ] T7-11 (테스트) web에 `vitest.config.ts`(`resolve.alias` `@`→`./src`)를 두어 `saved-voices.test.ts`·`class-picker.test.ts`의 `@/` 모듈별 mock을 `@/utils/orpc` 하나로 줄인다.
+
 ### UI 설계 선행 작업
 
 - [x] UI-01 지정 영상 223초 다운로드·48프레임 분석·로컬 Whisper 전사 2회, gowith153 가이드/이미지 8개와 양사/Vrew 공식 서비스 조사. 근거: docs/research/tts-video-detailed.md, gowith-ux-review.md, tts-service-comparison.md. 실 로그인 에디터/유료 생성은 미검증.

@@ -80,6 +80,26 @@ export function ReloadButton({
 	);
 }
 
+// 실패 문구 한 줄과 '다시 불러오기'(성우 보관함, 담기 칸, 분류 붙이기)
+export function ReloadRow({
+	text,
+	reloading,
+	onReload,
+}: {
+	text: string;
+	reloading: boolean;
+	onReload: () => void;
+}) {
+	return (
+		<div className="flex flex-wrap items-center gap-3">
+			<p role="status" className="text-muted-foreground text-sm">
+				{text}
+			</p>
+			<ReloadButton reloading={reloading} onReload={onReload} />
+		</div>
+	);
+}
+
 // 사유별 안내. 새로 나타나면 스크린 리더가 읽는다(role="alert").
 // compact는 '전체' 탭 묶음용 작은 상자다(아이콘 없음, 문구는 같다).
 // 조건이 시작값이 아닐 때 onClear를 받으면 '조건 모두 해제'를 함께 둔다(조건 때문에 느려진 조회에서 빠져나갈 수 있다).

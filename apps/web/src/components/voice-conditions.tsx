@@ -20,7 +20,7 @@ import {
 } from "@tts-pilot-app/ui/components/input-group";
 import { cn } from "@tts-pilot-app/ui/lib/utils";
 import { Check, ChevronDown, ListFilter, Search, X } from "lucide-react";
-import { type RefObject, useId, useState } from "react";
+import { type ReactNode, type RefObject, useId, useState } from "react";
 
 import type { Option } from "@/lib/voice-filter";
 
@@ -36,6 +36,12 @@ type ChoiceView = {
 	note?: string;
 	// 고를 값이 없는 사유(억양: 언어를 고르기 전, 억양 목록 조회 실패). 있으면 선택지가 비어도 열어서 이 한 줄을 본다
 	hint?: string;
+	// 선택지가 비었을 때 사유 아래 메뉴 항목(성우 보관함: '채널·분류에서 만들기')
+	emptyAction?: ReactNode;
+	// 선택지에 없는 값을 값 그대로 쓰지 않고 개수로 쓴다(성우 보관함: 목록을 받기 전의 채널·분류 id)
+	countUnknown?: boolean;
+	// 값 이름을 번역하지 않는다(공급자 이름, 하나 고르기의 항목과 버튼 글자)
+	translate?: "no";
 };
 type ToggleView = {
 	kind: "toggle";
@@ -61,14 +67,15 @@ const selectedLabel = (label: string, spoken: string | null) =>
 	spoken ? `${label}, ${spoken} 선택됨` : undefined;
 const menuContent = "w-auto min-w-48 p-1";
 
-// 버튼 글자와 접근 이름에 쓰는 고른 값(브리프 5절): 하나면 그 이름, 둘 이상이면 개수. 선택지에 없는 값은 값 그대로
-function pickedOf(options: Option[], selected: string[]) {
+// 버튼 글자와 접근 이름에 쓰는 고른 값(브리프 5절): 하나면 그 이름, 둘 이상이면 개수. 선택지에 없는 값은 값 그대로(countUnknown이면 개수)
+function pickedOf(options: Option[], selected: string[], countUnknown = false) {
 	const [first] = selected;
 	if (first === undefined) return null;
-	if (selected.length > 1) {
+	const label = options.find((option) => option.value === first)?.label;
+	if (selected.length > 1 || (label === undefined && countUnknown)) {
 		return { shown: String(selected.length), spoken: `${selected.length}개` };
 	}
-	const name = options.find((option) => option.value === first)?.label ?? first;
+	const name = label ?? first;
 	return { shown: name, spoken: name };
 }
 
@@ -83,9 +90,20 @@ function ChoiceMenu({
 	axis: Extract<AxisView, { kind: "single" | "multi" }>;
 	disabled: boolean;
 }) {
-	const { label, options, selected, onChange, emptyLabel, note, hint } = axis;
+	const {
+		label,
+		options,
+		selected,
+		onChange,
+		emptyLabel,
+		note,
+		hint,
+		emptyAction,
+		countUnknown,
+		translate,
+	} = axis;
 	const hintId = useId();
-	const picked = pickedOf(options, selected);
+	const picked = pickedOf(options, selected, countUnknown);
 	const empty = options.length === 0;
 	// 선택지가 비고 사유도 없으면(억양을 받는 중) 누를 수 없다
 	const locked = disabled || (empty && !hint);
@@ -121,7 +139,14 @@ function ChoiceMenu({
 					{picked ? (
 						<>
 							<span className="whitespace-pre">{" · "}</span>
-							<span className="max-w-40 truncate">{picked.shown}</span>
+							{/* 잘리면 마우스를 올려 전체 값을 본다(행 이름과 같다) */}
+							<span
+								className="max-w-40 truncate"
+								title={picked.shown}
+								translate={translate}
+							>
+								{picked.shown}
+							</span>
 						</>
 					) : null}
 				</span>
@@ -133,7 +158,10 @@ function ChoiceMenu({
 				aria-describedby={empty ? hintId : undefined}
 			>
 				{empty ? (
-					<DropdownMenuGroup>{notes}</DropdownMenuGroup>
+					<DropdownMenuGroup>
+						{notes}
+						{emptyAction}
+					</DropdownMenuGroup>
 				) : axis.kind === "multi" ? (
 					<DropdownMenuGroup>
 						{notes}
@@ -169,7 +197,11 @@ function ChoiceMenu({
 								value={option.value}
 								closeOnClick
 							>
-								{option.label}
+								{translate ? (
+									<span translate={translate}>{option.label}</span>
+								) : (
+									option.label
+								)}
 							</DropdownMenuRadioItem>
 						))}
 					</DropdownMenuRadioGroup>
@@ -298,6 +330,7 @@ export function VoiceConditions({
 	disabled,
 	selectedCount,
 	searchRef,
+	leading,
 }: {
 	search: {
 		value: string;
@@ -311,6 +344,8 @@ export function VoiceConditions({
 	disabled: boolean;
 	selectedCount: number;
 	searchRef: RefObject<HTMLInputElement | null>;
+	// 조건 묶음 맨 앞(검색 칸 뒤)에 붙는 컨트롤. 767px 이하에서는 조건과 함께 접힌다(성우 보관함의 '보기' 세 칸)
+	leading?: ReactNode;
 }) {
 	const [open, setOpen] = useState(false);
 	// 탭 내용을 숨긴 채 남기므로 조건 줄이 여럿 동시에 있다. id가 겹치지 않게 한다
@@ -397,6 +432,7 @@ export function VoiceConditions({
 						"flex-wrap gap-2 md:contents",
 					)}
 				>
+					{leading}
 					{axes.map((axis) =>
 						axis.kind === "toggle" ? (
 							<ToggleChip key={axis.key} axis={axis} disabled={disabled} />

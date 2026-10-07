@@ -10,6 +10,18 @@ import {
 
 // '채널·분류' 화면의 세 묶음. 채널은 channel 표, 카테고리·타입은 classification 표의 kind다(T6 스펙 3절)
 export type Group = "channel" | ClassificationKind;
+export const GROUPS = ["channel", "category", "type"] as const;
+export type Named = { id: string; name: string };
+
+// 채널 목록과 분류 목록(카테고리·타입이 섞임)을 그룹별로 나눈다
+export const groupLists = (
+	channels: readonly Named[],
+	classes: readonly (Named & { kind: ClassificationKind })[],
+): Record<Group, readonly Named[]> => ({
+	channel: channels,
+	category: classes.filter((entry) => entry.kind === "category"),
+	type: classes.filter((entry) => entry.kind === "type"),
+});
 
 // 그룹 이름과 조사. 받침 유무가 그룹마다 달라 붙인 꼴을 둔다. 예시는 브리프 5절의 빈 상태 둘째 줄이다
 export const GROUP_TEXT: Record<

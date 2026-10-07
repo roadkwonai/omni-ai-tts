@@ -10,7 +10,7 @@ import { Info } from "lucide-react";
 import { Fragment, useState } from "react";
 
 import { PROVIDER_LABEL, toView } from "@/lib/connection-view";
-import { orpc } from "@/utils/orpc";
+import { orpc, QUIET } from "@/utils/orpc";
 
 import { LoopbackNotice } from "./notice";
 import { ProviderStatusCard, STATUS_LABEL } from "./provider-status-card";
@@ -74,12 +74,10 @@ export function ConnectionStatus() {
 				staleTime: 5 * 60 * 1000,
 				// 데이터 없이 실패한 결과(소유자 없음 포함)도 캐시에 있는 동안 다시 열 때 그대로 쓴다(기본값이면 마운트 때 다시 불러 잠깐 확인 실패 카드가 보인다).
 				retryOnMount: false,
-				// 루프백으로만 붙으니 브라우저 offline 판단으로 조회를 멈추지 않는다(멈추면 버튼과 스켈레톤이 그대로 남는다).
-				networkMode: "always",
-				retry: false,
 				refetchOnWindowFocus: false,
 				refetchOnReconnect: false,
-				meta: { toast: false },
+				// 브라우저 offline 판단으로 조회를 멈추면 버튼과 스켈레톤이 그대로 남는다
+				...QUIET,
 			}),
 		),
 	});

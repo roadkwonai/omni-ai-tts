@@ -9,8 +9,10 @@ import type {
 	ProviderId,
 	ProviderStatusResult,
 	RemainingQuota,
+	Voice,
 	VoiceListInput,
 	VoiceListPage,
+	VoiceSource,
 } from "./contract";
 import { remainingQuotaSchema } from "./contract";
 import type {
@@ -79,6 +81,17 @@ export class ProviderHttpError extends Error {
 	}
 }
 
+// 조회가 그 상태(404 등)로 실패하면 '없음'(null), 그 밖의 오류는 그대로 던진다
+export const nullOnStatus = <T>(
+	run: Promise<T>,
+	...statuses: number[]
+): Promise<T | null> =>
+	run.catch((error: unknown) => {
+		if (error instanceof ProviderHttpError && statuses.includes(error.status))
+			return null;
+		throw error;
+	});
+
 export type CheckOutcome = {
 	status: "connected" | "quota";
 	quota: RemainingQuota;
@@ -96,6 +109,14 @@ export type ProviderClient = {
 	synthesize?(request: TrialRequest): Promise<Uint8Array>;
 	// ElevenLabs만: 모델별 크레딧 배율(T5 예상 사용량)
 	listModels?(): Promise<TrialModelRate[]>;
+	// 성우 한 명 다시 조회(T7 보관함 이용 가능 확인). null은 공급자가 '없다'고 답한 것(현재 이용 불가)이고,
+	// 공급자 문제는 목록과 같은 providerError다. 읽기 호출이라 과금 문구가 없다(조사 2026-10-07)
+	// preferred는 ElevenLabs 행 샘플 언어(담을 때 고른 언어를 지킨다, 계획 리뷰 E14). 다른 공급자는 무시한다
+	getVoice?(
+		source: VoiceSource,
+		voiceId: string,
+		preferred?: string | null,
+	): Promise<Voice | null>;
 };
 
 export const CHECK_TIMEOUT_MS = 10_000;

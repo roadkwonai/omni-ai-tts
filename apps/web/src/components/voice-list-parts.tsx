@@ -20,6 +20,7 @@ import {
 
 import { PROVIDER_LABEL } from "@/lib/connection-view";
 import { agoText, receivedText } from "@/lib/voice-view";
+import { QUIET } from "@/utils/orpc";
 
 import {
 	cooldownText,
@@ -32,12 +33,10 @@ export const LIST_QUERY = {
 	// 받은 목록은 탭을 닫을 때까지 쓴다. 서버 목록 캐시(24시간)가 따로 있어 새로 고침해도 공급자를 부르지 않는다(AC11)
 	staleTime: Number.POSITIVE_INFINITY,
 	gcTime: Number.POSITIVE_INFINITY,
-	retry: false,
 	retryOnMount: false,
 	refetchOnWindowFocus: false,
 	refetchOnReconnect: false,
-	networkMode: "always",
-	meta: { toast: false },
+	...QUIET,
 } as const;
 
 // 검색어 보내기(스펙 6절 6): 입력이 0.5초 멈추거나 Enter(submit)일 때 onCommit을 부른다.
