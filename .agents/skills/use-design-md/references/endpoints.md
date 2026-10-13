@@ -12,11 +12,20 @@ GET https://www.getdesign.kr/llms.txt
 llms.txt format — a header plus one markdown link per entry:
 
 ```
-- [<name>](https://www.getdesign.kr/services/<slug>/llms.txt): <category> — <tagline>
+- [<name>](https://www.getdesign.kr/services/<slug>/llms.txt): <category>[ · <design system name>] — <tagline>
 ```
 
-Use it to resolve a brand name to a slug and to browse by category. It is generated
-server-side from the live catalog, so it is always current.
+` · <design system name>` is present only when the entry publishes one. The metadata
+starts right after the link and its `: `. Find the link's end by its structure, not by
+searching for `): `: `[` and `]` inside the name are escaped (below), so the first
+unescaped `]` closes the name, and `(<url>): ` follows it. The metadata ends at the first
+` — ` after that: a tagline is prose and may contain ` — ` itself, so split there, not at
+the last one. `[`, `]` and `\` in both the name and the design-system name are
+backslash-escaped (`\[` `\]` `\\`); unescape them before comparing with what the user
+typed.
+
+Use it to resolve a brand or design-system name to a slug and to browse by category.
+It is generated server-side from the live catalog, so it is always current.
 
 ## 2. Single entry (fetch)
 
@@ -43,8 +52,10 @@ The same bytes as §2, under the filename Google's published DESIGN.md spec uses
 (`github.com/google-labs-code/design.md`, spec `alpha`). The entry file is itself a
 spec document — `colors` / `typography` / `spacing` / `rounded`
 maps and shadows under `elevation:` in YAML frontmatter, no yaml fence in the body
-(motion tokens and component specs sit in `text` fences, readable but outside the
-token model). Use this URL when a tool expects the standard filename — Stitch, the
+(motion tokens and full component specs sit in `text` fences, readable but outside the
+token model). Newer entries also carry their components in the spec's `components:`
+map — only the spec's eight properties, as references and `px`/`em`/`rem` values — so
+standard tools read that part; the sidecar and the Tokens tab do not carry it. Use this URL when a tool expects the standard filename — Stitch, the
 official `design.md` CLI. The catalog's own frontmatter keys (`slug`, dates,
 `logo`) ride along; the linter ignores them.
 
