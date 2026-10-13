@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { trialCreateInputSchema, trialRequestSchema } from "./trial-contract";
+import {
+	trialCreateInputSchema,
+	trialRequestSchema,
+	usageSchema,
+} from "./trial-contract";
 import {
 	comboSignature,
 	DEFAULT_SETTINGS,
@@ -95,5 +99,50 @@ describe("trialRequestSchema", () => {
 				request: { ...el, settings: {} },
 			}).success,
 		).toBe(false);
+	});
+});
+
+describe("Gemini 설정(T7.6 스펙 2절)", () => {
+	const base = {
+		provider: "gemini",
+		voiceId: "ko-kr-advisor-1",
+		text: "안녕하세요",
+	} as const;
+
+	it("기본값과 말투 지시 앞뒤 공백 정리", () => {
+		expect(
+			trialRequestSchema.parse({ ...base, settings: {} }).settings,
+		).toEqual({
+			model: "gemini-3.8-flash-tts",
+			direction: "",
+		});
+		expect(
+			trialRequestSchema.parse({ ...base, settings: { direction: "  calm  " } })
+				.settings,
+		).toEqual({ model: "gemini-3.8-flash-tts", direction: "calm" });
+	});
+
+	it("모델 범위 밖·말투 지시 101자·줄바꿈은 거절하고 100자는 받는다", () => {
+		for (const settings of [
+			{ model: "gemini-3.1-flash-tts-preview" },
+			{ direction: "a".repeat(101) },
+			{ direction: "a\nb" },
+		])
+			expect(trialRequestSchema.safeParse({ ...base, settings }).success).toBe(
+				false,
+			);
+		expect(
+			trialRequestSchema.safeParse({
+				...base,
+				settings: { direction: "a".repeat(100) },
+			}).success,
+		).toBe(true);
+	});
+
+	it("사용량 단위 usd_micro를 받는다", () => {
+		expect(usageSchema.parse({ unit: "usd_micro", amount: 225 })).toEqual({
+			unit: "usd_micro",
+			amount: 225,
+		});
 	});
 });

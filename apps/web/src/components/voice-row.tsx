@@ -32,9 +32,12 @@ import {
 } from "@/lib/trial-view";
 import {
 	badgesOf,
+	geminiTagline,
 	metaLine,
+	nameParts,
 	pillsOf,
 	sampleAriaLabel,
+	sampleKindOf,
 	secondaryLines,
 	voiceKey,
 } from "@/lib/voice-view";
@@ -243,6 +246,9 @@ export function VoiceRow({
 				narrowRest: 0,
 			};
 	const secondary = secondaryLines(voice);
+	// Gemini는 보조 정보가 없어 그 칸에 설명 첫 마디를 둔다(critique P1). 칸이 숨는 좁은 폭에서는 이름 끝 번호가 구별을 맡는다
+	const tagline = secondary.length === 0 ? geminiTagline(voice) : null;
+	const name = nameParts(voice.name);
 	const badges = saved?.unavailable
 		? [LIBRARY_TEXT.unavailable, ...badgesOf(voice)]
 		: badgesOf(voice);
@@ -274,7 +280,7 @@ export function VoiceRow({
 		>
 			<SampleButton
 				status={url === null ? "none" : status}
-				subject={`${voice.name} 기본 샘플`}
+				subject={`${voice.name} ${sampleKindOf(voice)}`}
 				onToggle={url === null ? undefined : () => toggle(url, voice.name, url)}
 				tabIndex={playTabbable ? 0 : -1}
 			/>
@@ -287,8 +293,9 @@ export function VoiceRow({
 				aria-labelledby={`${id}-name`}
 				aria-describedby={`${id}-detail`}
 				aria-controls={panelId}
-				// 이름이 잘리면 마우스를 올려 전체 이름을 본다. 행을 덮는 after 덮개가 안쪽 span 위에 그려지므로 버튼에 둔다(접근 이름은 aria-labelledby가 앞선다)
-				title={voice.name}
+				// 이름이 잘리면 마우스를 올려 전체 이름을 본다. 행을 덮는 after 덮개가 안쪽 span 위에 그려지므로 버튼에 둔다(접근 이름은 aria-labelledby가 앞선다).
+				// Gemini 설명 첫 마디도 잘리므로 같은 자리에서 다음 줄로 본다
+				title={tagline ? `${voice.name}\n${tagline}` : voice.name}
 				ref={selectRef}
 				tabIndex={tabbable === 1 || (tabbable === 0 && url === null) ? 0 : -1}
 				onClick={(event) => onSelect(voice, event.currentTarget)}
@@ -296,8 +303,19 @@ export function VoiceRow({
 			>
 				<span className="flex min-w-0 flex-1 flex-col gap-0.5">
 					<span className="flex min-w-0 items-baseline gap-1.5">
-						<span id={`${id}-name`} className="truncate font-bold">
-							{voice.name}
+						{/* 이름 끝 번호는 말줄임에서 빼 늘 보인다(critique P1). 두 span이 같은 id 안이라 접근 이름은 전체 이름이다 */}
+						<span
+							id={`${id}-name`}
+							className={cn("font-bold", name ? "flex min-w-0" : "truncate")}
+						>
+							{name ? (
+								<>
+									<span className="truncate">{name.body}</span>
+									<span className="shrink-0 whitespace-pre">{` ${name.number}`}</span>
+								</>
+							) : (
+								voice.name
+							)}
 						</span>
 						{/* 영문 이름은 남는 자리만 쓴다(basis 0, 내용 너비까지). 좁은 행에서 이름보다 먼저 줄어든다(audit P2-1) */}
 						{voice.englishName ? (
@@ -398,6 +416,7 @@ export function VoiceRow({
 								? `, ${own ? "내 분류" : "공급자 분류"}: ${pills.all.join(", ")}`
 								: ""}
 							{secondary.length > 0 ? `, ${secondary.join(", ")}` : ""}
+							{tagline ? `, ${tagline}` : ""}
 							{badges.length > 0 ? `, ${badges.join(", ")}` : ""}
 						</span>
 						{status === "failed" ? (
@@ -424,6 +443,14 @@ export function VoiceRow({
 							{secondary.map((line) => (
 								<span key={line}>{line}</span>
 							))}
+						</span>
+					) : null}
+					{tagline ? (
+						<span
+							aria-hidden="true"
+							className="max-w-full truncate text-muted-foreground text-sm"
+						>
+							{tagline}
 						</span>
 					) : null}
 					{badgeList("flex max-w-full flex-wrap justify-end gap-1")}

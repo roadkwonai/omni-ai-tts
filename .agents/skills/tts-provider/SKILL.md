@@ -1,10 +1,10 @@
 ---
 name: tts-provider
 description: >-
-  TTS Pilot에서 Typecast·ElevenLabs·Fish Audio·Airy 공급자 연동을 만들거나 바꾸거나 검토하거나 실제로 호출해 확인할 때
+  TTS Pilot에서 Typecast·ElevenLabs·Fish Audio·Airy·Gemini 공급자 연동을 만들거나 바꾸거나 검토하거나 실제로 호출해 확인할 때
   사용한다. 성우 카탈로그와 기본 샘플, 음성 생성과 시험 생성, 클론 보이스 만들기·삭제, 공급자별 모델과 생성 옵션,
   예상 사용량과 요금 표시, 공급자 오류(키, 잔액, 429, 타임아웃)와 중복 과금, 오디오 업로드·다운로드·재생, 공급자
-  API 키를 다룬다. TTS 붙여줘, 음성 생성 API, 성우 목록 불러오기, 내 보이스 클론, ElevenLabs·Typecast·Fish Audio·Airy
+  API 키를 다룬다. TTS 붙여줘, 음성 생성 API, 성우 목록 불러오기, 내 보이스 클론, ElevenLabs·Typecast·Fish Audio·Airy·Gemini
   연결, 생성 버튼, 크레딧이 두 번 빠졌어요, 실제로 생성해서 들어봐 같은 요청에 사용한다. 프로시저와 소유권 일반
   규칙은 prokit-api, 테이블은 prokit-db, 화면은 prokit-web·prokit-ui와 함께 읽는다.
 ---
@@ -14,7 +14,7 @@ description: >-
 정본은 다음과 같다. 이 스킬은 `prokit-api`·`prokit-db`·`prokit-web` 위에 공급자 연동에만 있는 규칙을 더한다.
 - 결정: `docs/adr/0002-orpc-only-api.md`. 공급자 호출은 `packages/api`의 TypeScript로 하고 Python 서비스는 두지 않는다.
 - 요구사항: `docs/plans/tts-service-requirements.md`(REQ-01~13)와 `tasks/todo.md`의 P0 항목
-- 공급자 계약: `docs/research/<typecast|elevenlabs|fish-audio|airy>-api-options.md`
+- 공급자 계약: `docs/research/<typecast|elevenlabs|fish-audio|airy|gemini-tts>-api-options.md`
 - 용어: `GLOSSARY.md`
 
 ## 먼저
@@ -25,7 +25,7 @@ description: >-
 ## 구조
 - 공급자 호출은 `packages/api/src/providers/<공급자>.ts`에만 둔다. 프로시저(`routers/`)는 이 모듈을 부르고 SDK를 직접 부르지 않는다.
 - 공급자 공통 계약(성우, 생성 요청과 결과, 오류)은 zod로 한 번 정의해 화면까지 쓴다. 계약은 SDK나 서버 모듈을 import하지 않는 파일(`providers/contract.ts`)에 두어 클라이언트 번들에 공급자 모듈이 딸려 가지 않게 한다.
-- Typecast와 ElevenLabs는 공식 SDK(`@neosapience/typecast-js`, `@elevenlabs/elevenlabs-js`)를 쓴다. Fish Audio·Airy는 REST를 `fetch`로 직접 부른다(ADR 0002). Airy 호스트는 `https://api.airy.so` 고정, 키는 `Authorization: Bearer`.
+- Typecast와 ElevenLabs는 공식 SDK(`@neosapience/typecast-js`, `@elevenlabs/elevenlabs-js`)를 쓴다. Fish Audio·Airy·Gemini는 REST를 `fetch`로 직접 부른다(ADR 0002). Airy 호스트는 `https://api.airy.so` 고정, 키는 `Authorization: Bearer`. Gemini 호스트는 `https://generativelanguage.googleapis.com` 고정, 키는 `x-goog-api-key` 헤더다. SDK `@google/genai`는 쓰지 않는다(기본 5회 시도·연결 오류 재시도·`GOOGLE_API_KEY`/`GEMINI_API_KEY` 환경변수 대체).
 - 단, ElevenLabs 성우 목록·억양 조회는 REST로 부른다. SDK가 응답 전체를 한 번에 검사해(`parseOrThrow`) 성우 하나의 빠진 필드가 목록 전체를 막기 때문이다(T4). 키는 `xi-api-key` 헤더, 호스트는 `https://api.elevenlabs.io`로 고정한다.
 - 키는 `apps/web/.env.schema`에 `@sensitive`로 선언된 값을 varlock `ENV`로 읽는다. 공급자 클라이언트는 소유자가 있는 요청마다 `apps/web/src/context.ts`가 `createProviders(키)`(`packages/api/src/providers/index.ts`)로 만들어 context의 `providers`로 넘긴다. 요청마다 만들어 `.env`의 키 교체가 반영된다. 소유자가 없는 요청에는 만들지 않는다. 루프백 요청이면 `publicProcedure`의 context에도 `providers`가 들어 있으므로 `publicProcedure`에서 `context.providers`를 쓰지 않는다. `packages/api`에서 `process.env`를 읽지 않는다.
 - SDK 생성자에는 키와 공식 호스트를 명시적으로 넘긴다. 두 SDK는 인자가 없으면 `process.env`(`TYPECAST_API_KEY`·`TYPECAST_API_HOST`·`ELEVENLABS_API_KEY`)로 조용히 대체한다. 키가 없으면 클라이언트를 만들지 않고 그 공급자를 "연결 안 됨"으로 처리한다.
@@ -62,6 +62,8 @@ description: >-
 | 타임아웃, 연결 끊김 | `GATEWAY_TIMEOUT` | `unknown_outcome` |
 
 - Airy는 본문 `error.code`만 읽는다(`airyCodes`). 403 `account_banned`는 `provider_auth`다. 입력 거절 화면 문구는 공급자 코드를 보이지 않는다.
+- Gemini(Google)는 본문의 `details[].reason`·`status`(Voices), 문자열 `code`(Interactions, 대문자로 바꿔 같은 표로 본다)를 읽는다(`geminiCodes`). `API_KEY_INVALID`(틀린 키, 400) → `provider_auth`, 400 `FAILED_PRECONDITION` → `quota`(실측 전 잠정), 403 `PERMISSION_DENIED` → `no_permission`이다(`reasonFromHttp`, `PERMISSION_CODES`).
+- Gemini 429에 `Retry-After`가 없거나 읽을 수 없으면(0, HTTP 날짜) 60초 대기로 본다(`gemini.ts`의 `waitDefault`, Gemini만. 본문 `RetryInfo` 파싱은 백로그 T76-06). RIFF/WAVE 머리말이 맞는 오디오가 있는 200 응답은 `status`와 상관없이 쓴다(받은 오디오를 버리면 다시 만들어 두 번 과금된다). 오디오 없는 200은 `status`가 `failed`면 `provider_input`, 그 밖은 `unknown_outcome`이다. 틀린 단계(`steps` 원소)는 건너뛰고 남은 단계에서 오디오를 찾는다.
 - 판정은 `packages/api/src/providers/errors.ts`의 `reasonFromHttp`가 한다. SDK 오류는 `ProviderHttpError`(상태 코드, 공급자 오류 코드, `Retry-After`)로 바꿔 담는다. 로그에는 허용한 오류 코드·공급자·정규화된 사유 또는 검증 필드 경로만 남긴다. 문장, SQL, 연결 문자열, 키, SDK 오류 객체와 cause, 응답 본문·헤더, 오류 메시지는 로그에 남기지 않는다.
 - 연결 확인(`providerStatus`)은 던지지 않고 연결 상태 값으로 돌려준다(`runCheck`). 입력 거절(400·422)과 표에 없는 상태는 `check_failed`다. 이 확인의 시간 초과·연결 끊김은 `unknown_outcome`이 아니라 `check_failed`다. 상태를 바꾸지 않는 조회라 처리 여부를 따질 필요가 없다.
 - 목록·생성처럼 결과가 필요한 호출은 `runList`처럼 사유를 붙여 던진다(`providers/errors.ts`). 목록 조회의 시간 초과·연결 끊김은 T3 스펙 4절대로 `GATEWAY_TIMEOUT`·`unknown_outcome`(화면 문구 '응답하지 않아요')이고, 응답 검증 실패는 `provider_error`다.
@@ -76,11 +78,13 @@ description: >-
 - 429 `Retry-After`(1시간 상한)는 `provider_cooldown` 표에 적고, 그 전에는 부르지 않는다. '목록 새로 고침'(`voiceListRefresh`)도 대기 중이면 아무것도 바꾸지 않고 시각만 돌려준다.
 - 목록 조회는 서버(`runList`)·화면(`LIST_QUERY`의 `retry: false`) 모두 자동 재시도하지 않는다. 다시 부르는 것은 사용자가 누를 때뿐이다.
 - Fish Audio 목록의 시간 제한은 20초다(그 밖의 목록·연결 확인은 10초).
-- 샘플 주소 허용 호스트는 넷이다: Typecast `*.typecast.ai`, ElevenLabs `storage.googleapis.com`·`*.elevenlabs.io`, Fish Audio `*.fish.audio`, Airy `assets.airy.so`(정확히 하나). 샘플은 주소가 같으면 처음 것만 남긴다(화면 패널의 key가 주소다).
+- 샘플 주소 허용 호스트는 다섯이다: Typecast `*.typecast.ai`, ElevenLabs `storage.googleapis.com`·`*.elevenlabs.io`, Fish Audio `*.fish.audio`, Airy `assets.airy.so`(정확히 하나), Gemini `docs.cloud.google.com`(정확히 하나, 경로 접두 `/text-to-speech/docs/audio/`도 본다). 판정은 `isSampleUrl`(`providers/sample-hosts.ts`)이 호스트+경로로 하고(담기 검사 기준. 목록 변환은 호스트만 본다, T76-12) 포트·사용자 정보가 붙은 주소는 모든 공급자에서 거절한다. 샘플은 주소가 같으면 처음 것만 남긴다(화면 패널의 key가 주소다).
 - Fish Audio 목록은 `svc`·학습 전·삭제 요청 성우를 응답에서 거르고, 여러 태그·언어는 반복 키이며 모두 포함(AND)이다. 공개 출처는 `visibility`가 `public`인 성우만 보인다. 공용 공개 캐시 행에 워크스페이스 비공개 성우가 섞이지 않게 하려는 것이다.
 - 입력 상한: 조건 배열 40개(화면 선택지 최대치보다 크게), 조건 값 40자(`[A-Za-z0-9_-]`), 검색어 100자. Fish Audio 페이지는 1~10(조건마다 1,000명)이다.
 - Airy 목록은 공식 `GET /v1/voices`(키)와 공개 카탈로그 `GET /v1/studio/voices`(키 보내지 않음, 문서 없음)를 함께 부르고 id로 샘플(한국어 → 영어)을 붙인다. 카탈로그는 `withTimeout` 8초로 끊고, 실패하면 목록은 그대로 두고 `[voiceList] airy 샘플 카탈로그 실패: <오류 이름>` 한 줄만 남긴다.
 - 카탈로그 실패 목록도 24시간 공용 캐시에 남는다. 화면은 모든 성우에 샘플이 없으면 '목록 새로 고침'을 안내하고(`samplesMissing`), 새로 고침이 회복한다(U1).
+- Gemini 목록은 `GET /v1beta/voices`를 `type=prebuilt`로 `language_code=ko-KR`(한국어 성우 117명)과 `en-US`(대표 30명만 고정 id로 고름, 목록은 215명)를 함께 부른다(`page_size=1000`, 다음 페이지 토큰은 따라가지 않는다). 맞춤 성우(디자인·복제)가 공용 캐시에 섞이지 않게 `type`을 빼지 않는다. 한국어 목록이 비면 `provider_error`로 지난 목록을 쓴다. 키가 틀렸는지만 보는 연결 확인은 `ko-KR` 1명 조회이고 잔액 조회 API가 없어 연결 상태 `quota`는 null이다.
+- Gemini 대표 성우에는 Google Cloud 문서의 Chirp 3 HD 한국어 참고 음성(`docs.cloud.google.com/text-to-speech/docs/audio/ko-KR-Chirp3-HD-<이름>.wav`, 이름 첫 글자 대문자)을 붙인다. Gemini 소리가 아니라 같은 이름의 다른 모델 음성이고 문서 자산이라 바뀔 수 있다(GLOSSARY '참고 음성'). 한국어 성우에는 샘플이 없다.
 - ElevenLabs 목록·억양은 `fetchJson`(`providers/errors.ts`)으로 부른다. 리다이렉트를 따라가지 않고(`redirect: "error"`), 실패하면 상태 코드·공급자 오류 코드·`Retry-After`만 바꿔 담는다.
 
 ## 성우 한 명 조회 (T7 보관함 이용 가능 확인)
@@ -88,6 +92,7 @@ description: >-
 - "없음"은 `errors.ts`의 `nullOnStatus`로 판정한다. Typecast·ElevenLabs는 404만이다. Fish Audio는 403·404와, 응답이 왔어도 `fishVoice`가 `null`인 성우(학습 전·삭제 요청·공개 출처인데 비공개)다. 그 밖의 오류는 `runList`의 목록 매핑(401·403 → `provider_auth`·`no_permission`, 429 → `rate_limit`, 5xx → `provider_error`, 시간 초과 → `unknown_outcome`)을 그대로 따른다.
 - ElevenLabs 공개 라이브러리 성우(`source: "public"`)는 한 명 조회 방법이 공식 문서에 없어 확인하지 않는다. 라우터가 확인 대상에서 빼고, 공급자 모듈은 불러도 `provider_error`로 거절한다. 계정에 추가하는 호출(`POST /v1/voices/add/…`)은 계정 상태를 바꾸므로 쓰지 않는다. 계정 성우는 REST `GET /v1/voices/{id}`로 부르고 담을 때 고른 샘플 언어(`preferred`)를 지킨다.
 - 라우터가 이 오류를 다루는 규칙: `rate_limit`이면 대기 시각(`Retry-After`가 없으면 60초. Typecast SDK는 헤더를 주지 않는다)을 `provider_cooldown`에 적고 그 공급자를 멈춘다. `provider_auth`·`no_permission`·`quota`면 기록 없이 그 공급자를 멈춘다. 5xx·시간 초과는 그 행을 그대로 둔다.
+- Gemini는 미리 만든 성우 단건 조회(`GET /v1beta/voices/{id}`)가 대소문자 모두 404라 목록에서 찾는다(Airy와 같다). 클라이언트 하나(요청 하나)에 목록은 한 번만 부르고, 없으면 null이다.
 - Airy는 한 명 조회 호출이 없어 목록에서 찾는다. 목록 약속을 클라이언트 하나(요청 하나)에 한 번만 만든다. 없으면 null. 카탈로그만 실패한 확인에서는 저장한 샘플이 비워진다(백로그 T7.5-02).
 - 시험 생성·생성의 voice id 허용 검사("클론 보이스" 절)도 이 호출을 쓸 수 있다. Typecast 단건 조회는 `voice_type`을 거르지 않고, Fish Audio는 공개 출처에서만 `visibility`를 거른다.
 
@@ -109,12 +114,14 @@ description: >-
 - 클론 원본은 공급자 권장 길이(Fish Audio 1~2분)의 WAV면 4.5MB를 넘기 쉽다. 브라우저 녹음은 `MediaRecorder`의 압축 형식을 쓰되 공급자가 받는 형식인지 research 문서로 확인한다.
 - 서버를 거치지 않는 업로드가 필요하면 ADR로 정한다. 업로드 토큰을 주는 라우트는 세션과 소유자 제한을 검사하고 크기·형식 상한을 건다. 원본은 비공개 접근, 사용자별 경로에 둔다. 서버는 자신이 기록한 경로로만 원본을 읽고, 클라이언트가 준 URL을 가져오지 않는다. `apps/web/src/app/api/` 아래에 두면 `authPaths`가 security 리뷰 행을 붙이고, 그 밖에 두면 대조표에 직접 추가한다. 로그인(T14) 전에 만든다면 `AGENTS.md`의 로컬 관리자 모드 'Route Handler 금지' 예외를 그 ADR에 적는다.
 - 업로드는 서버에서 크기, 형식(파일 앞 바이트), 길이를 다시 검사한다(REQ-13).
+- Gemini 출력은 WAV뿐이다(24kHz 모노 16비트, 1분 약 2.88MB라 4 MiB 상한이 약 87초). 생성 기록의 `audio_type`(`audio/wav`·`audio/mpeg`)으로 파일 형식을 정한다(`audioTypeOf`, 저장본과 `trialAudio`의 `File`). 요청 본문은 `store: false`로 공급자가 요청·응답을 저장하지 않게 하고 말투 지시는 대본이 아니라 `annotations`의 `speech_metadata.style`로 보낸다.
 - SDK의 오디오 인자에는 바이트(`Uint8Array`, `Blob`, `File`)만 넘긴다. Typecast SDK의 `cloneVoice`는 문자열을 서버 파일 경로로 읽어 업로드하므로 입력 문자열이 닿으면 서버 파일이 공급자에게 나간다.
 - 긴 대본 결합과 ffmpeg 후처리는 P1-04 범위다(ADR 0002: Blob과 백그라운드 작업). P0에서 미리 만들지 않는다.
 
 ## 사용량 표시 (REQ-11)
 - 예상 사용량 단위는 공급자마다 다르다. Typecast·ElevenLabs는 글자 수, Fish Audio는 UTF-8 바이트다(서버 `Buffer.byteLength(text, "utf8")`, 브라우저 `new TextEncoder().encode(text).length`). 한글은 대부분 한 글자가 3바이트다. 교정을 반영한 발음용 대본으로 계산한다.
 - Airy는 크레딧 = 코드 포인트 × 1.5(ko) 또는 × 1(en), 올림(`AIRY_CREDITS_PER_CHAR`). 확인 창 근거 '(Airy 요금 기준: 한국어 1글자 1.5크레딧)'. 근거는 고른 언어를 따른다(영어는 '영어 1글자 1크레딧'). 남은 크레딧은 소수 한 자리 버림(`creditNumber`).
+- Gemini는 출력 오디오 토큰(초당 25)으로 과금되어 생성 전 금액은 추정이다. 가정한 말 빠르기(1초 5글자, 로컬 실측 5.4~8.3글자/초 가운데 느린 쪽, `GEMINI_CHARS_PER_SECOND`)로 길이(올림, 최소 1초)를 어림하고, 근거와 함께 '추정 약 $…'로 보인다(0.0001달러 단위 올림, 기록은 `usd_micro` = 백만분의 1달러 정수). 단가는 모델별 100만 토큰당 Flash $9·Flash-Lite $6이고 2027-01-01 0시 KST부터 두 배다(`geminiUsdPerMillion`). 입력 텍스트 요금은 빼고, 실제 사용량(`usage`)은 T9에서 본다. 잔액 조회 API가 없어 연결 상태 `quota`는 null이다.
 - 금액은 공급자 문서에 근거가 있을 때만 출처와 함께 보여 준다. 예상치와 공급자가 돌려준 실제 사용량을 구분한다.
 
 ## 화면 (`prokit-web`, `prokit-ui`와 함께)
@@ -129,6 +136,8 @@ description: >-
 |---|---|---|
 | `@elevenlabs/elevenlabs-js` | 2.70.0 | 기본 `maxRetries` 2, 408·429·5xx 재시도(요청 옵션 `maxRetries: 0`으로 끈다). 키가 없으면 `process.env.ELEVENLABS_API_KEY`, 그래도 없으면 생성자가 예외. 요청 옵션 `maxRetries`·`abortSignal`·`timeoutInSeconds`(기본 240초). 네트워크 오류는 `errors/handleNonStatusCodeError.js` 경로에서 `statusCode` 없는 `ElevenLabsError`로 던질 수 있다. 프로젝트는 합성마다 `maxRetries: 0`, 60초 `AbortSignal`, fetch `redirect: "error"`를 적용한다. `undefined` 필드는 SDK 직렬화 때 `null`이 되므로 요청에서 생략한다. 구독 조회 `user.subscription.get()`과 voice 목록은 응답 전체를 검사한다. HTTP는 호출 시점의 전역 `fetch` |
 | `@neosapience/typecast-js` | 0.4.15 | 키가 없으면 `process.env.TYPECAST_API_KEY`(없어도 헤더 없이 요청), 호스트는 `TYPECAST_API_HOST`. 생성자 `{ apiKey, baseHost, source, generatedBy }`에서 `source`와 `generatedBy`는 함께 줘야 하고 형식이 틀리면 생성자가 예외(연동 식별은 `source: "api-docs"`, `generatedBy: "codex"`). SDK에는 시간 제한·취소·재시도·응답 검증이 없다. 구독 조회 `getMySubscription()`. HTTP 오류는 `TypecastAPIError`(`statusCode`, `response`)이고 응답 헤더가 없어 `Retry-After`를 읽지 못한다. 프로젝트는 설치본 fetch를 `redirect: "error"`로 패치했다. T5 대기 종료 뒤에도 공급자 요청은 계속될 수 있다. SDK는 TTS `seed`를 보내지 않는다. 한 명 조회 `getVoiceV3(voiceId)`(`GET /v3/voices/{id}`, 경로에 `encodeURIComponent`)는 시간 제한·취소·재시도가 없어 `runList`의 10초 경주로만 끊는다. 404는 `TypecastAPIError.statusCode`로 오고 헤더가 없어 429의 `Retry-After`는 읽지 못한다(2026-10-07) |
+
+`@google/genai` 2.27.0은 쓰지 않는다(research 12절).
 
 판을 올리면 이 표를 다시 확인한다.
 

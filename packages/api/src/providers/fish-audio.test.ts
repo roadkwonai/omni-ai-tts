@@ -271,6 +271,8 @@ describe("Fish Audio 목록", () => {
 				gender: null,
 				age: null,
 				accent: null,
+				pitch: null,
+				personas: [],
 				useCases: [],
 				descriptives: [],
 				tags: ["Korean", "female", "young", "narration", "calm"],

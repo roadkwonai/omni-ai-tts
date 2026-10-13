@@ -114,7 +114,7 @@ export function TypecastVoiceList({
 	);
 
 	// 인원 글자 옆 링크 버튼 하나: 조건이 있으면 '조건 모두 해제', 조건 없이 '한 목록으로 보기'로 왔으면 '콘텐츠별로 보기', 그 밖은 '한 목록으로 보기'.
-	// 탭 '전체'(네 공급자)와 겹치지 않는 이름이다(재확인 critique 2026-10-05)
+	// 탭 '전체'(다섯 공급자)와 겹치지 않는 이름이다(재확인 critique 2026-10-05)
 	const link: { label: string; ariaLabel?: string; onClick: () => void } =
 		active
 			? { label: "조건 모두 해제", onClick: clearAll }
@@ -138,13 +138,8 @@ export function TypecastVoiceList({
 			}}
 			axes={axes}
 			selectedCount={selectedCount}
-			countText={
-				data === undefined
-					? "Typecast 성우"
-					: filtered
-						? `Typecast 성우 ${count(all.length)} 중 ${count(results.length)}`
-						: `Typecast 성우 ${count(all.length)}`
-			}
+			matched={results.length}
+			filtered={filtered}
 			extra={
 				<Button
 					variant="link"

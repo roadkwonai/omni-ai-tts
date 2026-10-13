@@ -3,10 +3,14 @@ import type { Voice } from "@tts-pilot-app/api/providers/contract";
 import {
 	DEFAULT_SETTINGS,
 	FISH_FREE_UNTIL,
+	GEMINI_PRICE_UP_AT,
+	type GeminiSettings,
+	type TrialRequest,
 } from "@tts-pilot-app/api/providers/trial-options";
 import { describe, expect, it } from "vitest";
 
 import {
+	costCopy,
 	dataNote,
 	modelOptionsOf,
 	needsConfirm,
@@ -18,6 +22,7 @@ import {
 	resultSubject,
 	resultWhen,
 	settingsSummary,
+	type TrialProblem,
 	trialAriaLabel,
 	trialBlock,
 	trialFailureOf,
@@ -380,6 +385,168 @@ describe("오류", () => {
 		);
 		expect(text("audio_too_large")).toBe(
 			"결과 오디오가 너무 커요. 문장을 줄이거나 속도를 올려 주세요",
+		);
+	});
+});
+
+describe("Gemini 요청과 모델 선택지(T7.6)", () => {
+	const gemini = voice({ provider: "gemini", voiceId: "kore", name: "Kore" });
+	it("요청은 Gemini 공급자 설정을 그대로 쓴다", () => {
+		const settings = {
+			...DEFAULT_SETTINGS,
+			gemini: {
+				model: "gemini-3.8-flash-lite-tts" as const,
+				direction: "calm",
+			},
+		};
+		expect(requestOf(gemini, "안녕", settings)).toEqual({
+			provider: "gemini",
+			voiceId: "kore",
+			text: "안녕",
+			settings: { model: "gemini-3.8-flash-lite-tts", direction: "calm" },
+		});
+	});
+	it("모델 선택지는 두 Gemini 모델이다(무료 배지 없음)", () => {
+		expect(modelOptionsOf(gemini)).toEqual([
+			{ value: "gemini-3.8-flash-tts", label: "gemini-3.8-flash-tts" },
+			{
+				value: "gemini-3.8-flash-lite-tts",
+				label: "gemini-3.8-flash-lite-tts",
+			},
+		]);
+	});
+});
+
+describe("Gemini 내 문장 듣기 문구(T7.6)", () => {
+	const gemini = (
+		over: Partial<GeminiSettings> = {},
+		text = "가나다라마바",
+	): TrialRequest => ({
+		provider: "gemini",
+		voiceId: "kore",
+		text,
+		settings: { ...DEFAULT_SETTINGS.gemini, ...over },
+	});
+	const before = GEMINI_PRICE_UP_AT - 1;
+
+	it("추정 금액 글자는 0.0001달러 단위로 올림한다(실제보다 작게 보이지 않게)", () => {
+		expect(usageText({ unit: "usd_micro", amount: 225 })).toBe(
+			"추정 약 $0.0003",
+		);
+		expect(usageText({ unit: "usd_micro", amount: 450 })).toBe(
+			"추정 약 $0.0005",
+		);
+		expect(usageText({ unit: "usd_micro", amount: 9000 })).toBe(
+			"추정 약 $0.0090",
+		);
+		// 경계: 정확히 0.0001달러 단위면 올리지 않고, 1이라도 넘으면 올린다
+		expect(usageText({ unit: "usd_micro", amount: 100 })).toBe(
+			"추정 약 $0.0001",
+		);
+		expect(usageText({ unit: "usd_micro", amount: 101 })).toBe(
+			"추정 약 $0.0002",
+		);
+		// 다른 단위는 그대로
+		expect(usageText({ unit: "credit", amount: 1234 })).toBe("약 1,234크레딧");
+	});
+
+	it("근거: 유료 등급 1분 단가와 가정한 길이(모델·날짜를 따른다)", () => {
+		expect(usageBasis(gemini(), before)).toBe(
+			"유료 등급 1분 $0.0135 · 1초에 5글자로 약 2초 가정",
+		);
+		expect(
+			usageBasis(
+				gemini({ model: "gemini-3.8-flash-lite-tts" }),
+				GEMINI_PRICE_UP_AT,
+			),
+		).toBe("유료 등급 1분 $0.0180 · 1초에 5글자로 약 2초 가정");
+		expect(
+			usageBasis({
+				provider: "airy",
+				voiceId: "a597bb7a98fc9ec1",
+				text: "가",
+				settings: DEFAULT_SETTINGS.airy,
+			}),
+		).toBe("한국어 1글자 1.5크레딧");
+	});
+
+	it("비용 문구: Gemini만 '요금'이고 다른 공급자는 '크레딧' 그대로다(critique P2, 사용자 결정 2026-10-13)", () => {
+		expect(costCopy("gemini")).toEqual({
+			title: "요금이 들 수 있어요. 들어 볼까요?",
+			action: "만들어 듣기",
+			free: "무료로",
+			paid: "요금이 들 수 있음",
+			saved: "저장된 결과 · 요금 없음",
+		});
+		expect(costCopy("airy")).toEqual({
+			title: "크레딧을 써서 들어 볼까요?",
+			action: "크레딧 쓰고 듣기",
+			free: "크레딧 없이",
+			paid: "크레딧 사용",
+			saved: "저장된 결과 · 크레딧 0",
+		});
+		expect(trialAriaLabel("Kore", gemini(), "idle")).toBe(
+			"Kore 내 문장 듣기, 새로 만들 때 요금이 들 수 있음",
+		);
+	});
+
+	it("설정 요약: Gemini 말투 지시는 '말투 지시 …'이고 비면 없다. ElevenLabs 스타일과 Airy 말투는 그대로다", () => {
+		expect(settingsSummary(gemini({ direction: "calm and relaxed" }))).toBe(
+			"gemini-3.8-flash-tts · 말투 지시 calm and relaxed",
+		);
+		expect(settingsSummary(gemini())).toBe("gemini-3.8-flash-tts");
+		expect(
+			settingsSummary({
+				provider: "airy",
+				voiceId: "a597bb7a98fc9ec1",
+				text: "가",
+				settings: { ...DEFAULT_SETTINGS.airy, style: "bright" },
+			}),
+		).toBe("airy-tts-v1 · 한국어 · 말투 밝게");
+		expect(
+			settingsSummary({
+				provider: "elevenlabs",
+				voiceId: "v1",
+				text: "가",
+				settings: {
+					...DEFAULT_SETTINGS.elevenlabs,
+					model: "eleven_multilingual_v2",
+					style: 0.3,
+				},
+			}),
+		).toBe("eleven_multilingual_v2 · 스타일 0.30");
+	});
+
+	it("데이터 안내와 오류 문구", () => {
+		expect(dataNote(gemini())).toBe(
+			"무료 등급 키는 과금이 없지만 보낸 문장이 Google 제품 개선에 쓰이고 사람이 검토할 수 있어요",
+		);
+		const text = (
+			reason: TrialProblem["reason"],
+			providerCode = null as string | null,
+		) =>
+			trialProblemText("gemini", { reason, retryAt: null, providerCode }).text;
+		expect(text("provider_input", "INVALID_ARGUMENT")).toBe(
+			"Gemini가 이 문장을 받지 않았어요. 문장이나 말투 지시를 확인해 주세요",
+		);
+		expect(text("quota")).toBe(
+			"Gemini 결제나 한도 조건에 걸렸어요. Google AI Studio에서 확인해 주세요",
+		);
+		expect(text("provider_input", "audio_too_large")).toBe(
+			"결과 오디오가 너무 커요. 문장을 줄이거나 말투 지시를 바꿔 주세요",
+		);
+		expect(text("unknown_outcome")).toBe(
+			"처리 여부를 확인하지 못했어요. 요금이 들었을 수 있으니 Google AI Studio 사용량을 확인한 뒤 다시 눌러 주세요",
+		);
+		// 다른 공급자의 한도·미확인 문구는 그대로
+		const airy = (reason: TrialProblem["reason"]) =>
+			trialProblemText("airy", { reason, retryAt: null, providerCode: null })
+				.text;
+		expect(airy("quota")).toBe(
+			"크레딧이 부족해요. 기본 샘플은 무료로 들을 수 있어요",
+		);
+		expect(airy("unknown_outcome")).toBe(
+			"처리 여부를 확인하지 못했어요. 크레딧이 쓰였을 수 있으니 공급자 사용 기록을 확인한 뒤 다시 눌러 주세요",
 		);
 	});
 });

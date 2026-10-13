@@ -7,6 +7,7 @@ export const providerIdSchema = z.enum([
 	"elevenlabs",
 	"fish_audio",
 	"airy",
+	"gemini",
 ]);
 export type ProviderId = z.infer<typeof providerIdSchema>;
 
@@ -23,6 +24,7 @@ export const connectionStatusSchema = z.enum([
 ]);
 export type ConnectionStatus = z.infer<typeof connectionStatusSchema>;
 
+// Gemini는 잔액 조회 API가 없어 연결 상태의 quota가 null이다(T7.6 스펙 2절)
 // 잔여 사용량. 공급자가 준 값만 담는다. 단위는 공급자마다 다르다(Typecast·Airy 크레딧, ElevenLabs 글자, Fish Audio API 충전 잔액).
 export const remainingQuotaSchema = z.object({
 	remaining: z.number(),
@@ -114,6 +116,11 @@ export const voiceSchema = z.object({
 	age: z.string().nullable(),
 	// ElevenLabs 억양(seoul, standard …)
 	accent: z.string().nullable(),
+	// Gemini 피치(low·medium·high, 공급자 값 그대로). 다른 공급자는 null.
+	// 기본값은 T7.6 전에 담은 보관함 행(saved_voice.voice)을 다시 읽을 때를 위한 것이다
+	pitch: z.string().nullable().default(null),
+	// Gemini 페르소나(여러 값이면 ' | '로 나눈 각각, 공급자 값 그대로). 다른 공급자는 []
+	personas: z.array(z.string()).default([]),
 	// 콘텐츠(공급자 use_cases). 실제 값이 문서 enum과 달라 문자열로 받는다
 	useCases: z.array(z.string()),
 	// 분위기(ElevenLabs descriptive)
@@ -191,6 +198,8 @@ export const voiceListInputSchema = z.union([
 	z.object({ provider: z.literal("typecast") }),
 	// Airy: 공식 목록 하나(공개 출처, 조건 없음, T7.5 스펙 3절)
 	z.object({ provider: z.literal("airy") }),
+	// Gemini: 한국어 목록 + 대표 성우(공개 출처, 조건 없음, T7.6 스펙 4절)
+	z.object({ provider: z.literal("gemini") }),
 	z.object({
 		provider: z.literal("elevenlabs"),
 		source: z.literal("public"),

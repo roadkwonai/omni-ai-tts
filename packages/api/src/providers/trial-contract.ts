@@ -10,6 +10,8 @@ import {
 	ELEVENLABS_MODELS,
 	EMOTION_PRESETS,
 	FISH_MODELS,
+	GEMINI_DIRECTION_MAX,
+	GEMINI_MODELS,
 	normalizeText,
 	RANGES,
 	type Range,
@@ -72,8 +74,18 @@ export const airySettingsSchema = z.object({
 	language: z.enum(AIRY_LANGUAGES).default(DEFAULT_SETTINGS.airy.language),
 	style: z.enum(AIRY_STYLES).default(DEFAULT_SETTINGS.airy.style),
 });
+export const geminiSettingsSchema = z.object({
+	model: z.enum(GEMINI_MODELS).default(DEFAULT_SETTINGS.gemini.model),
+	// 말투 지시: 한 줄 자유 문장(줄바꿈 없음, 앞뒤 공백 제거). 비면 보내지 않는다(T7.6 스펙 2절)
+	direction: z
+		.string()
+		.trim()
+		.max(GEMINI_DIRECTION_MAX)
+		.regex(/^[^\r\n]*$/)
+		.default(""),
+});
 
-// 공급자 성우 id: Typecast tc_·uc_, ElevenLabs 20자, Fish Audio 32자 16진, Airy 16자리 16진(실측). ElevenLabs 경로에 그대로 들어가므로 글자를 묶는다
+// 공급자 성우 id: Typecast tc_·uc_, ElevenLabs 20자, Fish Audio 32자 16진, Airy 16자리 16진(실측), Gemini 소문자 이름(kore)·ko-kr-역할-번호(실측). ElevenLabs 경로에 그대로 들어가므로 글자를 묶는다
 export const voiceIdSchema = z.string().regex(/^[A-Za-z0-9_-]{1,100}$/);
 // 문장: NFC로 맞추고 앞뒤 공백을 지운 뒤 1~200자(코드 포인트)
 const textSchema = z
@@ -112,6 +124,12 @@ export const trialRequestSchema = z.discriminatedUnion("provider", [
 		text: textSchema,
 		settings: airySettingsSchema,
 	}),
+	z.object({
+		provider: z.literal("gemini"),
+		voiceId: voiceIdSchema,
+		text: textSchema,
+		settings: geminiSettingsSchema,
+	}),
 ]);
 // 계약과 trial-options의 요청 타입이 어긋나면 타입 검사가 잡는다
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
@@ -127,10 +145,10 @@ export const trialCreateInputSchema = z.object({
 });
 
 export const usageSchema = z.object({
-	unit: z.enum(["credit", "byte", "free"]),
+	unit: z.enum(["credit", "byte", "free", "usd_micro"]),
 	amount: z.number().nonnegative(),
 });
-// 들은 결과 하나(오디오 포함). 오디오는 MP3 File이고 RPC가 바이너리로 보낸다(Task 1)
+// 들은 결과 하나(오디오 포함). 오디오는 File(MP3, Gemini는 WAV)이고 RPC가 바이너리로 보낸다(Task 1)
 export const trialAudioSchema = z.object({
 	id: z.uuid(),
 	createdAt: z.iso.datetime(),

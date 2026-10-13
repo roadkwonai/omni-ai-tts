@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { memoSchema } from "./classification-contract";
 import { type Voice, voiceSchema } from "./providers/contract";
-import { SAMPLE_HOST } from "./providers/sample-hosts";
+import { isSampleUrl } from "./providers/sample-hosts";
 
 // 성우 보관함 프로시저의 입력·출력(T7 스펙 3절). 담기의 voice는 클라이언트가 목록에서 받은 값이라 서버가 다시 검사한다:
 // 계약 모양(https 포함) + 샘플 주소가 그 공급자 호스트 + 크기 상한. 다음 이용 가능 확인에서 공급자 값으로 바뀐다
@@ -14,27 +14,21 @@ const sampleUrls = (voice: Voice) => [
 	...voice.samples.map((sample) => sample.url),
 ];
 export const savedVoiceInputSchema = voiceSchema
+	// 샘플 주소가 그 공급자의 허용 호스트(Gemini는 경로까지)인가. 해석되지 않는 주소는 isSampleUrl이 거른다
 	.refine(
 		(voice) =>
-			sampleUrls(voice).every(
-				(url) =>
-					// voiceSchema의 URL 검사가 실패해도 refine은 실행된다. 해석되지 않는 주소에 new URL이 던지지 않게 먼저 거른다
-					URL.canParse(url) &&
-					SAMPLE_HOST[voice.provider].test(new URL(url).hostname),
-			),
+			sampleUrls(voice).every((url) => isSampleUrl(voice.provider, url)),
 		{ message: "sample_host" },
 	)
-	// voiceId는 공급자 REST 경로에 들어간다(encodeURIComponent 앞에서 모양을 한 번 더 제한). Typecast·Airy는 공개 목록만 있다
+	// voiceId는 공급자 REST 경로에 들어간다(encodeURIComponent 앞에서 모양을 한 번 더 제한). Typecast·Airy·Gemini는 공개 목록만 있다
 	.refine((voice) => /^[A-Za-z0-9_-]{1,200}$/.test(voice.voiceId), {
 		message: "voice_id",
 	})
 	.refine(
 		(voice) =>
-			(voice.provider !== "typecast" && voice.provider !== "airy") ||
+			!["typecast", "airy", "gemini"].includes(voice.provider) ||
 			voice.source === "public",
-		{
-			message: "source",
-		},
+		{ message: "source" },
 	)
 	.refine((voice) => JSON.stringify(voice).length <= VOICE_JSON_MAX, {
 		message: "too_large",

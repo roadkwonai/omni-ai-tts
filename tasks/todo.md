@@ -14,7 +14,7 @@
 
 정본: [서비스 구현 로드맵](../docs/plans/implementation-roadmap.md). 2026-09-29 사용자 요청으로 개편했다(로그인은 T14로, 공급자 연결·성우 조회·채널 분류·성우 보관함을 먼저). 2026-10-04 T3 사용자 테스트 피드백으로 T4~T12를 다시 짰다(세 공급자 통합 캐스팅, 내 문장 듣기, 프리셋을 앞으로. 로드맵 4절 '번호 대응'). 한 번에 TASK 하나만 진행한다. TASK마다 F 라운드를 열어 설계(스펙, 사용자 확인) → 계획 → 구현 → 검증 → 사용자 테스트 → 피드백 반영을 마치고 `[confirm]`으로 닫은 뒤에만 다음 TASK를 설계한다. 아래 P0 항목은 각 TASK가 닫힐 때 함께 체크한다.
 
-- [ ] T7.6 Gemini 공급자 추가: 연결 상태·캐스팅·내 문장 듣기·보관함 (REQ-02·03·04 Gemini) — 2026-10-07 사용자 선택, 리서치 docs/research/gemini-tts-api-options.md
+- [x] T7.6 Gemini 공급자 추가: 연결 상태·캐스팅·내 문장 듣기·보관함 (REQ-02·03·04 Gemini) — 2026-10-14 완료(tasks/archive)
 - [ ] T8 프리셋과 채널 기본값 (REQ-08, P0-11)
 - [ ] T9 Typecast 음성 생성·재생·다운로드 (REQ-09~11, P0-14·15·17·18·19)
 - [ ] T10 ElevenLabs·Fish Audio·Airy 음성 생성 (REQ-09~11, P0-16·25)
@@ -122,6 +122,40 @@ critique 27/40, audit 18/20(접근성 3/4) 결과 가운데 브리프·스펙을
 - [ ] T7.5-10 (테스트) Airy 응답 모양으로 403 account_banned→provider_auth와 시험 생성 429 Retry-After→retryAt을 고정하는 테스트가 없다(공급자 중립 errors.test만), Airy 공식 목록 호출의 signal 전달 직접 검증 없음, voice-list.test Airy의 not.toContain(KEY)는 키를 싣는 경로가 없어 약한 단언이다. trial-section·trial-confirm Airy 언어·말투·근거 줄은 컴포넌트 테스트가 없다(T6-06 컴포넌트 테스트 도구와 함께).
 - [ ] T7.5-11 (info, QA, T7.5 밖) Fish Audio 표현력 슬라이더가 스크린리더에 0.699999988079071을 읽힌다(화면은 0.70). aria-valuetext 또는 값 반올림.
 - [ ] T7.5-12 (low, 최종 리뷰·재QA parked) 내 문장 결과 줄(trial-results.tsx, line-clamp-2): 320px에서 띄어쓰기 있는 긴 말투 태그는 끝이 '…'로 잘리고, '3분 전'·'약 N크레딧' 같은 띄어쓰기 조각은 띄어쓰기에서 줄이 바뀔 수 있으며, NBSP로만 이어진 긴 자유 태그(30자 상한)는 갈라지지 않아 잘릴 수 있다. T5 두 줄 제한 설계 그대로, 회귀 아님
+
+### Gemini 공급자 (T7.6에서 미룬 것, 2026-10-13)
+- [ ] T76-01 (첫 승인 호출, 스펙 6절) 응답 `status` 실제 값을 기록한다. 오디오 없는 200에서 `failed`만 `provider_input`이고 나머지는 `unknown_outcome`이다(`gemini.ts` `wavOf`의 shortcut). 실제 값을 본 뒤 `provider_input`으로 볼 집합을 넓힌다.
+- [ ] T76-02 (첫 승인 호출, 계획 리뷰 F5) 응답 `content[].mime_type`과 오디오 유무를 기록한다. 지금은 RIFF/WAVE 머리말로 WAV를 판정한다.
+- [ ] T76-03 (첫 승인 호출, 계획 리뷰 F9) 대표 성우가 소문자 id(`kore`)로 합성되는지 확인한다. 한국어 성우 1회만 승인되면 대표 성우 확인은 다음 승인 때로 미룬다.
+- [ ] T76-04 (첫 승인 호출) 한국어 성우 117명이 Flash·Flash-Lite 두 모델 모두에서 합성되는지 확인한다(목록은 모델별로 나뉘지 않는다).
+- [ ] T76-05 (첫 승인 호출, T9에서 다시) 응답 `usage.total_output_tokens ÷ 25`(실제 초)와 글자 수로 실제 말 빠르기를 구해 가정값(1초 5글자, `GEMINI_CHARS_PER_SECOND`)과 비교한다. 차이가 크면 값을 바꾸고 근거를 남긴다. 실제 금액 표시는 T9.
+- [ ] T76-06 (스펙 6절) 429 본문 `RetryInfo.retryDelay`를 읽는다. 지금은 `Retry-After` 헤더가 없거나 읽을 수 없으면 60초 대기다.
+- [ ] T76-07 (스펙 6절) 400 `FAILED_PRECONDITION` → `quota`는 실측 전 잠정 판정이다. 결제 중지·지역 같은 실제 응답으로 확정한다.
+- [ ] T76-08 (research 9절) 일일 한도(`quota_exceeded`)는 태평양 시간 자정에 풀린다. 대기 시각을 그때로 잡을지 정한다.
+- [ ] T76-09 (계획 리뷰 F2·E2) 429 기본 60초는 `gemini.ts` 감싸개로 Gemini만 한다. 다른 공급자의 `runTrial`은 그대로이므로 `Retry-After` 없는 429가 대기 기록 없이 지나는지 확인하고, 필요하면 공통 `runTrial`로 옮긴다.
+- [ ] T76-10 (스펙 13절) 참고 음성은 Google Cloud 문서 자산이라 예고 없이 바뀌거나 사라질 수 있다(API 약속이 아님). 사라지면 샘플만 없다. 주기적으로 30개 HEAD 확인을 할지, 실패 표시를 둘지 검토한다.
+- [ ] T76-11 (research 16절) Gemini 목록은 다음 페이지 토큰을 따라가지 않는다(ko-KR 117명, en-US 215명, 각 한 페이지). 1,000명을 넘으면 뒤 성우가 빠진다.
+- [ ] T76-12 (최종 리뷰 C1) 목록 변환은 `z.url` 호스트만 보고 담기(`savedVoiceSave`)는 `isSampleUrl`(호스트+경로)로 본다. 실제 캐시 6,488개 중 0건이지만 네 공급자 목록 변환을 `isSampleUrl`로 맞출지 검토한다. 어긋나면 그 성우만 담기 실패(`sample_host`)다.
+- [ ] T76-14 (Task 1, low) 말투 지시 정규식이 유니코드 줄 구분자(U+2028·2029·0085)를 통과시킨다.
+- [ ] T76-15 (Task 1, low) 말투 지시 100자는 UTF-16 단위이고 문장 상한은 코드 포인트 단위다. 이모지는 두 칸으로 센다.
+- [ ] T76-16 (Task 1, low) `estimate`의 `multiplier`가 Gemini에서 쓰이지 않는다(브리프 시그니처 유지).
+- [ ] T76-17 (Task 2, low) 429 `Retry-After: 0` 테스트가 없다(HTTP 날짜와 같은 경로).
+- [ ] T76-18 (Task 3, low) `saved-voice-contract`의 공개 출처 목록이 `string[].includes`라 공급자 타입이 없다.
+- [ ] T76-19 (Task 3, low) Gemini no_key 테스트가 빈 문자열 키를 다루지 않는다(`withKey`가 trim).
+- [ ] T76-20 (Task 3, low) Gemini WAV가 4 MiB를 넘을 때 `audio_too_large`가 되는 테스트가 없다(약 87초).
+- [ ] T76-21 (Task 3, low) `audioFile`이 WAV 아닌 모든 형식을 `trial.mp3`로 이름 붙인다. 형식이 하나 더 생기면 확장자 표로 바꾼다.
+- [ ] T76-22 (Task 5, low) `balanceNote`는 `result.provider`로, `causeText`는 카드 provider로 판정한다(지금은 같은 값).
+- [ ] T76-23 (Task 5, low) 'Google AI Studio' 문구가 다섯 곳에 반복된다(확인받은 문구라 유지). 문구를 바꿀 때 한 곳으로 모은다.
+- [ ] T76-24 (Task 5, low) ElevenLabs 원인 문구를 고정하는 테스트가 없다(같은 틀).
+- [ ] T76-25 (Task 4, low, 22행 critique에서 판단) 행 이름만 남음(패널 페르소나 칩·조건 메뉴는 수정 묶음 1에서 처리).
+- [ ] T76-26 (Task 4, low) 모르는 한국어 억양 값이 'Gwangju Korean 억양'처럼 섞여 보이고 테스트가 없다.
+- [ ] T76-27 (Task 4, low) 패널이 표시 문자열 `sampleKind === "참고 음성"`으로 분기한다. 문구를 바꾸면 분기가 깨진다.
+- [ ] T76-28 (Task 4, low) R4-4 trial 유무 분기에 자동 테스트가 없다.
+- [ ] T76-29 (최종 리뷰 I1) 확인 창 금액은 창을 열 때 계산하고 서버는 누를 때 기록한다. 2027-01-01 0시 KST 경계 몇 초 동안 반값이 보일 수 있다(Fish Audio 무료 기간 컷오프와 같은 방식).
+- [ ] T76-30 (최종 리뷰 I1) 붙여 넣은 줄바꿈을 공백으로 바꾸는 변환(말투 지시)에 테스트가 없다.
+- [ ] T76-31 'Google AI Studio' 문구의 translate=no가 없다. 연결 카드·토스트(평문)·시험 생성 문구에 걸쳐 일부만 감싸면 불균일해 한 번에 정한다(수정 묶음 1 E-2 기각).
+- [ ] T76-32 인원 글자·한국어 성우 설명 첫 마디가 1440px 행 오른쪽 칸(144px)에서 '38-year-old Lawyer f…'로 잘린다. 칸 너비·두 줄 허용은 사용자 의견을 듣고 정한다(QA 25행).
+- [ ] T76-33 승인한 실제 Gemini 생성 1회를 아직 하지 않았다(사용자 확인 2026-10-14 때 Gemini 생성 기록 0건). 한 번 만들어 저장된 WAV 길이(ffprobe)로 '초당 5자' 가정과 소문자 대표 성우 id 합성을 확인한다. T10(작업실에 Gemini) 전에 한다.
 
 ### 하네스 (pro-kit 갱신에서 미룬 것, 2026-10-13)
 - [ ] PK-01 코드 주석의 옛 스킬 이름 `bts-api`를 `prokit-api`로 고친다: `packages/api/src/test-db.ts`, `trial.ts`, `voice-cache.ts`. 다음에 이 파일을 고치는 코드 라운드에서 함께 한다(주석만 바꾸면 케이스가 F로 올라가 H 라운드에서 뺐다).

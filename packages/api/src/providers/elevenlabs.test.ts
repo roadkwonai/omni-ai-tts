@@ -291,6 +291,8 @@ describe("ElevenLabs 공개 라이브러리", () => {
 				gender: "female",
 				age: "young",
 				accent: "seoul",
+				pitch: null,
+				personas: [],
 				useCases: ["narrative_story"],
 				descriptives: ["calm"],
 				tags: [],

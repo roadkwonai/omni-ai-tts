@@ -159,6 +159,8 @@ describe("Typecast 성우 목록", () => {
 				gender: "female",
 				age: "young_adult",
 				accent: null,
+				pitch: null,
+				personas: [],
 				useCases: ["Ads/Promotion", "Game"],
 				descriptives: [],
 				tags: [],

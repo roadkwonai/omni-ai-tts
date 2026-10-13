@@ -35,9 +35,16 @@ const t = trialGeneration;
 export const comboKey = (request: TrialRequest) =>
 	cacheKey({ v: TRIAL_CONTRACT_VERSION, sig: comboSignature(request) });
 
-// Buffer(bytea)를 ArrayBuffer로 복사해 File로 만든다
-export const audioFile = (bytes: Uint8Array) =>
-	new File([new Uint8Array(bytes)], "trial.mp3", { type: "audio/mpeg" });
+// Buffer(bytea)를 ArrayBuffer로 복사해 File로 만든다. 형식은 생성 기록의 audio_type이다(Gemini WAV, 나머지 MP3, T7.6)
+export const audioFile = (bytes: Uint8Array, type: string) =>
+	new File(
+		[new Uint8Array(bytes)],
+		type === "audio/wav" ? "trial.wav" : "trial.mp3",
+		{ type },
+	);
+// 공급자가 돌려주는 오디오 형식. Gemini는 WAV뿐이다(MP3 없음, research 2절)
+export const audioTypeOf = (provider: ProviderId) =>
+	provider === "gemini" ? "audio/wav" : "audio/mpeg";
 
 // DB가 실패하면 공급자를 부르지 않고 storage로 거절한다(로드맵 T5 메모). 의도한 거절(ORPCError)은 그대로 던진다
 export async function withStorage<T>(
@@ -59,6 +66,7 @@ const resultColumns = {
 	usageUnit: t.usageUnit,
 	usageAmount: t.usageAmount,
 	audio: t.audio,
+	audioType: t.audioType,
 };
 type ResultRow = {
 	id: string;
@@ -66,6 +74,7 @@ type ResultRow = {
 	usageUnit: string;
 	usageAmount: number;
 	audio: Buffer | null;
+	audioType: string | null;
 };
 const usageOf = (row: Pick<ResultRow, "usageUnit" | "usageAmount">): Usage => ({
 	unit: row.usageUnit as Usage["unit"],
@@ -77,7 +86,8 @@ function toAudio(row: ResultRow): TrialAudio {
 		id: row.id,
 		createdAt: row.createdAt.toISOString(),
 		usage: usageOf(row),
-		audio: audioFile(row.audio),
+		// T7.6 전 행은 모두 audio/mpeg로 저장돼 있다
+		audio: audioFile(row.audio, row.audioType ?? "audio/mpeg"),
 	};
 }
 const later = () => new Date(Date.now() + KEEP_MS);
@@ -210,13 +220,14 @@ export async function complete(
 	ownerId: string,
 	id: string,
 	audio: Uint8Array,
+	audioType: string,
 ) {
 	await db
 		.update(t)
 		.set({
 			status: "done",
 			audio: Buffer.from(audio),
-			audioType: "audio/mpeg",
+			audioType,
 			expiresAt: later(),
 		})
 		.where(and(eq(t.id, id), eq(t.ownerId, ownerId)));

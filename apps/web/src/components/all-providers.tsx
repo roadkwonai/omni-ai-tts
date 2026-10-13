@@ -22,7 +22,9 @@ import {
 } from "@/lib/provider-conditions";
 import {
 	EMPTY_FILTERS,
+	EMPTY_GEMINI_FILTERS,
 	filterByNameOrId,
+	filterGemini,
 	filterVoices,
 } from "@/lib/voice-filter";
 import { bundleOf } from "@/lib/voice-view";
@@ -58,9 +60,10 @@ type Bundle = {
 	reload: () => Promise<VoiceListResult | undefined>;
 };
 
-// Typecast·Airy 탭과 같은 쿼리(목록 하나)를 브라우저에서 검색어로 거른다. 검색은 그 탭과 같다(Typecast 이름, Airy 이름·성우 id)
+// Typecast·Airy·Gemini 탭과 같은 쿼리(목록 하나)를 브라우저에서 검색어로 거른다. 검색은 그 탭과 같다
+// (Typecast 이름, Airy 이름·성우 id, Gemini 이름·성우 id·설명. 묶음 인원과 '모두 보기 →' 뒤 탭 인원이 같다, 계획 리뷰 R4-5)
 function useOneListBundle(
-	provider: "typecast" | "airy",
+	provider: "typecast" | "airy" | "gemini",
 	search: string,
 ): Bundle {
 	const query = useQuery(ONE_LIST_OPTIONS[provider]);
@@ -68,7 +71,9 @@ function useOneListBundle(
 	const found =
 		provider === "typecast"
 			? filterVoices(all, search, EMPTY_FILTERS)
-			: filterByNameOrId(all, search, []);
+			: provider === "gemini"
+				? filterGemini(all, search, EMPTY_GEMINI_FILTERS)
+				: filterByNameOrId(all, search, []);
 	return {
 		provider,
 		query,
@@ -198,7 +203,7 @@ function ProviderBundle({
 	);
 }
 
-// '전체' 탭(브리프 5·8절, 스펙 AC2): 검색 칸 하나와 공급자 묶음 넷(Typecast → ElevenLabs → Fish Audio → Airy), 오른쪽 패널.
+// '전체' 탭(브리프 5·8절, 스펙 AC2): 검색 칸 하나와 공급자 묶음 다섯(Typecast → ElevenLabs → Fish Audio → Airy → Gemini), 오른쪽 패널.
 // 검색어는 부모가 든다('모두 보기 →'가 그 공급자 탭으로 가져간다)
 export function AllProviders({
 	search,
@@ -219,8 +224,9 @@ export function AllProviders({
 	const elevenlabs = useServerBundle("elevenlabs", search);
 	const fishAudio = useServerBundle("fish_audio", search);
 	const airy = useOneListBundle("airy", search);
-	const bundles = [typecast, elevenlabs, fishAudio, airy];
-	// 받기 전인 묶음이 있다(사유 안내가 뜬 묶음은 빼고). 묶음 뼈대는 알리지 않고 여기서 한 번만 알린다(첫 로딩이 네 번 읽히지 않게)
+	const gemini = useOneListBundle("gemini", search);
+	const bundles = [typecast, elevenlabs, fishAudio, airy, gemini];
+	// 받기 전인 묶음이 있다(사유 안내가 뜬 묶음은 빼고). 묶음 뼈대는 알리지 않고 여기서 한 번만 알린다(첫 로딩이 다섯 번 읽히지 않게)
 	const pending = bundles.some(
 		(bundle) => !bundle.first && !bundle.query.isError,
 	);
@@ -236,7 +242,7 @@ export function AllProviders({
 				search={{
 					value: draft.draft,
 					placeholder: "이름으로 찾기",
-					label: "네 공급자 성우 이름으로 찾기",
+					label: "다섯 공급자 성우 이름으로 찾기",
 					onChange: draft.setDraft,
 					onSubmit: draft.submit,
 				}}
@@ -248,7 +254,7 @@ export function AllProviders({
 				searchRef={searchRef}
 			/>
 			<CastingWorkspace
-				// 네 묶음의 앞 5명을 보이는 순서대로 잇는다
+				// 다섯 묶음의 앞 5명을 보이는 순서대로 잇는다
 				voices={bundles.flatMap((bundle) => bundle.voices)}
 				chosen={chosen}
 				onChoose={onChoose}

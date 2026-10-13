@@ -100,7 +100,7 @@
 - 스킬이나 플러그인이 없다고 나오면 `pnpm skills:check`로 확인해 보고한다. 설치(`pnpm skills:setup`, 네트워크와 설정 파일 변경)는 사용자가 요청할 때 한다. 목록 정본은 `skills.manifest.json`이다. 외부 스킬의 새 버전 확인과 업데이트(`pnpm skills:update`)는 `prokit-skills-update`를 따른다. 진행 중인 라운드가 없으면 `pnpm dev-cycle status`가 하루 한 번 확인한다.
 <!-- prokit-template:end -->
 ## TTS Pilot 프로젝트 규칙
-이 저장소는 Typecast·ElevenLabs·Fish Audio·Airy 성우로 한국어 음성을 만드는 개인 작업실(TTS Pilot)이다. 위 템플릿 규칙에 아래를 더한다.
+이 저장소는 Typecast·ElevenLabs·Fish Audio·Airy·Gemini 성우로 한국어 음성을 만드는 개인 작업실(TTS Pilot)이다. 위 템플릿 규칙에 아래를 더한다.
 - 먼저 읽을 문서에 더한다: `PRODUCT.md`(제품 맥락), `docs/plans/tts-service-requirements.md`(요구사항 REQ-01~13), `tasks/todo.md` 라운드 블록 밖의 백로그(P0~P4).
 - 공급자 연동(성우 목록, 기본 샘플, 생성과 시험 생성, 클론 보이스, 사용량, 공급자 오류, 오디오 업로드·다운로드)은 계층 스킬과 함께 `tts-provider`를 읽는다. 구현을 `prokit-implementer`에 맡길 때도 읽을 스킬로 지정한다.
 - `prokit-reviewer`는 diff에 공급자 연동이 있으면 focus와 상관없이 `tts-provider`를 읽는다. security에서는 유료 호출을 부를 수 있는 주체(호출마다 하는 소유자 검사), 공급자 키 노출, 공급자 voice id(클론)의 소유권, 유료 호출의 중복과 자동 재시도, 입력 길이와 업로드 검사를 확인한다.

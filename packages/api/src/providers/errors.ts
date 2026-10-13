@@ -31,10 +31,12 @@ export type ProviderErrorReason =
 	| "provider_input"
 	| "provider_error";
 
-// ElevenLabs 키 권한 부족. 403 insufficient_permissions는 공식 오류 표, 401 missing_permissions는 비공식 자료다(미실측).
+// 키 권한 부족. ElevenLabs 403 insufficient_permissions는 공식 오류 표, 401 missing_permissions는 비공식 자료다(미실측).
+// Gemini(Google) 403 PERMISSION_DENIED는 키에 그 API·리소스 권한이 없다(API 사용 안 함 등, T7.6 스펙 6절)
 const PERMISSION_CODES = new Set([
 	"missing_permissions",
 	"insufficient_permissions",
+	"PERMISSION_DENIED",
 ]);
 
 // 표에 없는 상태 코드(3xx, 404 등)는 null이다. 확인 호출에서는 확인 실패로 보인다.
@@ -42,6 +44,8 @@ export function reasonFromHttp(
 	status: number,
 	codes: readonly string[] = [],
 ): ProviderErrorReason | null {
+	// Google은 틀린 키를 400 INVALID_ARGUMENT + 이유 API_KEY_INVALID로 답한다(T7.6 스펙 6절). 상태보다 먼저 본다
+	if (codes.includes("API_KEY_INVALID")) return "provider_auth";
 	if (status === 401 || status === 403) {
 		return codes.some((code) => PERMISSION_CODES.has(code))
 			? "no_permission"
@@ -49,6 +53,8 @@ export function reasonFromHttp(
 	}
 	if (status === 402) return "quota";
 	if (status === 429) return "rate_limit";
+	// Google 400 FAILED_PRECONDITION은 결제·지역 같은 계정 조건이다(입력 거절이 아니다). 확정은 실측 뒤(T7.6 스펙 6절)
+	if (status === 400 && codes.includes("FAILED_PRECONDITION")) return "quota";
 	if (status === 400 || status === 422) return "provider_input";
 	if (status >= 500 && status <= 599) return "provider_error";
 	return null;
@@ -94,7 +100,8 @@ export const nullOnStatus = <T>(
 
 export type CheckOutcome = {
 	status: "connected" | "quota";
-	quota: RemainingQuota;
+	// 잔액 조회 API가 없는 공급자(Gemini)는 null이다
+	quota: RemainingQuota | null;
 };
 
 // 공급자 클라이언트. 목록·억양은 메서드 문법이다. 메서드 매개변수는 이변이라 공급자 구현이 자기 입력 모양(ListInputOf<P>)만 받아도 들어간다.
@@ -219,7 +226,7 @@ export async function runCheck(
 	try {
 		const outcome = await withTimeout(call);
 		// 공급자 값이 계약(Infinity·NaN 불가 등)을 어기면 프로시저 출력 검증이 500을 던지므로 여기서 확인 실패로 만든다.
-		remainingQuotaSchema.parse(outcome.quota);
+		remainingQuotaSchema.nullable().parse(outcome.quota);
 		return { ...empty, ...outcome, checkedAt: new Date().toISOString() };
 	} catch (error) {
 		const checkedAt = new Date().toISOString();

@@ -21,9 +21,15 @@ import {
 	type FishModel,
 	fishUsd,
 	freeModelOpen,
+	GEMINI_CHARS_PER_SECOND,
+	GEMINI_MODELS,
+	GEMINI_TOKENS_PER_SECOND,
+	geminiSeconds,
+	geminiUsdPerMillion,
 	isFreeModel,
 	normalizeText,
 	type SettingsOf,
+	sentText,
 	type TrialRequest,
 	TYPECAST_MODELS,
 	type TypecastModel,
@@ -57,6 +63,8 @@ export const FIELD_LABEL: Record<string, string> = {
 	speed: "속도",
 	speakerBoost: "화자 증폭",
 	temperature: "표현력",
+	// GLOSSARY '말투 지시'(Gemini). ElevenLabs '스타일'(style)과 다른 설정이다
+	direction: "말투 지시",
 };
 // Airy 말투(GLOSSARY '말투'). ElevenLabs '스타일'(수치 슬라이더, FIELD_LABEL.style)과 다른 설정이다
 export const AIRY_STYLE_LABEL: Record<AiryStyle, string> = {
@@ -120,7 +128,9 @@ export function modelOptionsOf(
 				? [...ELEVENLABS_MODELS]
 				: voice.provider === "airy"
 					? [...AIRY_MODELS]
-					: fishModelsOf(now);
+					: voice.provider === "gemini"
+						? [...GEMINI_MODELS]
+						: fishModelsOf(now);
 	return models.map((model) =>
 		model === "s2.1-pro-free"
 			? { value: model, label: model, free: true }
@@ -187,6 +197,13 @@ export function requestOf(
 				text,
 				settings: settings.airy,
 			};
+		case "gemini":
+			return {
+				provider: "gemini",
+				voiceId,
+				text,
+				settings: settings.gemini,
+			};
 	}
 }
 
@@ -213,6 +230,25 @@ export function trialBlock(input: {
 	return null;
 }
 
+// 비용 문구(critique P2, 사용자 결정 2026-10-13). Gemini는 크레딧이 아니라 요금이고 무료 등급 키는 과금이 없어 '들 수 있어요'다.
+// 다른 공급자 문구는 그대로다. 문장 바 공통 안내는 다섯 탭 공통이라 여기 없다
+export const costCopy = (provider: ProviderId) =>
+	provider === "gemini"
+		? {
+				title: "요금이 들 수 있어요. 들어 볼까요?",
+				action: "만들어 듣기",
+				free: "무료로",
+				paid: "요금이 들 수 있음",
+				saved: "저장된 결과 · 요금 없음",
+			}
+		: {
+				title: "크레딧을 써서 들어 볼까요?",
+				action: "크레딧 쓰고 듣기",
+				free: "크레딧 없이",
+				paid: "크레딧 사용",
+				saved: "저장된 결과 · 크레딧 0",
+			};
+
 export function trialAriaLabel(
 	name: string,
 	request: TrialRequest,
@@ -222,18 +258,33 @@ export function trialAriaLabel(
 	if (state === "busy") return `${name} 내 문장 만드는 중`;
 	if (state === "playing") return `${name} 내 문장 정지`;
 	if (state === "saved") return `${name} 저장된 결과 듣기`;
-	return `${name} 내 문장 듣기, ${needsConfirm(request, now) ? "새로 만들 때 크레딧 사용" : "무료"}`;
+	return `${name} 내 문장 듣기, ${needsConfirm(request, now) ? `새로 만들 때 ${costCopy(request.provider).paid}` : "무료"}`;
 }
 
 export function usageText(usage: Usage): string {
+	// Gemini 추정 금액(백만분의 1달러). 0.0001달러 단위로 올림해 실제보다 작게 보이지 않게 한다(계획 Review Focus 2)
+	if (usage.unit === "usd_micro")
+		return `추정 약 $${(Math.ceil(usage.amount / 100) / 10_000).toFixed(4)}`;
 	if (usage.unit === "free") return "무료";
 	if (usage.unit === "byte")
 		return `${plain.format(usage.amount)}바이트 · 약 $${fishUsd(usage.amount).toFixed(4)}`;
 	return `약 ${plain.format(usage.amount)}크레딧`;
 }
 
-// 확인 창 예상 사용량의 근거 규칙(T7.5 스펙 2절 '확인 창 근거', U4). 공급자 문서의 과금 규칙이 언어 기준인 Airy만. 'Airy 요금 기준:'은 화면이 붙인다
-export function usageBasis(request: TrialRequest): string | null {
+// 확인 창 예상 사용량의 근거(화면이 '<공급자> 요금 기준:'을 붙인다). Airy는 언어별 과금 규칙(T7.5 U4),
+// Gemini는 유료 등급 1분 단가와 가정한 길이(T7.6 스펙 5절). 그 밖의 공급자는 없다
+export function usageBasis(
+	request: TrialRequest,
+	now = Date.now(),
+): string | null {
+	if (request.provider === "gemini") {
+		const perMinute =
+			(60 *
+				GEMINI_TOKENS_PER_SECOND *
+				geminiUsdPerMillion(request.settings.model, now)) /
+			1_000_000;
+		return `유료 등급 1분 $${perMinute.toFixed(4)} · 1초에 ${GEMINI_CHARS_PER_SECOND}글자로 약 ${geminiSeconds(sentText(request))}초 가정`;
+	}
 	if (request.provider !== "airy") return null;
 	const { language } = request.settings;
 	return `${languageName(language)} 1글자 ${AIRY_CREDITS_PER_CHAR[language]}크레딧`;
@@ -328,8 +379,13 @@ export const resultLine = (item: TrialItem, now: Date) =>
 export const resultSubject = (name: string, item: TrialItem) =>
 	`${name} 저장된 결과 '${[...normalizeText(item.request.text)].slice(0, 20).join("")}'`;
 
+// Gemini 무료 등급 약관(research 10절). 키 등급을 알 API가 없어 늘 보인다(T7.6 스펙 2절). 패널 데이터 안내와 확인 창이 함께 쓴다
+export const GEMINI_DATA_NOTE =
+	"무료 등급 키는 과금이 없지만 보낸 문장이 Google 제품 개선에 쓰이고 사람이 검토할 수 있어요";
+
 // 공급자 약관에 문장 이용 문구가 있으면 한 줄(스펙 3절)
 export function dataNote(request: TrialRequest): string | null {
+	if (request.provider === "gemini") return GEMINI_DATA_NOTE;
 	if (request.provider === "typecast")
 		return "보낸 문장이 Typecast 서비스 개선에 쓰일 수 있어요";
 	if (isFreeModel(request))
@@ -385,7 +441,10 @@ export function trialProblemText(
 		}
 		case "quota":
 			return {
-				text: "크레딧이 부족해요. 기본 샘플은 무료로 들을 수 있어요",
+				text:
+					provider === "gemini"
+						? "Gemini 결제나 한도 조건에 걸렸어요. Google AI Studio에서 확인해 주세요"
+						: "크레딧이 부족해요. 기본 샘플은 무료로 들을 수 있어요",
 				connections: false,
 			};
 		case "rate_limit":
@@ -399,7 +458,11 @@ export function trialProblemText(
 			const code = problem.providerCode;
 			if (code === "audio_too_large")
 				return {
-					text: "결과 오디오가 너무 커요. 문장을 줄이거나 속도를 올려 주세요",
+					// Gemini에는 속도 설정이 없다(계획 리뷰 R6-1)
+					text:
+						provider === "gemini"
+							? "결과 오디오가 너무 커요. 문장을 줄이거나 말투 지시를 바꿔 주세요"
+							: "결과 오디오가 너무 커요. 문장을 줄이거나 속도를 올려 주세요",
 					connections: false,
 				};
 			// Airy 입력 거절(400). 공급자 코드는 보이지 않는다(D7, 새 문구는 사용자 테스트에서 확인)
@@ -411,6 +474,12 @@ export function trialProblemText(
 							: code === "invalid_value"
 								? "Airy가 이 설정을 받지 않았어요. 언어와 말투를 확인해 주세요"
 								: "Airy가 이 문장을 받지 않았어요. 문장이나 언어 설정을 확인해 주세요",
+					connections: false,
+				};
+			// Gemini 입력 거절(400·404·정책 차단). 공급자 코드는 보이지 않는다(새 문구, 사용자 테스트에서 확인)
+			if (provider === "gemini")
+				return {
+					text: "Gemini가 이 문장을 받지 않았어요. 문장이나 말투 지시를 확인해 주세요",
 					connections: false,
 				};
 			if (provider === "elevenlabs" && code && FREE_PLAN_CODES.has(code))
@@ -435,7 +504,11 @@ export function trialProblemText(
 			};
 		case "unknown_outcome":
 			return {
-				text: "처리 여부를 확인하지 못했어요. 크레딧이 쓰였을 수 있으니 공급자 사용 기록을 확인한 뒤 다시 눌러 주세요",
+				// Gemini는 크레딧이 아니라 요금이고 사용량은 Google AI Studio에서 본다(계획 리뷰 R6-2)
+				text:
+					provider === "gemini"
+						? "처리 여부를 확인하지 못했어요. 요금이 들었을 수 있으니 Google AI Studio 사용량을 확인한 뒤 다시 눌러 주세요"
+						: "처리 여부를 확인하지 못했어요. 크레딧이 쓰였을 수 있으니 공급자 사용 기록을 확인한 뒤 다시 눌러 주세요",
 				connections: false,
 			};
 		case "in_progress":

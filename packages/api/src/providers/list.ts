@@ -15,6 +15,8 @@ export const emptyVoice = (
 	gender: null,
 	age: null,
 	accent: null,
+	pitch: null,
+	personas: [],
 	useCases: [],
 	descriptives: [],
 	tags: [],

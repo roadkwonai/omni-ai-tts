@@ -85,6 +85,15 @@ describe("재생 대상과 알림", () => {
 			"민지 저장된 결과 재생 중, 크레딧 0",
 		);
 	});
+	it("Gemini 저장된 결과는 크레딧이 아니라 요금 없음을 알린다", () => {
+		expect(
+			announceOf({
+				...minji("playing"),
+				noun: "저장된 결과",
+				owner: "gemini:catalog:Kore",
+			}),
+		).toBe("민지 저장된 결과 재생 중, 요금 없음");
+	});
 	it("멈춤 알림의 명사 조사를 맞춘다", () => {
 		expect(stoppedText(minji("playing"))).toBe("민지 샘플을 멈췄어요");
 		expect(stoppedText({ ...minji("playing"), noun: "내 문장" })).toBe(

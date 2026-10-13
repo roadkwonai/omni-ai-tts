@@ -26,6 +26,23 @@ export const AIRY_LANGUAGES = ["ko", "en"] as const;
 export const AIRY_STYLES = ["normal", "bright", "calm", "whisper"] as const;
 // Airy 과금(공식 문서 2026-10-07): 입력 한 글자에 language가 ko면 1.5, en이면 1크레딧. 글자는 다른 공급자처럼 코드 포인트로 센다
 export const AIRY_CREDITS_PER_CHAR = { ko: 1.5, en: 1 } as const;
+export const GEMINI_MODELS = [
+	"gemini-3.8-flash-tts",
+	"gemini-3.8-flash-lite-tts",
+] as const;
+// 말투 지시(GLOSSARY) 상한. 공급자 문서에 상한이 없어 앱이 정한다(T7.6 스펙 2절)
+export const GEMINI_DIRECTION_MAX = 100;
+// 추정 금액(T7.6 스펙 2절). 출력 오디오는 25토큰/초다(가격 문서). 말 빠르기는 공급자 근거가 없는 가정이다:
+// 로컬 저장 결과 6개(네 공급자, 기본 속도) 실측 5.4~8.3글자/초 가운데 느린 쪽(길게 어림해 금액이 작게 나오지 않게, T7.6 계획)
+export const GEMINI_CHARS_PER_SECOND = 5;
+export const GEMINI_TOKENS_PER_SECOND = 25;
+// 2027-01-01부터 단가가 두 배다(가격 문서 2026-10-07). 시각은 이르게 잡아 그날 0시 KST(FISH_FREE_UNTIL과 같은 방식)
+export const GEMINI_PRICE_UP_AT = Date.parse("2027-01-01T00:00:00+09:00");
+// 출력 오디오 100만 토큰당 달러 [바뀌기 전, 바뀐 뒤](Gemini API 표준 등급)
+const GEMINI_USD_PER_MILLION = {
+	"gemini-3.8-flash-tts": [9, 18],
+	"gemini-3.8-flash-lite-tts": [6, 12],
+} as const;
 export const EMOTION_PRESETS = [
 	"normal",
 	"happy",
@@ -41,6 +58,7 @@ export type FishModel = (typeof FISH_MODELS)[number];
 export type AiryModel = (typeof AIRY_MODELS)[number];
 export type AiryLanguage = (typeof AIRY_LANGUAGES)[number];
 export type AiryStyle = (typeof AIRY_STYLES)[number];
+export type GeminiModel = (typeof GEMINI_MODELS)[number];
 export type EmotionPreset = (typeof EMOTION_PRESETS)[number];
 // ssfm-v21이 받는 프리셋(공식 문서)
 export const V21_PRESETS: readonly EmotionPreset[] = [
@@ -82,6 +100,8 @@ export const RANGES = {
 	},
 	// 슬라이더가 없다(언어·말투는 고르기)
 	airy: {},
+	// 슬라이더가 없다(말투 지시는 한 줄 입력)
+	gemini: {},
 } as const;
 
 export type TypecastSettings = {
@@ -117,11 +137,18 @@ export type AirySettings = {
 	// 말투(GLOSSARY). ElevenLabs의 '스타일'(수치)과 다르다
 	style: AiryStyle;
 };
+// 말투 지시(GLOSSARY)는 Gemini 요청의 style이다. ElevenLabs '스타일'(수치)·Airy '말투'(고르기)와 섞이지 않게 코드에서는 direction이라 부른다(T7.6 계획 '스펙과 다른 점' 4)
+export type GeminiSettings = {
+	model: GeminiModel;
+	// 비면 보내지 않는다(문서 권장: 대부분 비워 둔다)
+	direction: string;
+};
 export type SettingsOf = {
 	typecast: TypecastSettings;
 	elevenlabs: ElevenLabsSettings;
 	fish_audio: FishSettings;
 	airy: AirySettings;
+	gemini: GeminiSettings;
 };
 // 시험 생성 요청 하나(성우·문장·설정). 화면이 만들고 프로시저가 받는 모양이다
 export type TrialRequest = {
@@ -160,6 +187,7 @@ export const DEFAULT_SETTINGS: SettingsOf = {
 		tag: "",
 	},
 	airy: { model: "airy-tts-v1", language: "ko", style: "normal" },
+	gemini: { model: "gemini-3.8-flash-tts", direction: "" },
 };
 
 type Field<P extends ProviderId> = Exclude<keyof SettingsOf[P], "model"> &
@@ -198,6 +226,10 @@ export const FIELDS: {
 		"s2.1-pro": ["speed", "temperature", "tag"],
 	},
 	airy: { "airy-tts-v1": ["language", "style"] },
+	gemini: {
+		"gemini-3.8-flash-tts": ["direction"],
+		"gemini-3.8-flash-lite-tts": ["direction"],
+	},
 };
 
 // 이 요청의 모델이 받는 옵션. Typecast v30 '자동' 감정은 프리셋·강도를 쓰지 않는다
@@ -260,31 +292,58 @@ export function comboSignature(request: TrialRequest): string {
 	]);
 }
 
-// 공급자에게 보내는 문장. 말투 태그를 받는 모델이면 문장 앞에 붙인다(두 공급자 문서 모두 문장 앞을 권한다). Typecast·Airy는 태그가 없다
+// 공급자에게 보내는 문장. 말투 태그를 받는 모델이면 문장 앞에 붙인다(두 공급자 문서 모두 문장 앞을 권한다).
+// Typecast·Airy는 태그가 없고, Gemini 말투 지시는 문장이 아니라 따로 보낸다(gemini.ts)
 export function sentText(request: TrialRequest): string {
 	const text = normalizeText(request.text);
-	if (request.provider === "typecast" || request.provider === "airy")
+	if (
+		request.provider === "typecast" ||
+		request.provider === "airy" ||
+		request.provider === "gemini"
+	)
 		return text;
 	const tag = request.settings.tag.trim();
 	return tag && fieldsOf(request).includes("tag") ? `[${tag}] ${text}` : text;
 }
 
-export type Usage = { unit: "credit" | "byte" | "free"; amount: number };
+// usd_micro: Gemini 추정 금액(백만분의 1달러, 정수). 금액이 모델·날짜에 달려 생성 때 정한 값을 기록한다(T7.6 계획 '스펙과 다른 점' 3)
+export type Usage = {
+	unit: "credit" | "byte" | "free" | "usd_micro";
+	amount: number;
+};
 export const isFreeModel = (request: TrialRequest) =>
 	request.provider === "fish_audio" &&
 	request.settings.model === "s2.1-pro-free";
 export const freeModelOpen = (now = Date.now()) => now < FISH_FREE_UNTIL;
 
-// 예상 사용량(스펙 4절). 보낼 문장(태그 포함)으로 센다. ElevenLabs 배율을 모르면 1로 센다(화면이 "배율을 확인하지 못했어요"를 붙인다)
+// Gemini 출력 오디오 100만 토큰당 단가(달러). 바뀌는 시각부터 두 배
+export const geminiUsdPerMillion = (model: GeminiModel, now = Date.now()) =>
+	GEMINI_USD_PER_MILLION[model][now < GEMINI_PRICE_UP_AT ? 0 : 1];
+// 가정한 오디오 길이(초). 올림이고 1글자라도 1초다
+export const geminiSeconds = (text: string) =>
+	Math.max(1, Math.ceil(codePoints(text) / GEMINI_CHARS_PER_SECOND));
+
+// 예상 사용량(스펙 4절). 보낼 문장(태그 포함)으로 센다. ElevenLabs 배율을 모르면 1로 센다(화면이 "배율을 확인하지 못했어요"를 붙인다).
+// Gemini는 출력 오디오로 과금되어 가정한 길이 × 25토큰 × 단가를 백만분의 1달러로 담는다(입력 텍스트 요금은 200자에 $0.0001 미만이라 뺀다)
 export function estimate(
 	request: TrialRequest,
 	multiplier: number | null = null,
+	now = Date.now(),
 ): Usage {
 	const sent = sentText(request);
 	if (request.provider === "fish_audio") {
 		return isFreeModel(request)
 			? { unit: "free", amount: 0 }
 			: { unit: "byte", amount: utf8Bytes(sent) };
+	}
+	if (request.provider === "gemini") {
+		return {
+			unit: "usd_micro",
+			amount:
+				geminiSeconds(sent) *
+				GEMINI_TOKENS_PER_SECOND *
+				geminiUsdPerMillion(request.settings.model, now),
+		};
 	}
 	const chars = codePoints(sent);
 	const rate =

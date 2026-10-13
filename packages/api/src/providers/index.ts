@@ -3,6 +3,7 @@ import type { ProviderId } from "./contract";
 import { createElevenLabs } from "./elevenlabs";
 import type { ProviderClient } from "./errors";
 import { createFishAudio } from "./fish-audio";
+import { createGemini } from "./gemini";
 import { createTypecast } from "./typecast";
 
 type ProviderKeys = Partial<Record<ProviderId, string | undefined>>;
@@ -20,5 +21,6 @@ export function createProviders(keys: ProviderKeys): Providers {
 		elevenlabs: withKey(keys.elevenlabs, createElevenLabs),
 		fish_audio: withKey(keys.fish_audio, createFishAudio),
 		airy: withKey(keys.airy, createAiry),
+		gemini: withKey(keys.gemini, createGemini),
 	};
 }

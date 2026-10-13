@@ -18,7 +18,11 @@ import {
 import type { SampleStatus } from "./sample-state";
 import {
 	AGE_LABEL,
+	GEMINI_ACCENT_LABEL,
+	GEMINI_CONTEXT_LABEL,
+	GEMINI_PITCH_LABEL,
 	GENDER_LABEL,
+	geminiKind,
 	labelOf,
 	USE_CASE_LABEL,
 } from "./voice-filter";
@@ -71,6 +75,18 @@ const FISH_KNOWN = new Set([
 
 // 성별·연령·억양의 한국어 이름. 공급자가 주지 않으면 null이다(Fish Audio는 성별·연령 태그)
 function personOf(voice: Voice) {
+	// Gemini는 연령 값이 없다. 한국어 성우 억양은 ElevenLabs처럼 'OO 억양'이고 대표 성우의 영어 억양은 원문이다(계획 리뷰 R4-1)
+	if (voice.provider === "gemini") {
+		return {
+			gender: voice.gender ? labelOf(GENDER_LABEL, voice.gender) : null,
+			age: null,
+			accent: !voice.accent
+				? null
+				: geminiKind(voice) === "korean"
+					? `${labelOf(GEMINI_ACCENT_LABEL, voice.accent)} 억양`
+					: voice.accent,
+		};
+	}
 	if (voice.provider === "fish_audio") {
 		return {
 			gender: knownTags(FISH_GENDER, voice.tags)[0] ?? null,
@@ -100,6 +116,16 @@ export function metaLine(voice: Voice): string {
 			...(languages.length > 0 ? [languages.join("·")] : []),
 		].join(" · ");
 	}
+	// Gemini: 성별 · 피치 · 억양. 대표 성우는 억양 자리에 '대표 성우'(영어 억양은 패널 칩에서만, T7.6 계획에서 정한 것 10)
+	if (voice.provider === "gemini") {
+		return [
+			gender ?? "성별 정보 없음",
+			voice.pitch ? `피치 ${labelOf(GEMINI_PITCH_LABEL, voice.pitch)}` : null,
+			geminiKind(voice) === "classic" ? "대표 성우" : accent,
+		]
+			.filter((part): part is string => part !== null)
+			.join(" · ");
+	}
 	return [
 		gender ?? "성별 정보 없음",
 		age ?? "연령 정보 없음",
@@ -121,15 +147,36 @@ export function pillsOf(voice: Voice): {
 				]
 			: voice.provider === "typecast"
 				? voice.useCases.map((value) => labelOf(USE_CASE_LABEL, value))
-				: [
-						...voice.useCases.map((v) => labelOf(EL_USE_CASE, v)),
-						...voice.descriptives.map((v) => labelOf(EL_DESCRIPTIVE, v)),
-					];
+				: voice.provider === "gemini"
+					? voice.useCases.map((value) => labelOf(GEMINI_CONTEXT_LABEL, value))
+					: [
+							...voice.useCases.map((v) => labelOf(EL_USE_CASE, v)),
+							...voice.descriptives.map((v) => labelOf(EL_DESCRIPTIVE, v)),
+						];
 	return {
 		shown: all.slice(0, VISIBLE_PILLS),
 		rest: Math.max(0, all.length - VISIBLE_PILLS),
 		all,
 	};
+}
+
+// 이름 끝 번호(Gemini 'Authoritative Advisor 12'). 행에서 본문만 말줄임하고 번호는 늘 보인다(critique P1). 공급자와 상관없이 공백 뒤 숫자로 끝나는 이름만
+export function nameParts(
+	name: string,
+): { body: string; number: string } | null {
+	const [, body, number] = /^(.*\S)\s+(\d+)$/.exec(name) ?? [];
+	return body && number ? { body, number } : null;
+}
+
+// Gemini 행 오른쪽 칸의 설명 첫 마디(critique P1): 첫 문장을 끝 마침표 없이. 영어 원문 그대로다
+export function geminiTagline(voice: Voice): string | null {
+	if (voice.provider !== "gemini" || !voice.description) return null;
+	return (
+		voice.description
+			.trim()
+			.split(/\.(?:\s|$)/)[0]
+			?.trim() || null
+	);
 }
 
 // 패널의 공급자 분류 칩(브리프 5절 패널 1): 아는 성별·연령·억양, 콘텐츠·분위기, 성우 종류. '정보 없음'은 칩으로 만들지 않는다.
@@ -156,11 +203,22 @@ export function chipsOf(voice: Voice): string[] {
 		voice.provider === "fish_audio"
 			? voice.tags.filter((tag) => !FISH_KNOWN.has(tag))
 			: [];
+	// Gemini 피치·페르소나(T7.6). 피치는 '피치 낮음'처럼, 페르소나는 공급자 원문이다
+	const pitch =
+		voice.provider === "gemini" && voice.pitch
+			? [`피치 ${labelOf(GEMINI_PITCH_LABEL, voice.pitch)}`]
+			: [];
+	const personas = voice.provider === "gemini" ? voice.personas : [];
 	return [
 		...new Set(
-			[...people, ...pillsOf(voice).all, ...category, ...otherTags].filter(
-				(chip): chip is string => chip !== null,
-			),
+			[
+				...people,
+				...pitch,
+				...pillsOf(voice).all,
+				...category,
+				...otherTags,
+				...personas,
+			].filter((chip): chip is string => chip !== null),
 		),
 	];
 }
@@ -309,6 +367,12 @@ export const emotionLines = (voice: Voice): string[] =>
 			: [],
 	);
 
+// 샘플 칸 이름(GLOSSARY). Gemini 대표 성우의 샘플은 참고 음성이다(T7.6)
+export const sampleKindOf = (voice: Voice) =>
+	voice.provider === "gemini" && voice.previewUrl !== null
+		? "참고 음성"
+		: "기본 샘플";
+
 export function sampleLabel(sample: VoiceSample): string {
 	if (sample.language) return `${languageName(sample.language)} 샘플`;
 	return sample.title ?? "기본 샘플";
@@ -375,6 +439,20 @@ export function countText(input: {
 	return `${name} ${what} ${plain.format(input.total)}명${input.totalExact ? "" : " 이상"}`;
 }
 
+// 한 목록 탭(Typecast·Airy·Gemini)의 인원 글자. total이 undefined면 아직 못 받은 것, filtered면 전체 중 결과 수를 같이 보인다
+export const oneListCountText = (
+	provider: "typecast" | "airy" | "gemini",
+	total: number | undefined,
+	filtered: boolean,
+	matched: number,
+) => {
+	const name = `${PROVIDER_LABEL[provider]} 성우`;
+	if (total === undefined) return name;
+	return filtered
+		? `${name} ${plain.format(total)}명 중 ${plain.format(matched)}명`
+		: `${name} ${plain.format(total)}명`;
+};
+
 // '더 보기' 옆 글자: 보인 수 / 전체 수. 전체 수를 모르면 보인 수만, 정확하지 않으면 '이상'
 export const moreCountText = (
 	shown: number,
@@ -398,6 +476,15 @@ export const samplesMissing = (voices: readonly Voice[]) =>
 	voices.length > 0 && voices.every((voice) => voice.samples.length === 0);
 export const SAMPLES_MISSING_TEXT =
 	"기본 샘플을 받지 못했어요. '목록 새로 고침'으로 다시 받아 보세요.";
+
+// 패널 샘플 칸의 Gemini 안내(T7.6 스펙 5절). 대표 성우는 참고 음성, 한국어 성우는 샘플이 없다.
+// 성우 보관함은 내 문장 듣기가 없어 캐스팅으로 안내한다(계획 리뷰 R4-4)
+export const GEMINI_REFERENCE_NOTE =
+	"다른 모델로 만든 같은 이름 성우의 한국어 음성이에요. Gemini 소리와 다를 수 있어요.";
+export const GEMINI_NO_SAMPLE_NOTE =
+	"Gemini는 기본 샘플을 주지 않아요. 내 문장 듣기로 들어 보세요.";
+export const GEMINI_NO_SAMPLE_LIBRARY_NOTE =
+	"Gemini는 기본 샘플을 주지 않아요. 성우 캐스팅의 내 문장 듣기로 들어 보세요.";
 
 // '전체' 탭 묶음(브리프 5절, 스펙 AC2): 앞 5명과 머리의 인원 글자. Typecast는 검색어가 있으면 "{전체}명 중 {n}명"이다(of: 전체 수)
 export const BUNDLE_SIZE = 5;

@@ -8,6 +8,7 @@ import {
 	DEFAULT_SETTINGS,
 	estimate,
 	fieldsOf,
+	GEMINI_DIRECTION_MAX,
 	RANGES,
 	type Range,
 	type TrialRequest,
@@ -28,6 +29,7 @@ import { useId, useState } from "react";
 import { languageName } from "@/lib/provider-conditions";
 import {
 	AIRY_STYLE_LABEL,
+	costCopy,
 	dataNote,
 	ELEVENLABS_TAGS,
 	emotionLabel,
@@ -148,8 +150,56 @@ function TagControl({
 	);
 }
 
+// 말투 지시(GLOSSARY): Gemini에 대본과 따로 보내는 한 줄 자유 문장(100자, 줄바꿈 없음). 비우면 보내지 않는다(문서 권장: 대부분 비워 둔다).
+// 글자 수는 서버 검사와 같은 UTF-16 길이(.length, maxLength와 같은 기준)다(계획 리뷰 R6-5)
+function DirectionControl({
+	value,
+	onChange,
+}: {
+	value: string;
+	onChange: (value: string) => void;
+}) {
+	const id = useId();
+	const hintId = useId();
+	const countId = useId();
+	return (
+		<div className="flex flex-col gap-1">
+			<div className="flex items-center justify-between gap-2 text-sm">
+				<label htmlFor={id}>{FIELD_LABEL.direction}</label>
+				<span
+					id={countId}
+					className={cn(
+						"text-muted-foreground tabular-nums",
+						value.length >= GEMINI_DIRECTION_MAX && "text-warning",
+					)}
+				>
+					{value.length} / {GEMINI_DIRECTION_MAX}자
+				</span>
+			</div>
+			<Input
+				id={id}
+				aria-describedby={`${hintId} ${countId}`}
+				name="trial-direction"
+				autoComplete="off"
+				placeholder="calm and relaxed"
+				value={value}
+				maxLength={GEMINI_DIRECTION_MAX}
+				// 붙여 넣은 줄바꿈은 공백으로 바꾼다(서버는 줄바꿈을 받지 않는다)
+				onChange={(event) =>
+					onChange(event.target.value.replace(/[\r\n]+/g, " "))
+				}
+				className="min-h-11 rounded-xl text-base md:text-sm"
+			/>
+			<p id={hintId} className="text-muted-foreground text-sm">
+				비워 두면 보내지 않아요. {GEMINI_DIRECTION_MAX}자까지 쓸 수 있어요. 예:
+				calm and relaxed, speaking slowly
+			</p>
+		</div>
+	);
+}
+
 // 그 모델이 받는 옵션만 FIELDS 표 순서로 그린다(fieldsOf). 범위가 있는 필드는 슬라이더 한 줄이고,
-// 나머지 여섯(감정 모드·감정·언어·화자 증폭·말투 태그·Airy 말투)만 따로 그린다(계획 리뷰 ponytail 2).
+// 나머지 일곱(감정 모드·감정·언어·화자 증폭·말투 태그·Airy 말투·Gemini 말투 지시)만 따로 그린다(계획 리뷰 ponytail 2).
 // 값은 공급자 설정을 고치고(setSetting), 성우에 맞춘 보정은 요청에서만 한다
 function Options({ voice, request }: { voice: Voice; request: TrialRequest }) {
 	const { setSetting } = useTrial();
@@ -256,6 +306,14 @@ function Options({ voice, request }: { voice: Voice; request: TrialRequest }) {
 						onChange={(tag) => set("tag", tag)}
 					/>
 				);
+			case "direction":
+				return (
+					<DirectionControl
+						key={field}
+						value={String(values.direction)}
+						onChange={(direction) => set("direction", direction)}
+					/>
+				);
 			default:
 				return null;
 		}
@@ -358,7 +416,7 @@ export function TrialSection({ voice }: { voice: Voice }) {
 				{empty ? null : (
 					<p className="flex flex-wrap items-center gap-1.5 text-sm tabular-nums">
 						{saved ? (
-							"저장된 결과 · 크레딧 0"
+							costCopy(voice.provider).saved
 						) : usage.unit === "free" ? (
 							<Badge variant="success">무료</Badge>
 						) : (
@@ -419,7 +477,7 @@ export function TrialSection({ voice }: { voice: Voice }) {
 						className={cn("w-full", lockedButton(block !== null))}
 						focusableWhenDisabled
 						disabled={block !== null || mine}
-						aria-label={`${voice.name} 새로 만들기, ${usage.unit === "free" ? "무료" : "크레딧 사용"}`}
+						aria-label={`${voice.name} 새로 만들기, ${usage.unit === "free" ? "무료" : costCopy(voice.provider).paid}`}
 						aria-describedby={describedBy}
 						onClick={(event) =>
 							trial.listen(voice, event.currentTarget, { regenerate: true })

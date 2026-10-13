@@ -34,6 +34,7 @@ describe("providerStatus", () => {
 			"elevenlabs",
 			"fish_audio",
 			"airy",
+			"gemini",
 		] as const) {
 			await expect(client.providerStatus({ provider })).resolves.toMatchObject({
 				provider,

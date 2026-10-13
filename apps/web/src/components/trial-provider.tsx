@@ -138,6 +138,7 @@ export function TrialProvider({ children }: { children: ReactNode }) {
 		elevenlabs: useCooldown(retryAts.elevenlabs),
 		fish_audio: useCooldown(retryAts.fish_audio),
 		airy: useCooldown(retryAts.airy),
+		gemini: useCooldown(retryAts.gemini),
 	};
 
 	useEffect(() => {

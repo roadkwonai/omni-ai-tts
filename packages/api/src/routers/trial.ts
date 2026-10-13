@@ -22,6 +22,7 @@ import {
 import {
 	audioFile,
 	audioOf,
+	audioTypeOf,
 	claim,
 	comboKey,
 	complete,
@@ -37,7 +38,7 @@ import {
 import { cachedList, cooldownOf, guard, recordCooldown } from "../voice-cache";
 
 // 공급자 응답 오디오 상한. 200자 MP3는 1MB 안팎이다(스펙 4절, Vercel 응답 4.5MB). Typecast MP3는 320kbps라
-// 200자를 속도 0.5로 들으면 상한에 닿을 수 있다. 넘으면 이미 과금된 결과라도 버리고 "문장을 줄이거나 속도를 올려"를 보인다(계획 리뷰 E8)
+// 200자를 속도 0.5로 들으면 상한에 닿을 수 있다. 넘으면 이미 과금된 결과라도 버리고 "문장을 줄이거나 속도를 올려"를 보인다(계획 리뷰 E8). Gemini WAV는 1분 약 2.88MB라 약 87초에서 닿는다(T7.6)
 const MAX_AUDIO_BYTES = 4 * 1024 * 1024;
 
 // ElevenLabs 모델 크레딧 배율. 목록 캐시(24시간, 소유자 없음)를 거친다
@@ -180,7 +181,7 @@ export const trialRouter = {
 			await guard(
 				"완료 기록",
 				async () => {
-					await complete(db, ownerId, claimed.id, audio);
+					await complete(db, ownerId, claimed.id, audio, audioTypeOf(provider));
 					await sweep(db, ownerId);
 				},
 				"[trial]",
@@ -189,7 +190,7 @@ export const trialRouter = {
 				id: claimed.id,
 				createdAt: claimed.createdAt,
 				usage,
-				audio: audioFile(audio),
+				audio: audioFile(audio, audioTypeOf(provider)),
 			};
 		}),
 	trialList: protectedProcedure

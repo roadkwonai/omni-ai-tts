@@ -20,6 +20,8 @@ import { CircleCheck, KeyRound, TriangleAlert } from "lucide-react";
 import { type ReactNode, useId } from "react";
 
 import {
+	balanceNote,
+	causeText,
 	creditNumber,
 	isUpcoming,
 	PROVIDER_LABEL,
@@ -35,6 +37,7 @@ const ENV_KEY: Record<ProviderId, string> = {
 	elevenlabs: "ELEVENLABS_API_KEY",
 	fish_audio: "FISH_AUDIO_API_KEY",
 	airy: "AIRY_API_KEY",
+	gemini: "GEMINI_API_KEY",
 };
 
 export const STATUS_LABEL: Record<ConnectionStatus, string> = {
@@ -87,11 +90,9 @@ function reasonText(
 	const until = recheckUntil(result);
 	switch (result.status) {
 		case "provider_auth":
-			return `키가 틀렸거나 만료됐어요. ${name} 대시보드에서 키를 확인해 주세요.`;
 		case "no_permission":
-			return `키는 맞지만 사용량 조회 권한이 없어요. ${name} 대시보드에서 키 권한을 확인해 주세요.`;
 		case "quota":
-			return `남은 사용량이 없어요. ${name}에서 플랜이나 충전 상태를 확인해 주세요.`;
+			return causeText(provider, result.status);
 		case "rate_limit":
 			return until !== null
 				? `${retryTime(until)} 이후 다시 확인할 수 있어요.`
@@ -211,6 +212,7 @@ function Details({
 	reasonId: string;
 }) {
 	const reason = reasonText(provider, result);
+	const note = balanceNote(result);
 	return (
 		<>
 			{result.status === "no_key" ? (
@@ -247,6 +249,9 @@ function Details({
 						<FishWebCredit web={result.quota.webCredit} />
 					) : null}
 				</div>
+			)}
+			{note === null ? null : (
+				<p className="text-muted-foreground text-sm">{note}</p>
 			)}
 		</>
 	);

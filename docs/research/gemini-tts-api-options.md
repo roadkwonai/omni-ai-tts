@@ -113,6 +113,7 @@
 - 응답 필드: `id`, `display_name`, `description`, `gender`, `pitch`, `accent`, `persona`, `context`, `language_code`, `region_code`, `type`, `model`, `expire_time` (D9). 미리 만든 성우의 `id`는 이름(예 `Puck`)이고 맞춤 성우는 `voice_…`다 (D9).
 - 확장 성우 라이브러리의 크기는 문서마다 다르다: "hundreds"(D1), "150+ prebuilt and custom voices"(D6), "more than 2,000"(D25, D27).
 - 이 목록 호출의 과금 문구는 문서에 없다(무료라고 명시하지도 않는다).
+- → 16절(2026-10-13 실측): `ko-KR` 117명, `en-US` 215명(대표 30명 모두 포함), 한 명 조회 `GET /v1beta/voices/{id}`는 404.
 
 ### 4-3. 과금 없는 기본 샘플
 
@@ -126,6 +127,7 @@
 
 - 확장 성우 라이브러리의 성우(수백~2,000명)에는 공개 샘플이 없다.
 - AI Studio(`https://aistudio.google.com/generate-speech`)에서 들어볼 수 있지만 로그인한 화면이라 앱에서 재생할 주소가 아니다 (D1).
+- → 16절(2026-10-13 실측): 목록 응답에 `sample_audio`가 없고, 한국어 Chirp 3 HD 샘플 30개가 모두 200이다.
 
 ## 5. 한국어
 
@@ -133,7 +135,7 @@
 - 언어 지정: "TTS 모델은 입력 언어를 자동으로 감지한다" (D1). Interactions의 `generation_config.speech_config[].language`("The language of the speech")가 있다. 값 형식 설명은 없다 (D10). Enterprise `generateContent`는 `generationConfig.speechConfig.languageCode`(D26).
 - 비영어 대본에도 태그는 영어로 쓴다: "If your transcript is in a non-English language, continue to use English inline tags for best results." (D1)
 - 품질 관련 문구: 블로그의 Voice Arena 상위 언어 목록은 일본어, 브라질 포르투갈어, 베트남어, 표준 아랍어, 멕시코 스페인어, 힌디어이고 한국어는 없다 (D27). 한국어 품질 수치는 정보 없음.
-- 성우 목록에서 한국어 성우만 고르려면 `language_code=ko-KR`을 쓴다(Gemini API) (D1, D9). 한국어 성우가 몇 명인지는 정보 없음(키 없이 확인 불가).
+- 성우 목록에서 한국어 성우만 고르려면 `language_code=ko-KR`을 쓴다(Gemini API) (D1, D9). 한국어 성우가 몇 명인지는 정보 없음(키 없이 확인 불가). → 16절(2026-10-13 실측): 117명.
 - 복제 동의 문장에 한국어(`ko-KR`)가 있다: "나는 이 음성의 소유자이며 구글이 이 음성을 사용하여 음성 합성 모델을 생성할 것을 허용합니다." (D8)
 
 ## 6. 감정·말투 제어
@@ -288,6 +290,7 @@ Interactions API의 실패 본문은 `{ "error": { "code": "<snake_case>", "mess
 - 일일 한도(`quota_exceeded`)는 태평양 시간 자정에 풀린다 (D13). 대기 시각을 그때로 잡는 방안을 설계 때 정한다.
 - 문서 권장은 429·5xx 지수 백오프 재시도, 400·402·403은 재시도 금지다 (D16). 이 앱은 유료 호출을 자동 재시도하지 않으므로 권장과 다르게 간다(문제 없음).
 - 할당량은 프로젝트 단위다(키 단위가 아니다) (D13). 같은 프로젝트의 다른 키·AI Studio 사용이 이 앱의 한도를 함께 쓴다.
+- → 16절(2026-10-13 실측): Voices API의 오류 본문은 숫자 `code` + `status`(+ `details[].reason`) 꼴이다. 이 표의 snake_case는 Interactions 기준이다.
 
 ## 10. 약관·데이터
 
@@ -345,6 +348,8 @@ Interactions API의 실패 본문은 `{ "error": { "code": "<snake_case>", "mess
 | 클론 소유권(앱 소유 매핑, 비공개 고정) | 복제·삭제 API와 한국어 동의 문장이 있다. 복제 결과는 프로젝트 비공개 | 프로젝트당 200명·1년 미사용 자동 삭제. 동의 녹음을 따로 받아야 한다. `store` 기본값이 문서끼리 다르다 | T13 메모로 넘긴다. `store: true`를 명시하고 응답 `id`만 매핑에 기록 |
 | 설정 계약(zod) | 모델, 성우, `style` 문장, 언어 힌트, 표본 주파수 정도로 작다 | 숫자 속도·높낮이·온도가 없다(3.8은 `temperature` 등을 거절, D26). `style`이 자유 문장이라 길이 상한이 필요 | `style`은 6-3절 프리셋 + 짧은 자유 입력(상한은 설계 때), 태그는 6-2절 뱃지 |
 
+- → 16절(2026-10-13 실측): 성우 한 명 조회는 404라 '공개 성우는 목록에서 찾는다(Airy 방식)'로 확정했고, 대표 성우 30명은 en-US 목록에서 고른다. 한국어 117명·오류 본문 모양도 16절.
+
 ## 14. 결론과 로드맵 제안
 
 **결론: 조건부 가능**
@@ -369,7 +374,7 @@ Interactions API의 실패 본문은 `{ "error": { "code": "<snake_case>", "mess
 
 ## 15. 확인하지 못한 것
 
-- `ko-KR` 성우 수, 확장 라이브러리 성우의 `id` 형식(앱 `voiceIdSchema` `^[A-Za-z0-9_-]{1,100}$`에 맞는지): 키 없이 확인 불가. 정보 없음.
+- `ko-KR` 성우 수, 확장 라이브러리 성우의 `id` 형식(앱 `voiceIdSchema` `^[A-Za-z0-9_-]{1,100}$`에 맞는지): 키 없이 확인 불가. 정보 없음. → 16절(2026-10-13 실측)에서 풀렸다.
 - `ListVoices`·`GetVoice`·`models.countTokens`의 과금 여부: 문서에 과금 문구 없음.
 - `countTokens`가 TTS 모델 id를 받는지: 정보 없음.
 - 3.8 TTS의 무료·유료 등급별 RPM·RPD 숫자: 문서에 없고 AI Studio에서만 보인다.
@@ -378,9 +383,21 @@ Interactions API의 실패 본문은 `{ "error": { "code": "<snake_case>", "mess
 - 요청당 지연(첫 오디오까지, 완료까지): 정보 없음.
 - 한국어 품질 평가 수치: 정보 없음.
 - 음성 디자인·복제 생성 요금, API 경로의 복제 지역 제한: 정보 없음.
-- `GetVoice`가 미리 만든 성우 id를 받는지: 정보 없음.
+- `GetVoice`가 미리 만든 성우 id를 받는지: 정보 없음. → 16절(2026-10-13 실측): 받지 않는다(404).
 - Cloud 문서 샘플(Chirp 3 HD)과 Gemini 3.8 같은 이름 성우의 음색이 같은지: 정보 없음(문서는 "similar"라고만 함). Gemini-TTS 데모 파일(`chirp3-hd-<이름>.wav`)의 언어도 정보 없음.
 - 키로 선불 잔액을 조회하는 API: 문서에 없음.
 - Gemini Enterprise를 API 키로 부르는 방식: 정보 없음.
 - Interactions `speech_config[].language`의 값 형식(`ko`인지 `ko-KR`인지): 정보 없음.
 - 문서끼리 다른 값: 출시일(2026-09-22 릴리스 노트·종료 표 / 2026-09-23 블로그), 확장 라이브러리 크기(수백 / 150+ / 2,000+), `voices.create`의 `store` 기본값(true / false), 다화자 인원("2명까지" / "정확히 2명"), `<whispers>` 태그 권장과 "속삭임은 style에" 권장.
+
+## 16. 키로 확인한 것 (2026-10-13)
+
+- 무료 등급 키로 `GET /v1beta/voices`를 3회 불렀고, 같은 날 계획 리뷰 뒤 무료 조회 2회를 더했다(합성 0회). 근거: `tasks/evidence/T07.6/voices-probe-2026-10-13.txt`(로컬 전용). 설계 결과는 [T7.6 스펙](../plans/tasks/T07.6-gemini-provider.md).
+- `type=prebuilt&language_code=ko-KR`: **117명**, 다음 페이지 없음. id `ko-kr-<역할>-<번호>`(예 `ko-kr-advisor-1`), `display_name`은 영어(`Authoritative Advisor 1`). 성별 여 59·남 57·중성 1, 피치 낮음 58·중간 28·높음 31, `accent` `Seoul Korean` 103·`Busan Korean` 14, `context` 5종, `persona` 29종. `description`은 영어(최대 166자, 나이·출신·말투를 문장으로 적는다). 15절의 "`ko-KR` 성우 수"가 풀렸다.
+- `type=prebuilt`(언어 없이): 1,000명에 `next_page_token`이 있다(확장 라이브러리). 4-1절의 대표 성우 30명은 소문자 이름 id(`achernar`, `kore`)이고 `language_code`가 `en-US`라 `language_code=ko-KR` 목록에 나오지 않는다.
+- 응답은 snake_case다: `voices`, `next_page_token`, 항목의 `id`, `type`, `display_name`, `language_code`, `region_code`, `accent`, `persona`, `context`, `gender`, `pitch`, `description`. 목록 항목에 `model`·`sample_audio` 필드가 없다(4-3절 확인). `context`·`persona`는 여러 값을 ` | `로 이어 줄 때가 있다.
+- 모든 id가 앱의 `voiceIdSchema`(`^[A-Za-z0-9_-]{1,100}$`)에 맞는다(15절 확인).
+- `GET /v1beta/voices/Kore` → **404** `{ "error": { "code": 404, "message": "…", "status": "NOT_FOUND" } }`. 소문자 `GET /v1beta/voices/kore`도 404 `NOT_FOUND`다. 미리 만든 성우는 한 명 조회로 받을 수 없다(15절의 의문이 풀렸다). Voices API의 오류 본문은 9절의 snake_case `code`가 아니라 Google 표준 꼴(숫자 `code` + `status`)이다. Interactions(합성)의 오류 모양은 아직 모른다.
+- `type=prebuilt&language_code=en-US&page_size=1000`: **215명**, 한 페이지(다음 토큰 없음), 모두 `language_code` `en-US`. 4-1절 대표 30명이 **모두 들어 있다**(소문자 이름 id). 대표 성우 외 나머지는 `en-us-advisor-1`처럼 역할형 id다. 앱은 en-US 목록에서 대표 30명만 고른다.
+- 4-3절 Cloud 문서의 한국어 Chirp 3 HD 샘플 `ko-KR-Chirp3-HD-<이름>.wav` 30개를 HEAD로 확인했다. 모두 200, `audio/vnd.wave`(Aoede도 `Aoede` 철자).
+- 429 `Retry-After`, 틀린 키 응답 모양, 합성 응답의 오디오 형식(WAV·PCM)은 아직 모른다(T7.6 QA와 승인 호출에서 확인).

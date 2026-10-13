@@ -17,7 +17,8 @@ import type {
 import { providerError } from "./providers/errors";
 
 // 공급자 목록 캐시(ADR 0003, T4 스펙 5절). 계약이나 공급자 모듈의 변환·거르기(샘플 호스트 포함)가 바뀌면 판을 올린다. 캐시 행에는 변환을 마친 성우가 들어 있다.
-export const CONTRACT_VERSION = 1;
+// 2: T7.6 성우 계약에 pitch·personas
+export const CONTRACT_VERSION = 2;
 const TTL_MS = 24 * 60 * 60 * 1000;
 // 만료 뒤 이만큼은 공급자가 실패할 때 지난 목록으로 쓰고, 그 뒤 쓰기 때 지운다
 const KEEP_STALE_MS = 7 * 24 * 60 * 60 * 1000;

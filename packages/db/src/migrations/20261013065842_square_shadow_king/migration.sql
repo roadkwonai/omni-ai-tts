@@ -1,0 +1,3 @@
+ALTER TABLE "saved_voice" DROP CONSTRAINT "saved_voice_provider", ADD CONSTRAINT "saved_voice_provider" CHECK ("provider" in ('typecast', 'elevenlabs', 'fish_audio', 'airy', 'gemini'));--> statement-breakpoint
+ALTER TABLE "trial_generation" DROP CONSTRAINT "trial_generation_provider", ADD CONSTRAINT "trial_generation_provider" CHECK ("provider" in ('typecast', 'elevenlabs', 'fish_audio', 'airy', 'gemini'));--> statement-breakpoint
+ALTER TABLE "trial_generation" DROP CONSTRAINT "trial_generation_usage_unit", ADD CONSTRAINT "trial_generation_usage_unit" CHECK ("usage_unit" in ('credit', 'byte', 'free', 'usd_micro'));

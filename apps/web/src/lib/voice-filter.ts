@@ -52,7 +52,10 @@ export const labelOf = (labels: Map<string, string>, value: string) =>
 
 const normalize = (text: string) => text.normalize("NFC").trim().toLowerCase();
 
-export function hasConditions(query: string, filters: VoiceFilters): boolean {
+export function hasConditions(
+	query: string,
+	filters: Readonly<Record<string, readonly string[]>>,
+): boolean {
 	return (
 		normalize(query) !== "" ||
 		Object.values(filters).some((values) => values.length > 0)
@@ -103,6 +106,86 @@ export function filterByNameOrId(
 				voice.voiceId.toLowerCase().includes(needle)) &&
 			anyOf(genders, [voice.gender]),
 	);
+}
+
+// Gemini 탭(T7.6 스펙 2·5절). 공급자 값 → 한국어 이름. 모르는 값과 페르소나는 공급자 값 그대로다
+export const GEMINI_KIND_LABEL = new Map([
+	["korean", "한국어 성우"],
+	["classic", "대표 성우"],
+]);
+export const GEMINI_PITCH_LABEL = new Map([
+	["low", "낮음"],
+	["medium", "중간"],
+	["high", "높음"],
+]);
+export const GEMINI_ACCENT_LABEL = new Map([
+	["Seoul Korean", "서울"],
+	["Busan Korean", "부산"],
+]);
+export const GEMINI_CONTEXT_LABEL = new Map([
+	["Content & Media", "콘텐츠·미디어"],
+	["Conversational / Edu", "대화·교육"],
+	["Enterprise Agent", "기업 상담"],
+	["Growth & Marketing", "성장·마케팅"],
+	["Wellness & Culture", "웰니스·문화"],
+	["Entertainment & Gaming", "엔터테인먼트·게임"],
+]);
+// 한국어 목록의 성우는 ko-KR, 대표 성우는 en-US로 온다(2026-10-13 실측, 계획에서 정한 것 8)
+export const geminiKind = (voice: Voice) =>
+	voice.languages.includes("ko-KR") ? "korean" : "classic";
+
+export type GeminiFilters = {
+	kinds: string[];
+	genders: string[];
+	pitches: string[];
+	accents: string[];
+	contexts: string[];
+	personas: string[];
+};
+export const EMPTY_GEMINI_FILTERS: GeminiFilters = {
+	kinds: [],
+	genders: [],
+	pitches: [],
+	accents: [],
+	contexts: [],
+	personas: [],
+};
+
+// 같은 축은 OR, 다른 축은 AND. 검색은 이름·성우 id·설명 부분 일치(대소문자 무시).
+// 거른 뒤 일치 등급(이름 전체 → 이름 시작 → 이름 포함 → 성우 id → 설명) → 대표 성우 먼저 → 원래 순서로 안정 정렬한다(critique P2, 사용자 결정 2026-10-13).
+// 인원은 그대로라 '전체' 묶음 인원과 탭 인원이 같다
+export function filterGemini(
+	voices: readonly Voice[],
+	query: string,
+	filters: GeminiFilters,
+): Voice[] {
+	const needle = normalize(query);
+	// 맞지 않으면 null(거른다)
+	const matchRank = (voice: Voice) => {
+		if (needle === "") return 0;
+		const name = normalize(voice.name);
+		if (name === needle) return 0;
+		if (name.startsWith(needle)) return 1;
+		if (name.includes(needle)) return 2;
+		if (voice.voiceId.toLowerCase().includes(needle)) return 3;
+		if (normalize(voice.description ?? "").includes(needle)) return 4;
+		return null;
+	};
+	const ranked = voices.flatMap((voice) => {
+		const rank = matchRank(voice);
+		return rank !== null &&
+			anyOf(filters.kinds, [geminiKind(voice)]) &&
+			anyOf(filters.genders, [voice.gender]) &&
+			anyOf(filters.pitches, [voice.pitch]) &&
+			anyOf(filters.accents, [voice.accent]) &&
+			anyOf(filters.contexts, voice.useCases) &&
+			anyOf(filters.personas, voice.personas)
+			? [{ voice, rank, korean: geminiKind(voice) === "korean" ? 1 : 0 }]
+			: [];
+	});
+	return ranked
+		.sort((a, b) => a.rank - b.rank || a.korean - b.korean)
+		.map(({ voice }) => voice);
 }
 
 // 콘텐츠별 선반. 인원 많은 순, 같으면 처음 나온 순(정렬은 안정적이다). 콘텐츠가 없는 성우는 마지막 묶음(null)이다.
@@ -166,5 +249,39 @@ export function filterOptions(
 				? []
 				: [{ value: useCase, label: labelOf(USE_CASE_LABEL, useCase) }],
 		),
+	};
+}
+
+// Gemini 조건 선택지(받은 목록의 값으로). 억양은 한국어 성우 값만(대표 성우의 영어 억양은 선택지가 아니다, 계획에서 정한 것 9)
+export function geminiOptions(
+	voices: readonly Voice[],
+): Record<keyof GeminiFilters, Option[]> {
+	const sets = {
+		kinds: new Set<string>(),
+		genders: new Set<string>(),
+		pitches: new Set<string>(),
+		accents: new Set<string>(),
+		contexts: new Set<string>(),
+		personas: new Set<string>(),
+	};
+	for (const voice of voices) {
+		const kind = geminiKind(voice);
+		sets.kinds.add(kind);
+		if (voice.gender) sets.genders.add(voice.gender);
+		if (voice.pitch) sets.pitches.add(voice.pitch);
+		if (voice.accent && kind === "korean") sets.accents.add(voice.accent);
+		for (const value of voice.useCases) sets.contexts.add(value);
+		for (const value of voice.personas) sets.personas.add(value);
+	}
+	return {
+		kinds: ordered(sets.kinds, GEMINI_KIND_LABEL),
+		genders: ordered(sets.genders, GENDER_LABEL),
+		pitches: ordered(sets.pitches, GEMINI_PITCH_LABEL),
+		accents: ordered(sets.accents, GEMINI_ACCENT_LABEL),
+		contexts: ordered(sets.contexts, GEMINI_CONTEXT_LABEL),
+		// 이름표가 없어 공급자 값 그대로, 알파벳순
+		personas: [...sets.personas]
+			.sort((a, b) => a.localeCompare(b, "en"))
+			.map((value) => ({ value, label: value })),
 	};
 }

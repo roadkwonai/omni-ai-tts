@@ -40,7 +40,7 @@ type ChoiceView = {
 	emptyAction?: ReactNode;
 	// 선택지에 없는 값을 값 그대로 쓰지 않고 개수로 쓴다(성우 보관함: 목록을 받기 전의 채널·분류 id)
 	countUnknown?: boolean;
-	// 값 이름을 번역하지 않는다(공급자 이름, 하나 고르기의 항목과 버튼 글자)
+	// 값 이름을 번역하지 않는다(공급자 이름, Gemini 페르소나. 항목과 버튼 글자)
 	translate?: "no";
 };
 type ToggleView = {
@@ -153,7 +153,11 @@ function ChoiceMenu({
 				<ChevronDown data-icon="inline-end" aria-hidden="true" />
 			</DropdownMenuTrigger>
 			<DropdownMenuContent
-				className={menuContent}
+				// 번역하지 않는 값(Gemini 페르소나)은 100자 가까이 길어 폭 상한을 두고 항목 글자를 줄바꿈한다(audit N4)
+				className={cn(
+					menuContent,
+					translate && "max-w-[min(24rem,calc(100vw-2rem))]",
+				)}
 				// 항목이 없으면 그룹 이름이 읽히지 않으므로(이름표는 aria-hidden) 포커스를 받는 메뉴의 설명으로 잇는다
 				aria-describedby={empty ? hintId : undefined}
 			>
@@ -178,7 +182,11 @@ function ChoiceMenu({
 									)
 								}
 							>
-								{option.label}
+								{translate ? (
+									<span translate={translate}>{option.label}</span>
+								) : (
+									option.label
+								)}
 							</DropdownMenuCheckboxItem>
 						))}
 					</DropdownMenuGroup>

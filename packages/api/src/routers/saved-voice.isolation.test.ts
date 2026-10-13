@@ -115,6 +115,36 @@ describe.skipIf(!url)("성우 보관함 소유자 격리(스펙 8절 8번)", () 
 		expect(theirs.memo).toBeNull();
 		expect(await as(A).savedVoiceList()).toEqual([mine]);
 	});
+
+	it("Gemini 성우도 같은 소유자 규칙이다: B는 A의 Gemini 성우를 보지 못하고 따로 담는다(참고 음성 경로·DB 검사 제약 포함)", async () => {
+		const url =
+			"https://docs.cloud.google.com/text-to-speech/docs/audio/ko-KR-Chirp3-HD-Kore.wav";
+		const kore = {
+			...emptyVoice("gemini", "public"),
+			voiceId: "kore",
+			name: "Kore",
+			pitch: "medium",
+			personas: ["Storyteller & Narrator"],
+			previewUrl: url,
+			samples: [{ language: null, title: "참고 음성 · Chirp 3 HD", url }],
+		};
+		const mine = await as(A).savedVoiceSave({ voice: kore, memo: "A 메모" });
+		expect(mine.voice).toMatchObject({
+			previewUrl: url,
+			pitch: "medium",
+			personas: ["Storyteller & Narrator"],
+		});
+		expect(await as(B).savedVoiceList()).toEqual([]);
+		await expect(as(B).savedVoiceRemove({ id: mine.id })).rejects.toMatchObject(
+			{
+				code: "NOT_FOUND",
+			},
+		);
+		const theirs = await as(B).savedVoiceSave({ voice: kore });
+		expect(theirs.id).not.toBe(mine.id);
+		expect(theirs.memo).toBeNull();
+		expect(await as(A).savedVoiceList()).toEqual([mine]);
+	});
 });
 
 describe("소유자 없음(스펙 8절 9번)", () => {

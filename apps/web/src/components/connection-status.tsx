@@ -58,7 +58,7 @@ function SummaryBanner({
 	);
 }
 
-// 네 공급자의 조회를 한곳에서 든다. 소유자 없음 판단과 스크린 리더 알림을 여기서만 한다.
+// 다섯 공급자의 조회를 한곳에서 든다. 소유자 없음 판단과 스크린 리더 알림을 여기서만 한다.
 export function ConnectionStatus() {
 	const queries = useQueries({
 		queries: PROVIDER_IDS.map((provider) =>
@@ -91,8 +91,8 @@ export function ConnectionStatus() {
 	return (
 		<div className="flex flex-col gap-7">
 			<SummaryBanner views={views} />
-			{/* 카드 넷: 768px 이상 2열(2×2), 767px 이하 1열(연결 상태 브리프 카드 절, T7.5) */}
-			<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+			{/* 카드 다섯: 1280px 이상 3열(3·2), 768~1279px 2열, 767px 이하 1열(T7.6 스펙 2절). 프로젝트 xl은 1200px이라 80rem을 직접 쓴다 */}
+			<div className="grid grid-cols-1 gap-4 md:grid-cols-2 min-[80rem]:grid-cols-3">
 				{views.map(({ provider, view }, index) => {
 					const query = queries[index];
 					return (

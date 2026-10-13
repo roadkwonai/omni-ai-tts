@@ -305,3 +305,34 @@ describe("runTrial", () => {
 		expect(log.mock.calls.flat().some((arg) => arg === sdkError)).toBe(false);
 	});
 });
+
+describe("Google(Gemini) 오류 코드(T7.6 스펙 6절)", () => {
+	it("API_KEY_INVALID는 상태와 상관없이 키 오류다", () => {
+		expect(reasonFromHttp(400, ["API_KEY_INVALID", "INVALID_ARGUMENT"])).toBe(
+			"provider_auth",
+		);
+		expect(trialReason(400, ["API_KEY_INVALID", "INVALID_ARGUMENT"])).toBe(
+			"provider_auth",
+		);
+	});
+
+	it("403 PERMISSION_DENIED는 권한 부족, 400 FAILED_PRECONDITION은 한도 부족, 400 INVALID_ARGUMENT만이면 입력 거절", () => {
+		expect(reasonFromHttp(403, ["SERVICE_DISABLED", "PERMISSION_DENIED"])).toBe(
+			"no_permission",
+		);
+		expect(reasonFromHttp(400, ["FAILED_PRECONDITION"])).toBe("quota");
+		expect(reasonFromHttp(400, ["INVALID_ARGUMENT"])).toBe("provider_input");
+		// 기존 공급자의 403은 그대로 키 오류다
+		expect(reasonFromHttp(403, ["account_banned"])).toBe("provider_auth");
+	});
+
+	it("잔액 조회가 없는 공급자는 quota null로 연결됨을 돌려준다", async () => {
+		await expect(
+			runCheck("gemini", async () => ({ status: "connected", quota: null })),
+		).resolves.toMatchObject({
+			provider: "gemini",
+			status: "connected",
+			quota: null,
+		});
+	});
+});

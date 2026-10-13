@@ -69,6 +69,37 @@ const fishVoice = {
 		{ title: "기본", audio: "https://platform.r2.fish.audio/task/t1.mp3" },
 	],
 };
+const routeGemini = () =>
+	fetchMock.mockImplementation(async (url) =>
+		json(200, {
+			voices:
+				new URL(String(url)).searchParams.get("language_code") === "ko-KR"
+					? [
+							{
+								id: "ko-kr-advisor-1",
+								type: "prebuilt",
+								display_name: "Authoritative Advisor 1",
+								language_code: "ko-KR",
+								gender: "male",
+								pitch: "low",
+								accent: "Seoul Korean",
+								persona: "High-Trust Advisor",
+								context: "Enterprise Agent",
+								description: "Lawyer from Seoul.",
+							},
+						]
+					: [
+							{
+								id: "kore",
+								type: "prebuilt",
+								display_name: "Kore",
+								language_code: "en-US",
+								gender: "female",
+								pitch: "medium",
+							},
+						],
+		}),
+	);
 const AIRY_ID = "a597bb7a98fc9ec1";
 const airyAsset = (lang: string) =>
 	`https://assets.airy.so/airy/voice_pack/vp-v9/audio/${lang}/${AIRY_ID}.opus`;
@@ -325,5 +356,35 @@ describe("voiceList", () => {
 			source: "account",
 		} as never);
 		expect(result.source).toBe("public");
+	});
+
+	it("Gemini: 입력은 { provider: 'gemini' }뿐이고 공개 출처로 한국어 성우와 대표 성우를 돌려주며 결과에 키가 없다", async () => {
+		routeGemini();
+		const result = await as(
+			"local-admin",
+			createProviders({ gemini: KEY }),
+		).voiceList({ provider: "gemini" });
+		expect(result).toMatchObject({
+			provider: "gemini",
+			source: "public",
+			stale: null,
+		});
+		expect(result.voices.map((voice) => voice.voiceId)).toEqual([
+			"ko-kr-advisor-1",
+			"kore",
+		]);
+		expect(result.voices[1]?.samples).toHaveLength(1);
+		expect(JSON.stringify(result)).not.toContain(KEY);
+	});
+
+	it("Gemini 키가 없으면 no_key이고 공급자·DB를 건드리지 않는다", async () => {
+		await expect(
+			as("local-admin", createProviders({})).voiceList({ provider: "gemini" }),
+		).rejects.toMatchObject({
+			code: "PRECONDITION_FAILED",
+			data: { provider: "gemini", reason: "no_key" },
+		});
+		expect(fetchMock).not.toHaveBeenCalled();
+		expect(dbTouches).toBe(0);
 	});
 });

@@ -1,6 +1,13 @@
+import type {
+	ConnectionStatus,
+	ProviderId,
+	ProviderStatusResult,
+} from "@tts-pilot-app/api/providers/contract";
 import { describe, expect, it } from "vitest";
 
 import {
+	balanceNote,
+	causeText,
 	creditNumber,
 	isUpcoming,
 	recheckUntil,
@@ -71,5 +78,58 @@ describe("creditNumber", () => {
 		expect(creditNumber(1234.5)).toBe("1,234.5");
 		expect(creditNumber(7)).toBe("7");
 		expect(creditNumber(-3)).toBe("0");
+	});
+});
+
+describe("Gemini 잔액 없음 줄(T7.6 스펙 5절)", () => {
+	const result = (
+		status: ConnectionStatus,
+		provider: ProviderId = "gemini",
+	): ProviderStatusResult => ({
+		provider,
+		status,
+		quota: null,
+		providerCode: null,
+		retryAfterSeconds: null,
+		checkedAt: "2026-10-13T00:00:00.000Z",
+	});
+
+	it("Gemini는 정상·요청 제한·한도 부족에서만 잔액 조회 없음 문구를 보이고, 다른 공급자는 없다", () => {
+		expect(balanceNote(result("connected"))).toBe(
+			"잔액 조회를 제공하지 않아요. 사용량·한도는 Google AI Studio에서 확인해 주세요.",
+		);
+		expect(balanceNote(result("rate_limit"))).not.toBeNull();
+		expect(balanceNote(result("quota"))).not.toBeNull();
+		expect(balanceNote(result("provider_auth"))).toBeNull();
+		expect(balanceNote(result("check_failed"))).toBeNull();
+		expect(balanceNote(result("no_key"))).toBeNull();
+		expect(balanceNote(result("connected", "airy"))).toBeNull();
+	});
+});
+
+describe("causeText", () => {
+	it("Gemini의 확인 장소는 Google AI Studio다", () => {
+		expect(causeText("gemini", "provider_auth")).toBe(
+			"키가 틀렸거나 만료됐어요. Google AI Studio에서 키를 확인해 주세요.",
+		);
+		expect(causeText("gemini", "no_permission")).toBe(
+			"키는 맞지만 이 키로 Gemini API를 쓸 수 없어요. Google AI Studio에서 키의 프로젝트 설정을 확인해 주세요.",
+		);
+		expect(causeText("gemini", "quota")).toBe(
+			"Gemini 결제나 한도 조건에 걸렸어요. Google AI Studio에서 확인해 주세요.",
+		);
+	});
+
+	it("다른 공급자의 문구는 그대로다", () => {
+		expect(causeText("typecast", "provider_auth")).toBe(
+			"키가 틀렸거나 만료됐어요. Typecast 대시보드에서 키를 확인해 주세요.",
+		);
+		expect(causeText("airy", "no_permission")).toBe(
+			"키는 맞지만 사용량 조회 권한이 없어요. Airy 대시보드에서 키 권한을 확인해 주세요.",
+		);
+		expect(causeText("fish_audio", "quota")).toBe(
+			"남은 사용량이 없어요. Fish Audio에서 플랜이나 충전 상태를 확인해 주세요.",
+		);
+		expect(causeText("typecast", "connected")).toBeNull();
 	});
 });

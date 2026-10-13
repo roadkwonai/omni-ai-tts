@@ -10,6 +10,9 @@ import {
 	fieldsOf,
 	fishUsd,
 	freeModelOpen,
+	GEMINI_PRICE_UP_AT,
+	type GeminiModel,
+	geminiUsdPerMillion,
 	sentText,
 	snap,
 	type TrialRequest,
@@ -211,6 +214,76 @@ describe("sentText와 예상 사용량", () => {
 		});
 		expect(comboSignature(airy({ style: "calm" }))).not.toBe(
 			comboSignature(airy()),
+		);
+	});
+});
+
+describe("Gemini 추정 금액(T7.6 스펙 2절, 계획에서 정한 것 1)", () => {
+	const gemini = (
+		text: string,
+		model: GeminiModel = "gemini-3.8-flash-tts",
+		direction = "",
+	): TrialRequest => ({
+		provider: "gemini",
+		voiceId: "kore",
+		text,
+		settings: { model, direction },
+	});
+	const before = GEMINI_PRICE_UP_AT - 1;
+
+	it("가정한 길이(1초 5글자, 올림, 최소 1초) × 25토큰 × 단가를 백만분의 1달러로 담는다", () => {
+		expect(estimate(gemini("가"), null, before)).toEqual({
+			unit: "usd_micro",
+			amount: 225,
+		});
+		expect(estimate(gemini("가나다라마"), null, before)).toEqual({
+			unit: "usd_micro",
+			amount: 225,
+		});
+		expect(estimate(gemini("가나다라마바"), null, before)).toEqual({
+			unit: "usd_micro",
+			amount: 450,
+		});
+		expect(
+			estimate(
+				gemini("가나다라마바", "gemini-3.8-flash-lite-tts"),
+				null,
+				before,
+			),
+		).toEqual({ unit: "usd_micro", amount: 300 });
+	});
+
+	it("2027-01-01 0시 KST부터 단가가 두 배다", () => {
+		expect(estimate(gemini("가"), null, GEMINI_PRICE_UP_AT)).toEqual({
+			unit: "usd_micro",
+			amount: 450,
+		});
+		expect(geminiUsdPerMillion("gemini-3.8-flash-tts", before)).toBe(9);
+		expect(
+			geminiUsdPerMillion("gemini-3.8-flash-lite-tts", GEMINI_PRICE_UP_AT),
+		).toBe(12);
+	});
+
+	it("말투 지시는 문장에 붙지 않고 금액에 들지 않지만 같은 조합 판정에는 든다(앞뒤 공백 무시)", () => {
+		const plainRequest = gemini("안녕하세요");
+		const directed = gemini(
+			"안녕하세요",
+			"gemini-3.8-flash-tts",
+			"  calm and relaxed ",
+		);
+		expect(sentText(directed)).toBe("안녕하세요");
+		expect(estimate(directed, null, before)).toEqual(
+			estimate(plainRequest, null, before),
+		);
+		expect(usedSettings(directed)).toEqual({
+			model: "gemini-3.8-flash-tts",
+			direction: "calm and relaxed",
+		});
+		expect(comboSignature(directed)).not.toBe(comboSignature(plainRequest));
+		expect(comboSignature(directed)).toBe(
+			comboSignature(
+				gemini("안녕하세요", "gemini-3.8-flash-tts", "calm and relaxed"),
+			),
 		);
 	});
 });

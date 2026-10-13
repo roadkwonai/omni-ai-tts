@@ -12,8 +12,9 @@ export type Current = {
 
 const object = (noun: Noun) =>
 	noun === "저장된 결과" ? `${noun}를` : `${noun}을`;
+// 저장된 결과의 owner는 voiceKey라 "공급자:…"로 시작한다. Gemini는 크레딧이 아니라 요금이다(trial-view costCopy)
 export const announceOf = (current: NonNullable<Current>) =>
-	`${current.name} ${current.noun} 재생 중${current.noun === "저장된 결과" ? ", 크레딧 0" : ""}`;
+	`${current.name} ${current.noun} 재생 중${current.noun === "저장된 결과" ? (current.owner?.startsWith("gemini:") ? ", 요금 없음" : ", 크레딧 0") : ""}`;
 export const stoppedText = (current: NonNullable<Current>) =>
 	`${current.name} ${object(current.noun)} 멈췄어요`;
 export const failedText = (current: NonNullable<Current>) =>

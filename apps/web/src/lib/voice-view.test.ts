@@ -10,15 +10,19 @@ import {
 	countText,
 	emotionLines,
 	flattenPages,
+	geminiTagline,
 	latestTime,
 	listEnd,
 	metaLine,
 	moreCountText,
+	nameParts,
+	oneListCountText,
 	pickSelected,
 	pillsOf,
 	receivedText,
 	retryTime,
 	sampleAriaLabel,
+	sampleKindOf,
 	sampleLabel,
 	sampleSubject,
 	samplesMissing,
@@ -36,6 +40,8 @@ const base: Voice = {
 	gender: "female",
 	age: "young",
 	accent: "seoul",
+	pitch: null,
+	personas: [],
 	useCases: ["narrative_story", "conversational", "advertisement"],
 	descriptives: ["calm"],
 	tags: [],
@@ -431,6 +437,16 @@ describe("상태 줄과 묶음 문구", () => {
 		expect(agoText("2026-10-03T12:00:00.000Z", now)).toBe("2일");
 	});
 
+	it("한 목록 탭(Typecast·Airy·Gemini) 인원 글자", () => {
+		expect(oneListCountText("typecast", undefined, false, 0)).toBe(
+			"Typecast 성우",
+		);
+		expect(oneListCountText("airy", 1234, false, 5)).toBe("Airy 성우 1,234명");
+		expect(oneListCountText("gemini", 147, true, 12)).toBe(
+			"Gemini 성우 147명 중 12명",
+		);
+	});
+
 	it("인원 글자", () => {
 		expect(
 			countText({
@@ -575,5 +591,100 @@ describe("Airy 행", () => {
 		expect(samplesMissing([airy, airy])).toBe(true);
 		expect(samplesMissing([airy, { ...airy, samples: [sample] }])).toBe(false);
 		expect(samplesMissing([])).toBe(false);
+	});
+});
+
+describe("Gemini 메타 줄·알약·칩(T7.6 계획에서 정한 것 9·10, 계획 리뷰 R4-1)", () => {
+	const ko = voice({
+		provider: "gemini",
+		voiceId: "ko-kr-advisor-1",
+		gender: "male",
+		age: null,
+		accent: "Seoul Korean",
+		pitch: "low",
+		useCases: ["Enterprise Agent", "Conversational / Edu"],
+		descriptives: [],
+		personas: ["High-Trust Advisor / Authoritative Advisor (Lawyer)"],
+		languages: ["ko-KR"],
+		category: null,
+		usage: null,
+		previewUrl: null,
+	});
+	const kore = voice({
+		...ko,
+		voiceId: "kore",
+		gender: "female",
+		accent: "Northwest",
+		pitch: "high",
+		useCases: ["Content & Media"],
+		personas: ["Storyteller & Narrator"],
+		languages: ["en-US"],
+		previewUrl: "https://storage.googleapis.com/kore.wav",
+	});
+
+	it("메타 줄: 한국어 성우는 'OO 억양', 대표 성우는 '대표 성우'", () => {
+		expect(metaLine(ko)).toBe("남성 · 피치 낮음 · 서울 억양");
+		expect(metaLine(kore)).toBe("여성 · 피치 높음 · 대표 성우");
+		expect(metaLine({ ...ko, gender: null, pitch: null, accent: null })).toBe(
+			"성별 정보 없음",
+		);
+	});
+
+	it("알약은 콘텐츠(맥락) 한국어 이름, 칩은 성별·억양·피치·콘텐츠·페르소나(대표 성우 영어 억양은 원문)", () => {
+		expect(pillsOf(ko).all).toEqual(["기업 상담", "대화·교육"]);
+		expect(chipsOf(ko)).toEqual([
+			"남성",
+			"서울 억양",
+			"피치 낮음",
+			"기업 상담",
+			"대화·교육",
+			"High-Trust Advisor / Authoritative Advisor (Lawyer)",
+		]);
+		expect(chipsOf(kore)).toEqual([
+			"여성",
+			"Northwest",
+			"피치 높음",
+			"콘텐츠·미디어",
+			"Storyteller & Narrator",
+		]);
+	});
+
+	it("설명의 첫 마디(critique P1): 첫 문장을 끝 마침표 없이, 마침표가 없으면 그대로, 다른 공급자는 null", () => {
+		expect(
+			geminiTagline({
+				...ko,
+				description:
+					"38-year-old Lawyer from Seoul, South Korea. Speaks with a calm, steady tone.",
+			}),
+		).toBe("38-year-old Lawyer from Seoul, South Korea");
+		expect(geminiTagline({ ...kore, description: "Soft voice" })).toBe(
+			"Soft voice",
+		);
+		expect(
+			geminiTagline({ ...base, description: "Calm narrator. Warm." }),
+		).toBe(null);
+		// 끝 마침표만 있는 설명, 설명 없음
+		expect(geminiTagline({ ...ko, description: "Lawyer from Seoul." })).toBe(
+			"Lawyer from Seoul",
+		);
+		expect(geminiTagline({ ...ko, description: null })).toBe(null);
+	});
+
+	it("이름 끝 번호는 본문과 나눈다(공백 뒤 숫자로 끝나는 이름만, 공급자 무관)", () => {
+		expect(nameParts("Authoritative Advisor 12")).toEqual({
+			body: "Authoritative Advisor",
+			number: "12",
+		});
+		expect(nameParts("민지")).toBe(null);
+		expect(nameParts("Kore2")).toBe(null);
+		expect(nameParts("12")).toBe(null);
+	});
+
+	it("샘플 칸 이름: Gemini 대표 성우는 '참고 음성', 한국어 Gemini 성우·다른 공급자는 '기본 샘플'", () => {
+		expect(sampleKindOf(kore)).toBe("참고 음성");
+		expect([sampleKindOf(ko), sampleKindOf(base)]).toEqual([
+			"기본 샘플",
+			"기본 샘플",
+		]);
 	});
 });

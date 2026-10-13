@@ -3,12 +3,17 @@ import { describe, expect, it } from "vitest";
 
 import {
 	EMPTY_FILTERS,
+	EMPTY_GEMINI_FILTERS,
 	filterByNameOrId,
+	filterGemini,
 	filterOptions,
 	filterVoices,
+	type GeminiFilters,
+	geminiOptions,
 	groupByUseCase,
 	hasConditions,
 } from "./voice-filter";
+import { bundleOf } from "./voice-view";
 
 const voice = (voiceId: string, overrides: Partial<Voice> = {}): Voice => ({
 	provider: "typecast",
@@ -19,6 +24,8 @@ const voice = (voiceId: string, overrides: Partial<Voice> = {}): Voice => ({
 	gender: "female",
 	age: "young_adult",
 	accent: null,
+	pitch: null,
+	personas: [],
 	useCases: ["Ads/Promotion"],
 	descriptives: [],
 	tags: [],
@@ -261,5 +268,142 @@ describe("filterByNameOrId (Airy 탭)", () => {
 		]);
 		expect(filterByNameOrId(list, "", ["female", "male"])).toHaveLength(2);
 		expect(filterByNameOrId(list, "silv", ["male"])).toEqual([]);
+	});
+});
+
+describe("Gemini 탭 거르기(T7.6 스펙 2·5절)", () => {
+	const ko = (id: string, over: Partial<Voice> = {}) =>
+		voice(id, {
+			provider: "gemini",
+			name: `Advisor ${id}`,
+			englishName: null,
+			gender: "male",
+			age: null,
+			pitch: "low",
+			accent: "Seoul Korean",
+			useCases: ["Enterprise Agent"],
+			personas: ["High-Trust Advisor"],
+			languages: ["ko-KR"],
+			models: [],
+			description: "Lawyer from Seoul.",
+			...over,
+		});
+	const classic = (id: string, over: Partial<Voice> = {}) =>
+		ko(id, {
+			name: id,
+			gender: "female",
+			pitch: "high",
+			accent: "Northwest",
+			useCases: ["Content & Media"],
+			personas: ["Storyteller & Narrator"],
+			languages: ["en-US"],
+			description: "Soft voice.",
+			...over,
+		});
+	const all = [
+		ko("ko-kr-advisor-1"),
+		ko("ko-kr-advisor-2", {
+			gender: "female",
+			pitch: "medium",
+			accent: "Busan Korean",
+			useCases: ["Enterprise Agent", "Conversational / Edu"],
+		}),
+		classic("kore"),
+	];
+	const ids = (filters: Partial<GeminiFilters>, query = "") =>
+		filterGemini(all, query, { ...EMPTY_GEMINI_FILTERS, ...filters }).map(
+			(v) => v.voiceId,
+		);
+
+	it("같은 축은 OR, 다른 축은 AND, 검색은 이름·성우 id·설명(대소문자 무시)", () => {
+		expect(ids({ kinds: ["classic"] })).toEqual(["kore"]);
+		expect(ids({ accents: ["Busan Korean"] })).toEqual(["ko-kr-advisor-2"]);
+		// 대표 성우가 앞이다(아래 정렬 테스트)
+		expect(ids({ pitches: ["low", "high"] })).toEqual([
+			"kore",
+			"ko-kr-advisor-1",
+		]);
+		expect(
+			ids({ contexts: ["Conversational / Edu"], genders: ["female"] }),
+		).toEqual(["ko-kr-advisor-2"]);
+		expect(ids({ personas: ["Storyteller & Narrator"] })).toEqual(["kore"]);
+		expect(ids({}, "KORE")).toEqual(["kore"]);
+		expect(ids({}, "advisor-2")).toEqual(["ko-kr-advisor-2"]);
+		expect(ids({}, "soft")).toEqual(["kore"]);
+	});
+
+	it("정렬: 검색이 없으면 대표 성우가 앞, 한국어 성우가 뒤이고 각자 원래 순서다", () => {
+		expect(ids({})).toEqual(["kore", "ko-kr-advisor-1", "ko-kr-advisor-2"]);
+	});
+
+	it("정렬: 검색어가 있으면 이름 전체 일치 → 이름 시작 → 이름 포함 → 성우 id → 설명 순이고, 인원은 설명 일치까지 센다", () => {
+		const list = [
+			ko("ko-kr-advisor-1", {
+				description: "38-year-old Lawyer from Seoul, South Korea. Speaks …",
+			}),
+			ko("ko-kr-advisor-2", { name: "Koreana Host 2" }),
+			classic("aoede", { name: "Akore" }),
+			ko("ko-kr-kore-3", { name: "Calm Host 3" }),
+			classic("kore", { name: "Kore" }),
+			classic("korean", { name: "Koreana" }),
+		];
+		const found = filterGemini(list, "Kore", EMPTY_GEMINI_FILTERS).map(
+			(v) => v.voiceId,
+		);
+		expect(found).toEqual([
+			"kore",
+			// 같은 등급(이름 시작)이면 대표 성우가 앞
+			"korean",
+			"ko-kr-advisor-2",
+			"aoede",
+			"ko-kr-kore-3",
+			"ko-kr-advisor-1",
+		]);
+	});
+
+	it("'전체' 묶음(같은 함수 결과의 처음 5명)은 서버가 한국어 성우를 앞에 두어도 대표 성우다", () => {
+		const server = [
+			...["1", "2", "3", "4", "5", "6"].map((n) => ko(`ko-kr-advisor-${n}`)),
+			...["kore", "puck", "zephyr", "charon", "fenrir"].map((id) =>
+				classic(id),
+			),
+		];
+		const { voices } = bundleOf(
+			filterGemini(server, "", EMPTY_GEMINI_FILTERS),
+			{ total: server.length, totalExact: true },
+		);
+		expect(voices.map((v) => v.voiceId)).toEqual([
+			"kore",
+			"puck",
+			"zephyr",
+			"charon",
+			"fenrir",
+		]);
+	});
+
+	it("선택지: 아는 값은 한국어 이름, 억양은 한국어 성우 값만, 페르소나는 원문 알파벳순", () => {
+		const options = geminiOptions(all);
+		expect(options.kinds).toEqual([
+			{ value: "korean", label: "한국어 성우" },
+			{ value: "classic", label: "대표 성우" },
+		]);
+		expect(options.pitches.map((o) => o.label)).toEqual([
+			"낮음",
+			"중간",
+			"높음",
+		]);
+		expect(options.accents).toEqual([
+			{ value: "Seoul Korean", label: "서울" },
+			{ value: "Busan Korean", label: "부산" },
+		]);
+		expect(options.contexts.map((o) => o.label)).toEqual([
+			"콘텐츠·미디어",
+			"대화·교육",
+			"기업 상담",
+		]);
+		expect(options.personas.map((o) => o.value)).toEqual([
+			"High-Trust Advisor",
+			"Storyteller & Narrator",
+		]);
 	});
 });

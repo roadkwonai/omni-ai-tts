@@ -13,7 +13,7 @@ import {
 	uuid,
 } from "drizzle-orm/pg-core";
 
-// 시험 생성 기록과 들은 결과(ADR 0003 '듣기 결과', T5 스펙 5절). 요청 id를 공급자 호출 전에 선점하고, 완료되면 MP3를 담아 30일 보관한다.
+// 시험 생성 기록과 들은 결과(ADR 0003 '듣기 결과', T5 스펙 5절). 요청 id를 공급자 호출 전에 선점하고, 완료되면 오디오(MP3, Gemini는 WAV, audio_type)를 담아 30일 보관한다.
 // user 외래 키는 걸지 않는다(T4와 같다, 지속 소유 데이터의 외래 키는 T6에서 정한다).
 export const trialGeneration = pgTable(
 	"trial_generation",
@@ -63,15 +63,16 @@ export const trialGeneration = pgTable(
 		),
 		check(
 			"trial_generation_provider",
-			sql`${t.provider} in ('typecast', 'elevenlabs', 'fish_audio', 'airy')`,
+			sql`${t.provider} in ('typecast', 'elevenlabs', 'fish_audio', 'airy', 'gemini')`,
 		),
 		check(
 			"trial_generation_status",
 			sql`${t.status} in ('pending', 'done', 'failed', 'unknown')`,
 		),
+		// usd_micro: Gemini 추정 금액(백만분의 1달러, T7.6)
 		check(
 			"trial_generation_usage_unit",
-			sql`${t.usageUnit} in ('credit', 'byte', 'free')`,
+			sql`${t.usageUnit} in ('credit', 'byte', 'free', 'usd_micro')`,
 		),
 		// 완료된 행만 오디오가 있다
 		check(

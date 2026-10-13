@@ -250,4 +250,41 @@ describe.skipIf(!url)("이용 가능 확인(T7 스펙 2·3절)", () => {
 			vi.unstubAllGlobals();
 		}
 	});
+
+	it("Gemini는 한 번의 확인에서 두 목록을 한 번씩만 부르고, 목록에 없는 id는 현재 이용 불가다", async () => {
+		const fetchMock = vi.fn(async (url: string | URL | Request) =>
+			Response.json({
+				voices:
+					new URL(String(url)).searchParams.get("language_code") === "ko-KR"
+						? [
+								{
+									id: "ko-kr-advisor-1",
+									display_name: "Authoritative Advisor 1",
+									language_code: "ko-KR",
+									gender: "male",
+								},
+							]
+						: [{ id: "kore", display_name: "Kore", language_code: "en-US" }],
+			}),
+		);
+		vi.stubGlobal("fetch", fetchMock);
+		try {
+			const as = setup(
+				createProviders({ gemini: "test-gemini-check-key-0001" }),
+			)(OWNER);
+			await saveStale(as, voiceOf("gemini", "public", "ko-kr-advisor-1"));
+			await saveStale(as, voiceOf("gemini", "public", "kore"));
+			await saveStale(as, voiceOf("gemini", "public", "ko-kr-advisor-99"));
+			const list = await as.savedVoiceCheck();
+			expect(byId(list, "ko-kr-advisor-99")?.unavailable).toBe(true);
+			expect(byId(list, "ko-kr-advisor-1")).toMatchObject({
+				unavailable: false,
+				voice: { name: "Authoritative Advisor 1", gender: "male" },
+			});
+			expect(byId(list, "kore")?.voice.samples).toHaveLength(1);
+			expect(fetchMock).toHaveBeenCalledTimes(2);
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
 });

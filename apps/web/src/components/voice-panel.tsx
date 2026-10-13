@@ -24,6 +24,10 @@ import { LIBRARY_TEXT } from "@/lib/saved-voice-view";
 import {
 	chipsOf,
 	emotionLines,
+	GEMINI_NO_SAMPLE_LIBRARY_NOTE,
+	GEMINI_NO_SAMPLE_NOTE,
+	GEMINI_REFERENCE_NOTE,
+	sampleKindOf,
 	sampleLabel,
 	sampleSubject,
 	termLines,
@@ -121,6 +125,8 @@ export function VoicePanelContent({ voice }: { voice: Voice }) {
 			: voice.previewUrl
 				? [{ language: null, title: null, url: voice.previewUrl }]
 				: [];
+	// Gemini 대표 성우의 샘플은 다른 모델로 만든 참고 음성이다(GLOSSARY, T7.6 스펙 5절, 계획 리뷰 R4-3)
+	const sampleKind = sampleKindOf(voice);
 	const chips = chipsOf(voice);
 	const terms = termLines(voice);
 	const emotions = emotionLines(voice);
@@ -143,17 +149,29 @@ export function VoicePanelContent({ voice }: { voice: Voice }) {
 					{LIBRARY_TEXT.unavailableNotice}
 				</p>
 			) : null}
-			{/* Typecast·Airy는 출처 구분이 없어 공급자 이름만 보인다(critique 2026-10-05, T7.5 브리프 13절) */}
+			{/* Typecast·Airy·Gemini는 출처 구분이 없어 공급자 이름만 보인다(critique 2026-10-05, T7.5 브리프 13절, T7.6) */}
 			<p className="text-muted-foreground text-sm">
 				<span translate="no">{PROVIDER_LABEL[voice.provider]}</span>
-				{voice.provider === "typecast" || voice.provider === "airy"
+				{voice.provider === "typecast" ||
+				voice.provider === "airy" ||
+				voice.provider === "gemini"
 					? null
 					: ` · ${SOURCE[voice.source]}`}
 			</p>
 			{chips.length > 0 ? (
 				<ul className="flex flex-wrap gap-1.5" aria-label="공급자 분류">
 					{chips.map((label) => (
-						<li key={label} className={chip}>
+						// Gemini 페르소나와 대표 성우의 영어 억양은 공급자 원문이라 번역하지 않는다(조건 메뉴와 같은 값, audit N2)
+						<li
+							key={label}
+							className={chip}
+							translate={
+								voice.provider === "gemini" &&
+								(voice.personas.includes(label) || label === voice.accent)
+									? "no"
+									: undefined
+							}
+						>
 							{label}
 						</li>
 					))}
@@ -163,7 +181,7 @@ export function VoicePanelContent({ voice }: { voice: Voice }) {
 				<Description key={voiceKey(voice)} text={voice.description} />
 			) : null}
 			<section className="flex flex-col gap-2">
-				<h3 className="font-bold">기본 샘플</h3>
+				<h3 className="font-bold">{sampleKind}</h3>
 				{samples.length > 0 ? (
 					<ul className="flex flex-col gap-1">
 						{samples.map((sample) => (
@@ -171,8 +189,20 @@ export function VoicePanelContent({ voice }: { voice: Voice }) {
 						))}
 					</ul>
 				) : (
-					<p className="text-muted-foreground text-sm">기본 샘플이 없어요</p>
+					<p className="text-muted-foreground text-sm">
+						{voice.provider !== "gemini"
+							? "기본 샘플이 없어요"
+							: // 성우 보관함(TrialProvider 밖)은 내 문장 듣기가 없어 캐스팅으로 안내한다(계획 리뷰 R4-4)
+								trial
+								? GEMINI_NO_SAMPLE_NOTE
+								: GEMINI_NO_SAMPLE_LIBRARY_NOTE}
+					</p>
 				)}
+				{sampleKind === "참고 음성" ? (
+					<p className="text-muted-foreground text-sm">
+						{GEMINI_REFERENCE_NOTE}
+					</p>
+				) : null}
 			</section>
 			{/* 성우 보관함은 정리가 일이라 담기 칸을 기본 샘플 바로 뒤에 둔다(critique P2). 캐스팅은 U2 자리 그대로 */}
 			{trial ? null : (
@@ -292,8 +322,8 @@ export function VoiceSheet({
 							</SheetTitle>
 							<SheetDescription className="sr-only">
 								{trial
-									? "성우 정보, 기본 샘플, 내 문장 듣기, 담기"
-									: "성우 정보, 기본 샘플, 담기"}
+									? `성우 정보, ${sampleKindOf(voice)}, 내 문장 듣기, 담기`
+									: `성우 정보, ${sampleKindOf(voice)}, 담기`}
 							</SheetDescription>
 						</SheetHeader>
 						<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6">

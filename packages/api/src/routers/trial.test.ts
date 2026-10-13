@@ -39,6 +39,7 @@ const providers: Providers = {
 	elevenlabs: { checkStatus: vi.fn(), synthesize, listModels },
 	fish_audio: { checkStatus: vi.fn(), synthesize },
 	airy: { checkStatus: vi.fn(), synthesize },
+	gemini: { checkStatus: vi.fn(), synthesize },
 };
 const as = (ownerId: string | null, ctx: Partial<Context> = {}) =>
 	createRouterClient(appRouter, {
@@ -604,5 +605,59 @@ describe.skipIf(!url)("시험 생성 프로시저", () => {
 		const found = await as(OWNER).trialFind(airyRequest);
 		expect(found?.id).toBe(made.id);
 		expect(synthesize).toHaveBeenCalledTimes(1);
+	});
+
+	it("Gemini: WAV로 저장·전달하고 추정 금액(usd_micro)과 audio_type이 기록된다(DB 검사 제약)", async () => {
+		const wav = new Uint8Array(
+			Buffer.concat([
+				Buffer.from("RIFF"),
+				Buffer.alloc(4),
+				Buffer.from("WAVE"),
+			]),
+		);
+		synthesize.mockResolvedValueOnce(wav);
+		const geminiRequest: TrialRequest = {
+			provider: "gemini",
+			voiceId: "ko-kr-advisor-1",
+			text: "가나다",
+			settings: DEFAULT_SETTINGS.gemini,
+		};
+		const made = await as(OWNER).trialCreate({
+			requestId: crypto.randomUUID(),
+			request: geminiRequest,
+		});
+		expect(made.audio).toMatchObject({ type: "audio/wav", name: "trial.wav" });
+		expect(made.usage.unit).toBe("usd_micro");
+		const [row] = await db
+			.select()
+			.from(trialGeneration)
+			.where(eq(trialGeneration.provider, "gemini"));
+		expect(row).toMatchObject({
+			provider: "gemini",
+			model: "gemini-3.8-flash-tts",
+			usageUnit: "usd_micro",
+			audioType: "audio/wav",
+			status: "done",
+		});
+		// 같은 조합은 공급자를 다시 부르지 않고 저장본(WAV)이다
+		const found = await as(OWNER).trialFind(geminiRequest);
+		expect(found?.audio).toMatchObject({
+			type: "audio/wav",
+			name: "trial.wav",
+		});
+		expect(synthesize).toHaveBeenCalledTimes(1);
+	});
+
+	it("Gemini 밖의 공급자 결과는 그대로 trial.mp3·audio/mpeg다", async () => {
+		const made = await as(OWNER).trialCreate({
+			requestId: crypto.randomUUID(),
+			request: {
+				provider: "airy",
+				voiceId: "a597bb7a98fc9ec1",
+				text: "가나",
+				settings: DEFAULT_SETTINGS.airy,
+			},
+		});
+		expect(made.audio).toMatchObject({ type: "audio/mpeg", name: "trial.mp3" });
 	});
 });

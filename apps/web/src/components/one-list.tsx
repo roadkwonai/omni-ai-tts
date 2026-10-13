@@ -13,12 +13,20 @@ import {
 
 import { failureOf } from "@/lib/voice-failure";
 import {
-	EMPTY_FILTERS,
+	EMPTY_GEMINI_FILTERS,
 	filterByNameOrId,
+	filterGemini,
 	filterOptions,
+	type GeminiFilters,
+	geminiOptions,
 	hasConditions,
 } from "@/lib/voice-filter";
-import { plain, SAMPLES_MISSING_TEXT, samplesMissing } from "@/lib/voice-view";
+import {
+	oneListCountText,
+	plain,
+	SAMPLES_MISSING_TEXT,
+	samplesMissing,
+} from "@/lib/voice-view";
 import { orpc } from "@/utils/orpc";
 
 import { CastingWorkspace } from "./casting-workspace";
@@ -38,12 +46,15 @@ import {
 } from "./voice-problem";
 import { RowList, type Select } from "./voice-row";
 
-type OneListProvider = "typecast" | "airy";
+type OneListProvider = "typecast" | "airy" | "gemini";
 
 // 한 번에 받아 브라우저에서 거르는 목록의 쿼리(목록 하나). 그 탭, '전체' 탭 묶음, 탭 이름의 인원(enabled false)이 같은 키를 쓴다.
 // 사유를 아는 실패는 화면 안에서 보이고 그 밖은 오류 경계((app)/error.tsx)로 던진다
 const oneListOptions = (
-	input: { provider: "typecast" } | { provider: "airy" },
+	input:
+		| { provider: "typecast" }
+		| { provider: "airy" }
+		| { provider: "gemini" },
 ) =>
 	orpc.voiceList.queryOptions({
 		input,
@@ -52,21 +63,24 @@ const oneListOptions = (
 	});
 export const typecastListOptions = oneListOptions({ provider: "typecast" });
 export const airyListOptions = oneListOptions({ provider: "airy" });
+export const geminiListOptions = oneListOptions({ provider: "gemini" });
 export const ONE_LIST_OPTIONS = {
 	typecast: typecastListOptions,
 	airy: airyListOptions,
+	gemini: geminiListOptions,
 };
 
 export const count = (value: number) => `${plain.format(value)}명`;
 
-// Typecast·Airy 탭의 공통 몸통(계획 리뷰 ponytail 1): 조건 줄, 상태 줄, 지난 목록 안내, 목록 칸(문제·뼈대·0명·조건 0명).
+// Typecast·Airy·Gemini 탭의 공통 몸통(계획 리뷰 ponytail 1): 조건 줄, 상태 줄, 지난 목록 안내, 목록 칸(문제·뼈대·0명·조건 0명).
 // 목록 모양(Typecast 콘텐츠 묶음, 한 목록)은 부르는 쪽이 children으로 그린다. 같은 쿼리를 부르는 쪽(데이터로 거르기)과 여기(회복·새로 고침)가 함께 구독한다
 export function OneList({
 	provider,
 	search,
 	axes,
 	selectedCount,
-	countText,
+	matched,
+	filtered,
 	extra,
 	note,
 	shown,
@@ -84,7 +98,9 @@ export function OneList({
 	search: ComponentProps<typeof VoiceConditions>["search"];
 	axes: AxisView[];
 	selectedCount: number;
-	countText: string;
+	// 조건 결과 수와 조건이 있는지(인원 글자 '전체 중 결과')
+	matched: number;
+	filtered: boolean;
 	// 인원 글자 옆 링크. 목록이 정상이고 성우가 있을 때만 보인다
 	extra: ReactNode;
 	// 상태 줄 아래 회색 한 줄(Airy 샘플 못 받음). 보이는 조건은 extra와 같다
@@ -147,7 +163,12 @@ export function OneList({
 				searchRef={searchRef}
 			/>
 			<ListStatusBar
-				count={countText}
+				count={oneListCountText(
+					provider,
+					data && all.length,
+					filtered,
+					matched,
+				)}
 				countRef={countRef}
 				busy={voices.isFetching}
 				extra={usable ? extra : null}
@@ -237,12 +258,8 @@ export function AiryVoiceList({
 	// 입력은 바로 바뀌고 목록 그리기는 뒤따른다(rerender-use-deferred-value)
 	const deferred = useDeferredValue(state);
 	const all = data?.voices ?? [];
-	const active = hasConditions(state.query, {
-		...EMPTY_FILTERS,
-		genders: state.genders,
-	});
+	const active = hasConditions(state.query, { genders: state.genders });
 	const filtered = hasConditions(deferred.query, {
-		...EMPTY_FILTERS,
 		genders: deferred.genders,
 	});
 	const results = filterByNameOrId(all, deferred.query, deferred.genders);
@@ -273,13 +290,8 @@ export function AiryVoiceList({
 				},
 			]}
 			selectedCount={state.genders.length}
-			countText={
-				data === undefined
-					? "Airy 성우"
-					: filtered
-						? `Airy 성우 ${count(all.length)} 중 ${count(results.length)}`
-						: `Airy 성우 ${count(all.length)}`
-			}
+			matched={results.length}
+			filtered={filtered}
 			extra={
 				active ? (
 					<Button variant="link" size="lg" onClick={clearAll}>
@@ -309,6 +321,118 @@ export function AiryVoiceList({
 				<RowList
 					voices={results}
 					label="Airy 성우 목록"
+					selectedKey={selectedKey}
+					select={select}
+					panelId={panelId}
+					refreshing={refreshing}
+				/>
+			)}
+		</OneList>
+	);
+}
+
+// 검색어·조건은 부모가 든다('전체' 탭 '모두 보기 →'가 검색어를 넘긴다)
+export type GeminiState = { query: string; filters: GeminiFilters };
+export const EMPTY_GEMINI: GeminiState = {
+	query: "",
+	filters: EMPTY_GEMINI_FILTERS,
+};
+// 공급자가 주는 조건 전부(T7.6 스펙 2절). 순서가 조건 줄 순서다. 페르소나는 공급자 영어 원문이라 번역하지 않는다(계획 리뷰 R4-6)
+const GEMINI_AXES: {
+	key: keyof GeminiFilters;
+	label: string;
+	translate?: "no";
+}[] = [
+	{ key: "kinds", label: "구분" },
+	{ key: "genders", label: "성별" },
+	{ key: "pitches", label: "피치" },
+	{ key: "accents", label: "억양" },
+	{ key: "contexts", label: "콘텐츠" },
+	{ key: "personas", label: "페르소나", translate: "no" as const },
+];
+
+// Gemini 탭(T7.6 스펙 5절, 브리프 14절). 한 번에 받아 브라우저에서 거른다. 대표 성우 먼저, 검색어가 있으면 일치 순서(filterGemini 정렬, 서버 순서와 다름)
+export function GeminiVoiceList({
+	state,
+	onStateChange,
+	chosen,
+	onChoose,
+	focusRequested,
+	onFocusHandled,
+}: {
+	state: GeminiState;
+	onStateChange: (state: GeminiState) => void;
+	chosen: string | null;
+	onChoose: (key: string) => void;
+	focusRequested: boolean;
+	onFocusHandled: () => void;
+}) {
+	const { data } = useQuery(geminiListOptions);
+	const searchRef = useRef<HTMLInputElement>(null);
+	const countRef = useRef<HTMLParagraphElement>(null);
+	// 입력은 바로 바뀌고 목록 그리기는 뒤따른다(rerender-use-deferred-value)
+	const deferred = useDeferredValue(state);
+	const all = data?.voices ?? [];
+	const options = geminiOptions(all);
+	const active = hasConditions(state.query, state.filters);
+	const filtered = hasConditions(deferred.query, deferred.filters);
+	const results = filterGemini(all, deferred.query, deferred.filters);
+	const selectedCount = Object.values(state.filters).reduce(
+		(sum, values) => sum + values.length,
+		0,
+	);
+
+	function clearAll() {
+		onStateChange(EMPTY_GEMINI);
+		searchRef.current?.focus();
+	}
+
+	return (
+		<OneList
+			provider="gemini"
+			search={{
+				value: state.query,
+				placeholder: "이름·성우 id·설명으로 찾기",
+				label: "Gemini 성우 이름·성우 id·설명으로 찾기",
+				onChange: (query) => onStateChange({ ...state, query }),
+			}}
+			axes={GEMINI_AXES.map(({ key, label, translate }) => ({
+				kind: "multi" as const,
+				key,
+				label,
+				translate,
+				options: options[key],
+				selected: state.filters[key],
+				onChange: (values: string[]) =>
+					onStateChange({
+						...state,
+						filters: { ...state.filters, [key]: values },
+					}),
+			}))}
+			selectedCount={selectedCount}
+			matched={results.length}
+			filtered={filtered}
+			extra={
+				active ? (
+					<Button variant="link" size="lg" onClick={clearAll}>
+						조건 모두 해제
+					</Button>
+				) : null
+			}
+			shown={results}
+			noMatches={results.length === 0}
+			onClear={clearAll}
+			searchRef={searchRef}
+			countRef={countRef}
+			focusRequested={focusRequested}
+			onFocusHandled={onFocusHandled}
+			chosen={chosen}
+			onChoose={onChoose}
+		>
+			{({ selectedKey, select, panelId, refreshing }) => (
+				<RowList
+					voices={results}
+					label="Gemini 성우 목록"
 					selectedKey={selectedKey}
 					select={select}
 					panelId={panelId}

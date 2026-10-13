@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { voiceSchema } from "./providers/contract";
 import { emptyVoice } from "./providers/list";
 import {
 	savedVoiceLinksInputSchema,
@@ -111,6 +112,48 @@ describe("담기 입력(T7 스펙 3절)", () => {
 			}).success,
 		).toBe(false);
 	});
+	it("Gemini: 참고 음성 경로(docs.cloud.google.com/text-to-speech/docs/audio/)만, 공개 출처만 받는다", () => {
+		const url =
+			"https://docs.cloud.google.com/text-to-speech/docs/audio/ko-KR-Chirp3-HD-Kore.wav";
+		const kore = {
+			...emptyVoice("gemini", "public"),
+			voiceId: "kore",
+			name: "Kore",
+			previewUrl: url,
+			samples: [{ language: null, title: "참고 음성 · Chirp 3 HD", url }],
+		};
+		expect(savedVoiceSaveInputSchema.safeParse({ voice: kore }).success).toBe(
+			true,
+		);
+		const korean = {
+			...emptyVoice("gemini", "public"),
+			voiceId: "ko-kr-advisor-1",
+			name: "Authoritative Advisor 1",
+		};
+		expect(savedVoiceSaveInputSchema.safeParse({ voice: korean }).success).toBe(
+			true,
+		);
+		for (const bad of [
+			"https://docs.cloud.google.com/text-to-speech/docs/other.wav",
+			"https://docs.cloud.google.com/text-to-speech/docs/audio/../x.wav",
+			"https://docs.cloud.google.com/speech-to-text/docs/audio/x.wav",
+			"https://docs.cloud.google.com.evil.example/text-to-speech/docs/audio/x.wav",
+			"https://cloud.google.com/text-to-speech/docs/audio/x.wav",
+			// R1-1: 포트·사용자 정보가 붙은 주소는 호스트와 경로가 맞아도 거절한다
+			"https://docs.cloud.google.com:8443/text-to-speech/docs/audio/ko-KR-Chirp3-HD-Kore.wav",
+			"https://user@docs.cloud.google.com/text-to-speech/docs/audio/ko-KR-Chirp3-HD-Kore.wav",
+		])
+			expect(
+				savedVoiceSaveInputSchema.safeParse({
+					voice: { ...kore, previewUrl: bad },
+				}).success,
+			).toBe(false);
+		expect(
+			savedVoiceSaveInputSchema.safeParse({
+				voice: { ...kore, source: "account" },
+			}).success,
+		).toBe(false);
+	});
 	it("JSON 20,000자를 넘는 성우 정보는 거절한다", () => {
 		const big = {
 			...voice,
@@ -159,4 +202,17 @@ describe("담기 입력(T7 스펙 3절)", () => {
 			}).success,
 		).toBe(false);
 	});
+});
+
+it("T7.6 전에 담은 성우(pitch·personas 없음)도 읽힌다", () => {
+	const {
+		pitch: _pitch,
+		personas: _personas,
+		...old
+	} = {
+		...emptyVoice("airy", "public"),
+		voiceId: "a597bb7a98fc9ec1",
+		name: "Silvia",
+	};
+	expect(voiceSchema.parse(old)).toMatchObject({ pitch: null, personas: [] });
 });

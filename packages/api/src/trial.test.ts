@@ -116,7 +116,7 @@ describe.skipIf(!url)("생성 기록", () => {
 		const claimed = await claimFor(A);
 		expect(claimed.kind).toBe("claimed");
 		if (claimed.kind !== "claimed") return;
-		await complete(db, A, claimed.id, MP3);
+		await complete(db, A, claimed.id, MP3, "audio/mpeg");
 		await db
 			.update(trialGeneration)
 			.set({ expiresAt: new Date(Date.now() + DAY) })
@@ -215,7 +215,7 @@ describe.skipIf(!url)("생성 기록", () => {
 		const done = await claimFor(A, request("만료"));
 		expect(done.kind).toBe("claimed");
 		if (done.kind !== "claimed") return;
-		await complete(db, A, done.id, MP3);
+		await complete(db, A, done.id, MP3, "audio/mpeg");
 		await db
 			.update(trialGeneration)
 			.set({ expiresAt: new Date(Date.now() - 1000) })
@@ -228,7 +228,7 @@ describe.skipIf(!url)("생성 기록", () => {
 		const otherOwner = await claimFor(B);
 		expect(otherOwner.kind).toBe("claimed");
 		if (otherOwner.kind !== "claimed") return;
-		await complete(db, B, otherOwner.id, MP3);
+		await complete(db, B, otherOwner.id, MP3, "audio/mpeg");
 		await db
 			.update(trialGeneration)
 			.set({ expiresAt: new Date(Date.now() - 1000) })
@@ -251,15 +251,16 @@ describe.skipIf(!url)("생성 기록", () => {
 		for (let i = 0; i < 21; i += 1) {
 			const c = await claimFor(A, request(`문장 ${i}`));
 			expect(c.kind).toBe("claimed");
-			if (c.kind === "claimed") await complete(db, A, c.id, MP3);
+			if (c.kind === "claimed") await complete(db, A, c.id, MP3, "audio/mpeg");
 		}
 		const other = await claimFor(A, request("다른 성우", "el0002"));
 		expect(other.kind).toBe("claimed");
-		if (other.kind === "claimed") await complete(db, A, other.id, MP3);
+		if (other.kind === "claimed")
+			await complete(db, A, other.id, MP3, "audio/mpeg");
 		const b = await claimFor(B);
 		expect(b.kind).toBe("claimed");
 		if (b.kind !== "claimed") return;
-		await complete(db, B, b.id, MP3);
+		await complete(db, B, b.id, MP3, "audio/mpeg");
 		expect(await listResults(db, B, "elevenlabs", "el0001")).toHaveLength(1);
 		expect(await listResults(db, A, "fish_audio", "el0001")).toEqual([]);
 		const pending = await claimFor(A, request("진행 중"));
@@ -276,9 +277,9 @@ describe.skipIf(!url)("생성 기록", () => {
 		const c = await claimFor(A);
 		expect(c.kind).toBe("claimed");
 		if (c.kind !== "claimed") return;
-		await complete(db, A, c.id, MP3);
+		await complete(db, A, c.id, MP3, "audio/mpeg");
 		// 다른 소유자의 완료 쓰기는 행을 바꾸지 않는다(계획 리뷰 E12)
-		await complete(db, B, c.id, new Uint8Array([1]));
+		await complete(db, B, c.id, new Uint8Array([1]), "audio/mpeg");
 		await expect(audioOf(db, B, c.id)).rejects.toMatchObject({
 			code: "NOT_FOUND",
 		});
