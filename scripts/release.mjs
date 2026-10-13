@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // 릴리스: 다음 버전을 정해 release/에 노트를 쓰고, 검수한 노트로 버전 커밋·태그·push·GitHub Release를 만든다. `pnpm release`가 부른다.
-// production 배포는 릴리스한 커밋(HEAD의 vX.Y.Z 태그와 그 GitHub Release)만 한다. scripts/vercel-deploy.mjs가 검사하고, 절차는 bts-deploy 스킬의 릴리스 절에 있다.
+// production 배포는 릴리스한 커밋(HEAD의 vX.Y.Z 태그와 그 GitHub Release)만 한다. scripts/vercel-deploy.mjs가 검사하고, 절차는 prokit-deploy 스킬의 릴리스 절에 있다.
 // 사용법:
-//   node scripts/release.mjs [--title "<영어 제목>"]  마지막 vX.Y.Z 태그 이후 커밋으로 다음 버전을 정하고 release/<YYYYMMDD-HHmm>-<제목>.md를 쓴다. 커밋하지 않는다.
+//   node scripts/release.mjs [--title "<영어 제목>"] [--minor]  마지막 vX.Y.Z 태그 이후 커밋으로 다음 버전을 정하고(기본 patch, --minor면 minor) release/<YYYYMMDD-HHmm>-<제목>.md를 쓴다. 커밋하지 않는다.
 //   node scripts/release.mjs --publish <노트 파일>    기본 브랜치에서 package.json version을 올려 노트와 함께 커밋하고, 태그를 달아 push한 뒤 GitHub Release를 만든다.
-// 버전(SemVer, 정본은 git 태그): 첫 릴리스 0.1.0, `!`나 본문의 BREAKING CHANGE:는 major, feat는 minor, 그 밖은 patch.
+// 버전(SemVer, 정본은 git 태그): 첫 릴리스 0.1.0, 기본 patch(feat 포함), --minor를 주면 minor(큰 묶음일 때 사용자가 정한다), `!`나 본문의 BREAKING CHANGE:는 0.x 동안 minor, 1.0 이상이면 major. 1.0.0은 사용자가 정할 때만 만든다.
 // exit: 0 정상, 1 준비 안 됨·사용법 오류·커밋이나 push 실패(되돌림), 2 GitHub Release 실패(태그는 push됨. 출력한 명령으로 다시 만든다)
 import { execFileSync, spawnSync } from "node:child_process";
 import {
@@ -73,14 +73,21 @@ export function parseCommits(log) {
 		.filter((c) => !c.subject.startsWith("chore(release):"));
 }
 
-export function nextVersion(prevTag, commits) {
+// 기본은 patch(feat 포함). minor는 큰 묶음일 때 사용자가 정해 --minor로 준다.
+export function nextVersion(
+	prevTag,
+	commits,
+	{ minor: bumpMinor = false } = {},
+) {
 	if (!prevTag) return "0.1.0";
 	const [major, minor, patch] = prevTag
 		.replace(/^v/, "")
 		.split(".")
 		.map(Number);
-	if (commits.some((c) => c.breaking)) return `${major + 1}.0.0`;
-	if (commits.some((c) => c.type === "feat")) return `${major}.${minor + 1}.0`;
+	// 0.x 동안 깨지는 변경은 minor로 올린다. 1.0.0은 따로 정한다.
+	if (commits.some((c) => c.breaking))
+		return major === 0 ? `0.${minor + 1}.0` : `${major + 1}.0.0`;
+	if (bumpMinor) return `${major}.${minor + 1}.0`;
 	return `${major}.${minor}.${patch + 1}`;
 }
 
@@ -167,11 +174,15 @@ export function main(argv, root = process.cwd()) {
 	try {
 		({ values } = parseArgs({
 			args: argv,
-			options: { title: { type: "string" }, publish: { type: "string" } },
+			options: {
+				title: { type: "string" },
+				publish: { type: "string" },
+				minor: { type: "boolean" },
+			},
 		}));
 	} catch (e) {
 		return fail(
-			`사용법: pnpm release [--title "<영어 제목>"] 또는 pnpm release --publish <노트 파일> (${e.message})`,
+			`사용법: pnpm release [--title "<영어 제목>"] [--minor] 또는 pnpm release --publish <노트 파일> (${e.message})`,
 		);
 	}
 	const git = (...args) =>
@@ -214,7 +225,7 @@ export function main(argv, root = process.cwd()) {
 	}
 	const title = values.title?.trim() || releaseTitle(commits);
 	if (!slug(title)) return fail(`--title은 영어로 쓴다 (${title})`);
-	const version = nextVersion(prevTag, commits);
+	const version = nextVersion(prevTag, commits, { minor: values.minor });
 	const date = new Date();
 	let file = join("release", `${stamp(date)}-${slug(title)}.md`);
 	if (existsSync(join(root, file)))
@@ -253,7 +264,9 @@ function publish({ root, git, file, prevTag, commits, repo }) {
 	// 노트를 쓴 뒤 커밋이 늘었거나, 검수하다 커밋 해시를 지웠으면 노트가 실제 릴리스와 어긋난다.
 	if (
 		commits.length === 0 ||
-		tag !== `v${nextVersion(prevTag, commits)}` ||
+		![false, true].some(
+			(minor) => tag === `v${nextVersion(prevTag, commits, { minor })}`,
+		) ||
 		commits.some((c) => !note.includes(c.sha.slice(0, 7)))
 	)
 		return fail(
@@ -340,7 +353,7 @@ function publish({ root, git, file, prevTag, commits, repo }) {
 		return 2;
 	}
 	console.log(
-		`${tag} — ${title} 릴리스 완료. 다음: pnpm vercel:deploy production --check (bts-deploy 배포 순서)`,
+		`${tag} — ${title} 릴리스 완료. 다음: pnpm vercel:deploy production --check (prokit-deploy 배포 순서)`,
 	);
 	return 0;
 }

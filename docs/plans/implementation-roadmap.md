@@ -28,10 +28,10 @@ T1~T13은 로그인 없이 로컬 관리자 한 명으로 동작한다. 로그�
 
 | 단계 | 할 일 | 끝나는 조건 |
 |---|---|---|
-| 1. 설계 | `pnpm dev-cycle table F --write`로 라운드를 연다. `brainstorming`으로 스펙을 `docs/plans/tasks/Tnn-<이름>.md`에 쓴다. 스펙에는 범위, **만들지 않는 것**(ponytail 사다리로 뺀 것과 다시 넣을 조건), 화면과 상태, API, 데이터, 수용 기준, 자동 테스트 목록, **사용자 테스트 절차**를 넣는다. 화면이 있으면 사이트맵(`docs/briefs/site-map.md`)에 그 화면의 행과 링크·버튼을 먼저 더하고(그 화면의 메뉴는 '준비 중' 예외 표에서 링크로 옮긴다), impeccable `shape` 브리프를 `docs/briefs/`에 쓴다(상호작용, 서체, 이미지, 아이콘, 모션 계획 포함. `bts-ui`) | 사용자가 설계를 확인한다 |
+| 1. 설계 | `pnpm dev-cycle table F --write`로 라운드를 연다. `brainstorming`으로 스펙을 `docs/plans/tasks/Tnn-<이름>.md`에 쓴다. 스펙에는 범위, **만들지 않는 것**(ponytail 사다리로 뺀 것과 다시 넣을 조건), 화면과 상태, API, 데이터, 수용 기준, 자동 테스트 목록, **사용자 테스트 절차**를 넣는다. 화면이 있으면 사이트맵(`docs/briefs/site-map.md`)에 그 화면의 행과 링크·버튼을 먼저 더하고(그 화면의 메뉴는 '준비 중' 예외 표에서 링크로 옮긴다), impeccable `shape` 브리프를 `docs/briefs/`에 쓴다(상호작용, 서체, 이미지, 아이콘, 모션 계획 포함. `prokit-ui`) | 사용자가 설계를 확인한다 |
 | 2. 계획 | `writing-plans`로 `docs/plans/tasks/Tnn-<이름>-plan.md`를 쓰고 계획 리뷰(`plan-eng-review`, 화면이 있으면 `plan-design-review`, 과설계는 `ponytail-review`)를 받는다 | 리뷰 지적 처리 |
-| 3. 구현 | 테스트 먼저(TDD), ponytail 모드, 계층 스킬(`bts-web`·`bts-ui`·`bts-api`·`bts-db`, 공급자는 `tts-provider`) | 대조표 구현 행 증거 |
-| 4. 검증 | 타입·린트·테스트·빌드, 소유 데이터가 있으면 2계정 격리 테스트, `bts-reviewer`(code·security·db)와 `ponytail-review`, impeccable critique·audit, 브라우저 1440·390 확인, 사이트맵대로 모든 링크와 버튼 누르기(404·반응 없는 버튼 0, '준비 중' 메뉴는 누를 수 없음). 브라우저 QA에서 생성·시험 생성·클론·삭제 버튼은 누르지 않는다(그 앞 상태까지만 본다) | 대조표 검증 행 모두 증거 |
+| 3. 구현 | 테스트 먼저(TDD), ponytail 모드, 계층 스킬(`prokit-web`·`prokit-ui`·`prokit-api`·`prokit-db`, 공급자는 `tts-provider`) | 대조표 구현 행 증거 |
+| 4. 검증 | 타입·린트·테스트·빌드, 소유 데이터가 있으면 2계정 격리 테스트, `prokit-reviewer`(code·security·db)와 `ponytail-review`, impeccable critique·audit, 브라우저 1440·390 확인, 사이트맵대로 모든 링크와 버튼 누르기(404·반응 없는 버튼 0, '준비 중' 메뉴는 누를 수 없음). 브라우저 QA에서 생성·시험 생성·클론·삭제 버튼은 누르지 않는다(그 앞 상태까지만 본다) | 대조표 검증 행 모두 증거 |
 | 5. 사용자 테스트 | 스펙의 사용자 테스트 절차(주소, 순서, 기대 결과)를 드린다. 실제 유료 호출이 필요하면 공급자·모델·대본 길이·호출 횟수를 적어 승인을 먼저 받는다 | 사용자가 직접 써 본다 |
 | 6. 피드백 반영 | 받은 피드백을 같은 라운드에서 고치고, 관련 검증을 다시 한 뒤 5로 돌아간다 | 사용자가 "통과"라고 한다 |
 | 7. 닫기 | `[confirm]` 행에 사용자가 확인한 내용과 날짜를 적고 audit·close·커밋. 이 문서 4절과 `tasks/todo.md`의 TASK를 체크한다 | 커밋 |
@@ -247,7 +247,7 @@ T1~T13은 로그인 없이 로컬 관리자 한 명으로 동작한다. 로그�
 - **T4에서 넘어온 것(T4 보안 리뷰):** 목록 캐시는 검색어·커서마다 행이 생기고 상한이 없다(만료 뒤 7일 보관). 소유자가 둘 이상이 되면 소유자별 호출 빈도 제한이나 공급자·종류별 행 수 상한을 둔다.
 
 ### T15 P0 통합 검수와 첫 배포
-- **포함:** REQ-01~13 전체 시나리오, 접근성 전체 점검(P0-07), 독립 리뷰. GitHub origin과 Vercel 연결, 운영 소유자 계정과 환경변수, 릴리스와 production 배포(`bts-deploy`).
+- **포함:** REQ-01~13 전체 시나리오, 접근성 전체 점검(P0-07), 독립 리뷰. GitHub origin과 Vercel 연결, 운영 소유자 계정과 환경변수, 릴리스와 production 배포(`prokit-deploy`).
 - **T7 QA에서 발견(기존 T4 코드, 배포 전 필수):** `packages/db` `createDb`가 pg Pool에 `error` 처리기를 두지 않아 DB가 유휴 연결을 끊으면 `uncaughtException`이 난다(로컬 DB 정지로 재현, 운영 Neon의 유휴 끊김도 같은 경로). 배포 전에 C 라운드로 고친다(백로그 T7-01).
 - **사용자 테스트:** 배포 주소에서 P0 전체 흐름.
 

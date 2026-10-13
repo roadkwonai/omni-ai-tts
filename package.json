@@ -32,7 +32,12 @@
 		"skills:update": "node scripts/skills-setup.mjs --update",
 		"vercel:deploy": "node scripts/vercel-deploy.mjs",
 		"release": "node scripts/release.mjs",
-		"export:html": "node scripts/export-html.mjs"
+		"export:html": "node scripts/export-html.mjs",
+		"resource:check": "node scripts/resource-guard.mjs check",
+		"resource:run": "node scripts/resource-guard.mjs run",
+		"resource:clean": "node scripts/resource-guard.mjs clean",
+		"delegation:capture": "node scripts/delegation.mjs capture",
+		"delegation:validate": "node scripts/delegation.mjs validate"
 	},
 	"dependencies": {
 		"zod": "catalog:"

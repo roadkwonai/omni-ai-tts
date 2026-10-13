@@ -38,7 +38,9 @@
 			"!packages/db/src/schema/auth.ts",
 			"!apps/web/src/env.ts",
 			"!packages/db/src/env.ts",
-			"!html"
+			"!html",
+			"!**/.prokit",
+			"!tasks/evidence"
 		]
 	},
 	"formatter": {

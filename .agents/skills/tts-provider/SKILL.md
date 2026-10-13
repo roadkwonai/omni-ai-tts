@@ -6,12 +6,12 @@ description: >-
   예상 사용량과 요금 표시, 공급자 오류(키, 잔액, 429, 타임아웃)와 중복 과금, 오디오 업로드·다운로드·재생, 공급자
   API 키를 다룬다. TTS 붙여줘, 음성 생성 API, 성우 목록 불러오기, 내 보이스 클론, ElevenLabs·Typecast·Fish Audio·Airy
   연결, 생성 버튼, 크레딧이 두 번 빠졌어요, 실제로 생성해서 들어봐 같은 요청에 사용한다. 프로시저와 소유권 일반
-  규칙은 bts-api, 테이블은 bts-db, 화면은 bts-web·bts-ui와 함께 읽는다.
+  규칙은 prokit-api, 테이블은 prokit-db, 화면은 prokit-web·prokit-ui와 함께 읽는다.
 ---
 
 # TTS 공급자 연동
 
-정본은 다음과 같다. 이 스킬은 `bts-api`·`bts-db`·`bts-web` 위에 공급자 연동에만 있는 규칙을 더한다.
+정본은 다음과 같다. 이 스킬은 `prokit-api`·`prokit-db`·`prokit-web` 위에 공급자 연동에만 있는 규칙을 더한다.
 - 결정: `docs/adr/0002-orpc-only-api.md`. 공급자 호출은 `packages/api`의 TypeScript로 하고 Python 서비스는 두지 않는다.
 - 요구사항: `docs/plans/tts-service-requirements.md`(REQ-01~13)와 `tasks/todo.md`의 P0 항목
 - 공급자 계약: `docs/research/<typecast|elevenlabs|fish-audio|airy>-api-options.md`
@@ -29,7 +29,7 @@ description: >-
 - 단, ElevenLabs 성우 목록·억양 조회는 REST로 부른다. SDK가 응답 전체를 한 번에 검사해(`parseOrThrow`) 성우 하나의 빠진 필드가 목록 전체를 막기 때문이다(T4). 키는 `xi-api-key` 헤더, 호스트는 `https://api.elevenlabs.io`로 고정한다.
 - 키는 `apps/web/.env.schema`에 `@sensitive`로 선언된 값을 varlock `ENV`로 읽는다. 공급자 클라이언트는 소유자가 있는 요청마다 `apps/web/src/context.ts`가 `createProviders(키)`(`packages/api/src/providers/index.ts`)로 만들어 context의 `providers`로 넘긴다. 요청마다 만들어 `.env`의 키 교체가 반영된다. 소유자가 없는 요청에는 만들지 않는다. 루프백 요청이면 `publicProcedure`의 context에도 `providers`가 들어 있으므로 `publicProcedure`에서 `context.providers`를 쓰지 않는다. `packages/api`에서 `process.env`를 읽지 않는다.
 - SDK 생성자에는 키와 공식 호스트를 명시적으로 넘긴다. 두 SDK는 인자가 없으면 `process.env`(`TYPECAST_API_KEY`·`TYPECAST_API_HOST`·`ELEVENLABS_API_KEY`)로 조용히 대체한다. 키가 없으면 클라이언트를 만들지 않고 그 공급자를 "연결 안 됨"으로 처리한다.
-- 테스트는 `vi.stubGlobal("fetch", …)`로 HTTP 응답만 흉내 내어 SDK의 오류 처리까지 지나게 한다(두 SDK 모두 호출 시점의 전역 `fetch`를 쓴다). context의 `providers`에는 `createProviders({ … })`로 만든 클라이언트를 넣는다. `bts-api`의 `references/ownership-test.md`가 `db`를 넣는 방식과 같다.
+- 테스트는 `vi.stubGlobal("fetch", …)`로 HTTP 응답만 흉내 내어 SDK의 오류 처리까지 지나게 한다(두 SDK 모두 호출 시점의 전역 `fetch`를 쓴다). context의 `providers`에는 `createProviders({ … })`로 만든 클라이언트를 넣는다. `prokit-api`의 `references/ownership-test.md`가 `db`를 넣는 방식과 같다.
 - 코드 이름도 `GLOSSARY.md`를 따른다. Fish Audio API가 `model`이라 부르는 성우 개체는 코드에서 voice로 부르고, `s1`·`s2.1-pro` 같은 합성 엔진만 model로 부른다.
 
 ## 유료·상태 변경 호출: 생성, 시험 생성, 클론, 클론 삭제
@@ -38,7 +38,7 @@ description: >-
 - "실제 한국어 생성·청취" 같은 실제 호출 확인은 사용자가 그 호출을 승인한 뒤에만 한다. 승인 요청에는 공급자, 모델, 대본 길이, 호출 횟수를 적는다. 대본 길이는 Fish Audio면 UTF-8 바이트로 적는다. 짧은 대본으로 한 번만 부른다.
 - 증거에는 공급자, 모델, 사용량, 결과 파일 경로를 적는다. 키, 요청 헤더, 전체 응답은 적지 않는다. 청취 결과는 `[confirm]` 행에 사용자가 들은 내용으로 적는다.
 - 기본 샘플 청취는 공급자가 준 샘플 URL을 재생하는 것이라 과금되지 않는다. 샘플 재생과 시험 생성을 한 프로시저나 한 버튼으로 합치지 않고, 시험 생성을 자동으로 부르지 않는다(REQ-03).
-- `bts-implementer`에게는 실제 호출을 맡기지 않는다(외부 서비스 호출 금지 규칙).
+- `prokit-implementer`에게는 실제 호출을 맡기지 않는다(외부 서비스 호출 금지 규칙).
 
 ## 중복 과금 막기 (REQ-09, REQ-11)
 - 생성·클론 프로시저는 클라이언트가 사용자 동작 하나에 한 번 만든 요청 id(uuid)를 받는다. 재전송할 때는 같은 값을 쓴다. 서버는 소유자별 `(owner_id, request_id)` 유니크 제약이 있는 기록 행을 공급자 호출 **전에** insert해 선점한다. 충돌하면 공급자를 부르지 않고 기존 행의 상태나 결과를 돌려준다. 같은 id에 다른 입력이 오면 `BAD_REQUEST`다. 조회한 뒤 호출하는 방식은 동시에 들어온 두 요청을 막지 못한다. 버튼 잠금은 보조 수단이다.
@@ -101,7 +101,7 @@ description: >-
 - 공급자 요청 본문은 계약에 있는 필드로만 서버가 만든다. 입력을 그대로 넘기지 않는다. Fish Audio `references`(요청 안의 원본 오디오로 하는 즉석 클론)는 동의·소유 매핑을 거치지 않으므로 보내지 않는다.
 - 삭제와 상태 조회: 입력은 매핑 행 id다. `and(eq(<클론 테이블>.id, id), eq(<클론 테이블>.userId, session.user.id))`로 찾은 공급자 voice id만 공급자에게 보낸다. 공개 성우는 삭제 대상이 아니다.
 - 클론은 서버에서 공개 범위를 비공개로 고정한다(Fish Audio `visibility: "private"`를 명시해 보낸다). 공개·공유 옵션은 화면에 두지 않는다. 공개하면 공개 라이브러리로 나가 본인 음성 동의 범위(REQ-13)를 넘는다.
-- 이 검사들은 `bts-api` 불변식 7(권한 판정)에 해당하므로 security 리뷰 대상이다.
+- 이 검사들은 `prokit-api` 불변식 7(권한 판정)에 해당하므로 security 리뷰 대상이다.
 - 업로드 전에 본인 음성 동의와 전송할 공급자를 받고 동의 시각을 기록한다. 원본 오디오는 앱에 영구 보관하지 않는다. 성공, 실패, 취소, 그리고 업로드 뒤 클론 요청이 오지 않은 시간 초과 때도 정리한다(REQ-13 8번). 서버를 거치지 않는 업로드를 정하는 ADR에는 만료 시간과 만료된 원본을 지우는 방법을 적는다.
 
 ## 오디오 입출력 (Vercel 제한, ADR 0002)
@@ -117,7 +117,7 @@ description: >-
 - Airy는 크레딧 = 코드 포인트 × 1.5(ko) 또는 × 1(en), 올림(`AIRY_CREDITS_PER_CHAR`). 확인 창 근거 '(Airy 요금 기준: 한국어 1글자 1.5크레딧)'. 근거는 고른 언어를 따른다(영어는 '영어 1글자 1크레딧'). 남은 크레딧은 소수 한 자리 버림(`creditNumber`).
 - 금액은 공급자 문서에 근거가 있을 때만 출처와 함께 보여 준다. 예상치와 공급자가 돌려준 실제 사용량을 구분한다.
 
-## 화면 (`bts-web`, `bts-ui`와 함께)
+## 화면 (`prokit-web`, `prokit-ui`와 함께)
 - Typecast 기본 샘플 주소는 서명 없는 고정 주소다(2026-10-04 실측). 주소에 서명·만료가 생기면 만료를 따로 구분한다.
 - 한 번에 한 오디오만 재생한다(REQ-03). `URL.createObjectURL`로 만든 주소는 교체하거나 언마운트할 때 `URL.revokeObjectURL`한다.
 - 마이크 권한은 녹음 버튼을 누를 때 요청하고, 멈추거나 화면을 떠날 때 모든 `MediaStreamTrack`을 `stop()`한다(REQ-13).
@@ -133,7 +133,7 @@ description: >-
 판을 올리면 이 표를 다시 확인한다.
 
 ## 검사
-- `bts-api` 격리 테스트에 흉내 낸 fetch 응답으로 다음 경우를 더한다.
+- `prokit-api` 격리 테스트에 흉내 낸 fetch 응답으로 다음 경우를 더한다.
   ① 같은 요청 id를 동시에 두 번 보내면 공급자 호출이 1회다. 다른 요청 id 둘을 동시에 보내도 진행은 1건이다.
   ② 공급자 401·429·타임아웃이 위 표의 코드로 바뀐다.
   ③ B가 A의 클론 voice id로 생성하면 `NOT_FOUND`이고 공급자 호출은 0회다. 공급자 목록에 섞여 나온 A의 클론 id, 다른 사용자의 비공개 Fish Audio 모델 id, 삭제를 요청한 자기 클론으로 시도해도 같다.

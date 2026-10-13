@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // 로컬 Vercel CLI로 develop(Preview 배포 + 고정 주소)과 production을 배포한다. `pnpm vercel:deploy`가 부른다.
-// 프로젝트 연결, 환경변수 준비, 배포 전 DB 적용 순서는 bts-deploy 스킬에 있다.
+// 프로젝트 연결, 환경변수 준비, 배포 전 DB 적용 순서는 prokit-deploy 스킬에 있다.
 // 사용법: node scripts/vercel-deploy.mjs <develop|production> [--check]
 //   develop     Preview로 배포하고, Preview 환경 BETTER_AUTH_URL의 호스트를 alias로 붙인다.
 //   production  기본 브랜치(.dev-cycle.json defaultBranch)의 릴리스한 커밋(scripts/release.mjs)만 --prod로 배포한다.
@@ -89,7 +89,7 @@ export function main(argv, root = process.cwd()) {
 	}
 	if (!linked) {
 		console.error(
-			`준비 안 됨: Vercel 프로젝트에 연결되지 않았다(.vercel/project.json 없음) → bts-deploy 스킬의 준비 절차${unsure}`,
+			`준비 안 됨: Vercel 프로젝트에 연결되지 않았다(.vercel/project.json 없음) → prokit-deploy 스킬의 준비 절차${unsure}`,
 		);
 		return 1;
 	}
@@ -103,7 +103,7 @@ export function main(argv, root = process.cwd()) {
 	const errors = [];
 	// Vercel 프로젝트의 Git 연결이 배포를 만들면 기본 브랜치 push(릴리스 --publish 포함)가 곧 production 배포라
 	// 이 스크립트의 검사와 "DB 먼저"를 거치지 않는다. vercel link --yes는 새 프로젝트를 만들 때 git 원격이 있으면
-	// 묻지 않고 연결한다(CLI 60.1 소스, 실측). 확인하지 못해도 연결된 것으로 본다(bts-dev-cycle 5절이 push하지 않는다).
+	// 묻지 않고 연결한다(CLI 60.1 소스, 실측). 확인하지 못해도 연결된 것으로 본다(prokit-dev-cycle 5절이 push하지 않는다).
 	if (name === "production") {
 		let ids = {
 			projectId: process.env.VERCEL_PROJECT_ID,
@@ -176,11 +176,11 @@ export function main(argv, root = process.cwd()) {
 		const repo = githubRepo(gitOut("config", "--get", "remote.origin.url"));
 		if (!release)
 			errors.push(
-				"HEAD에 릴리스 태그(vX.Y.Z)가 없다(production은 릴리스한 커밋만 배포한다) → bts-deploy 스킬의 릴리스 절(pnpm release)",
+				"HEAD에 릴리스 태그(vX.Y.Z)가 없다(production은 릴리스한 커밋만 배포한다) → prokit-deploy 스킬의 릴리스 절(pnpm release)",
 			);
 		else if (!repo)
 			errors.push(
-				"origin이 GitHub 저장소가 아니다(릴리스를 확인할 수 없다) → bts-deploy 스킬의 준비 절",
+				"origin이 GitHub 저장소가 아니다(릴리스를 확인할 수 없다) → prokit-deploy 스킬의 준비 절",
 			);
 		else {
 			// 로컬 태그 이름만 믿지 않는다. origin의 태그가 HEAD를 가리켜야 push한 릴리스다(annotated 태그는 ^{} 줄이 커밋이다).
@@ -253,7 +253,7 @@ export function main(argv, root = process.cwd()) {
 		: [];
 	if (missing.length)
 		errors.push(
-			`${env} 환경변수 없음: ${missing.join(", ")} → bts-deploy 스킬의 환경변수 절`,
+			`${env} 환경변수 없음: ${missing.join(", ")} → prokit-deploy 스킬의 환경변수 절`,
 		);
 
 	// 배포 주소의 정본은 그 환경의 BETTER_AUTH_URL이다(Better Auth가 이 origin만 신뢰한다). config 형식이어야 읽힌다.

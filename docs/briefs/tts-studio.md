@@ -4,7 +4,7 @@
 - 대상: `apps/web`, 주요 예정 화면 `/studio`.
 - 모드: Operate — 반복적인 음성 제작 작업을 끝내는 도구.
 - 근거: [요구사항](../plans/tts-service-requirements.md), 루트 `DESIGN.md`, [참고 조사](../research/tts-references.md).
-- UI/UX 기획·개발·검토는 **bts-ui → impeccable** 절차를 따른다. 내 클론 보이스 생성·관리도 같은 시각 시스템의 초기 필수 화면이다.
+- UI/UX 기획·개발·검토는 **prokit-ui → impeccable** 절차를 따른다. 내 클론 보이스 생성·관리도 같은 시각 시스템의 초기 필수 화면이다.
 
 ## 사용자와 성공 장면
 

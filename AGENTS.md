@@ -1,4 +1,4 @@
-<!-- bts-template:start -->
+<!-- prokit-template:start -->
 # 에이전트 공통 규칙
 
 이 프로젝트는 Better-T-Stack으로 만든 Next.js 풀스택 앱이다. Next.js App Router(`apps/web`), oRPC(`packages/api`), Better Auth(`packages/auth`), Drizzle + Postgres(`packages/db`, 개발은 로컬 컨테이너, 운영은 Neon), shadcn UI(`packages/ui`), Turborepo, pnpm, Biome를 쓴다.
@@ -12,10 +12,8 @@
 - Write detailed specs upfront to reduce ambiguity
 
 ### 2. Subagent Strategy
-- Use subagents liberally to keep main context window clean
-- Offload research, exploration, and parallel analysis to subagents
-- For complex problems, throw more compute at it via subagents
-- One tack per subagent for focused execution
+- 한 작업 단위에는 검증한 수행 흐름 하나만 쓴다. 전문 스킬·수행자 선택과 evidence packet은 `prokit-dev-cycle`의 위임 프로토콜을 따른다.
+- 메인은 대조표와 런타임만 관리한다. 외부 수행자는 commit, push, 배포, DB 적용, 토큰·비밀값 출력을 맡지 않는다.
 
 ### 3. Self-Improvement Loop
 - After ANY correction from the user: update `tasks/lessons.md` with the pattern
@@ -43,12 +41,7 @@
 
 ## Task Management
 
-1. **Plan First**: Write plan to `tasks/todo.md` with checkable items
-2. **Verify Plan**: Check in before starting implementation
-3. **Track Progress**: Mark items complete as you go
-4. **Explain Changes**: High-level summary at each step
-5. **Document Results**: Add review section to `tasks/todo.md`
-6. **Capture Lessons**: Update `tasks/lessons.md` after corrections
+`tasks/todo.md`의 계획과 진행은 dev-cycle 라운드 바깥에 적고, 라운드의 증거·검증·사용자 확인은 `prokit-dev-cycle`이 관리한다.
 
 ## Core Principles
 
@@ -69,49 +62,49 @@
 4. 완료는 검증 가능한 동작으로 말한다. 실행하지 않은 검사를 통과라고 하지 않는다.
 
 ## 코드 변경 절차
-코드나 설정을 바꾸는 작업은 `bts-dev-cycle` 스킬로 시작한다. `pnpm dev-cycle case`로 판정하고, `pnpm dev-cycle table <케이스> --write --title "<요약>"`로 대조표를 열고(케이스는 요청 기준으로 고른다. 아직 diff가 없으면 `case`는 A로 나온다), 행을 실행한 뒤 `pnpm dev-cycle audit`과 `close`로 닫는다. 표 끝의 `[confirm]` 행은 사용자가 결과를 확인해야 채운다(N/A·blocked 같은 건너뛰기 불가). 닫은 뒤의 커밋·push, 릴리스, 배포는 `bts-dev-cycle`의 "5. 종료"를 따른다. 절차 정본은 `docs/dev-workflow.md`다. `tasks/todo.md`의 계획(Task Management)은 dev-cycle 라운드 블록(`<!-- dev-cycle:start`~`<!-- dev-cycle:end -->`) 바깥에 적고 블록은 지우지 않는다.
+코드나 설정을 바꾸는 작업은 `prokit-dev-cycle` 스킬로 시작한다. `pnpm dev-cycle case`로 판정하고, `pnpm dev-cycle table <케이스> --write --title "<요약>"`로 대조표를 열고(케이스는 요청 기준으로 고른다. 아직 diff가 없으면 `case`는 A로 나온다), 행을 실행한 뒤 `pnpm dev-cycle audit`과 `close`로 닫는다. 표 끝의 `[confirm]` 행은 사용자가 결과를 확인해야 채운다(N/A·blocked 같은 건너뛰기 불가). 닫은 뒤의 커밋·push, 릴리스, 배포는 `prokit-dev-cycle`의 "5. 종료"를 따른다. 절차 정본은 `docs/dev-workflow.md`다. 위임은 `references/delegation.md`의 provider 검증과 packet 계약을 따른다.
 
 ## 계층별 스킬
 | 작업 | 스킬 |
 |---|---|
-| 라우팅, RSC 경계, 데이터 패칭, 캐시, 성능 | `bts-web` |
-| 화면 모양, UX, 디자인 스타일과 `DESIGN.md`, 디자인 리뷰 (impeccable) | `bts-ui` |
-| oRPC 프로시저, Better Auth, 권한과 소유권 | `bts-api` |
-| Drizzle 스키마, 마이그레이션, 로컬 DB, Neon | `bts-db` |
-| 검사 선택, 증거 기록, 런타임 확인 | `bts-verify` |
-| Vercel 배포(develop, production), production 릴리스(버전, 노트, GitHub Release), 배포 환경변수, 되돌리기 | `bts-deploy` |
+| 라우팅, RSC 경계, 데이터 패칭, 캐시, 성능 | `prokit-web` |
+| 화면 모양, UX, 디자인 스타일과 `DESIGN.md`, 디자인 리뷰 (impeccable) | `prokit-ui` |
+| oRPC 프로시저, Better Auth, 권한과 소유권 | `prokit-api` |
+| Drizzle 스키마, 마이그레이션, 로컬 DB, Neon | `prokit-db` |
+| 검사 선택, 증거 기록, 런타임 확인 | `prokit-verify` |
+| Vercel 배포(develop, production), production 릴리스(버전, 노트, GitHub Release), 배포 환경변수, 되돌리기 | `prokit-deploy` |
 
-전역이나 이 프로젝트에 같은 분야 스킬(예: `nextjs`, `supabase`, 배포의 `deploy-to-vercel`)이 있어도 이 프로젝트에서는 위 `bts-*`를 먼저 따른다. `bts-*`가 읽으라고 하는 외부 스킬(공식 스킬 연결 표, `impeccable` 등)은 그 상황이 오면 실제로 읽고, 이 프로젝트에 설치된 판(`.agents/skills/<이름>/SKILL.md`)을 읽는다. 읽은 스킬은 그 행의 증거에 적는다. 설계, 계획, 디버깅, 리뷰, QA에 쓸 프로세스 스킬은 `bts-dev-cycle`의 라우팅 표를 따른다.
+전역이나 이 프로젝트에 같은 분야 스킬(예: `nextjs`, `supabase`, 배포의 `deploy-to-vercel`)이 있어도 이 프로젝트에서는 위 `prokit-*`를 먼저 따른다. `prokit-*`가 읽으라고 하는 외부 스킬(공식 스킬 연결 표, `impeccable` 등)은 그 상황이 오면 실제로 읽고, 이 프로젝트에 설치된 판(`.agents/skills/<이름>/SKILL.md`)을 읽는다. 읽은 스킬은 그 행의 증거에 적는다. 설계, 계획, 디버깅, 리뷰, QA에 쓸 프로세스 스킬은 `prokit-dev-cycle`의 라우팅 표를 따른다.
 
-선택 스킬 묶음(`skills.manifest.json`의 `optional`)은 기본으로 설치하지 않는다. 요청이 아래 분야인데 스킬이 없으면(`pnpm skills:check`가 묶음별 상태를 보여 준다) 사용자에게 `pnpm skills:setup --optional <묶음>` 설치를 제안한다. 설치해도 위 `bts-*`를 먼저 따른다.
+선택 스킬 묶음(`skills.manifest.json`의 `optional`)은 기본으로 설치하지 않는다. 요청이 아래 분야인데 스킬이 없으면(`pnpm skills:check`가 묶음별 상태를 보여 준다) 사용자에게 `pnpm skills:setup --optional <묶음>` 설치를 제안한다. 설치해도 위 `prokit-*`를 먼저 따른다.
 
-| 묶음 | 분야 | 스킬 | 관련 bts 스킬 |
+| 묶음 | 분야 | 스킬 | 관련 prokit 스킬 |
 |---|---|---|---|
-| `ops` | 배포한 서비스의 비용·성능 점검 | `vercel-optimize` | `bts-deploy` |
-| `ops` | Neon의 오래 도는 함수, 파일 저장, LLM 호출. 새 서비스 의존이라 도입 전에 묻고 `docs/adr/`에 남긴다 | `neon-functions`, `neon-object-storage`, `neon-ai-gateway` | `bts-db` |
-| `motion` | 화면 전환, 공유 요소 애니메이션 | `vercel-react-view-transitions` | `bts-ui` |
-| `mobile` | React Native·Expo 모바일 앱. 이 프로젝트는 웹 앱만 있으므로 앱을 더하는 결정은 먼저 묻고 `docs/adr/`에 남긴다 | `vercel-react-native-skills` | `bts-dev-cycle` |
+| `ops` | 배포한 서비스의 비용·성능 점검 | `vercel-optimize` | `prokit-deploy` |
+| `ops` | Neon의 오래 도는 함수, 파일 저장, LLM 호출. 새 서비스 의존이라 도입 전에 묻고 `docs/adr/`에 남긴다 | `neon-functions`, `neon-object-storage`, `neon-ai-gateway` | `prokit-db` |
+| `motion` | 화면 전환, 공유 요소 애니메이션 | `vercel-react-view-transitions` | `prokit-ui` |
+| `mobile` | React Native·Expo 모바일 앱. 이 프로젝트는 웹 앱만 있으므로 앱을 더하는 결정은 먼저 묻고 `docs/adr/`에 남긴다 | `vercel-react-native-skills` | `prokit-dev-cycle` |
 
 ## 보안 불변식
 - 사용자 데이터를 다루는 프로시저는 `protectedProcedure`를 쓰고, 소유자 id는 세션에서만 가져와 where 조건에 넣는다.
-- 비밀값과 서버 전용 모듈은 클라이언트 번들로 보내지 않는다. 배포 환경의 값은 Vercel 환경변수에만 두고 `.env.production` 같은 파일, 출력, 커밋에 남기지 않는다. 새 변수는 `apps/web/.env.schema`에 선언하고 배포 환경 값은 `bts-deploy`로 넣는다. 커밋 전에는 `pnpm dev-cycle secrets`로 스테이징한 변경을 검사하고, exit 1이면 커밋하지 않는다.
+- 비밀값과 서버 전용 모듈은 클라이언트 번들로 보내지 않는다. 배포 환경의 값은 Vercel 환경변수에만 두고 `.env.production` 같은 파일, 출력, 커밋에 남기지 않는다. 새 변수는 `apps/web/.env.schema`에 선언하고 배포 환경 값은 `prokit-deploy`로 넣는다. 커밋 전에는 `pnpm dev-cycle secrets`로 스테이징한 변경을 검사하고, exit 1이면 커밋하지 않는다.
 - 스키마 변경은 `db:generate`로 만든 마이그레이션으로만 한다. 공유 DB 브랜치에는 `db:push`를 쓰지 않는다.
-- 운영 DB와 실사용자 데이터는 사용자가 요청할 때만 다룬다(라운드 끝 배포에서 적용할 마이그레이션 목록을 보고 동의할 때 포함). 커밋, push, 릴리스, 배포는 사용자가 요청할 때와 라운드 끝(`bts-dev-cycle` 5절: 사용자 확인 → audit·close → 커밋·push → 사용자가 고르면 릴리스와 production 배포)에만 한다. production은 릴리스(`pnpm release`: 버전 태그, `release/` 노트, GitHub Release)한 커밋만 배포한다(`bts-deploy`).
+- 운영 DB와 실사용자 데이터는 사용자가 요청할 때만 다룬다(라운드 끝 배포에서 적용할 마이그레이션 목록을 보고 동의할 때 포함). 커밋, push, 릴리스, 배포는 사용자가 요청할 때와 라운드 끝(`prokit-dev-cycle` 5절: 사용자 확인 → audit·close → 커밋·push → 사용자가 고르면 릴리스와 production 배포)에만 한다. production은 릴리스(`pnpm release`: 버전 태그, `release/` 노트, GitHub Release)한 커밋만 배포한다(`prokit-deploy`).
 
 ## 에이전트
-- `bts-implementer`: 코디네이터가 지정한 파일만 구현한다.
-- `bts-reviewer`: 읽기 전용 리뷰. focus는 code, security, db이고 JSON으로 응답한다.
-- 리뷰는 구현한 쪽이 아니라 `bts-reviewer`가 한다.
+- `prokit-implementer`: 코디네이터가 지정한 파일만 구현한다.
+- `prokit-reviewer`: 읽기 전용 통합 리뷰. focus는 plan, code, security, db이고 실제 계약·evidence hash·통합 수용 여부를 JSON으로 응답한다.
+- `specialist-reviewer`: provider에 내장 리뷰가 없을 때만 전문 산출물을 읽기 전용으로 검토한다. 일반 코드 리뷰를 반복하지 않는다.
+- 리뷰는 구현한 쪽이 아니라 `prokit-reviewer`가 한다.
 - 배포, 릴리스, 운영 DB 적용은 서브에이전트에 맡기지 않는다. 라운드 끝 마무리 선택, 릴리스 발행 동의, 운영 DB 적용 동의처럼 중간에 사용자 확인이 필요하다.
-- 스킬이나 플러그인이 없다고 나오면 `pnpm skills:check`로 확인해 보고한다. 설치(`pnpm skills:setup`, 네트워크와 설정 파일 변경)는 사용자가 요청할 때 한다. 목록 정본은 `skills.manifest.json`이다. 외부 스킬의 새 버전 확인과 업데이트(`pnpm skills:update`)는 `bts-skills-update`를 따른다. 진행 중인 라운드가 없으면 `pnpm dev-cycle status`가 하루 한 번 확인한다.
-<!-- bts-template:end -->
-
+- 스킬이나 플러그인이 없다고 나오면 `pnpm skills:check`로 확인해 보고한다. 설치(`pnpm skills:setup`, 네트워크와 설정 파일 변경)는 사용자가 요청할 때 한다. 목록 정본은 `skills.manifest.json`이다. 외부 스킬의 새 버전 확인과 업데이트(`pnpm skills:update`)는 `prokit-skills-update`를 따른다. 진행 중인 라운드가 없으면 `pnpm dev-cycle status`가 하루 한 번 확인한다.
+<!-- prokit-template:end -->
 ## TTS Pilot 프로젝트 규칙
 이 저장소는 Typecast·ElevenLabs·Fish Audio·Airy 성우로 한국어 음성을 만드는 개인 작업실(TTS Pilot)이다. 위 템플릿 규칙에 아래를 더한다.
 - 먼저 읽을 문서에 더한다: `PRODUCT.md`(제품 맥락), `docs/plans/tts-service-requirements.md`(요구사항 REQ-01~13), `tasks/todo.md` 라운드 블록 밖의 백로그(P0~P4).
-- 공급자 연동(성우 목록, 기본 샘플, 생성과 시험 생성, 클론 보이스, 사용량, 공급자 오류, 오디오 업로드·다운로드)은 계층 스킬과 함께 `tts-provider`를 읽는다. 구현을 `bts-implementer`에 맡길 때도 읽을 스킬로 지정한다.
-- `bts-reviewer`는 diff에 공급자 연동이 있으면 focus와 상관없이 `tts-provider`를 읽는다. security에서는 유료 호출을 부를 수 있는 주체(호출마다 하는 소유자 검사), 공급자 키 노출, 공급자 voice id(클론)의 소유권, 유료 호출의 중복과 자동 재시도, 입력 길이와 업로드 검사를 확인한다.
+- 공급자 연동(성우 목록, 기본 샘플, 생성과 시험 생성, 클론 보이스, 사용량, 공급자 오류, 오디오 업로드·다운로드)은 계층 스킬과 함께 `tts-provider`를 읽는다. 구현을 `prokit-implementer`에 맡길 때도 읽을 스킬로 지정한다.
+- `prokit-reviewer`는 diff에 공급자 연동이 있으면 focus와 상관없이 `tts-provider`를 읽는다. security에서는 유료 호출을 부를 수 있는 주체(호출마다 하는 소유자 검사), 공급자 키 노출, 공급자 voice id(클론)의 소유권, 유료 호출의 중복과 자동 재시도, 입력 길이와 업로드 검사를 확인한다.
 - 유료이거나 공급자 상태를 바꾸는 호출(생성, 시험 생성, 클론, 클론 삭제)은 자동 테스트와 브라우저 QA에서 하지 않는다. 실제 호출은 사용자가 그 호출을 승인할 때만 한다.
-- 로그인(T14) 전에는 로컬 관리자 모드다(`docs/plans/implementation-roadmap.md` 2절). 보안 불변식의 "소유자 id는 세션에서만"과 `bts-api`·`bts-web` 스킬의 `context.session.user.id`는 이 기간에 "서버가 정한 `context.ownerId`에서만"으로 읽고, 클라이언트 입력으로 소유자를 받지 않는다. 소유자는 development·test이면서 루프백 Host인 요청에만 주어진다. production에서는 `protectedProcedure`가 모두 거절하므로 T14 전에는 배포하지 않고 배포 환경에 공급자 키를 넣지 않는다.
-- 로컬 관리자 모드에서 공급자 서버 키나 소유 데이터를 쓰는 서버 코드는 `/api/rpc`의 `protectedProcedure`로만 연다(연결 확인·성우 목록·사용량 같은 무료 호출도). Server Action과 새 Route Handler는 만들지 않고, Server Component와 SSR은 db·공급자 모듈을 직접 부르지 않으며 유료·상태 변경 프로시저를 부르지 않는다. 가입이 열려 있으므로 `auth.api.getSession`으로 권한을 판정하지 않고, `bts-web`의 보호 페이지 규칙(세션 확인 뒤 `/login` redirect)도 쓰지 않는다. 페이지는 막지 않고 데이터는 `protectedProcedure`가 막는다. Host 검사는 브라우저(DNS 리바인딩)만 막고, 다른 기기는 `127.0.0.1` 바인딩(`dev`·`start`의 `--hostname`)이 막는다.
+- 로그인(T14) 전에는 로컬 관리자 모드다(`docs/plans/implementation-roadmap.md` 2절). 보안 불변식의 "소유자 id는 세션에서만"과 `prokit-api`·`prokit-web` 스킬의 `context.session.user.id`는 이 기간에 "서버가 정한 `context.ownerId`에서만"으로 읽고, 클라이언트 입력으로 소유자를 받지 않는다. 소유자는 development·test이면서 루프백 Host인 요청에만 주어진다. production에서는 `protectedProcedure`가 모두 거절하므로 T14 전에는 배포하지 않고 배포 환경에 공급자 키를 넣지 않는다.
+- 로컬 관리자 모드에서 공급자 서버 키나 소유 데이터를 쓰는 서버 코드는 `/api/rpc`의 `protectedProcedure`로만 연다(연결 확인·성우 목록·사용량 같은 무료 호출도). Server Action과 새 Route Handler는 만들지 않고, Server Component와 SSR은 db·공급자 모듈을 직접 부르지 않으며 유료·상태 변경 프로시저를 부르지 않는다. 가입이 열려 있으므로 `auth.api.getSession`으로 권한을 판정하지 않고, `prokit-web`의 보호 페이지 규칙(세션 확인 뒤 `/login` redirect)도 쓰지 않는다. 페이지는 막지 않고 데이터는 `protectedProcedure`가 막는다. Host 검사는 브라우저(DNS 리바인딩)만 막고, 다른 기기는 `127.0.0.1` 바인딩(`dev`·`start`의 `--hostname`)이 막는다.
 - 서비스 구현은 `docs/plans/implementation-roadmap.md`의 TASK 순서대로 한 번에 하나씩 한다. TASK 하나가 F 라운드 하나이고, 설계(사용자 확인) → 계획 → 구현 → 검증 → 사용자 테스트 → 피드백 반영을 마치고 `[confirm]`으로 닫아야 끝난다. 앞 TASK가 닫히기 전에는 다음 TASK의 스펙·계획·코드를 만들지 않는다. 순서나 범위를 바꾸면 로드맵부터 고친다. 라운드에서 미룬 지적이 특정 TASK에 걸리면 백로그와 함께 로드맵의 그 TASK 메모에도 적는다.

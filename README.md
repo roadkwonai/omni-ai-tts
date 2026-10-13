@@ -49,7 +49,7 @@ pnpm --filter @tts-pilot-app/db db:migrate
 
 For Neon, select the intended development branch and supply its direct connection
 string as the migration process's `DATABASE_URL`. Keep the web app on its pooled
-connection. Follow [the migration workflow](.agents/skills/bts-db/references/migration-flow.md);
+connection. Follow [the migration workflow](.agents/skills/prokit-db/references/migration-flow.md);
 do not run `db:push` against a shared or production database.
 
 Then, run the development server:

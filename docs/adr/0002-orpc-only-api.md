@@ -19,7 +19,7 @@ API와 TTS 공급자(Typecast, ElevenLabs, Fish Audio) 연동은 모두 `package
 ## Consequences
 - 공급자 API에 없는 음성 ML 기능(로컬 Whisper 정렬, 화자 분리, 유사 목소리 찾기, 배경음과 목소리 분리)은 공급자 기능으로 대신하거나 만들지 않는다. 자막 싱크는 생성 응답의 타임스탬프나 ElevenLabs forced alignment로 맞춘다.
 - Vercel 함수의 제약은 언어와 무관하다. 본문은 4.5MB, 기본 실행 시간은 300초까지이고 GPU가 없다. 그래서 긴 음성 결합과 영상 렌더링은 Blob 저장소와 백그라운드 작업으로 설계한다.
-- 에이전트와 스킬은 지금 구성을 그대로 쓴다(`bts-implementer`, `bts-reviewer`, `bts-api`). Python 전용 에이전트와 dev-cycle 규칙은 두지 않는다.
+- 에이전트와 스킬은 지금 구성을 그대로 쓴다(`prokit-implementer`, `prokit-reviewer`, `prokit-api`). Python 전용 에이전트와 dev-cycle 규칙은 두지 않는다.
 - 다음 경우에는 이 결정을 다시 검토한다.
   - 자체 모델을 운영하기로 할 때
   - 공급자 API로 대신할 수 없는 음성 ML 기능이 요구사항에 들어올 때

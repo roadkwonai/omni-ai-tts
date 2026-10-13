@@ -1,18 +1,35 @@
 #!/usr/bin/env node
-// dev-cycle 경량 러너: case | table | status | audit | close | secrets
+// dev-cycle 경량 러너: case | table | status | audit | close | archive | secrets
 // 절차 정본은 docs/dev-workflow.md, 판정 규칙은 .dev-cycle.json이다.
 import { execFileSync, spawnSync } from "node:child_process";
+import { createHash, randomUUID } from "node:crypto";
 import {
-	appendFileSync,
+	closeSync,
 	existsSync,
+	lstatSync,
 	mkdirSync,
+	mkdtempSync,
+	openSync,
 	readdirSync,
 	readFileSync,
 	realpathSync,
+	renameSync,
+	rmSync,
+	statSync,
 	writeFileSync,
 } from "node:fs";
-import { dirname, join } from "node:path";
+import { tmpdir } from "node:os";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isDeepStrictEqual } from "node:util";
+import {
+	captureSnapshot,
+	main as delegationMain,
+	observeProvider,
+	resolveProvider,
+	validateDelegationPacket,
+} from "./delegation.mjs";
+import { main as resourceMain, runGuarded } from "./resource-guard.mjs";
 
 const DEFAULTS = {
 	todoPath: "tasks/todo.md",
@@ -163,7 +180,7 @@ export function classify(files, config) {
 }
 
 export const SECURITY_ROW =
-	"[review] bts-reviewer(security) → verdict, max_severity, 반영·기각 내역";
+	"[review] prokit-reviewer(security) → verdict, max_severity, 반영·기각 내역";
 
 export function parseWorkflow(md) {
 	const blocks = {};
@@ -225,7 +242,10 @@ export function buildRows(workflow, caseKey, cls) {
 	};
 	expand(caseKey, []).forEach(push);
 	if (cls.harness && caseKey !== "H") expand("H", []).forEach(push);
-	if (cls.auth && !out.some((r) => r.text.includes("bts-reviewer(security)")))
+	if (
+		cls.auth &&
+		!out.some((r) => r.text.includes("prokit-reviewer(security)"))
+	)
 		push({ text: SECURITY_ROW, tag: "review" });
 	expand("COMMON", []).forEach(push);
 	return out;
@@ -237,7 +257,7 @@ const esc = (s) => String(s ?? "").replace(/\|/g, "\\|");
 
 export function renderBlock(meta, rows, extra = []) {
 	const lines = [
-		`<!-- dev-cycle:start case=${meta.case} base=${meta.base ?? "none"} auth=${Boolean(meta.auth)} opened=${meta.opened} -->`,
+		`<!-- dev-cycle:start case=${meta.case} base=${meta.base ?? "none"} auth=${Boolean(meta.auth)} opened=${meta.opened}${meta.delegation ? ` delegation=${meta.delegation}` : ""} -->`,
 		`## 활성 라운드: ${meta.case} — ${meta.title}`,
 		"| # | 단계 | 증거 |",
 		"|---|---|---|",
@@ -309,7 +329,13 @@ export function writeTable(
 	root,
 	config,
 	caseKey,
-	{ upgrade = false, title, write = false, now = new Date() } = {},
+	{
+		upgrade = false,
+		title,
+		write = false,
+		delegation = false,
+		now = new Date(),
+	} = {},
 ) {
 	const md = readTodo(root, config) ?? "# 작업\n";
 	const active = parseActive(md);
@@ -330,6 +356,7 @@ export function writeTable(
 		...r,
 		evidence: "",
 	}));
+	const extra = [...(active?.extra ?? [])];
 	if (active && upgrade) {
 		const old = new Map(active.rows.map((r) => [r.text, r.evidence]));
 		for (const r of rows) r.evidence = old.get(r.text) ?? "";
@@ -337,6 +364,18 @@ export function writeTable(
 		// 새 케이스에 없는 이전 행(직접 추가한 행 포함)은 끝의 사용자 확인 행 앞에 둔다.
 		const carried = active.rows
 			.filter((r) => !kept.has(r.text))
+			.filter((r) => {
+				if (
+					rows.some((row) => row.text.includes("prokit-reviewer(plan)")) &&
+					r.text.startsWith("[review] 계획 리뷰 (plan-eng-review,")
+				) {
+					extra.push(
+						`- 이전 계획 리뷰(참고, 재검토 필요): ${r.evidence || "증거 없음"}`,
+					);
+					return false;
+				}
+				return true;
+			})
 			.map((r) => ({ text: r.text, evidence: r.evidence }));
 		const vitest = carried.findIndex(
 			(r) => r.text === "vitest 도입(최초 1회) → 설정 파일과 실행 결과",
@@ -350,9 +389,11 @@ export function writeTable(
 		base,
 		auth: cls.auth || Boolean(active?.meta.auth),
 		opened: active?.meta.opened ?? now.toISOString().slice(0, 10),
+		delegation:
+			active?.meta.delegation ?? (delegation ? "required" : undefined),
 		title: title ?? active?.title ?? "제목 없음",
 	};
-	const block = renderBlock(meta, rows, upgrade ? active.extra : []);
+	const block = renderBlock(meta, rows, upgrade ? extra : []);
 	if (write) {
 		const next = active
 			? md.slice(0, active.start) + block + md.slice(active.end)
@@ -362,6 +403,112 @@ export function writeTable(
 		writeFileSync(p, next);
 	}
 	return { case: key, base, rows: rows.length, auth: meta.auth, block };
+}
+
+const EVIDENCE_MAX_BYTES = 64 * 1024;
+const TABLE_HEADER_RE = /^\|\s*#\s*\|\s*단계\s*\|\s*증거\s*\|\s*$/;
+const TABLE_SEPARATOR_RE = /^\|[\s:|-]+\|$/;
+
+function splitLines(text) {
+	const lines = [];
+	let offset = 0;
+	for (const match of text.matchAll(/\r\n|\r|\n/g)) {
+		lines.push({ line: text.slice(offset, match.index), offset });
+		offset = match.index + match[0].length;
+	}
+	if (offset < text.length) lines.push({ line: text.slice(offset), offset });
+	return lines;
+}
+
+function evidenceRow(block, row) {
+	const candidates = [];
+	let fence = null;
+	let header = false;
+	let table = false;
+	for (const item of splitLines(block)) {
+		const marker = item.line.match(/^\s*(`{3,}|~{3,})/)?.[1];
+		if (marker) {
+			if (!fence) fence = marker;
+			else if (marker[0] === fence[0] && marker.length >= fence.length)
+				fence = null;
+			continue;
+		}
+		if (fence) continue;
+		if (TABLE_HEADER_RE.test(item.line)) {
+			header = true;
+			table = false;
+			continue;
+		}
+		if (header && TABLE_SEPARATOR_RE.test(item.line)) {
+			table = true;
+			continue;
+		}
+		if (!/^\|/.test(item.line)) {
+			table = false;
+			continue;
+		}
+		if (table && new RegExp(`^\\|\\s*${row}\\s*\\|.*$`).test(item.line))
+			candidates.push(item);
+	}
+	if (candidates.length !== 1)
+		throw new UsageError(
+			`활성 대조표에 행 번호 ${row}이 정확히 하나 있어야 한다`,
+		);
+	return candidates[0];
+}
+
+// 증거 셀은 표 전체를 다시 렌더하지 않고 해당 행의 마지막 셀만 바꾼다.
+// 한 줄 입력만 받아 Markdown 표·메모·코드 블록의 구조를 보존한다.
+export function setEvidence(root, config, row, evidenceFile) {
+	if (!Number.isSafeInteger(row) || row < 1)
+		throw new UsageError("행 번호는 1 이상의 정수여야 한다");
+	const md = readTodo(root, config);
+	const active = md && parseActive(md);
+	if (!active) throw new UsageError("활성 라운드가 없다");
+	if (!evidenceFile || evidenceFile.startsWith("--"))
+		throw new UsageError("--file 뒤에 프로젝트 안 증거 파일을 넣는다");
+	const base = realpathSync(root);
+	const requested = resolve(base, evidenceFile);
+	let file;
+	try {
+		file = realpathSync(requested);
+	} catch (error) {
+		throw new UsageError(`증거 파일을 읽을 수 없다: ${error.message}`);
+	}
+	if (!file.startsWith(`${base}${sep}`))
+		throw new UsageError("증거 파일은 프로젝트 밖을 가리킬 수 없다");
+	let stat;
+	try {
+		stat = statSync(file);
+	} catch (error) {
+		throw new UsageError(`증거 파일을 확인할 수 없다: ${error.message}`);
+	}
+	if (!stat.isFile()) throw new UsageError("증거 파일은 일반 파일이어야 한다");
+	if (stat.size > EVIDENCE_MAX_BYTES)
+		throw new UsageError("증거 파일이 너무 크다");
+	const evidence = readFileSync(file, "utf8");
+	if (!evidence.trim()) throw new UsageError("증거 파일이 비어 있다");
+	if (evidence.includes("\0"))
+		throw new UsageError("증거 파일에 NUL 문자가 있다");
+	if (/[\r\n]/.test(evidence))
+		throw new UsageError("증거 파일은 한 줄이어야 한다");
+	if (
+		Buffer.byteLength(evidence) > EVIDENCE_MAX_BYTES ||
+		statSync(file).size > EVIDENCE_MAX_BYTES
+	)
+		throw new UsageError("증거 파일이 너무 크다");
+	const block = md.slice(active.start, active.end);
+	const { line, offset: lineOffset } = evidenceRow(block, row);
+	const marks = [...line.matchAll(/(?<!\\)\|/g)].map((match) => match.index);
+	if (marks.length < 4)
+		throw new UsageError(`행 번호 ${row}의 표 형식이 올바르지 않다`);
+	const replaced = `${line.slice(0, marks[2] + 1)} ${esc(evidence)} ${line.slice(marks.at(-1))}`;
+	const replaceAt = active.start + lineOffset;
+	writeFileSync(
+		join(root, config.todoPath),
+		`${md.slice(0, replaceAt)}${replaced}${md.slice(replaceAt + line.length)}`,
+	);
+	return { row, evidence };
 }
 
 const PLACEHOLDERS = new Set(["✓", "✔", "-", "ok", "done", "todo", "tbd"]);
@@ -398,9 +545,33 @@ export function confirmProblem(row) {
 		: null;
 }
 
-const rowProblem = (r) => confirmProblem(r) ?? evidenceProblem(r.evidence);
+const rowProblem = (r) => {
+	const problem = confirmProblem(r) ?? evidenceProblem(r.evidence);
+	if (problem) return problem;
+	const value = bare(r.evidence);
+	if (/^(blocked|미실행)\s*:\s*\S/i.test(value)) return null;
+	if (
+		r.text.includes("prokit-reviewer(plan)") &&
+		!/^prokit-reviewer\(plan\):\s*approve,\s*max=(none|low|medium)(?:,|$)/.test(
+			value,
+		)
+	)
+		return "계획 리뷰 증거는 prokit-reviewer(plan): approve, max=none|low|medium 결과여야 한다 (N/A 불가)";
+	if (
+		r.text.startsWith("[design]") &&
+		!["기존", "결정", "설정", "검증"].every((field) =>
+			new RegExp(`(?:^|;\\s*)${field}:\\s*[^;\\s]`).test(value),
+		)
+	)
+		return "설계 증거에 기존: 경로·소비자; 결정: 재사용·분리; 설정: 환경 변수·설정 영향; 검증: 회귀 검사를 적는다";
+	return null;
+};
 
-export function audit(root, config) {
+export function audit(
+	root,
+	config,
+	{ delegationPacket, delegationContext } = {},
+) {
 	const md = readTodo(root, config);
 	const active = md && parseActive(md);
 	if (!active)
@@ -441,12 +612,46 @@ export function audit(root, config) {
 				`에이전트 정의 불일치 — pnpm agents:sync 실행: ${`${r.stdout}${r.stderr}`.trim()}`,
 			);
 	}
+	if (active.meta.delegation === "required" && !delegationPacket)
+		problems.push(
+			"위임 라운드는 현재 완료 attest 패킷과 Main runtime 검증이 필요하다",
+		);
+	if (delegationPacket) {
+		let result;
+		const runtime = delegationContext?.trustedMainRuntime;
+		try {
+			result = validateDelegationPacket(
+				root,
+				delegationPacket,
+				runtime ? { ...delegationContext, ...runtime } : delegationContext,
+			);
+		} catch (error) {
+			problems.push(`위임 증거 검증을 실행하지 못했다: ${error.message}`);
+			return { ok: false, problems, case: X, pathCase: cls.pathCase };
+		}
+		const completion = delegationCompletionProblem(result, runtime);
+		if (completion) problems.push(`위임 완료 검증 실패: ${completion}`);
+		else if (!result.ok)
+			problems.push(`위임 증거 검증 실패: ${result.problems.join("; ")}`);
+	}
 	return {
 		ok: problems.length === 0,
 		problems,
 		case: X,
 		pathCase: cls.pathCase,
 	};
+}
+
+export function delegationCompletionProblem(result, runtime) {
+	if (!result?.ok || result.status !== "complete" || !result.completionReady)
+		return "완료 가능한 Main 검증 결과가 아니다";
+	if (
+		!runtime ||
+		typeof runtime.verifyAuthority !== "function" ||
+		typeof runtime.verifyReceipt !== "function"
+	)
+		return "Main runtime 권위·receipt 검증기가 없다";
+	return null;
 }
 
 export function status(root, config) {
@@ -471,13 +676,305 @@ export function status(root, config) {
 	};
 }
 
+// 아카이브 날짜는 릴리스 노트와 같은 한국 시간으로 쓴다.
+const archiveDay = (now) =>
+	new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul" }).format(now);
+
+function archiveFile(root, config, day, title) {
+	const slug =
+		title
+			.normalize("NFKC")
+			.replace(/[^\p{L}\p{N}]+/gu, "-")
+			.replace(/^-+|-+$/g, "")
+			.slice(0, 64) || "완료-기록";
+	const dir = join(root, config.archiveDir);
+	mkdirSync(dir, { recursive: true });
+	let file = join(dir, `${day}-${slug}.md`);
+	for (let n = 2; existsSync(file); n++)
+		file = join(dir, `${day}-${slug}-${n}.md`);
+	return file;
+}
+
+function replaceArchiveFile(file, text) {
+	const dir = mkdtempSync(join(dirname(file), ".dev-cycle-"));
+	try {
+		const tmp = join(dir, "content");
+		writeFileSync(tmp, text);
+		renameSync(tmp, file);
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+}
+
+function archiveIndex(root, config) {
+	const dir = join(root, config.archiveDir);
+	const files = readdirSync(dir)
+		.filter((f) => f.endsWith(".md") && f !== "README.md")
+		.sort((a, b) => b.localeCompare(a, "ko", { numeric: true }));
+	const rows = files.map((file) => {
+		const title =
+			readFileSync(join(dir, file), "utf8").match(/^#{1,6} (.+)$/m)?.[1] ??
+			file;
+		const day = file.match(/^\d{4}-\d{2}(?:-\d{2})?/)?.[0] ?? "";
+		return `| ${day} | [${esc(title)}](${file}) |`;
+	});
+	replaceArchiveFile(
+		join(dir, "README.md"),
+		"# 완료 작업 기록\n\n닫은 라운드와 완료한 todo·백로그를 보관한다. 날짜는 정리한 날이다. 기존 월별 기록은 그대로 둔다.\n\n| 날짜 | 제목 |\n|---|---|\n" +
+			rows.join("\n") +
+			"\n",
+	);
+}
+
+// 링크 대상은 그대로 유지하고, 코드 안의 예시는 바꾸지 않는다.
+function archiveLinks(text, from, to) {
+	let fence = null;
+	return text
+		.split(/(?<=\n)/)
+		.map((line) => {
+			const marker = line.match(/^[ \t]*(\x60{3,}|~{3,})/)?.[1];
+			if (marker) {
+				if (!fence) fence = marker;
+				else if (marker[0] === fence[0] && marker.length >= fence.length)
+					fence = null;
+				return line;
+			}
+			if (fence) return line;
+			return line.replace(
+				/(\x60+).*?\1|(!?\[[^\]\n]*\]\()(<[^>\n]+>|(?:[^\s()]|\([^()\n]*\))+)([^)\n]*\))/g,
+				(all, code, prefix, href, suffix) => {
+					if (code) return all;
+					const wrapped = href.startsWith("<");
+					const path = wrapped ? href.slice(1, -1) : href;
+					if (/^(?:[a-z][\w+.-]*:|\/|#)/i.test(path)) return all;
+					const cut = path.search(/[?#]/);
+					const target = cut < 0 ? path : path.slice(0, cut);
+					const tail = cut < 0 ? "" : path.slice(cut);
+					return (
+						prefix +
+						(wrapped ? "<" : "") +
+						relative(dirname(to), resolve(dirname(from), target)).replaceAll(
+							"\\",
+							"/",
+						) +
+						tail +
+						(wrapped ? ">" : "") +
+						suffix
+					);
+				},
+			);
+		})
+		.join("");
+}
+
+function completedText(text) {
+	const lines = text.split(/(?<=\n)/);
+	let fence = null;
+	const outside = lines.map((line) => {
+		const marker = line.match(/^[ \t]*(\x60{3,}|~{3,})/)?.[1];
+		if (marker) {
+			if (!fence) fence = marker;
+			else if (marker[0] === fence[0] && marker.length >= fence.length)
+				fence = null;
+			return false;
+		}
+		return !fence;
+	});
+	const groups = [{ start: 0, level: 0, heading: "", parents: [] }];
+	const headings = [];
+	for (let i = 0; i < lines.length; i++) {
+		const h = outside[i] && lines[i].match(/^(#{1,3}) (.+)\s*$/);
+		if (!h) continue;
+		const level = h[1].length;
+		headings.length = level - 1;
+		const parents = headings.filter(Boolean).slice(1);
+		headings.push(h[2].trim());
+		groups.push({ start: i, level, heading: lines[i], parents });
+	}
+	const moved = [];
+	const remove = new Set();
+	let count = 0;
+	for (let g = 0; g < groups.length; g++) {
+		const group = groups[g];
+		const end = groups[g + 1]?.start ?? lines.length;
+		const tasks = [];
+		for (let i = group.start; i < end; i++) {
+			const task =
+				outside[i] &&
+				lines[i].match(/^([ \t]*)[-*+][ \t]+\[([ xX])\][ \t]+(.*)/);
+			if (task)
+				tasks.push({
+					start: i,
+					indent: task[1].length,
+					checked: task[2].toLowerCase() === "x",
+					label: task[3],
+				});
+		}
+		if (!tasks.length) continue;
+		const context = group.parents.length
+			? `> 묶음: ${group.parents.join(" / ")}\n\n`
+			: "";
+		const codeExample = outside.slice(group.start, end).some((value) => !value);
+		if (group.level > 1 && !codeExample && tasks.every((t) => t.checked)) {
+			moved.push(context + lines.slice(group.start, end).join(""));
+			for (let i = group.start; i < end; i++) remove.add(i);
+			count += tasks.length;
+			continue;
+		}
+		for (const task of tasks) {
+			task.end = end;
+			for (let i = task.start + 1; i < end; i++) {
+				if (!outside[i]) {
+					if (
+						outside[i - 1] &&
+						/^[ \t]*(\x60{3,}|~{3,})/.test(lines[i]) &&
+						(lines[i].match(/^[ \t]*/)?.[0].length ?? 0) <= task.indent
+					) {
+						task.end = i;
+						break;
+					}
+					continue;
+				}
+				const next = lines[i].match(/^([ \t]*)[-*+] /);
+				if (next && next[1].length <= task.indent) {
+					task.end = i;
+					break;
+				}
+				if (
+					lines[i - 1].trim() === "" &&
+					lines[i].trim() &&
+					(lines[i].match(/^[ \t]*/)?.[0].length ?? 0) <= task.indent
+				) {
+					task.end = i;
+					break;
+				}
+			}
+		}
+		let header = false;
+		for (const task of tasks) {
+			if (remove.has(task.start) || !task.checked) continue;
+			const children = tasks.filter(
+				(t) => t.start >= task.start && t.start < task.end,
+			);
+			if (children.some((t) => !t.checked)) continue;
+			if (!header) {
+				moved.push(`${context + group.heading}\n`);
+				header = true;
+			}
+			const parents = tasks.filter(
+				(t) =>
+					t.start < task.start && t.end > task.start && t.indent < task.indent,
+			);
+			if (parents.length)
+				moved.push(
+					`> 상위 항목: ${parents.map((t) => t.label).join(" / ")}\n\n`,
+				);
+			moved.push(
+				lines
+					.slice(task.start, task.end)
+					.map((line) =>
+						line.slice(
+							Math.min(task.indent, line.match(/^[ \t]*/)?.[0].length ?? 0),
+						),
+					)
+					.join(""),
+			);
+			for (let i = task.start; i < task.end; i++) remove.add(i);
+			count += children.length;
+		}
+	}
+	return {
+		todo: lines.filter((_, i) => !remove.has(i)).join(""),
+		archived: moved.join("\n"),
+		count,
+	};
+}
+
+function completedOutsideRound(md) {
+	const active = parseActive(md);
+	if (!active) return completedText(md);
+	const before = completedText(md.slice(0, active.start));
+	const after = completedText(md.slice(active.end));
+	return {
+		todo: before.todo + md.slice(active.start, active.end) + after.todo,
+		archived: before.archived + after.archived,
+		count: before.count + after.count,
+	};
+}
+
+function archiveTodo(root, config, content, file, archived) {
+	const todoPath = join(root, config.todoPath);
+	const indexPath = join(root, config.archiveDir, "README.md");
+	const original = readFileSync(todoPath, "utf8");
+	const oldIndex = existsSync(indexPath)
+		? readFileSync(indexPath, "utf8")
+		: null;
+	const link = `[완료 기록](${relative(dirname(todoPath), indexPath).replaceAll("\\", "/")})`;
+	let todo = content;
+	if (!todo.includes(link)) {
+		todo = todo.replace(/^(#[^\n]*\n)/, `$1\n${link}\n`);
+		if (!todo.includes(link)) todo = `# 작업\n\n${link}\n\n${todo}`;
+	}
+	let created = false;
+	try {
+		const fd = openSync(file, "wx");
+		created = true;
+		try {
+			writeFileSync(fd, archived);
+		} finally {
+			closeSync(fd);
+		}
+		archiveIndex(root, config);
+		replaceArchiveFile(todoPath, todo);
+	} catch (error) {
+		if (created) {
+			// 복구가 실패하면 새 기록을 남겨 데이터가 사라지지 않게 한다.
+			try {
+				if (readFileSync(todoPath, "utf8") !== original)
+					replaceArchiveFile(todoPath, original);
+				if (oldIndex === null) rmSync(indexPath, { force: true });
+				else if (readFileSync(indexPath, "utf8") !== oldIndex)
+					replaceArchiveFile(indexPath, oldIndex);
+				rmSync(file);
+			} catch (recovery) {
+				throw new AggregateError(
+					[error, recovery],
+					"아카이브 복구 실패: todo와 보관 파일을 확인하세요",
+				);
+			}
+		}
+		throw error;
+	}
+}
+
+export function archiveCompleted(
+	root,
+	config,
+	now = new Date(),
+	{ title = "완료 항목 정리" } = {},
+) {
+	const todoPath = join(root, config.todoPath);
+	const md = readFileSync(todoPath, "utf8");
+	const result = completedOutsideRound(md);
+	if (!result.count) return { ok: true, completed: 0, archivePath: null };
+	const day = archiveDay(now);
+	const file = archiveFile(root, config, day, title);
+	archiveTodo(
+		root,
+		config,
+		result.todo,
+		file,
+		`# ${title}\n\n- 정리 날짜: ${day} (KST)\n- 원본: ${config.todoPath}\n\n${archiveLinks(result.archived, todoPath, file)}`,
+	);
+	return { ok: true, completed: result.count, archivePath: file };
+}
 export function close(
 	root,
 	config,
 	now = new Date(),
-	{ partial = false } = {},
+	{ partial = false, delegationPacket, delegationContext } = {},
 ) {
-	const res = audit(root, config);
+	const res = audit(root, config, { delegationPacket, delegationContext });
 	if (!res.ok) return res;
 	const todoPath = join(root, config.todoPath);
 	const md = readFileSync(todoPath, "utf8");
@@ -494,23 +991,23 @@ export function close(
 				`부분 완료(blocked ${blocked}건, 미실행 ${skipped}건) — 사용자에게 보고하고, 그대로 닫자고 하면 pnpm dev-cycle close --partial`,
 			],
 		};
-	const day = now.toISOString().slice(0, 10);
-	const archivePath = join(root, config.archiveDir, `${day.slice(0, 7)}.md`);
+	const day = archiveDay(now);
+	const archivePath = archiveFile(root, config, day, active.title);
 	const archived = md
 		.slice(active.start, active.end)
 		.replace("<!-- dev-cycle:start ", `<!-- dev-cycle:archived closed=${day} `)
 		.replace("## 활성 라운드: ", "## 라운드: ")
 		.replace(END_TAG, "<!-- dev-cycle:archived-end -->");
-	mkdirSync(dirname(archivePath), { recursive: true });
-	appendFileSync(
-		archivePath,
-		`${existsSync(archivePath) ? "\n" : ""}${archived}\n`,
-	);
 	const before = md.slice(0, active.start).replace(/\s*$/, "");
 	const after = md.slice(active.end).replace(/^\s*/, "");
-	writeFileSync(
-		todoPath,
-		`${[before, after].filter(Boolean).join("\n\n").replace(/\s*$/, "")}\n`,
+	const remaining = `${[before, after].filter(Boolean).join("\n\n").replace(/\s*$/, "")}\n`;
+	const completed = completedOutsideRound(remaining);
+	archiveTodo(
+		root,
+		config,
+		completed.todo,
+		archivePath,
+		`# ${active.title}\n\n${archived}\n${archiveLinks(completed.archived, todoPath, archivePath)}`,
 	);
 	return { ok: true, archivePath };
 }
@@ -596,15 +1093,815 @@ export function stagedSecrets(root) {
 		else if (inHunk && line.startsWith("+")) {
 			for (const e of env)
 				if (line.includes(e.value)) hits.add(`${file}: ${e.name} 값`);
+			// 문법 강조 번들의 정확한 식별자만 제외하고 실제 env 값은 원문에서 검사한다.
+			const secretLine = line.replace(
+				/(?<![A-Za-z0-9_-])erilog-sk-prompt-state-selector(?![A-Za-z0-9_-])/g,
+				"",
+			);
 			for (const [label, re] of SECRET_PATTERNS)
-				if (re.test(line)) hits.add(`${file}: ${label}`);
+				if (re.test(secretLine)) hits.add(`${file}: ${label}`);
 		}
 	}
 	return [...hits];
 }
 
 const USAGE =
-	"사용법: dev-cycle <case | table [CASE] [--write] [--upgrade] [--title 제목] | status | audit | close [--partial] | secrets> [--json]";
+	"사용법: dev-cycle <case | table [CASE] [--write] [--upgrade] [--delegation] [--title 제목] | evidence <행 번호> --file <증거 파일> | status | audit [--packet 파일 --context 파일] | resource <check|run|clean> | delegation <capture|validate|accept> | close [--partial] [--packet 파일 --context 파일] | secrets> [--json]";
+
+function readDelegationJson(root, path, flag) {
+	if (!path || path.startsWith("--"))
+		throw new UsageError(`${flag} 뒤에 프로젝트 안 JSON 파일을 넣는다`);
+	const base = resolve(root);
+	const file = resolve(base, path);
+	if (!file.startsWith(`${base}${sep}`))
+		throw new UsageError(`${flag} 파일은 프로젝트 밖을 가리킬 수 없다`);
+	try {
+		return JSON.parse(readFileSync(file, "utf8"));
+	} catch (error) {
+		throw new UsageError(`${flag} JSON을 읽을 수 없다: ${error.message}`);
+	}
+}
+
+export function sourceBoundRoot(root) {
+	const cwd = realpathSync(root);
+	let gitRoot;
+	let head;
+	try {
+		gitRoot = realpathSync(git(cwd, ["rev-parse", "--show-toplevel"]).trim());
+		head = git(gitRoot, ["rev-parse", "--verify", "HEAD"]).trim();
+	} catch (error) {
+		throw new UsageError(
+			`현재 작업 경로의 git root를 확인할 수 없다: ${error.message}`,
+		);
+	}
+	return {
+		root: gitRoot,
+		gitRoot,
+		cwd,
+		head,
+		environment: {
+			node: process.version,
+			platform: process.platform,
+			arch: process.arch,
+		},
+		requestedScope: "project",
+		scope: "project",
+		inspectOnly: true,
+	};
+}
+
+const digest = (value) =>
+	createHash("sha256")
+		.update(typeof value === "string" ? value : JSON.stringify(value))
+		.digest("hex");
+
+const sameJson = (left, right) => isDeepStrictEqual(left, right);
+
+function acceptUsage() {
+	return "사용법: dev-cycle delegation accept --base <commit> --scope <경로/**> --focus <경로> --contract <계약> --provider <프로젝트 안 prokit-reviewer source> [--provider <프로젝트 안 source>] [--artifact <프로젝트 안 file>] --check <JSON argv 배열> [--check <JSON argv 배열>]";
+}
+
+function acceptArgv(value, flag) {
+	let argv;
+	try {
+		argv = JSON.parse(value);
+	} catch {
+		throw new UsageError(`${flag}는 JSON argv 배열이어야 한다`);
+	}
+	if (
+		!Array.isArray(argv) ||
+		argv.length === 0 ||
+		argv.some((arg) => typeof arg !== "string" || !arg || arg.includes("\0"))
+	) {
+		throw new UsageError(
+			`${flag}는 비어 있지 않은 문자열 argv 배열이어야 한다`,
+		);
+	}
+	return argv;
+}
+
+function acceptOptions(args) {
+	const out = {
+		scopes: [],
+		focus: [],
+		contracts: [],
+		providers: [],
+		artifacts: [],
+		checks: [],
+	};
+	for (let index = 0; index < args.length; index += 1) {
+		const flag = args[index];
+		const value = args[index + 1];
+		if (
+			![
+				"--base",
+				"--scope",
+				"--focus",
+				"--contract",
+				"--provider",
+				"--artifact",
+				"--check",
+			].includes(flag) ||
+			value == null ||
+			value.startsWith("--")
+		) {
+			throw new UsageError(acceptUsage());
+		}
+		index += 1;
+		if (flag === "--base") {
+			if (out.base) throw new UsageError("--base는 한 번만 지정한다");
+			out.base = value;
+		} else if (flag === "--scope") out.scopes.push(value);
+		else if (flag === "--focus") out.focus.push(value);
+		else if (flag === "--contract") out.contracts.push(value);
+		else if (flag === "--provider") out.providers.push(value);
+		else if (flag === "--artifact") out.artifacts.push(value);
+		else if (flag === "--check") out.checks.push(acceptArgv(value, flag));
+	}
+	if (
+		!out.base ||
+		!SHA_RE.test(out.base) ||
+		!out.scopes.length ||
+		!out.focus.length ||
+		!out.contracts.length ||
+		!out.checks.length
+	) {
+		throw new UsageError(acceptUsage());
+	}
+	for (const value of [...out.scopes, ...out.focus, ...out.artifacts]) {
+		if (
+			!value ||
+			value.includes("\0") ||
+			value.startsWith("/") ||
+			value.split(/[\\/]/).includes("..")
+		) {
+			throw new UsageError("scope·focus는 프로젝트 안 경로여야 한다");
+		}
+	}
+	if (out.contracts.some((value) => !value.trim() || value.includes("\0")))
+		throw new UsageError("contract는 비어 있지 않은 문자열이어야 한다");
+	if (
+		!out.providers.some((value) =>
+			/(?:^|[\\/])prokit-reviewer\.md$/.test(value),
+		)
+	)
+		throw new UsageError("--provider에 현재 prokit-reviewer source를 넣는다");
+	return out;
+}
+
+function observeAcceptArtifacts(root, paths) {
+	const project = resolve(root);
+	const artifacts = paths.map((path) => {
+		const full = resolve(project, path);
+		if (!full.startsWith(`${project}${sep}`))
+			throw new UsageError("artifact는 프로젝트 안 파일이어야 한다");
+		try {
+			const stat = lstatSync(full);
+			if (!stat.isFile() || stat.isSymbolicLink())
+				throw new Error("not regular file");
+			return {
+				path,
+				hash: createHash("sha256").update(readFileSync(full)).digest("hex"),
+			};
+		} catch {
+			throw new UsageError(`artifact를 읽을 수 없다: ${path}`);
+		}
+	});
+	if (
+		new Set(artifacts.map((artifact) => artifact.path)).size !==
+		artifacts.length
+	)
+		throw new UsageError("같은 artifact를 두 번 지정할 수 없다");
+	return artifacts;
+}
+
+function observeAcceptProviders(root, refs) {
+	const providers = refs.map((ref) => {
+		const observed = observeProvider(ref, {
+			root,
+			accessibleRoots: [root],
+			requestedScope: "project",
+		});
+		if (!observed.ok)
+			throw new UsageError(`provider source를 관측할 수 없다: ${ref}`);
+		return {
+			ref,
+			name: observed.observation.name,
+			origin: observed.observation.origin,
+			canonicalLocation: observed.observation.canonicalLocation,
+			contentHash: observed.observation.contentHash,
+		};
+	});
+	if (
+		new Set(providers.map((provider) => provider.canonicalLocation)).size !==
+		providers.length
+	)
+		throw new UsageError("같은 provider source를 두 번 지정할 수 없다");
+	return providers;
+}
+
+const providerSource = ({ ref, ...provider }) => provider;
+
+function validationProviders(sources) {
+	return sources.map((source, index) => ({
+		name: `local-source-${index + 1}`,
+		origin: source.origin,
+		canonicalLocation: source.canonicalLocation,
+		contentHash: source.contentHash,
+		scope: "project",
+		type: "source",
+		mode: "read-only",
+		host: "local",
+		capabilities: [],
+		tools: [],
+		sideEffects: [],
+		dependencies: [],
+	}));
+}
+
+function acceptedScope(path, scopes) {
+	return scopes.some((scope) => {
+		if (scope === "**") return true;
+		if (scope.endsWith("/**")) return path.startsWith(scope.slice(0, -2));
+		return path === scope;
+	});
+}
+
+async function guardedAcceptCommand(root, argv, kind) {
+	let spawned = false;
+	const result = await runGuarded(root, {
+		command: argv[0],
+		args: argv.slice(1),
+		kind,
+		captureOutput: true,
+		onChildSpawn: () => {
+			spawned = true;
+		},
+	});
+	return {
+		argv,
+		command: argv.join(" "),
+		exitCode: result.exitCode,
+		executed: spawned,
+		stdout: result.stdout,
+		stderr: result.stderr,
+		resource: {
+			before: result.before?.status ?? "unknown",
+			after: result.after?.status ?? "unknown",
+			events: result.events ?? [],
+			groupWasActive: result.groupWasActive === true,
+		},
+	};
+}
+
+function codexRuntime() {
+	try {
+		const executable = realpathSync(
+			execFileSync("which", ["codex"], { encoding: "utf8" }).trim(),
+		);
+		return {
+			executable,
+			hash: createHash("sha256").update(readFileSync(executable)).digest("hex"),
+		};
+	} catch {
+		throw new UsageError("Codex CLI 실행 파일을 관측할 수 없다");
+	}
+}
+
+function reviewerSchema() {
+	const properties = {
+		verdict: {
+			type: "string",
+			enum: ["approve", "changes-required", "blocked"],
+		},
+		focus: { type: "string", enum: ["plan", "code", "security", "db"] },
+		skills_read: { type: "array", items: { type: "string" } },
+		actual_contract: { type: "array", items: { type: "string" } },
+		evidence_hash: { type: "string" },
+		integration_acceptance: {
+			type: "string",
+			enum: ["accept", "changes-required", "blocked"],
+		},
+		max_severity: {
+			type: "string",
+			enum: ["none", "low", "medium", "high", "critical"],
+		},
+		findings: {
+			type: "array",
+			items: {
+				type: "object",
+				additionalProperties: false,
+				required: ["severity", "file", "line", "evidence", "fix"],
+				properties: {
+					severity: {
+						type: "string",
+						enum: ["none", "low", "medium", "high", "critical"],
+					},
+					file: { type: "string" },
+					line: { type: "integer", minimum: 1 },
+					evidence: { type: "string" },
+					fix: { type: "string" },
+				},
+			},
+		},
+		limitations: { type: "array", items: { type: "string" } },
+		reused: { type: "boolean" },
+		product_hash: { type: "string" },
+		provider_actual_hashes: { type: "array", items: { type: "string" } },
+		provider_sources: {
+			type: "array",
+			items: {
+				type: "object",
+				additionalProperties: false,
+				required: ["name", "origin", "canonicalLocation", "contentHash"],
+				properties: {
+					name: { type: "string" },
+					origin: { type: "string" },
+					canonicalLocation: { type: "string" },
+					contentHash: { type: "string" },
+				},
+			},
+		},
+		artifacts: {
+			type: "array",
+			items: {
+				type: "object",
+				additionalProperties: false,
+				required: ["path", "hash"],
+				properties: { path: { type: "string" }, hash: { type: "string" } },
+			},
+		},
+		environment_fingerprint: { type: "string" },
+		bound_focus: { type: "array", items: { type: "string" } },
+		contracts: { type: "array", items: { type: "string" } },
+		changed: { type: "array", items: { type: "string" } },
+		reviewer_runtime: {
+			type: "object",
+			required: ["executable", "hash"],
+			additionalProperties: false,
+			properties: {
+				executable: { type: "string" },
+				hash: { type: "string" },
+			},
+		},
+	};
+	return {
+		type: "object",
+		additionalProperties: false,
+		required: Object.keys(properties),
+		properties,
+	};
+}
+
+async function runCodexReviewer(root, expected, sources) {
+	const runtime = expected.reviewer_runtime;
+	const temp = mkdtempSync(join(tmpdir(), "prokit-accept-review-"));
+	let safeToDispose = false;
+	const schema = join(temp, "schema.json");
+	const output = join(temp, "review.json");
+	writeFileSync(schema, JSON.stringify(reviewerSchema()));
+	const reviewerSource = sources.find((source) =>
+		/(?:^|[\\/])prokit-reviewer\.md$/.test(source.ref),
+	);
+	const reviewInput = expected;
+	const prompt = [
+		"현재 프로젝트의 읽기 전용 기술 인수 검토를 수행한다.",
+		`프로필 source: ${reviewerSource.ref}`,
+		"프로필과 changed·focus·contract·artifact를 읽고 수정하지 않는다.",
+		"최종 응답은 output schema에 맞는 JSON 하나여야 한다. binding 값은 그대로 반환하되, 결함·불확실성이 있으면 verdict와 integration_acceptance를 changes-required 또는 blocked로 정직하게 낸다.",
+		JSON.stringify(reviewInput),
+	].join("\n");
+	try {
+		const run = await guardedAcceptCommand(
+			root,
+			[
+				runtime.executable,
+				"exec",
+				"--ephemeral",
+				"--sandbox",
+				"read-only",
+				"--cd",
+				resolve(root),
+				"--output-schema",
+				schema,
+				"--output-last-message",
+				output,
+				prompt,
+			],
+			"verify",
+		);
+		safeToDispose =
+			!run.resource.groupWasActive &&
+			!run.resource.events.includes("child-group-active");
+		return existsSync(output)
+			? { ...run, stdout: readFileSync(output, "utf8") }
+			: { ...run, stdout: "" };
+	} finally {
+		if (safeToDispose) rmSync(temp, { recursive: true, force: true });
+	}
+}
+
+function receiptFor(
+	run,
+	taskId,
+	runId,
+	before,
+	after,
+	environmentFingerprint,
+	artifacts,
+) {
+	return {
+		command: run.command,
+		argv: run.argv,
+		exitCode: run.exitCode,
+		executed: run.executed,
+		taskId,
+		runId,
+		cwd: process.cwd(),
+		environmentFingerprint,
+		before,
+		after,
+		artifacts,
+		effects: [],
+		identityDigest: digest({
+			argv: run.argv,
+			exitCode: run.exitCode,
+			executed: run.executed,
+			resource: run.resource,
+		}),
+	};
+}
+
+function reviewProblem(output, expected) {
+	if (!output || typeof output !== "object" || Array.isArray(output))
+		return "reviewer 결과가 JSON 객체가 아니다";
+	const keys = [
+		"verdict",
+		"focus",
+		"skills_read",
+		"actual_contract",
+		"evidence_hash",
+		"integration_acceptance",
+		"max_severity",
+		"findings",
+		"limitations",
+		"reused",
+		"product_hash",
+		"provider_actual_hashes",
+		"provider_sources",
+		"artifacts",
+		"environment_fingerprint",
+		"bound_focus",
+		"contracts",
+		"changed",
+		"reviewer_runtime",
+	];
+	if (
+		Object.keys(output).length !== keys.length ||
+		keys.some((key) => !(key in output))
+	)
+		return "reviewer 결과 schema가 정확하지 않다";
+	if (
+		output.verdict !== "approve" ||
+		output.integration_acceptance !== "accept"
+	)
+		return "prokit-reviewer가 기술 인수를 approve하지 않았다";
+	if (!Array.isArray(output.findings) || !Array.isArray(output.limitations))
+		return "reviewer findings·limitations 형식이 아니다";
+	if (
+		output.findings.some((finding) =>
+			["high", "critical"].includes(finding?.severity),
+		)
+	)
+		return "reviewer high·critical finding이 남아 있다";
+	if (
+		!["none", "low", "medium"].includes(output.max_severity) ||
+		output.reused !== false
+	)
+		return "reviewer fresh verdict가 아니다";
+	for (const key of [
+		"product_hash",
+		"evidence_hash",
+		"provider_actual_hashes",
+		"provider_sources",
+		"artifacts",
+		"environment_fingerprint",
+		"bound_focus",
+		"contracts",
+		"changed",
+		"reviewer_runtime",
+	]) {
+		if (!sameJson(output[key], expected[key]))
+			return `reviewer ${key} binding이 다르다`;
+	}
+	return null;
+}
+
+export async function acceptDelegation(root, args) {
+	const options = acceptOptions(args);
+	const base = commitOf(root, options.base);
+	if (!base) throw new UsageError("--base가 현재 저장소의 commit이 아니다");
+	const changed = changedFiles(root, base);
+	if (!changed.length)
+		return {
+			ok: false,
+			status: "blocked",
+			problems: ["--base 이후 실제 변경이 없다"],
+			userConfirmation: "pending",
+		};
+	const outside = changed.filter(
+		(path) => !acceptedScope(path, options.scopes),
+	);
+	if (outside.length) {
+		return {
+			ok: false,
+			status: "blocked",
+			problems: [`명시 scope 밖 실제 변경: ${outside.join(", ")}`],
+			userConfirmation: "pending",
+		};
+	}
+	const initial = captureSnapshot(root);
+	if (!initial.valid)
+		return {
+			ok: false,
+			status: "blocked",
+			problems: ["현재 source snapshot을 확인할 수 없다"],
+			userConfirmation: "pending",
+		};
+	const providers = observeAcceptProviders(root, options.providers);
+	const selectedProviders = validationProviders(providers);
+	const environment = {
+		node: process.version,
+		platform: process.platform,
+		arch: process.arch,
+	};
+	const environmentFingerprint = digest(environment);
+	const taskId = `local-${initial.bindings.head}`;
+	const runId = randomUUID();
+	const checks = [];
+	for (const argv of options.checks) {
+		const run = await guardedAcceptCommand(root, argv, "verify");
+		checks.push(run);
+		if (
+			!run.executed ||
+			run.exitCode !== 0 ||
+			run.resource.before === "unknown" ||
+			run.resource.after === "unknown" ||
+			run.resource.events.includes("child-group-active") ||
+			run.resource.groupWasActive
+		) {
+			return {
+				ok: false,
+				status: "blocked",
+				problems: [`check 실패 또는 guard 차단: ${run.command}`],
+				checks: checks.map(({ stdout, stderr, ...item }) => item),
+				userConfirmation: "pending",
+			};
+		}
+	}
+	const beforeReview = captureSnapshot(root);
+	if (beforeReview.manifestHash !== initial.manifestHash) {
+		return {
+			ok: false,
+			status: "blocked",
+			problems: ["check가 source를 변경했다"],
+			userConfirmation: "pending",
+		};
+	}
+	if (!sameJson(observeAcceptProviders(root, options.providers), providers)) {
+		return {
+			ok: false,
+			status: "blocked",
+			problems: ["check가 선택 provider source를 변경했다"],
+			userConfirmation: "pending",
+		};
+	}
+	const artifacts = observeAcceptArtifacts(root, options.artifacts);
+	const checkReceipts = checks.map((run) =>
+		receiptFor(
+			run,
+			taskId,
+			runId,
+			initial.manifestHash,
+			beforeReview.manifestHash,
+			environmentFingerprint,
+			[],
+		),
+	);
+	const evidenceHash = digest(checkReceipts);
+	const expectedReview = {
+		product_hash: beforeReview.manifestHash,
+		evidence_hash: evidenceHash,
+		provider_actual_hashes: providers.map((provider) => provider.contentHash),
+		provider_sources: providers.map(providerSource),
+		artifacts,
+		environment_fingerprint: environmentFingerprint,
+		bound_focus: options.focus,
+		contracts: options.contracts,
+		changed,
+		reviewer_runtime: codexRuntime(),
+	};
+	const reviewRun = await runCodexReviewer(root, expectedReview, providers);
+	if (
+		!reviewRun.executed ||
+		reviewRun.exitCode !== 0 ||
+		reviewRun.resource.before === "unknown" ||
+		reviewRun.resource.after === "unknown" ||
+		reviewRun.resource.events.includes("child-group-active") ||
+		reviewRun.resource.groupWasActive
+	) {
+		return {
+			ok: false,
+			status: "blocked",
+			problems: ["fresh Codex reviewer 실행 실패 또는 guard 차단"],
+			userConfirmation: "pending",
+		};
+	}
+	let review;
+	try {
+		review = JSON.parse(reviewRun.stdout.trim());
+	} catch {
+		return {
+			ok: false,
+			status: "blocked",
+			problems: ["reviewer stdout이 JSON이 아니다"],
+			userConfirmation: "pending",
+		};
+	}
+	const reviewFailure = reviewProblem(review, expectedReview);
+	if (reviewFailure)
+		return {
+			ok: false,
+			status: "blocked",
+			problems: [reviewFailure],
+			reviewer: {
+				verdict: review.verdict,
+				maxSeverity: review.max_severity,
+				findings: review.findings,
+				limitations: review.limitations,
+			},
+			userConfirmation: "pending",
+		};
+	const afterReview = captureSnapshot(root);
+	if (afterReview.manifestHash !== beforeReview.manifestHash) {
+		return {
+			ok: false,
+			status: "blocked",
+			problems: ["reviewer가 product를 변경했다"],
+			userConfirmation: "pending",
+		};
+	}
+	if (!sameJson(observeAcceptProviders(root, options.providers), providers)) {
+		return {
+			ok: false,
+			status: "blocked",
+			problems: ["reviewer가 선택 provider source를 변경했다"],
+			userConfirmation: "pending",
+		};
+	}
+	if (!sameJson(observeAcceptArtifacts(root, options.artifacts), artifacts)) {
+		return {
+			ok: false,
+			status: "blocked",
+			problems: ["reviewer가 지정 artifact를 변경했다"],
+			userConfirmation: "pending",
+		};
+	}
+	if (!sameJson(codexRuntime(), review.reviewer_runtime)) {
+		return {
+			ok: false,
+			status: "blocked",
+			problems: ["reviewer 실행 파일 binding이 다르다"],
+			userConfirmation: "pending",
+		};
+	}
+	const reviewerReceipt = receiptFor(
+		reviewRun,
+		taskId,
+		runId,
+		initial.manifestHash,
+		afterReview.manifestHash,
+		environmentFingerprint,
+		[],
+	);
+	const commands = [...checkReceipts, reviewerReceipt];
+	const packet = {
+		taskId,
+		runId,
+		status: "complete",
+		selectedProviders,
+		allowedPaths: options.scopes,
+		constraints: [],
+		environmentRefs: ["node", "platform", "arch"],
+		environmentFingerprint,
+		changes: [],
+		evidence: {
+			report: "local CLI technical acceptance",
+			commands,
+			coverage: { changed: changed.length, checks: checks.length, reviewer: 1 },
+			limitations: [
+				"OS·native host identity와 protected-area authority, 외부 provider의 실행 권한은 이 local CLI가 증명하지 않는다",
+			],
+			artifacts,
+			focus: options.focus,
+			snapshot: initial.manifestHash,
+		},
+		reviewCoverage: [{ reviewer: "prokit-reviewer", reused: false }],
+		unresolved: [],
+		sideEffects: [],
+		nextAction: "user confirmation pending",
+		contracts: options.contracts,
+		mainGate: { reviewer: "prokit-reviewer", reused: false },
+		baseline: initial,
+	};
+	const receiptIndex = new Map(
+		commands.map((command) => [command.identityDigest, command]),
+	);
+	const validation = validateDelegationPacket(root, packet, {
+		baseline: initial,
+		cwd: process.cwd(),
+		environment,
+		environmentFingerprint,
+		runnerReceipts: commands,
+		approvedPaths: options.scopes,
+		allowedSideEffects: [],
+		allowedHosts: ["local"],
+		allowedModes: ["read-only"],
+		allowedTypes: ["source"],
+		availableTools: [],
+		providers: selectedProviders,
+		resolver: (provider) => {
+			const source = providers.find(
+				(item) => item.canonicalLocation === provider.canonicalLocation,
+			);
+			if (!source) return null;
+			const current = observeAcceptProviders(root, [source.ref])[0];
+			return {
+				...provider,
+				content: readFileSync(new URL(current.canonicalLocation), "utf8"),
+			};
+		},
+		verifyReceipt: (bindings, command) => {
+			const actual = receiptIndex.get(command.identityDigest);
+			return actual === command
+				? {
+						ok: true,
+						identityDigest: bindings.identityDigest,
+						key: bindings.key,
+						effects: [],
+					}
+				: { ok: false };
+		},
+		verifyAuthority: (bindings, checkedPacket) => {
+			const current =
+				checkedPacket === packet &&
+				bindings.taskId === taskId &&
+				bindings.runId === runId &&
+				bindings.baseline === initial.manifestHash &&
+				bindings.currentProduct === afterReview.manifestHash &&
+				bindings.reviewer === "prokit-reviewer" &&
+				sameJson(bindings.focus, options.focus) &&
+				sameJson(bindings.contracts, options.contracts) &&
+				review.reused === false &&
+				review.product_hash === afterReview.manifestHash &&
+				sameJson(review.artifacts, artifacts) &&
+				review.integration_acceptance === "accept";
+			return current
+				? { ok: true, key: bindings.key, reused: false }
+				: { ok: false };
+		},
+	});
+	if (!validation.ok || !validation.completionReady) {
+		return {
+			ok: false,
+			status: "blocked",
+			problems: validation.problems,
+			userConfirmation: "pending",
+		};
+	}
+	return {
+		ok: true,
+		status: "complete",
+		technicalAcceptance: "complete",
+		userConfirmation: "pending",
+		base,
+		changed,
+		productHash: validation.productHash,
+		environmentFingerprint,
+		checks: checks.map(({ stdout, stderr, ...item }) => item),
+		reviewer: {
+			reviewer: "prokit-reviewer",
+			verdict: review.verdict,
+			maxSeverity: review.max_severity,
+			reused: false,
+			findings: review.findings,
+			limitations: review.limitations,
+		},
+		providerSources: providers.map(providerSource),
+		artifacts,
+		limitations: packet.evidence.limitations,
+	};
+}
 
 export function main(argv, root = process.cwd()) {
 	const [cmd, ...rest] = argv;
@@ -636,6 +1933,7 @@ export function main(argv, root = process.cwd()) {
 				upgrade: rest.includes("--upgrade"),
 				title,
 				write: rest.includes("--write"),
+				delegation: rest.includes("--delegation"),
 			});
 			print(
 				r,
@@ -645,9 +1943,23 @@ export function main(argv, root = process.cwd()) {
 			);
 			return 0;
 		}
+		case "evidence": {
+			const fileAt = rest.indexOf("--file");
+			if (
+				fileAt !== 1 ||
+				rest.length !== 3 + (json ? 1 : 0) ||
+				(json && rest.at(-1) !== "--json")
+			)
+				throw new UsageError(
+					"사용법: dev-cycle evidence <행 번호> --file <증거 파일> [--json]",
+				);
+			const r = setEvidence(root, config, Number(rest[0]), rest[2]);
+			print(r, `행 ${r.row} 증거를 갱신했다`);
+			return 0;
+		}
 		case "status": {
 			const s = status(root, config);
-			// 새 라운드를 열기 전에 외부 스킬 새 버전을 하루 한 번 확인한다(bts-skills-update).
+			// 새 라운드를 열기 전에 외부 스킬 새 버전을 하루 한 번 확인한다(prokit-skills-update).
 			// 옛 skills-setup.mjs는 모르는 옵션을 무시하고 설치를 해 버리므로 --if-due를 아는 판만 부른다.
 			const upd = join(root, "scripts/skills-setup.mjs");
 			if (
@@ -673,7 +1985,31 @@ export function main(argv, root = process.cwd()) {
 			return 0;
 		}
 		case "audit": {
-			const r = audit(root, config);
+			const packetAt = rest.indexOf("--packet");
+			const contextAt = rest.indexOf("--context");
+			const allowed = new Set(["--json", "--packet", "--context"]);
+			const values = new Set(
+				[packetAt, contextAt]
+					.filter((index) => index >= 0)
+					.map((index) => index + 1),
+			);
+			if (
+				rest.some((arg, index) => !allowed.has(arg) && !values.has(index)) ||
+				packetAt >= 0 !== contextAt >= 0
+			)
+				throw new UsageError(
+					"사용법: dev-cycle audit [--packet 파일 --context 파일] [--json]",
+				);
+			const r = audit(root, config, {
+				delegationPacket:
+					packetAt >= 0
+						? readDelegationJson(root, rest[packetAt + 1], "--packet")
+						: undefined,
+				delegationContext:
+					contextAt >= 0
+						? readDelegationJson(root, rest[contextAt + 1], "--context")
+						: undefined,
+			});
 			print(
 				r,
 				r.ok
@@ -682,9 +2018,90 @@ export function main(argv, root = process.cwd()) {
 			);
 			return r.ok ? 0 : 1;
 		}
+		case "resource":
+			return Promise.resolve(resourceMain(rest, root));
+		case "delegation": {
+			if (rest[0] === "accept") {
+				return acceptDelegation(root, rest.slice(1)).then((result) => {
+					console.log(JSON.stringify(result, null, 2));
+					return result.ok ? 0 : 1;
+				});
+			}
+			if (rest[0] === "capture" || rest[0] === "snapshot") {
+				if (rest.length !== 1)
+					throw new UsageError("사용법: dev-cycle delegation capture|snapshot");
+				return Promise.resolve(
+					delegationMain(rest, sourceBoundRoot(root).root),
+				);
+			}
+			if (rest[0] === "resolve") {
+				if (
+					rest.length !== 2 ||
+					!rest[1] ||
+					rest[1].startsWith("--") ||
+					rest[1].split(/[\\/]/).includes("..")
+				)
+					throw new UsageError(
+						"사용법: dev-cycle delegation resolve <skill-ref|상대 경로>",
+					);
+				const result = resolveProvider(rest[1], sourceBoundRoot(root));
+				console.log(JSON.stringify(result, null, 2));
+				return result.ok ? 0 : 1;
+			}
+			return Promise.resolve(delegationMain(rest, root));
+		}
+		case "archive": {
+			if (
+				positional.length ||
+				(titleAt >= 0 && (!title?.trim() || title.startsWith("--"))) ||
+				rest.some(
+					(a, i) =>
+						!(titleAt >= 0 && i === titleAt + 1) &&
+						a !== "--title" &&
+						a !== "--json",
+				)
+			)
+				throw new UsageError(
+					"사용법: dev-cycle archive [--title 제목] [--json]",
+				);
+			const r = archiveCompleted(root, config, new Date(), { title });
+			print(
+				r,
+				r.completed
+					? `완료 항목 ${r.completed}개를 옮겼다 → ${r.archivePath}`
+					: "옮길 완료 항목 없음",
+			);
+			return 0;
+		}
 		case "close": {
+			const packetAt = rest.indexOf("--packet");
+			const contextAt = rest.indexOf("--context");
+			const values = new Set(
+				[packetAt, contextAt]
+					.filter((index) => index >= 0)
+					.map((index) => index + 1),
+			);
+			if (
+				rest.some(
+					(arg, index) =>
+						!["--partial", "--packet", "--context", "--json"].includes(arg) &&
+						!values.has(index),
+				) ||
+				packetAt >= 0 !== contextAt >= 0
+			)
+				throw new UsageError(
+					"사용법: dev-cycle close [--partial] [--packet 파일 --context 파일] [--json]",
+				);
 			const r = close(root, config, new Date(), {
 				partial: rest.includes("--partial"),
+				delegationPacket:
+					packetAt >= 0
+						? readDelegationJson(root, rest[packetAt + 1], "--packet")
+						: undefined,
+				delegationContext:
+					contextAt >= 0
+						? readDelegationJson(root, rest[contextAt + 1], "--context")
+						: undefined,
 			});
 			print(
 				r,
@@ -735,7 +2152,17 @@ const isMain = () => {
 };
 if (isMain()) {
 	try {
-		process.exitCode = main(process.argv.slice(2));
+		const result = main(process.argv.slice(2));
+		if (result && typeof result.then === "function")
+			result
+				.then((code) => {
+					process.exitCode = code;
+				})
+				.catch((error) => {
+					console.error(error.message);
+					process.exitCode = error instanceof UsageError ? 2 : 1;
+				});
+		else process.exitCode = result;
 	} catch (e) {
 		console.error(e.message);
 		process.exitCode = e instanceof UsageError ? 2 : 1;

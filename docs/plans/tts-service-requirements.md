@@ -163,7 +163,7 @@ P0는 UI 시연뿐 아니라 세 공급자 API의 실제 생성까지 끝나야 
 | 단계 | 개발 내용 | 완료 증거 / 다음 단계 조건 |
 |---|---|---|
 | 0. 제품·HTML 설계 | 개인용 범위와 PRODUCT.md, 심층 참고 조사, HTML 인터랙션 시안, 화면별 명세 | 이번 산출물. HTML과 실제 서비스 구현을 구분하고 [UI 우선 구현 계획](tts-ui-first-implementation.md)을 따른다 |
-| 1. UI/UX 구현 | 작업실·성우 보관함·내 보이스 만들기/관리·대본·채널/분류·프리셋·연결 상태 화면. bts-ui → impeccable로 타입이 정해진 가상 데이터 기반 전체 흐름 구현 | 실제 API 없이 모든 화면 상태 검증. 1440/390px 캡처·키보드 검증. 가상 음성·데이터를 명시 |
+| 1. UI/UX 구현 | 작업실·성우 보관함·내 보이스 만들기/관리·대본·채널/분류·프리셋·연결 상태 화면. prokit-ui → impeccable로 타입이 정해진 가상 데이터 기반 전체 흐름 구현 | 실제 API 없이 모든 화면 상태 검증. 1440/390px 캡처·키보드 검증. 가상 음성·데이터를 명시 |
 | 2. 개인 데이터 | 기존 Better Auth 활용, 스키마/마이그레이션, 즐겨찾기·대본·분류·채널·프리셋 API 연결 | 재로그인 영속성, CRUD·소유권·2계정 격리 테스트 |
 | 3. 교정 엔진 | 숫자 패턴, 원문 비교, 검수·직접 수정·되돌리기, 생성문 스냅샷 | 위 숫자 사례와 원문 변경 후 교정 무효화 회귀 테스트 |
 | 4. Typecast 통합 | 목록·기본 샘플·모델별 설정·생성·다운로드·오류 | 문서/계정 기능 확인, 실제 한국어 소량 생성·청취·다운로드 |
@@ -184,7 +184,7 @@ P0는 UI 시연뿐 아니라 세 공급자 API의 실제 생성까지 끝나야 
 | 저장 | `packages/db/src/schema`, 생성된 migrations | 개인 데이터·관계·생성 스냅샷 |
 | 인증·비밀 설정 | 기존 `packages/auth`, 서버 환경변수 선언 | 기존 인증 재사용, 서버 전용 API 키 |
 
-예상 엔터티는 성우별 개인 설정(즐겨찾기·자주 사용 여부; 기존 FavoriteVoice 설계를 확장), Category, VoiceType, Channel, VoicePreset, SavedScript, GenerationRecord, ClonedVoice와 필요한 연결 테이블이다. 성우 식별자는 `(provider, voiceId)`이고 개인 엔터티는 `userId`를 갖는다. ClonedVoice에는 소유자·공급자 연결 식별자·원격 voice ID·처리/삭제 상태·동의 기록을 포함한다. 상세 스키마·인덱스·삭제 정책은 단계 2에서 `bts-db`로 확정한다. 운영 DB는 이번 작업에서 다루지 않는다.
+예상 엔터티는 성우별 개인 설정(즐겨찾기·자주 사용 여부; 기존 FavoriteVoice 설계를 확장), Category, VoiceType, Channel, VoicePreset, SavedScript, GenerationRecord, ClonedVoice와 필요한 연결 테이블이다. 성우 식별자는 `(provider, voiceId)`이고 개인 엔터티는 `userId`를 갖는다. ClonedVoice에는 소유자·공급자 연결 식별자·원격 voice ID·처리/삭제 상태·동의 기록을 포함한다. 상세 스키마·인덱스·삭제 정책은 단계 2에서 `prokit-db`로 확정한다. 운영 DB는 이번 작업에서 다루지 않는다.
 
 ## 7. API 통합 계약과 실패 처리
 
@@ -210,7 +210,7 @@ P0는 UI 시연뿐 아니라 세 공급자 API의 실제 생성까지 끝나야 
 3. 프리셋을 저장하고 다음 작업에서 같은 설정을 복원한다. 공급자 전환 시 잘못된 옵션을 보내지 않는다.
 4. 상한 초과·성우 삭제·샘플 누락·API 키 오류·잔액 부족·429·응답 유실을 재현해 상태와 복구 동작을 확인한다.
 5. 자동화 검사는 교정 규칙·생성 계약·CRUD·2계정 격리 중심으로 작성한다. 실제 발음 품질은 한국어 청취로 별도 확인한다.
-6. `bts-dev-cycle` F 라운드에서 해당 계층 검사, 독립 `bts-reviewer` 리뷰, 타입·린트·빌드, Next 런타임, 데스크톱/모바일 브라우저 검증 증거를 기록한다.
+6. `prokit-dev-cycle` F 라운드에서 해당 계층 검사, 독립 `prokit-reviewer` 리뷰, 타입·린트·빌드, Next 런타임, 데스크톱/모바일 브라우저 검증 증거를 기록한다.
 7. API 키나 계정 조건 때문에 실제 생성 검증이 안 되면 'UI/모의 연동 완료, 실 API 검증 미완료'로 보고한다.
 8. 직접 녹음과 파일 업로드로 본인 클론을 등록하고, 사용 가능 상태에서 숫자를 교정한 대본을 합성·다운로드한다. 분류/프리셋 재사용·재로그인 복원·삭제 후 신규 합성 차단·타인 클론 접근 거부를 검증한다. 원본 녹음과 클론 합성 결과를 각각 청취해 구분한다.
 
@@ -220,4 +220,4 @@ P0는 UI 시연뿐 아니라 세 공급자 API의 실제 생성까지 끝나야 
 
 ## 9. 다음 개발 작업에 전달할 요청문
 
-> `docs/plans/tts-service-requirements.md`, `docs/briefs/tts-studio.md`, `docs/research/tts-references.md`, `tasks/todo.md`를 기준으로 TTS Pilot을 개발해 주세요. 초기는 소유자 한 명의 개인용 서비스로 구현하고 공개 가입·팀·결제는 P4로 유지해 주세요. `PRODUCT.md`와 `docs/prototypes/tts-studio/index.html`, `docs/plans/tts-ui-first-implementation.md`를 함께 읽어 주세요. UI/UX는 bts-ui → impeccable로 개발·검토하고, `DESIGN.md`의 원티드 스타일과 제목/본문 모두 기존 로컬 Pretendard를 사용해 주세요. UI/UX와 모든 상태를 먼저 구현한 뒤 개인 데이터 저장, 한국어 숫자 교정, Typecast API, ElevenLabs API, Fish Audio API, 내 클론 보이스 생성·관리 순서로 연결해 주세요. 초기 범위는 REQ-01~13 전체이며, 가상 데이터 시연과 실제 API 검증을 구분해 보고해 주세요. 세 공급자에서 전체 카탈로그 탐색·성우 미리듣기·즐겨찾기/자주 사용/분류·대본 재사용·교정·프리셋·생성·다운로드와 내 목소리 클론 등록/활용/삭제가 모두 동작해야 P0 완료입니다. 계정 제한으로 검증할 수 없는 공급자의 클론 기능은 미완료로 명시해 주세요. P1 이후는 TODO에 유지하고 P0 완료 전에 구현하지 마세요. 기존 BTS 개발 사이클과 계층별 스킬을 따르고, 커밋·push·배포·운영 DB 변경은 별도 요청이 있을 때만 진행해 주세요.
+> `docs/plans/tts-service-requirements.md`, `docs/briefs/tts-studio.md`, `docs/research/tts-references.md`, `tasks/todo.md`를 기준으로 TTS Pilot을 개발해 주세요. 초기는 소유자 한 명의 개인용 서비스로 구현하고 공개 가입·팀·결제는 P4로 유지해 주세요. `PRODUCT.md`와 `docs/prototypes/tts-studio/index.html`, `docs/plans/tts-ui-first-implementation.md`를 함께 읽어 주세요. UI/UX는 prokit-ui → impeccable로 개발·검토하고, `DESIGN.md`의 원티드 스타일과 제목/본문 모두 기존 로컬 Pretendard를 사용해 주세요. UI/UX와 모든 상태를 먼저 구현한 뒤 개인 데이터 저장, 한국어 숫자 교정, Typecast API, ElevenLabs API, Fish Audio API, 내 클론 보이스 생성·관리 순서로 연결해 주세요. 초기 범위는 REQ-01~13 전체이며, 가상 데이터 시연과 실제 API 검증을 구분해 보고해 주세요. 세 공급자에서 전체 카탈로그 탐색·성우 미리듣기·즐겨찾기/자주 사용/분류·대본 재사용·교정·프리셋·생성·다운로드와 내 목소리 클론 등록/활용/삭제가 모두 동작해야 P0 완료입니다. 계정 제한으로 검증할 수 없는 공급자의 클론 기능은 미완료로 명시해 주세요. P1 이후는 TODO에 유지하고 P0 완료 전에 구현하지 마세요. 기존 BTS 개발 사이클과 계층별 스킬을 따르고, 커밋·push·배포·운영 DB 변경은 별도 요청이 있을 때만 진행해 주세요.

@@ -21,7 +21,7 @@
 		},
 		{
 			"case": "H",
-			"match": "^(\\.agents/skills/|\\.claude/(agents|skills)/|\\.claude/settings\\.json$|\\.codex/(agents|skills|prompts)/|skills-lock\\.json$|skills\\.manifest\\.json$|scripts/(dev-cycle|sync-agents|skills-setup|vercel-deploy)\\.mjs$|\\.dev-cycle\\.json$|\\.vercelignore$|docs/dev-workflow\\.md$)",
+			"match": "^(\\.agents/(skills|agents)/|\\.claude/(agents|skills)/|\\.claude/settings\\.json$|\\.codex/(agents|skills|prompts)/|skills-lock\\.json$|skills\\.manifest\\.json$|scripts/(dev-cycle|sync-agents|skills-setup|vercel-deploy|resource-guard|delegation|export-html)\\.mjs$|\\.dev-cycle\\.json$|\\.vercelignore$|docs/dev-workflow\\.md$)",
 			"why": "하네스"
 		}
 	],
@@ -38,5 +38,8 @@
 		"dbGenerate": "pnpm --filter @tts-pilot-app/db db:generate",
 		"dbMigrate": "pnpm --filter @tts-pilot-app/db db:migrate",
 		"dbPush": "pnpm --filter @tts-pilot-app/db db:push"
+	},
+	"resources": {
+		"roots": []
 	}
 }

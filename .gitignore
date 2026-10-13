@@ -93,3 +93,6 @@ tasks/evidence/
 
 # pnpm export:html 결과(정적 HTML)
 /html/
+
+# OMC·OMX·pro-kit 런타임 상태
+.prokit/
