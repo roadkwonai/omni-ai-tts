@@ -13,6 +13,7 @@ import {
 	AIRY_CREDITS_PER_CHAR,
 	AIRY_MODELS,
 	type AiryStyle,
+	codePoints,
 	DEFAULT_SETTINGS,
 	ELEVENLABS_MODELS,
 	EMOTION_PRESETS,
@@ -248,6 +249,29 @@ export const costCopy = (provider: ProviderId) =>
 				paid: "크레딧 사용",
 				saved: "저장된 결과 · 크레딧 0",
 			};
+
+// 작업실은 이번에 Typecast(크레딧)만이다. T10이 다른 공급자를 붙일 때 비용 문구를 공급자로 나눈다
+export function confirmCopy(kind: "trial" | "studio", request: TrialRequest) {
+	const cost = costCopy(request.provider);
+	if (kind === "trial")
+		return {
+			title: cost.title,
+			action: cost.action,
+			textLabel: "문장",
+			text: request.text,
+		};
+	const text = normalizeText(request.text);
+	const count = codePoints(text);
+	return {
+		title: "크레딧을 써서 음성을 만들까요?",
+		action: "크레딧 쓰고 만들기",
+		textLabel: "대본",
+		text: `${[...text].slice(0, 100).join("")}${count > 100 ? "…" : ""} (총 ${plain.format(count)}자)`,
+		// 이전 결과에 같은 서명의 미확인 줄이 있을 때 경고 줄(브리프 5.7)
+		unknownRetry:
+			"같은 대본·성우·설정의 앞 요청은 처리 여부를 아직 몰라요. 다시 만들면 크레딧이 한 번 더 쓰일 수 있어요",
+	};
+}
 
 export function trialAriaLabel(
 	name: string,

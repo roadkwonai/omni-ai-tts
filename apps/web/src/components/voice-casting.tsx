@@ -41,6 +41,7 @@ import {
 } from "./one-list";
 import { SamplePlayerProvider } from "./sample-player";
 import { ServerVoiceList, serverListOptions } from "./server-voice-list";
+import { sourceItem } from "./setting-fields";
 import { TrialProvider } from "./trial-provider";
 import { type TypecastState, TypecastVoiceList } from "./typecast-voice-list";
 import { LIST_LOOPBACK_TITLE } from "./voice-problem";
@@ -49,9 +50,6 @@ type Tab = "all" | ProviderId;
 type ListKey = `${ServerProvider}:${VoiceSource}`;
 
 const SERVER_TABS: ServerProvider[] = ["elevenlabs", "fish_audio"];
-// 출처 전환 칸(브리프 5절): muted 바탕 위 고른 칸은 흰 칸 + 경계선 + 굵은 글자, 나머지는 회색 보통 굵기
-export const sourceItem =
-	"min-h-11 shrink-0 px-4 text-muted-foreground focus-visible:z-10 data-pressed:bg-card data-pressed:font-bold data-pressed:text-foreground data-pressed:ring-1 data-pressed:ring-border";
 // 탭 내용은 숨긴 채 남긴다(keepMounted). 패널 자체는 키보드 정지점이 아니다(브리프 9절 순서: 탭 → 출처 전환 → 검색)
 const Panel = (props: ComponentProps<typeof TabsContent>) => (
 	<TabsContent keepMounted tabIndex={-1} {...props} />

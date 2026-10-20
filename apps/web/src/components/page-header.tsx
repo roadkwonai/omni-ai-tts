@@ -1,9 +1,14 @@
+import type { ReactNode } from "react";
+
 export function PageHeader({
 	title,
 	description,
+	actions,
 }: {
 	title: string;
-	description: React.ReactNode;
+	description: ReactNode;
+	// 설명 아래 조작 묶음(작업실의 채널 고르기·'프리셋', T9 브리프 5.2). 모든 너비에서 같은 자리다. 주지 않으면 T1 모양 그대로다
+	actions?: ReactNode;
 }) {
 	return (
 		<header className="px-4 pt-6 pb-5 md:px-11 md:pt-11 md:pb-8">
@@ -17,6 +22,9 @@ export function PageHeader({
 			<p className="mt-2 text-muted-foreground text-sm md:text-base">
 				{description}
 			</p>
+			{actions ? (
+				<div className="mt-4 flex flex-wrap items-center gap-2">{actions}</div>
+			) : null}
 		</header>
 	);
 }

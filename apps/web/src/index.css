@@ -45,3 +45,24 @@
 		scrollbar-width: none;
 	}
 }
+
+/* 음성 작업실 하단 막대(T9 브리프 5.6). 막대가 자기 높이를 <html>의 --studio-bar-height(px)에 둔다(studio-bar.tsx, 떠나면 지운다).
+   임의 값 대신 이름 붙은 utility로 둔다. */
+/* 편집 열 바닥 여백: 막대 높이 + 24px(마지막 이전 결과 줄이 막대에 가리지 않는다) */
+@utility studio-bar-space {
+	padding-bottom: calc(var(--studio-bar-height, 0px) + --spacing(6));
+}
+/* 막대가 있을 때만 페이지 scroll-padding: 막대 높이 + 16px(대본 칸 캐럿과 Tab으로 간 요소가 막대 뒤에 숨지 않게). 막대 띠에 붙인다 */
+@utility studio-bar-scroll {
+	:root:has(&) {
+		scroll-padding-bottom: calc(var(--studio-bar-height, 0px) + --spacing(4));
+	}
+}
+/* 767px 이하에서 대본 칸에 포커스가 있는 동안(소프트 키보드) 막대의 결과 줄을 숨긴다(DN-3). 대본 칸 name은 studio-card.tsx */
+@utility studio-bar-result {
+	@media (width < 48rem) {
+		:root:has([name="studio-script"]:focus) & {
+			display: none;
+		}
+	}
+}

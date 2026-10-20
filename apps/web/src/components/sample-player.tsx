@@ -33,6 +33,7 @@ type Toggle = (
 const SamplePlayerContext = createContext<{
 	current: Current;
 	toggle: Toggle;
+	stop: () => void;
 	idle: () => boolean;
 	version: () => number;
 } | null>(null);
@@ -99,6 +100,18 @@ export function SamplePlayerProvider({ children }: { children: ReactNode }) {
 			value={{
 				current,
 				toggle,
+				// 듣는 샘플을 같은 샘플을 다시 누른 꼴로 멈춘다. 실패한 샘플은 소리가 없고, 다시 누르면 다시 불러오므로(pressSample) 건드리지 않는다
+				stop: () => {
+					const last = currentRef.current;
+					if (last && last.status !== "failed")
+						toggle(
+							last.voiceId,
+							last.name,
+							last.voiceId,
+							last.noun,
+							last.owner,
+						);
+				},
 				idle: () =>
 					currentRef.current === null || currentRef.current.status === "failed",
 				version: () => versionRef.current,

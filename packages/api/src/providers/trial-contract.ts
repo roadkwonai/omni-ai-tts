@@ -87,17 +87,20 @@ export const geminiSettingsSchema = z.object({
 
 // 공급자 성우 id: Typecast tc_·uc_, ElevenLabs 20자, Fish Audio 32자 16진, Airy 16자리 16진(실측), Gemini 소문자 이름(kore)·ko-kr-역할-번호(실측). ElevenLabs 경로에 그대로 들어가므로 글자를 묶는다
 export const voiceIdSchema = z.string().regex(/^[A-Za-z0-9_-]{1,100}$/);
-// 문장: NFC로 맞추고 앞뒤 공백을 지운 뒤 1~200자(코드 포인트)
-const textSchema = z
-	.string()
-	.max(TRIAL_TEXT_MAX * 4)
-	.transform(normalizeText)
-	.pipe(
-		z
-			.string()
-			.min(1)
-			.refine((text) => codePoints(text) <= TRIAL_TEXT_MAX),
-	);
+// 글: NFC로 맞추고 앞뒤 공백을 지운 뒤 1~max자(코드 포인트). 원문은 정리 전에 max × 4(UTF-16)까지만 받는다(풀어 쓴 한글·이모지 여유).
+// 내 문장은 200자, 작업실 대본은 2,000자다(studio-contract)
+export const textSchemaOf = (max: number) =>
+	z
+		.string()
+		.max(max * 4)
+		.transform(normalizeText)
+		.pipe(
+			z
+				.string()
+				.min(1)
+				.refine((text) => codePoints(text) <= max),
+		);
+const textSchema = textSchemaOf(TRIAL_TEXT_MAX);
 
 export const trialRequestSchema = z.discriminatedUnion("provider", [
 	z.object({
@@ -180,6 +183,8 @@ export const trialFailureSchema = z.enum([
 	"free_ended",
 	"request_mismatch",
 	"storage",
+	// 작업실 서버 성우 검사: 이 소유자가 담은 Typecast 성우가 아니거나 현재 이용 불가(T9 스펙 5절)
+	"voice_unavailable",
 ]);
 export type TrialFailure = z.infer<typeof trialFailureSchema>;
 // 시험 생성 오류의 data. provider_input이면 공급자 오류 코드(화면이 문구를 고른다). 저장소 오류는 공급자가 없을 수 있다(결과 id로 부를 때)

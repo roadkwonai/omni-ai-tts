@@ -7,10 +7,13 @@ import {
 import { describe, expect, it } from "vitest";
 
 import {
+	castingLoadView,
 	changeLine,
+	fixedNote,
 	loadChanges,
 	loadedName,
 	loadNotes,
+	PRESET_TEXT,
 	presetBadges,
 	presetCountOf,
 	presetRemoveNote,
@@ -152,6 +155,34 @@ describe("불러오기 창 알림 줄", () => {
 	it("불러오기는 설정만: 성우가 다를 때 창 설명 첫 줄(브리프 5·8절)", () => {
 		expect(settingsOnly("민지")).toBe("지금 성우 민지에 설정만 불러와요.");
 	});
+	it("처음 값으로 바꾼 칸 알림은 따로도 만든다(작업실이 쓴다)", () => {
+		expect(fixedNote(preset({}))).toBeNull();
+		expect(fixedNote(preset({ fixed: ["model", "preset"] }))).toEqual({
+			text: "지금 쓸 수 없는 값이 있어 처음 값으로 불러와요: 모델, 감정",
+			warn: true,
+		});
+	});
+	it("캐스팅 불러오기 창은 T8 그대로: 성우가 다르면 '설정만' 첫 줄, 이 성우에서 듣는 값의 바뀌는 값, 알림 줄(회귀)", () => {
+		expect(castingLoadView(voice({}), DEFAULT_SETTINGS, preset({}))).toEqual({
+			lead: null,
+			changes: [],
+			notes: [],
+		});
+		const other = voice({ voiceId: "tc_2", name: "준호" });
+		const tempo = preset({
+			settings: { ...DEFAULT_SETTINGS.typecast, tempo: 1.1 },
+		});
+		expect(castingLoadView(other, DEFAULT_SETTINGS, tempo)).toEqual({
+			lead: settingsOnly("준호"),
+			changes: loadChanges(other, DEFAULT_SETTINGS, tempo.settings).map(
+				changeLine,
+			),
+			notes: loadNotes(other, tempo),
+		});
+		expect(castingLoadView(other, DEFAULT_SETTINGS, tempo).changes).toEqual([
+			"속도 1.00배 → 1.10배",
+		]);
+	});
 });
 
 describe("프리셋 줄과 안내", () => {
@@ -180,6 +211,8 @@ describe("프리셋 줄과 안내", () => {
 	});
 	it("불러온 프리셋 이름과 지우기의 채널 기본 문구", () => {
 		expect(loadedName("경제")).toBe("프리셋 ‘경제’");
+		// 작업실에서 성우를 고르기 전 꺼진 '새 프리셋 저장'의 둘째 줄
+		expect(PRESET_TEXT.needVoice).toBe("성우를 먼저 골라 주세요");
 		expect(removeDefaultNote("주말")).toBe(
 			" 채널 ‘주말’의 기본 프리셋도 비워져요.",
 		);

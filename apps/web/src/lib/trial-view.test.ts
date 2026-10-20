@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest";
 
 import {
 	AIRY_STYLE_LABEL,
+	confirmCopy,
 	costCopy,
 	dataNote,
 	modelOptionsOf,
@@ -587,6 +588,47 @@ describe("Gemini 내 문장 듣기 문구(T7.6)", () => {
 		);
 		expect(airy("unknown_outcome")).toBe(
 			"처리 여부를 확인하지 못했어요. 크레딧이 쓰였을 수 있으니 공급자 사용 기록을 확인한 뒤 다시 눌러 주세요",
+		);
+	});
+});
+
+describe("확인 창 글(T9)", () => {
+	const typecast = (text: string): TrialRequest => ({
+		provider: "typecast",
+		voiceId: "tc_1",
+		text,
+		settings: DEFAULT_SETTINGS.typecast,
+	});
+	it("캐스팅은 T5 그대로: 공급자 비용 문구와 문장 전체", () => {
+		expect(confirmCopy("trial", typecast(" 안녕하세요 "))).toEqual({
+			title: costCopy("typecast").title,
+			action: costCopy("typecast").action,
+			textLabel: "문장",
+			text: " 안녕하세요 ",
+		});
+		const gemini = {
+			provider: "gemini",
+			voiceId: "kore",
+			text: "가",
+			settings: DEFAULT_SETTINGS.gemini,
+		} as TrialRequest;
+		expect(confirmCopy("trial", gemini)).toMatchObject({
+			title: costCopy("gemini").title,
+			action: costCopy("gemini").action,
+		});
+	});
+	it("작업실은 대본 앞 100자와 총 글자 수, '크레딧 쓰고 만들기'(스펙 4절)", () => {
+		expect(confirmCopy("studio", typecast(`  ${"가".repeat(150)} `))).toEqual({
+			title: "크레딧을 써서 음성을 만들까요?",
+			action: "크레딧 쓰고 만들기",
+			textLabel: "대본",
+			text: `${"가".repeat(100)}… (총 150자)`,
+			// 같은 서명의 미확인 줄이 있을 때 경고 줄(브리프 5.7)
+			unknownRetry:
+				"같은 대본·성우·설정의 앞 요청은 처리 여부를 아직 몰라요. 다시 만들면 크레딧이 한 번 더 쓰일 수 있어요",
+		});
+		expect(confirmCopy("studio", typecast("짧은 대본")).text).toBe(
+			"짧은 대본 (총 5자)",
 		);
 	});
 });

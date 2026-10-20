@@ -7,6 +7,18 @@ export const TRIAL_TEXT_MAX = 200;
 export const TRIAL_TAG_MAX = 30;
 // 패널 '내 문장 결과'에 보이는 수(최신순)
 export const TRIAL_RESULTS_SHOWN = 20;
+
+// 음성 작업실(T9 스펙 3절). 화면(글자 수·조각 수)과 서버가 함께 쓴다
+export const STUDIO_TEXT_MAX = 2000;
+// 이전 결과에 보이는 수(최신순, 완료와 처리 여부 미확인)
+export const STUDIO_RESULTS_SHOWN = 20;
+// 오디오를 나눠 받는 조각 크기. 조각 응답(multipart, 머리 약 300바이트)이 배포 환경 응답 상한 4.5MB 안에 든다(T9 계획 '설치본·문서로 확인한 것' 1)
+export const STUDIO_PART_BYTES = 3 * 1024 * 1024;
+// 작업실 결과 오디오 상한(T5는 4MiB). Typecast 320kbps MP3로 약 13분이다. 넘으면 이미 과금된 결과라도 버린다(audio_too_large)
+export const STUDIO_AUDIO_MAX = 32 * 1024 * 1024;
+// 결과 하나의 조각 수(빈 결과도 1)
+export const partsOf = (bytes: number) =>
+	Math.max(1, Math.ceil(bytes / STUDIO_PART_BYTES));
 // Fish Audio 무료 모델(s2.1-pro-free)은 블로그 기준 2026-11-30까지다. 공급자에서 먼저 없어지면 '모르는 모델'이 되어
 // 오류 없이 유료 s2.1-pro로 처리되므로 하루 이르게(그날 0시 KST) 보내지 않는다(스펙 4·13절)
 export const FISH_FREE_UNTIL = Date.parse("2026-11-30T00:00:00+09:00");

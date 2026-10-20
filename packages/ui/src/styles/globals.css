@@ -16,6 +16,8 @@
 	--popover-foreground: oklch(0 0 0 / 0.85);
 	--primary: oklch(0.51 0.085 200); /* brand-500, 흰 바탕 5.52:1 */
 	--primary-foreground: oklch(1 0 0);
+	/* brand-600, 1차 버튼 hover(짙어짐, DESIGN.md 183행) */
+	--primary-hover: oklch(0.46 0.076 201);
 	--secondary: oklch(0.952 0.001 286); /* grey-200 */
 	--secondary-foreground: oklch(0 0 0 / 0.85);
 	--muted: oklch(0.952 0.001 286); /* grey-200 */
@@ -70,6 +72,8 @@
 	--popover-foreground: oklch(1 0 0 / 0.9);
 	--primary: oklch(0.78 0.105 198); /* brand-350 */
 	--primary-foreground: oklch(0.232 0.006 286); /* grey-900, 8.76:1 */
+	/* brand-300, 다크 1차 버튼 hover(밝아짐, DESIGN.md 184행) */
+	--primary-hover: oklch(0.84 0.09 198);
 	--secondary: oklch(0.283 0.007 286);
 	--secondary-foreground: oklch(1 0 0 / 0.9);
 	--muted: oklch(0.283 0.007 286);
@@ -139,6 +143,7 @@
 	--color-secondary-foreground: var(--secondary-foreground);
 	--color-secondary: var(--secondary);
 	--color-primary-foreground: var(--primary-foreground);
+	--color-primary-hover: var(--primary-hover);
 	--color-primary: var(--primary);
 	--color-popover-foreground: var(--popover-foreground);
 	--color-popover: var(--popover);

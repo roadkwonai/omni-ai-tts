@@ -24,8 +24,7 @@ import {
 
 import { type AxisView, VoiceConditions } from "./voice-conditions";
 
-// voice-casting.tsx의 sourceItem(출처 전환 칸)을 옮겨 적고 안쪽 여백만 px-4 → px-3 md:px-4로 바꿨다(보기 칸 넷이 좁은 폭에 들어가게, 브리프 7절 D9).
-// 그 모듈(캐스팅 전체)을 이 화면 번들에 끌어오지 않으려고 옮겨 적었다
+// setting-fields.tsx의 sourceItem(출처 전환 칸)을 옮겨 적었다. 안쪽 여백이 달라(px-4 → px-3 md:px-4, 보기 칸 넷이 좁은 폭에 들어가게, 브리프 7절 D9) 가져오지 않는다
 const viewItem =
 	"min-h-11 shrink-0 px-3 md:px-4 text-muted-foreground focus-visible:z-10 data-pressed:bg-card data-pressed:font-bold data-pressed:text-foreground data-pressed:ring-1 data-pressed:ring-border";
 

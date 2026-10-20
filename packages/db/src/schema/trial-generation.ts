@@ -13,7 +13,8 @@ import {
 	uuid,
 } from "drizzle-orm/pg-core";
 
-// 시험 생성 기록과 들은 결과(ADR 0003 '듣기 결과', T5 스펙 5절). 요청 id를 공급자 호출 전에 선점하고, 완료되면 오디오(MP3, Gemini는 WAV, audio_type)를 담아 30일 보관한다.
+// 생성 기록(GLOSSARY): 시험 생성(T5, kind 'trial')과 음성 생성(T9, kind 'studio')의 요청 id를 공급자 호출 전에 선점하고,
+// 완료되면 오디오(MP3, Gemini는 WAV, audio_type)를 담아 30일 보관한다. 작업실 오디오는 32MiB까지이고 조각으로 읽는다(저장 방식 EXTERNAL, 마이그레이션 studio_audio_storage).
 // user 외래 키는 걸지 않는다(T4와 같다, 지속 소유 데이터의 외래 키는 T6에서 정한다).
 export const trialGeneration = pgTable(
 	"trial_generation",
@@ -21,6 +22,9 @@ export const trialGeneration = pgTable(
 		id: uuid("id").primaryKey().defaultRandom(),
 		// 서버가 정한 소유자(context.ownerId)
 		ownerId: text("owner_id").notNull(),
+		// 어느 화면의 기록인가(T9 스펙 3절). 'trial' 내 문장 듣기, 'studio' 음성 작업실.
+		// 조합 키에도 들어가(packages/api/src/trial.ts comboKey) 재사용·결과 목록이 화면별로 나뉜다. 동시 1건은 두 화면을 합쳐 센다
+		kind: text("kind").$type<"trial" | "studio">().default("trial").notNull(),
 		// 사용자 동작 하나에 브라우저가 만든 값. 같은 값의 재전송은 공급자를 다시 부르지 않는다
 		requestId: uuid("request_id").notNull(),
 		// 정리한 (공급자, 성우, 모델, 설정, 문장, 판)의 SHA-256(packages/api/src/trial.ts comboKey)
@@ -61,6 +65,11 @@ export const trialGeneration = pgTable(
 			t.voiceId,
 			t.createdAt.desc(),
 		),
+		// 작업실 이전 결과(소유자, 최신순). 작업실 행만 담는다(query-partial-indexes).
+		// trial.ts listStudio가 같은 조건 글자(kind = 'studio', 매개변수 아님)로 찾는다
+		index("trial_generation_studio")
+			.on(t.ownerId, t.createdAt.desc())
+			.where(sql`${t.kind} = 'studio'`),
 		check(
 			"trial_generation_provider",
 			sql`${t.provider} in ('typecast', 'elevenlabs', 'fish_audio', 'airy', 'gemini')`,
@@ -69,6 +78,7 @@ export const trialGeneration = pgTable(
 			"trial_generation_status",
 			sql`${t.status} in ('pending', 'done', 'failed', 'unknown')`,
 		),
+		check("trial_generation_kind", sql`${t.kind} in ('trial', 'studio')`),
 		// usd_micro: Gemini 추정 금액(백만분의 1달러, T7.6)
 		check(
 			"trial_generation_usage_unit",

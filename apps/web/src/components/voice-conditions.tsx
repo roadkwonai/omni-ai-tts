@@ -10,6 +10,7 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuRadioGroup,
 	DropdownMenuRadioItem,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@tts-pilot-app/ui/components/dropdown-menu";
 import {
@@ -54,7 +55,7 @@ export type AxisView = (ChoiceView | ToggleView) & {
 };
 // 조건 버튼(드롭다운, 토글 칩, '조건', 정렬). 고른 값이 있으면 700 굵기와 옅은 청록, 없으면 400 굵기와 옅은 경계(진한 input 경계는 검색 칸에만, 브리프 5절).
 // 고른 버튼의 hover는 한 단계 진하다(라이트는 어둡게, 다크는 밝게: DESIGN의 brand hover 방향)
-const conditionButton = (count: number) =>
+export const conditionButton = (count: number) =>
 	cn(
 		"bg-card text-foreground hover:bg-muted",
 		count > 0
@@ -66,6 +67,8 @@ const conditionButton = (count: number) =>
 const selectedLabel = (label: string, spoken: string | null) =>
 	spoken ? `${label}, ${spoken} 선택됨` : undefined;
 const menuContent = "w-auto min-w-48 p-1";
+// 글자 메뉴 항목: 라디오 항목과 같은 44px·14px·radius-6(프리셋 메뉴·작업실 채널 고르기도 쓴다)
+export const menuItem = "min-h-11 rounded-md text-sm";
 
 // 버튼 글자와 접근 이름에 쓰는 고른 값(브리프 5절): 하나면 그 이름, 둘 이상이면 개수. 선택지에 없는 값은 값 그대로(countUnknown이면 개수)
 function pickedOf(options: Option[], selected: string[], countUnknown = false) {
@@ -172,7 +175,7 @@ function ChoiceMenu({
 						{options.map((option) => (
 							<DropdownMenuCheckboxItem
 								key={option.value}
-								className="min-h-11 rounded-md text-sm"
+								className={menuItem}
 								checked={selected.includes(option.value)}
 								onCheckedChange={(checked) =>
 									onChange(
@@ -275,6 +278,7 @@ export function RadioMenu<T extends string>({
 	separator = " · ",
 	strong = false,
 	className,
+	footer,
 }: {
 	label: string;
 	value: T;
@@ -286,6 +290,8 @@ export function RadioMenu<T extends string>({
 	strong?: boolean;
 	// 버튼 클래스에 더한다(프리셋 창의 채널 칸이 창 폭을 채운다)
 	className?: string;
+	// 선택지 아래 메뉴 항목(작업실 채널: 채널이 없을 때 '채널·분류에서 만들기' → /classes, T9)
+	footer?: ReactNode;
 }) {
 	const shown =
 		options.find((option) => option.value === value)?.label ?? value;
@@ -327,6 +333,12 @@ export function RadioMenu<T extends string>({
 						</DropdownMenuRadioItem>
 					))}
 				</DropdownMenuRadioGroup>
+				{footer ? (
+					<>
+						<DropdownMenuSeparator />
+						{footer}
+					</>
+				) : null}
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);

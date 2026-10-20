@@ -3,6 +3,7 @@ import {
 	boolean,
 	check,
 	index,
+	integer,
 	jsonb,
 	pgTable,
 	primaryKey,
@@ -39,6 +40,10 @@ export const savedVoice = pgTable(
 		savedAt: timestamp("saved_at", { withTimezone: true })
 			.defaultNow()
 			.notNull(),
+		// 사용 이력(GLOSSARY): 작업실 생성이 성공한(늦은 성공 포함) 최근 시각과 횟수(T9 스펙 3절).
+		// 시험 생성·저장된 결과 열기·샘플은 세지 않는다(packages/api/src/trial.ts recordUse)
+		lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+		useCount: integer("use_count").default(0).notNull(),
 	},
 	(t) => [
 		// 같은 성우는 한 번만(REQ-04). 담기 upsert의 충돌 대상이다

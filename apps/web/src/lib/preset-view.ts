@@ -44,6 +44,8 @@ export const PRESET_TEXT = {
 	voiceGone: "프리셋의 성우가 보관함에서 빠졌어요",
 	pickVoice: "성우를 다시 골라 주세요",
 	noVoice: "성우 없음",
+	// 작업실에서 성우를 고르기 전 꺼진 '새 프리셋 저장'의 둘째 줄
+	needVoice: "성우를 먼저 골라 주세요",
 	fixedBadge: "처음 값으로 바뀐 값 있음",
 	changed: "바뀐 값 있음",
 	// T6 이름 중복 문구와 같은 꼴(duplicateMessage)
@@ -161,6 +163,21 @@ export function loadChanges(
 	);
 }
 
+// 처음 값으로 바꾼 칸 알림(불러오기 창 알림 줄 끝, 경고 문법). 캐스팅·작업실이 함께 쓴다
+export function fixedNote(
+	preset: Pick<Preset, "provider" | "fixed">,
+): { text: string; warn: boolean } | null {
+	if (preset.fixed.length === 0) return null;
+	const defaults = DEFAULT_SETTINGS[preset.provider] as Values;
+	const labels = preset.fixed.map(
+		(field) => optionText(preset.provider, field, defaults[field] ?? "").label,
+	);
+	return {
+		text: `지금 쓸 수 없는 값이 있어 처음 값으로 불러와요: ${labels.join(", ")}`,
+		warn: true,
+	};
+}
+
 // 불러오기 창의 알림 줄(바뀌는 값 다음). 성우 맞춤(requestOf: Typecast 모델·감정, Fish Audio 무료 기간 종료) → 성우 다름 → 처음 값으로 바뀐 값.
 // warn은 경고 줄 문법(text-warning + 삼각형)으로 그린다(계획 리뷰 D14)
 export function loadNotes(
@@ -182,18 +199,32 @@ export function loadNotes(
 	if (!preset.voice) notes.push({ text: PRESET_TEXT.voiceGone, warn: true });
 	else if (preset.voice.voiceId !== voice.voiceId)
 		notes.push({ text: savedVoiceLine(preset), warn: false });
-	if (preset.fixed.length > 0) {
-		const defaults = DEFAULT_SETTINGS[preset.provider] as Values;
-		const labels = preset.fixed.map(
-			(field) =>
-				optionText(preset.provider, field, defaults[field] ?? "").label,
-		);
-		notes.push({
-			text: `지금 쓸 수 없는 값이 있어 처음 값으로 불러와요: ${labels.join(", ")}`,
-			warn: true,
-		});
-	}
+	const fixed = fixedNote(preset);
+	if (fixed) notes.push(fixed);
 	return notes;
+}
+
+// 불러오기 창 내용(T9). lead는 설명 첫 줄(없으면 null), changes는 '바뀌는 값' 줄, notes는 알림 줄이다.
+// 프리셋 메뉴가 화면마다 다른 비교를 받는다(캐스팅: 설정만, 작업실: 성우와 설정, preset-menu.tsx PresetHost)
+export type LoadView = {
+	lead: string | null;
+	changes: string[];
+	notes: { text: string; warn: boolean }[];
+};
+
+// 캐스팅 불러오기 창: 설정만 불러온다(성우는 그대로, T8). 비교와 알림은 지금 성우에서 듣는 값으로 한다
+export function castingLoadView(
+	voice: Voice,
+	all: SettingsOf,
+	preset: Preset,
+	now = Date.now(),
+): LoadView {
+	return {
+		lead:
+			preset.voice?.voiceId !== voice.voiceId ? settingsOnly(voice.name) : null,
+		changes: loadChanges(voice, all, preset.settings).map(changeLine),
+		notes: loadNotes(voice, preset, now),
+	};
 }
 
 // /presets 줄과 저장 창의 요약(모델 + 처음 값과 다른 값, 설정 요약과 같은 표기)

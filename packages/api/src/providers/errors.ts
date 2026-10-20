@@ -104,6 +104,13 @@ export type CheckOutcome = {
 	quota: RemainingQuota | null;
 };
 
+// 생성 한 번의 기다림(T9 스펙 2절). timeoutMs가 지나면 처리 여부 미확인이다. onLate가 있으면 끊긴 요청의 결과 약속을 넘긴다.
+// 취소할 수 없는 Typecast SDK만 실제로 늦게 끝난다. 신호를 받는 공급자는 끊긴 요청이 AbortError로 끝나 늦은 실패가 된다
+export type SynthesizeOptions = {
+	timeoutMs?: number;
+	onLate?: (late: Promise<Uint8Array>) => void;
+};
+
 // 공급자 클라이언트. 목록·억양은 메서드 문법이다. 메서드 매개변수는 이변이라 공급자 구현이 자기 입력 모양(ListInputOf<P>)만 받아도 들어간다.
 // 라우터는 context.providers?.[input.provider]로 그 공급자의 클라이언트를 고르므로 입력과 구현이 어긋나지 않는다.
 export type ProviderClient = {
@@ -112,8 +119,12 @@ export type ProviderClient = {
 	listVoices?(input: VoiceListInput): Promise<VoiceListPage>;
 	// ElevenLabs만: 언어의 억양 목록(억양 조건의 선택지, T4)
 	listAccents?(language: string): Promise<Accent[]>;
-	// 시험 생성 1회(T5). 유료다(Fish Audio 무료 모델 제외). MP3 바이트를 돌려준다. 재시도하지 않는다
-	synthesize?(request: TrialRequest): Promise<Uint8Array>;
+	// 생성 1회(T5 시험 생성, T9 작업실). 유료다(Fish Audio 무료 모델 제외). 오디오 바이트를 돌려준다. 재시도하지 않는다.
+	// options는 작업실만 넘긴다(180초, 늦은 결과). 넘기지 않으면 T5 그대로 60초다
+	synthesize?(
+		request: TrialRequest,
+		options?: SynthesizeOptions,
+	): Promise<Uint8Array>;
 	// ElevenLabs만: 모델별 크레딧 배율(T5 예상 사용량)
 	listModels?(): Promise<TrialModelRate[]>;
 	// 성우 한 명 다시 조회(T7 보관함 이용 가능 확인). null은 공급자가 '없다'고 답한 것(현재 이용 불가)이고,
@@ -363,6 +374,7 @@ const TRIAL_CODE = {
 	free_ended: "BAD_REQUEST",
 	request_mismatch: "BAD_REQUEST",
 	storage: "SERVICE_UNAVAILABLE",
+	voice_unavailable: "BAD_REQUEST",
 } as const satisfies Record<TrialFailure, string>;
 
 // 시험 생성 오류. data에는 공급자·사유(·다음 호출 가능 시각·입력 거절의 공급자 오류 코드)만 담고 원래 오류를 붙이지 않는다
@@ -377,6 +389,8 @@ export function trialError(
 
 // 시험 생성 시간 제한(스펙 4절). 200자 합성 응답을 기다린다
 export const TRIAL_TIMEOUT_MS = 60_000;
+// 작업실 생성 시간 제한(T9 스펙 2절). Typecast 일반 생성 소요 시간은 문서에 없어 추정이다(사용자 테스트 7번으로 확인한다)
+export const STUDIO_TIMEOUT_MS = 180_000;
 // ElevenLabs 403 가운데 키가 아니라 성우·플랜·모델 문제인 코드(공식 오류 표). 화면이 문구를 고르도록 입력 거절로 보낸다
 const VOICE_DENIED = new Set([
 	"voice_access_denied",
@@ -410,15 +424,26 @@ export function retryAtFrom(retryAfter: string | null): string | undefined {
 // (시간 초과, 연결 끊김의 TypeError, ElevenLabs SDK의 statusCode 없는 오류, 그 밖의 예외). 돈에 안전한 쪽이다:
 // 자동으로 다시 만들지 않고 화면이 "크레딧이 쓰였을 수 있으니 확인한 뒤"를 보인다(tts-provider, 계획 리뷰 E1).
 // 원래 오류 객체는 던지지 않는다(rpc onError가 통째로 로그에 쓴다). 로그는 logFailure 한 줄(이름·필드 이름)뿐이다
+// 작업실은 시간 제한을 늘리고(timeoutMs) 끊긴 요청의 결과 약속을 onLate로 받는다(T9). 경주가 그 약속에 처리기를 달아 두므로 늦은 거절이 처리 안 된 거절이 되지 않는다
 export async function runTrial<T>(
 	provider: ProviderId,
 	call: (signal: AbortSignal) => Promise<T>,
+	{
+		timeoutMs = TRIAL_TIMEOUT_MS,
+		onLate,
+	}: { timeoutMs?: number; onLate?: (late: Promise<T>) => void } = {},
 ): Promise<T> {
+	let started: Promise<T> | undefined;
 	try {
-		return await withTimeout(call, TRIAL_TIMEOUT_MS);
+		return await withTimeout((signal) => {
+			started = call(signal);
+			return started;
+		}, timeoutMs);
 	} catch (error) {
-		if (error instanceof ProviderTimeoutError)
+		if (error instanceof ProviderTimeoutError) {
+			if (onLate && started) onLate(started);
 			throw trialError(provider, "unknown_outcome");
+		}
 		if (error instanceof ProviderHttpError) {
 			const reason = trialReason(error.status, error.codes);
 			throw trialError(provider, reason, {

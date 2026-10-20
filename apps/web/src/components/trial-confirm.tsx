@@ -18,11 +18,12 @@ import {
 } from "@tts-pilot-app/ui/components/alert-dialog";
 import { Spinner } from "@tts-pilot-app/ui/components/spinner";
 import { cn } from "@tts-pilot-app/ui/lib/utils";
-import { Coins, Info } from "lucide-react";
-import { type RefObject, useRef, useState } from "react";
+import { Coins, Info, TriangleAlert } from "lucide-react";
+import { type RefObject, useId, useRef, useState } from "react";
 
 import { PROVIDER_LABEL } from "@/lib/connection-view";
 import {
+	confirmCopy,
 	costCopy,
 	GEMINI_DATA_NOTE,
 	remainingLabel,
@@ -61,16 +62,21 @@ export type TrialPending = {
 	requestId: string;
 	regenerate: boolean;
 	opener: HTMLElement | null;
+	// 작업실: 이전 결과에 같은 서명의 처리 여부 미확인 줄이 있다(중복 과금을 알고 누르게, 브리프 5.7). 캐스팅은 넘기지 않는다
+	unknownSame?: boolean;
 };
 
 export function TrialConfirm({
 	pending,
 	onClose,
 	onConfirm,
+	kind = "trial",
 }: {
 	pending: TrialPending | null;
 	onClose: () => void;
 	onConfirm: (pending: TrialPending) => void;
+	// 작업실은 대본 앞 100자·총 글자 수와 '만들기' 문구다(T9 스펙 4절). boolean 대신 값 하나(patterns-explicit-variants)
+	kind?: "trial" | "studio";
 }) {
 	const cancelRef = useRef<HTMLButtonElement>(null);
 	return (
@@ -85,6 +91,7 @@ export function TrialConfirm({
 				>
 					<ConfirmBody
 						pending={pending}
+						kind={kind}
 						cancelRef={cancelRef}
 						onConfirm={onConfirm}
 					/>
@@ -96,14 +103,17 @@ export function TrialConfirm({
 
 function ConfirmBody({
 	pending,
+	kind,
 	cancelRef,
 	onConfirm,
 }: {
 	pending: TrialPending;
+	kind: "trial" | "studio";
 	cancelRef: RefObject<HTMLButtonElement | null>;
 	onConfirm: (pending: TrialPending) => void;
 }) {
-	const { voice, request, regenerate } = pending;
+	const { voice, request, regenerate, unknownSame } = pending;
+	const unknownId = useId();
 	const [sent, setSent] = useState(false);
 	const sentRef = useRef(false);
 	// Gemini는 잔액 조회 API가 없어 '남은 크레딧' 줄과 그 조회가 없다(T7.6 계획 '스펙과 다른 점' 6)
@@ -124,13 +134,14 @@ function ConfirmBody({
 	const sampleName = sampleKindOf(voice);
 	const { status: sampleStatus, toggle } = useSample(sample ?? "");
 	const cost = costCopy(request.provider);
+	const copy = confirmCopy(kind, request);
 	// 말투 지시가 있는 Gemini 설정은 길어 '문장'처럼 이름표 위·값 아래로 쌓는다(critique P3)
 	const stacked =
 		request.provider === "gemini" && request.settings.direction.trim() !== "";
 	return (
 		<>
 			<AlertDialogHeader>
-				<AlertDialogTitle>{cost.title}</AlertDialogTitle>
+				<AlertDialogTitle>{copy.title}</AlertDialogTitle>
 			</AlertDialogHeader>
 			<AlertDialogDescription render={<div />} className="text-foreground">
 				<dl className="flex flex-col gap-2 text-sm">
@@ -157,9 +168,9 @@ function ConfirmBody({
 						</dd>
 					</div>
 					<div className="flex min-w-0 flex-col gap-1">
-						<dt className="text-muted-foreground">문장</dt>
+						<dt className="text-muted-foreground">{copy.textLabel}</dt>
 						<dd className="wrap-anywhere min-w-0 whitespace-pre-wrap">
-							{request.text}
+							{copy.text}
 						</dd>
 					</div>
 					{/* 근거는 금액 아래 별도 줄이다(Airy 포함, 사용자 결정 2026-10-13) */}
@@ -210,6 +221,16 @@ function ConfirmBody({
 						{GEMINI_DATA_NOTE}
 					</p>
 				) : null}
+				{/* 작업실 중복 과금 경고(브리프 5.7)도 설명 안이라 창을 열 때 읽힌다(audit F1). 캐스팅은 unknownSame을 넘기지 않는다 */}
+				{unknownSame && "unknownRetry" in copy ? (
+					<p id={unknownId} className="mt-3 flex gap-2 text-sm text-warning">
+						<TriangleAlert
+							aria-hidden="true"
+							className="mt-0.5 size-4 shrink-0"
+						/>
+						{copy.unknownRetry}
+					</p>
+				) : null}
 			</AlertDialogDescription>
 			{request.provider === "typecast" && typecastOverdrawn(quota) ? (
 				<p className="text-sm text-warning">
@@ -221,7 +242,8 @@ function ConfirmBody({
 					같은 설정이어도 소리가 달라질 수 있어요
 				</p>
 			) : null}
-			{sample ? (
+			{/* 기본 샘플 상자는 캐스팅만. 작업실은 성우 고르기 창에서 이미 들었다(critique P2-5) */}
+			{sample && kind === "trial" ? (
 				<div className="flex items-center gap-3 rounded-xl bg-muted p-3 text-sm">
 					<SampleButton
 						status={sampleStatus}
@@ -242,6 +264,8 @@ function ConfirmBody({
 				</AlertDialogCancel>
 				<AlertDialogAction
 					size="lg"
+					// 유료 버튼에 닿을 때 중복 과금 경고를 한 번 더 읽는다(창 설명에도 있다, WCAG 3.3.4)
+					aria-describedby={unknownSame ? unknownId : undefined}
 					disabled={sent}
 					onClick={() => {
 						if (sentRef.current) return;
@@ -251,7 +275,7 @@ function ConfirmBody({
 					}}
 				>
 					<Coins data-icon="inline-start" aria-hidden="true" />
-					{cost.action}
+					{copy.action}
 				</AlertDialogAction>
 			</AlertDialogFooter>
 		</>

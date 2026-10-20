@@ -561,7 +561,7 @@ flex 스택. `HStackProps`·`VStackProps`·`StackProps`를 받고 `--b-stack-spa
 
 `packages/ui`의 shadcn 컴포넌트를 위 문법에 맞춰 고친 것이다(2026-10-04 T2 빌드). 원문 컴포넌트 이름이 아니라 TTS Pilot 코드의 이름이다.
 
-- **Button 기본(primary):** 청록 `{colors.primary}` 채움에 흰 글자, 14px 700, `{rounded.radius-8}`, 높이 32px. hover는 채움을 80%로 낮춘다. 포커스는 2px 청록 outline(간격 2px).
+- **Button 기본(primary):** 청록 `{colors.primary}` 채움에 흰 글자, 14px 700, `{rounded.radius-8}`, 높이 32px. hover는 라이트 `{colors.brand-600}`(짙어짐), 다크 `{colors.brand-300}`(밝아짐)이다(CSS 토큰 `--primary-hover`, T9 CS-07). 포커스는 2px 청록 outline(간격 2px).
 - **Button outline:** 청록 보더와 청록 글자, 카드색 바탕. hover와 펼침 상태만 `primary/8` 알파 바탕을 깐다. 카드 바닥의 '다시 확인하기'가 이 변형이다.
 - **Button `lg`:** 높이 44px(가로 안쪽 20px). 카드 바닥 버튼과 404의 돌아가기 버튼이 쓴다.
 - **Badge:** 14px 700, `{rounded.radius-6}`, 최소 높이 28px. 바탕은 `*-subtle`, 글자와 14px 아이콘은 같은 상태색이다. 아이콘과 글자를 늘 함께 둬 색만으로 구분하지 않는다(연결됨 체크 원, 확인 필요 경고 삼각형, 키 없음 열쇠).
@@ -606,6 +606,15 @@ flex 스택. `HStackProps`·`VStackProps`·`StackProps`를 받고 `--b-stack-spa
 - **Badge secondary:** `muted` 바탕에 회색 글자. 이름 옆의 상태(프리셋 '기본', '현재 이용 불가')에 쓴다. 고칠 일이 있는 상태('성우를 다시 골라 주세요', '처음 값으로 바뀐 값 있음')만 `warning`이다. 청록 배지는 여전히 '재생 중'만이다.
 - **동작 메뉴:** 패널 머리의 outline `lg` 버튼 + `ChevronDown`이 여는 `DropdownMenu`(폭 288px). 항목은 44px 이상, 두 줄 항목은 굵은 이름과 회색 14px 보조 줄이다. 지금 적용된 항목은 오른쪽 회색 16px `Check`와 접근 이름 끝 ", 불러옴"으로 알린다. 목록만 `max-h-80`에서 스크롤하고, 화면을 떠나는 항목은 가름선 뒤 `ArrowRight`를 붙인다.
 - **링크에 버튼 모양:** `Link`에 버튼 모양을 입힐 때는 `cn(buttonVariants(...))`로 겹치는 경계 클래스를 정리한다. `buttonVariants`만 쓰면 기본의 `border-transparent`가 outline의 청록 경계를 덮는다(T8 빈 상태 링크에서 생겼다).
+
+2026-10-21 T9 빌드(음성 작업실)에서 더한 것:
+
+- **문단 카드:** 카드색 면, 안쪽 16px. 번호는 회색 숫자(버튼 아님)이고, 성우 버튼만 무채색 테두리(outline)이며 성우가 없을 때만 채운 청록(`default`)이다. 감정 표식은 카드 머리의 지름길이고 누르면 설정 펼침(`ChevronDown`)이 열린다. 칸 오류는 `warning` 글자와 `TriangleAlert`다.
+- **감정 팔레트:** `ToggleGroup` 알약, 높이 44px, `rounded-full`, 카드색 바탕 + `ring-border`. 고른 알약은 `{colors.primary-subtle}` 바탕·`{colors.primary}` 글자·청록 경계에 `Check`를 앞세운다. 알약마다 툴팁과 같은 말의 숨긴 설명 줄을 둔다. 방향키로 옮기고 Tab 정지는 하나다.
+- **성우 고르기 창:** 입력 창(Dialog)과 같은 모양에 768px 이상 `md:max-w-lg`, 767px 이하 아래 시트. 지금 성우는 옅은 청록 바탕 + `aria-current` + `Check`, 이용 불가 성우는 `aria-disabled`로 포커스를 받되 눌러도 일이 없고 이름·조건 글자만 흐리며 이유는 회색 배지가 맡는다. 창 밖으로 나가는 링크는 `cn(buttonVariants(...))`의 outline `lg`다.
+- **하단 막대:** 바닥에 붙는 띠. 막대가 자기 높이를 `<html>`의 `--studio-bar-height`에 두고 본문(`studio-bar-space`)과 스크롤 여백(`studio-bar-scroll`)이 그만큼 비운다. 금액은 주 버튼에 합쳐 `Coins` 하나로 알린다(청록 채운 버튼 안은 버튼 글자색). 한 줄 칸은 한 번에 하나(오류 → 막는 이유 → 20초 안내 → 도움 줄)이고, 767px 이하에서 대본 칸에 포커스가 있는 동안은 결과 줄을 숨긴다. 같은 결과가 이미 플레이어에 있으면 주 버튼을 outline으로 내려 채운 청록이 화면에 하나만 남게 한다.
+- **이전 결과 줄:** 대본 첫 줄 + 배지(미확인 또는 회색 '플레이어에 있음') / 언제·성우·설정·크레딧 보조 줄. 재생·내려받기는 44px ghost 회색 아이콘 버튼 + 툴팁이고, 받는 중에는 같은 버튼의 아이콘만 `Spinner`로 바뀌어 포커스를 지킨다.
+- **조건 버튼 모양의 머리 메뉴:** 작업실 머리의 프리셋 메뉴는 `PresetMenu trigger="condition"`으로 성우 조건의 고른 것 없는 조건 버튼과 같은 클래스를 쓴다. 동작 메뉴(outline `lg`)와 항목 규칙은 그대로다.
 
 ## Do's and Don'ts
 

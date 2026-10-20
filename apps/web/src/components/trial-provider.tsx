@@ -358,17 +358,6 @@ export function TrialProvider({ children }: { children: ReactNode }) {
 		}
 	}
 
-	function stop() {
-		const current = player.current;
-		if (current)
-			player.toggle(
-				current.voiceId,
-				current.name,
-				current.voiceId,
-				current.noun,
-				current.owner,
-			);
-	}
 	function forget(id: string) {
 		setSavedReceipts((current) => {
 			const matches = [...current].filter(([, savedId]) => savedId === id);
@@ -378,7 +367,7 @@ export function TrialProvider({ children }: { children: ReactNode }) {
 			return next;
 		});
 		const url = urls.current.get(id);
-		if (url && player.current?.voiceId === url) stop();
+		if (url && player.current?.voiceId === url) player.stop();
 		urls.current.forget(id);
 		setCurrentAudio((current) => (current?.id === id ? null : current));
 	}
@@ -428,7 +417,7 @@ export function TrialProvider({ children }: { children: ReactNode }) {
 				current.status !== "failed"
 			);
 		},
-		stop,
+		stop: player.stop,
 		listen: (voice, opener, options) => void listen(voice, opener, options),
 		playItem,
 		urlOf: (id) => (currentAudio?.id === id ? currentAudio.url : undefined),

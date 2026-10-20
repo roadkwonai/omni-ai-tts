@@ -92,6 +92,8 @@ async function listOf(
 		frequent: row.frequent,
 		memo: row.memo,
 		unavailable: row.unavailable,
+		lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
+		useCount: row.useCount,
 		channelIds: channels
 			.filter((link) => link.savedVoiceId === row.id)
 			.map((link) => link.channelId),

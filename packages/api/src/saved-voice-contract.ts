@@ -62,5 +62,8 @@ export const savedVoiceSchema = z.object({
 	unavailable: z.boolean(),
 	channelIds: z.array(z.uuid()),
 	classificationIds: z.array(z.uuid()),
+	// 사용 이력(T9): 작업실 생성이 성공한 최근 시각(ISO)과 횟수. 작업실 성우 고르기가 정렬과 '최근 사용 3일 전 · 12회'에 쓴다
+	lastUsedAt: z.iso.datetime().nullable(),
+	useCount: z.number().int().nonnegative(),
 });
 export type SavedVoice = z.infer<typeof savedVoiceSchema>;

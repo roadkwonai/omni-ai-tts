@@ -27,6 +27,8 @@ const saved = (id: string, voiceId: string, favorite: boolean): SavedVoice => ({
 	unavailable: false,
 	channelIds: [],
 	classificationIds: [],
+	lastUsedAt: null,
+	useCount: 0,
 });
 
 test("다른 탭에서 빼고 다시 담긴 성우(새 id)는 옛 줄을 바꾼다(QA F1)", () => {

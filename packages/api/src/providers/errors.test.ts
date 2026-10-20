@@ -10,6 +10,7 @@ import {
 	runCheck,
 	runList,
 	runTrial,
+	STUDIO_TIMEOUT_MS,
 	TRIAL_TIMEOUT_MS,
 	trialReason,
 } from "./errors";
@@ -303,6 +304,47 @@ describe("runTrial", () => {
 		expect(error).not.toBe(sdkError);
 		// 로그는 한 줄이고 SDK 오류 객체를 넘기지 않는다
 		expect(log.mock.calls.flat().some((arg) => arg === sdkError)).toBe(false);
+	});
+	it("onLate가 있으면 제한 시간에 끊긴 요청의 결과를 넘긴다(T9 늦은 결과)", async () => {
+		vi.useFakeTimers();
+		let finish: (value: string) => void = () => {};
+		const call = new Promise<string>((resolve) => {
+			finish = resolve;
+		});
+		const onLate = vi.fn<(late: Promise<string>) => void>();
+		const pending = runTrial("typecast", () => call, {
+			timeoutMs: STUDIO_TIMEOUT_MS,
+			onLate,
+		});
+		const assertion = expect(pending).rejects.toMatchObject({
+			code: "GATEWAY_TIMEOUT",
+			data: { provider: "typecast", reason: "unknown_outcome" },
+		});
+		// 내 문장의 60초에는 아직 기다린다
+		await vi.advanceTimersByTimeAsync(TRIAL_TIMEOUT_MS);
+		expect(onLate).not.toHaveBeenCalled();
+		await vi.advanceTimersByTimeAsync(STUDIO_TIMEOUT_MS - TRIAL_TIMEOUT_MS);
+		await assertion;
+		expect(onLate).toHaveBeenCalledTimes(1);
+		finish("늦은 오디오");
+		await expect(onLate.mock.calls[0]?.[0]).resolves.toBe("늦은 오디오");
+		vi.useRealTimers();
+	});
+	it("제한 시간 안에 끝난 성공·실패에는 onLate를 부르지 않는다", async () => {
+		const onLate = vi.fn();
+		await expect(
+			runTrial("typecast", async () => "ok", { onLate }),
+		).resolves.toBe("ok");
+		await expect(
+			runTrial(
+				"typecast",
+				async () => {
+					throw new ProviderHttpError(500);
+				},
+				{ onLate },
+			),
+		).rejects.toMatchObject({ data: { reason: "provider_error" } });
+		expect(onLate).not.toHaveBeenCalled();
 	});
 });
 

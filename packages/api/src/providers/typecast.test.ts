@@ -1,6 +1,10 @@
 import { createRequire } from "node:module";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CHECK_TIMEOUT_MS } from "./errors";
+import {
+	CHECK_TIMEOUT_MS,
+	STUDIO_TIMEOUT_MS,
+	TRIAL_TIMEOUT_MS,
+} from "./errors";
 import { calledUrl, fetchMock, json, useFetchMock } from "./test-utils";
 import { DEFAULT_SETTINGS, type TypecastSettings } from "./trial-options";
 import { createTypecast } from "./typecast";
@@ -431,6 +435,46 @@ describe("Typecast 시험 생성", () => {
 			code: "GATEWAY_TIMEOUT",
 			data: { provider: "typecast", reason: "unknown_outcome" },
 		});
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+	it("작업실은 180초까지 기다리고, 넘으면 처리 여부 미확인과 함께 끊긴 요청의 결과를 넘긴다(T5-02)", async () => {
+		vi.useFakeTimers();
+		let respond: (response: Response) => void = () => {};
+		fetchMock.mockImplementationOnce(
+			() =>
+				new Promise<Response>((resolve) => {
+					respond = resolve;
+				}),
+		);
+		const onLate = vi.fn<(late: Promise<Uint8Array>) => void>();
+		let settled = false;
+		const run = createTypecast(KEY).synthesize?.(
+			{
+				provider: "typecast",
+				voiceId: "tc_0001",
+				text: "긴 대본",
+				settings: DEFAULT_SETTINGS.typecast,
+			},
+			{ timeoutMs: STUDIO_TIMEOUT_MS, onLate },
+		);
+		const assertion = expect(run).rejects.toMatchObject({
+			code: "GATEWAY_TIMEOUT",
+			data: { provider: "typecast", reason: "unknown_outcome" },
+		});
+		void run
+			?.catch(() => {})
+			.finally(() => {
+				settled = true;
+			});
+		await vi.advanceTimersByTimeAsync(TRIAL_TIMEOUT_MS);
+		expect(settled).toBe(false);
+		await vi.advanceTimersByTimeAsync(STUDIO_TIMEOUT_MS - TRIAL_TIMEOUT_MS);
+		await assertion;
+		expect(onLate).toHaveBeenCalledTimes(1);
+		// 응답 본문은 진짜 타이머로 읽는다
+		vi.useRealTimers();
+		respond(audio());
+		await expect(onLate.mock.calls[0]?.[0]).resolves.toEqual(MP3);
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 	});
 });
