@@ -192,9 +192,11 @@ export function useRemoveVoice() {
 			queryClient.setQueryData<SavedVoice[]>(savedListKey, (items) =>
 				items?.filter((item) => item.id !== input.id),
 			),
+		// 빼면 그 성우를 쓰는 프리셋의 성우가 빈다(T8). 프리셋 목록도 접두 키로 다시 받는다
 		onSettled: () => {
 			void queryClient.invalidateQueries({ queryKey: savedListKey });
 			invalidateClasses(queryClient);
+			void queryClient.invalidateQueries({ queryKey: orpc.presetList.key() });
 		},
 	});
 }

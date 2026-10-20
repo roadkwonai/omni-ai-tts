@@ -42,6 +42,9 @@ import { usePlayer } from "./sample-player";
 import { TrialConfirm, type TrialPending } from "./trial-confirm";
 import { useCooldown } from "./voice-problem";
 
+// 불러온(또는 방금 저장·덮어쓴) 프리셋과 그때의 설정. 공급자마다 하나이고 화면을 떠나면 사라진다(설정과 같다, T8 스펙 4절)
+export type LoadedPreset = { id: string; settings: SettingsOf[ProviderId] };
+
 type TrialApi = {
 	settings: SettingsOf;
 	setSetting: (
@@ -49,6 +52,9 @@ type TrialApi = {
 		patch: Partial<Record<string, string | number | boolean>>,
 	) => void;
 	resetSettings: (provider: ProviderId) => void;
+	loaded: (provider: ProviderId) => LoadedPreset | null;
+	// 그 공급자 설정을 프리셋 값으로 바꾸고 기억한다
+	loadPreset: (provider: ProviderId, preset: LoadedPreset) => void;
 	busy: { key: string; phase: "finding" | "creating" } | null;
 	hasSaved: (request: TrialRequest) => boolean;
 	// text는 useShownText()의 늦춘 문장
@@ -110,6 +116,9 @@ export function TrialProvider({ children }: { children: ReactNode }) {
 	});
 	const latestText = useRef("");
 	const [settings, setSettings] = useState<SettingsOf>(DEFAULT_SETTINGS);
+	const [loadedPresets, setLoadedPresets] = useState<
+		Partial<Record<ProviderId, LoadedPreset>>
+	>({});
 	const [busy, setBusy] = useState<TrialApi["busy"]>(null);
 	const [retryAts, setRetryAts] = useState<Partial<Record<ProviderId, string>>>(
 		{},
@@ -384,11 +393,21 @@ export function TrialProvider({ children }: { children: ReactNode }) {
 						[provider]: { ...all[provider], ...patch },
 					}) as SettingsOf,
 			),
-		resetSettings: (provider) =>
+		// '처음 값으로'는 불러온 프리셋 표시도 지운다
+		resetSettings: (provider) => {
 			setSettings((all) => ({
 				...all,
 				[provider]: DEFAULT_SETTINGS[provider],
-			})),
+			}));
+			setLoadedPresets(({ [provider]: _gone, ...rest }) => rest);
+		},
+		loaded: (provider) => loadedPresets[provider] ?? null,
+		loadPreset: (provider, preset) => {
+			setSettings(
+				(all) => ({ ...all, [provider]: preset.settings }) as SettingsOf,
+			);
+			setLoadedPresets((all) => ({ ...all, [provider]: preset }));
+		},
 		busy,
 		hasSaved: (request) => savedReceipts.has(comboSignature(request)),
 		blockOf: (voice, text) =>

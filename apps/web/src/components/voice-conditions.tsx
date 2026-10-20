@@ -274,6 +274,7 @@ export function RadioMenu<T extends string>({
 	align,
 	separator = " · ",
 	strong = false,
+	className,
 }: {
 	label: string;
 	value: T;
@@ -283,6 +284,8 @@ export function RadioMenu<T extends string>({
 	align?: "start" | "end";
 	separator?: string;
 	strong?: boolean;
+	// 버튼 클래스에 더한다(프리셋 창의 채널 칸이 창 폭을 채운다)
+	className?: string;
 }) {
 	const shown =
 		options.find((option) => option.value === value)?.label ?? value;
@@ -295,7 +298,7 @@ export function RadioMenu<T extends string>({
 						variant="outline"
 						size="lg"
 						aria-label={`${label}, ${shown} 선택됨`}
-						className={conditionButton(0)}
+						className={cn(conditionButton(0), className)}
 					/>
 				}
 			>

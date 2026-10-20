@@ -336,6 +336,37 @@ export function valueText(
 			return value.toFixed(2);
 	}
 }
+// 옵션 한 칸의 이름과 값 글자. 설정 요약과 프리셋 비교(T8)가 같은 말을 쓴다
+export function optionText(
+	provider: ProviderId,
+	field: string,
+	value: string | number | boolean,
+): { label: string; value: string } {
+	if (field === "model") return { label: "모델", value: String(value) };
+	if (field === "emotion")
+		return { label: "감정 모드", value: value === "smart" ? "자동" : "직접" };
+	if (field === "preset")
+		return { label: "감정", value: emotionLabel(String(value)) };
+	if (field === "tag")
+		return { label: "말투 태그", value: value === "" ? "없음" : `[${value}]` };
+	if (field === "direction")
+		return {
+			label: FIELD_LABEL.direction,
+			value: value === "" ? "없음" : String(value),
+		};
+	if (field === "language")
+		return {
+			label: "언어",
+			value:
+				provider === "airy"
+					? languageName(String(value))
+					: LANGUAGE_LABEL[value as "auto" | "kor"],
+		};
+	if (provider === "airy" && field === "style")
+		return { label: "말투", value: AIRY_STYLE_LABEL[value as AiryStyle] };
+	return { label: FIELD_LABEL[field] ?? field, value: valueText(field, value) };
+}
+
 // 결과 줄·확인 창의 설정 요약: 모델 + 기본값에서 벗어난 옵션. Typecast 직접 감정은 늘 보인다(계획 '계획에서 정한 것')
 export function settingsSummary(request: TrialRequest): string {
 	const used = usedSettings(request);
@@ -346,24 +377,20 @@ export function settingsSummary(request: TrialRequest): string {
 	const parts = [String(used.model)];
 	for (const [field, value] of Object.entries(used)) {
 		if (field === "model" || field === "emotion") continue;
-		if (field === "preset") {
-			parts.push(`감정 ${emotionLabel(String(value))}`);
-			continue;
-		}
 		// Airy 언어는 과금 기준이라 기본값(ko)이어도 늘 보인다
 		const airyLanguage = request.provider === "airy" && field === "language";
-		if ((value === defaults[field] && !airyLanguage) || value === "") continue;
-		if (field === "tag") parts.push(`[${value}]`);
-		else if (field === "language")
-			parts.push(
-				request.provider === "airy"
-					? languageName(String(value))
-					: LANGUAGE_LABEL[value as "auto" | "kor"],
-			);
-		else if (request.provider === "airy" && field === "style")
-			parts.push(`말투 ${AIRY_STYLE_LABEL[value as AiryStyle]}`);
-		else
-			parts.push(`${FIELD_LABEL[field] ?? field} ${valueText(field, value)}`);
+		if (
+			field !== "preset" &&
+			((value === defaults[field] && !airyLanguage) || value === "")
+		)
+			continue;
+		const text = optionText(request.provider, field, value);
+		// 태그·언어는 값만으로 뜻이 보인다
+		parts.push(
+			field === "tag" || field === "language"
+				? text.value
+				: `${text.label} ${text.value}`,
+		);
 	}
 	return parts.join(" · ");
 }

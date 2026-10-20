@@ -99,7 +99,7 @@ export function ConfirmDialog({
 				}
 			>
 				<AlertDialogHeader>
-					<AlertDialogTitle>{title}</AlertDialogTitle>
+					<AlertDialogTitle className="wrap-anywhere">{title}</AlertDialogTitle>
 					<AlertDialogDescription>{description}</AlertDialogDescription>
 				</AlertDialogHeader>
 				{failed ? (

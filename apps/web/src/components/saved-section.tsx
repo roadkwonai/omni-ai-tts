@@ -25,6 +25,7 @@ import {
 	type Group,
 	neighborId,
 } from "@/lib/classes-view";
+import { presetCountOf, presetRemoveNote } from "@/lib/preset-view";
 import {
 	chipGroups,
 	LIBRARY_TEXT,
@@ -36,6 +37,7 @@ import {
 
 import { ClassPicker } from "./class-picker";
 import { ConfirmDialog } from "./confirm-dialog";
+import { usePresetList } from "./presets";
 import {
 	useClassLists,
 	useLinkVoice,
@@ -308,10 +310,13 @@ function RemoveDialog({
 	onClose: () => void;
 }) {
 	const remove = useRemoveVoice();
+	const presets = usePresetList();
+	const count = presetCountOf(presets.data ?? [], item.id);
 	return (
 		<ConfirmDialog
 			title={removeQuestion(name)}
-			description={LIBRARY_TEXT.removeDetail}
+			// 프리셋 목록을 받지 못했으면 확인하지 못했다고 알린다(계획 리뷰 D10)
+			description={`${LIBRARY_TEXT.removeDetail}${presetRemoveNote(count, presets.isError)}`}
 			action="빼기"
 			pendingText={LIBRARY_TEXT.removing}
 			failedText={LIBRARY_TEXT.removeFailed}

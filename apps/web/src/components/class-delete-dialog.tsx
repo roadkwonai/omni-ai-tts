@@ -44,6 +44,8 @@ export function ClassDeleteDialog({
 				queryClient.invalidateQueries({
 					queryKey: orpc.savedVoiceList.key(),
 				}),
+				// 채널을 지우면 프리셋의 채널·기본이 풀린다(T8)
+				queryClient.invalidateQueries({ queryKey: orpc.presetList.key() }),
 			]),
 	});
 

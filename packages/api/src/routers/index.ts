@@ -15,6 +15,7 @@ import {
 import { providerError } from "../providers/errors";
 import { cachedList, expireProvider } from "../voice-cache";
 import { classificationRouter } from "./classification";
+import { presetRouter } from "./preset";
 import { savedVoiceRouter } from "./saved-voice";
 import { trialRouter } from "./trial";
 
@@ -95,6 +96,8 @@ export const appRouter = {
 	...trialRouter,
 	...classificationRouter,
 	...savedVoiceRouter,
+	// 프리셋 여섯 프로시저(T8)
+	...presetRouter,
 };
 export type AppRouter = typeof appRouter;
 export type AppRouterClient = RouterClient<typeof appRouter>;

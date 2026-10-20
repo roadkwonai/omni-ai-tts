@@ -46,6 +46,7 @@ import {
 } from "@/lib/trial-view";
 import { voiceKey } from "@/lib/voice-view";
 
+import { PresetLine, PresetMenu } from "./preset-menu";
 import { useRate } from "./trial-confirm";
 import { useShownText, useTrial } from "./trial-provider";
 import { useTrialItems } from "./trial-results";
@@ -370,9 +371,11 @@ export function TrialSection({ voice }: { voice: Voice }) {
 	const problemText = problem
 		? trialProblemText(voice.provider, problem)
 		: null;
+	// 처음 값과 다르거나 불러온 프리셋이 있으면 '처음 값으로'가 켜진다(누르면 표시도 지운다)
 	const changed =
 		JSON.stringify(trial.settings[voice.provider]) !==
-		JSON.stringify(DEFAULT_SETTINGS[voice.provider]);
+			JSON.stringify(DEFAULT_SETTINGS[voice.provider]) ||
+		trial.loaded(voice.provider) !== null;
 	const [resetKey, setResetKey] = useState(0);
 	const headingId = useId();
 	const reasonId = useId();
@@ -382,24 +385,32 @@ export function TrialSection({ voice }: { voice: Voice }) {
 	const describedBy = problemText ? problemId : block ? reasonId : undefined;
 	return (
 		<section aria-labelledby={headingId} className="flex flex-col gap-3">
-			<div className="flex min-h-11 items-center justify-between gap-2">
+			<div className="flex min-h-11 flex-wrap items-center justify-between gap-2">
 				<h3 id={headingId} className="font-bold">
 					내 문장 듣기
 				</h3>
-				<Button
-					variant="ghost"
-					size="lg"
-					focusableWhenDisabled
-					className={cn("text-muted-foreground", lockedButton(!changed))}
-					disabled={!changed}
-					onClick={() => {
-						trial.resetSettings(voice.provider);
-						setResetKey((current) => current + 1);
-					}}
-				>
-					처음 값으로
-				</Button>
+				{/* 두 버튼 사이 8px: 붙어 있으면 휴대폰에서 '처음 값으로'를 잘못 눌러 값을 잃는다(브리프 5절) */}
+				<div className="flex items-center gap-2">
+					<PresetMenu
+						voice={voice}
+						onApplied={() => setResetKey((current) => current + 1)}
+					/>
+					<Button
+						variant="ghost"
+						size="lg"
+						focusableWhenDisabled
+						className={cn("text-muted-foreground", lockedButton(!changed))}
+						disabled={!changed}
+						onClick={() => {
+							trial.resetSettings(voice.provider);
+							setResetKey((current) => current + 1);
+						}}
+					>
+						처음 값으로
+					</Button>
+				</div>
 			</div>
+			<PresetLine voice={voice} />
 			<div
 				key={`${voice.provider}:${resetKey}`}
 				className="flex flex-col gap-3"

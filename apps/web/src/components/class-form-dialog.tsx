@@ -22,7 +22,7 @@ import { Label } from "@tts-pilot-app/ui/components/label";
 import { Spinner } from "@tts-pilot-app/ui/components/spinner";
 import { Textarea } from "@tts-pilot-app/ui/components/textarea";
 import { cn } from "@tts-pilot-app/ui/lib/utils";
-import { type RefObject, useId, useRef, useState } from "react";
+import { type Ref, type RefObject, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -46,8 +46,59 @@ type Problems = Partial<Record<Field, string>>;
 
 // 입력 칸 44px, 767px 이하 글자 16px(iOS 확대 방지, 계획 리뷰 D1). sentence-bar와 같다.
 // 오류 테두리는 프리미티브의 destructive(빨강)를 덮어 오류 문구와 같은 warning으로 둔다(audit P2, 프리미티브는 다른 화면이 쓴다)
-const fieldClass =
+export const fieldClass =
 	"min-h-11 rounded-xl text-base md:text-sm aria-invalid:border-warning aria-invalid:ring-warning/20 dark:aria-invalid:border-warning dark:aria-invalid:ring-warning/40";
+
+// 한글 조합을 끝내는 Enter는 저장이 아니다. Safari는 compositionend 뒤에 keyCode 229로 온다(계획 리뷰 D12)
+export const isComposingEnter = (event: React.KeyboardEvent) =>
+	event.key === "Enter" &&
+	(event.nativeEvent.isComposing || event.keyCode === 229);
+
+// 창 아래 '취소'와 주 버튼(입력 창 둘, 프리셋 불러오기 창). 진행 중에는 둘 다 누를 수 없고(포커스는 간다) 주 버튼에 스피너가 돈다.
+// 767px 이하 시트에서는 두 버튼이 가로 반반(브리프 5절 B3). onSubmit이 없으면 주 버튼은 form 제출이다
+export function DialogButtons({
+	pending,
+	label,
+	submitRef,
+	onCancel,
+	onSubmit,
+}: {
+	pending: boolean;
+	label: string;
+	submitRef?: Ref<HTMLButtonElement>;
+	onCancel: () => void;
+	onSubmit?: () => void;
+}) {
+	return (
+		<DialogFooter>
+			<Button
+				type="button"
+				size="lg"
+				variant="outline"
+				disabled={pending}
+				focusableWhenDisabled
+				className="flex-1 md:flex-none"
+				onClick={onCancel}
+			>
+				취소
+			</Button>
+			<Button
+				ref={submitRef}
+				type={onSubmit ? "button" : "submit"}
+				size="lg"
+				disabled={pending}
+				focusableWhenDisabled
+				className="flex-1 md:flex-none"
+				onClick={onSubmit}
+			>
+				{pending ? (
+					<Spinner data-icon="inline-start" aria-hidden="true" />
+				) : null}
+				{label}
+			</Button>
+		</DialogFooter>
+	);
+}
 
 // 그룹의 목록 쿼리 키. 저장·삭제가 끝나면 이 키를 다시 받는다
 export function listKey(group: Group) {
@@ -227,14 +278,15 @@ export function ClassFormDialog({
 						submit();
 					}}
 					onKeyDown={(event) => {
-						if (event.key !== "Enter") return;
-						// 한글 조합을 끝내는 Enter는 저장이 아니다. Safari는 compositionend 뒤에 keyCode 229로 온다(계획 리뷰 D12)
-						if (event.nativeEvent.isComposing || event.keyCode === 229) {
+						if (isComposingEnter(event)) {
 							event.preventDefault();
 							return;
 						}
 						// 메모(여러 줄 칸)에서도 Enter는 저장이다. 줄바꿈은 저장할 때 공백으로 정리된다(사용자 결정 2026-10-06)
-						if (event.target instanceof HTMLTextAreaElement) {
+						if (
+							event.key === "Enter" &&
+							event.target instanceof HTMLTextAreaElement
+						) {
 							event.preventDefault();
 							submit();
 						}
@@ -306,32 +358,11 @@ export function ClassFormDialog({
 					<p role="status" className="sr-only">
 						{save.isPending ? "저장하는 중이에요" : ""}
 					</p>
-					{/* 767px 이하 시트에서는 두 버튼이 가로 반반(브리프 5절 B3) */}
-					<DialogFooter>
-						<Button
-							type="button"
-							size="lg"
-							variant="outline"
-							disabled={save.isPending}
-							focusableWhenDisabled
-							className="flex-1 md:flex-none"
-							onClick={onClose}
-						>
-							취소
-						</Button>
-						<Button
-							type="submit"
-							size="lg"
-							disabled={save.isPending}
-							focusableWhenDisabled
-							className="flex-1 md:flex-none"
-						>
-							{save.isPending ? (
-								<Spinner data-icon="inline-start" aria-hidden="true" />
-							) : null}
-							{editing === "new" ? "만들기" : "저장하기"}
-						</Button>
-					</DialogFooter>
+					<DialogButtons
+						pending={save.isPending}
+						label={editing === "new" ? "만들기" : "저장하기"}
+						onCancel={onClose}
+					/>
 				</form>
 			</DialogContent>
 		</Dialog>

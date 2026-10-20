@@ -2,11 +2,13 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, buttonVariants } from "@tts-pilot-app/ui/components/button";
+import { cn } from "@tts-pilot-app/ui/lib/utils";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { PRESET_TEXT, presetVoiceIds } from "@/lib/preset-view";
 import {
 	countLine,
 	EMPTY_LIBRARY_FILTERS,
@@ -25,6 +27,7 @@ import { client, OWNED_LIST } from "@/utils/orpc";
 import { CastingWorkspace } from "./casting-workspace";
 import { LibraryFilters as FiltersBar } from "./library-filters";
 import { LoopbackNotice, Notice } from "./notice";
+import { usePresetList } from "./presets";
 import { SamplePlayerProvider } from "./sample-player";
 import { savedListKey, useClassLists, useSavedList } from "./saved-voices";
 import { RowSkeleton } from "./voice-list-parts";
@@ -54,6 +57,8 @@ function Library() {
 	const queryClient = useQueryClient();
 	const list = useSavedList();
 	const { channels, classes, loaded, failed } = useClassLists();
+	const presets = usePresetList();
+	const presetVoices = presetVoiceIds(presets.data ?? []);
 	const searchRef = useRef<HTMLInputElement>(null);
 	const statusRef = useRef<HTMLParagraphElement>(null);
 	const listRef = useRef<HTMLUListElement>(null);
@@ -90,10 +95,22 @@ function Library() {
 	const known = new Set([...channels, ...classes].map((entry) => entry.id));
 	const filters = { ...(loaded ? knownOnly(raw, known) : raw), q: query };
 	const items = list.data ?? [];
-	const shown = filterSaved(items, filters);
+	const shown = filterSaved(items, filters, presetVoices);
 	const voices = shown.map((item) => item.voice);
 	const keys = voices.map(voiceKey);
 	const unavailable = items.filter((item) => item.unavailable).length;
+	// '프리셋' 보기의 결과 0명 원인(브리프 7절): 받아 둔 목록 없이 실패 → 다시 받기, 받는 중 → 안내 없음(상태 줄 덧붙임만),
+	// 프리셋에 쓰는 성우가 없음 → 전용 빈 상태. 그 밖(프리셋 성우가 있는데 검색·조건으로 0명)은 기존 '조건 결과 0명'이다
+	const presetEmpty =
+		filters.view !== "preset"
+			? null
+			: !presets.data
+				? presets.isError
+					? "failed"
+					: "loading"
+				: presetVoices.size === 0
+					? "none"
+					: null;
 
 	// 고른 성우가 조건에서 빠지면(별·자주 사용 해제, 빼기) 다음 행 → 이전 행을 고르고, 포커스가 사라졌으면 그 행으로(계획 리뷰 D8).
 	// 바깥 변화(캐시 갱신)에 DOM 포커스를 맞추는 일이라 effect다. 이전 목록은 effect 안에서만 ref에 적는다
@@ -134,7 +151,9 @@ function Library() {
 	function commit(next: LibraryFilters) {
 		writeQuery(next);
 		if (list.data)
-			setAnnounced(countLine(items.length, filterSaved(items, next).length));
+			setAnnounced(
+				countLine(items.length, filterSaved(items, next, presetVoices).length),
+			);
 	}
 	// 대기 중인 검색 타이머는 지운다(누른 때의 조건으로 주소를 덮지 않게). 최신 검색어를 함께 쓴다
 	function setFilters(next: LibraryFilters) {
@@ -181,6 +200,12 @@ function Library() {
 						? ` · ${LIBRARY_TEXT.unavailable} ${unavailable}명`
 						: null}
 					{check.isFetching ? ` · ${LIBRARY_TEXT.checking}` : null}
+					{filters.view === "preset" && presets.isPending
+						? ` · ${PRESET_TEXT.loading}`
+						: null}
+					{filters.view === "preset" && presets.isError
+						? ` · ${PRESET_TEXT.listFailed}`
+						: null}
 				</p>
 				{hasLibraryFilters(filters) ? (
 					<Button variant="link" size="lg" onClick={clearAll}>
@@ -213,17 +238,18 @@ function Library() {
 						</div>
 					) : items.length === 0 ? (
 						<Notice title={LIBRARY_TEXT.empty}>
+							{/* cn 없이 쓰면 기본 border-transparent가 outline 테두리를 지운다(critique P2) */}
 							<Link
 								href="/casting"
-								className={buttonVariants({ variant: "outline", size: "lg" })}
+								className={cn(
+									buttonVariants({ variant: "outline", size: "lg" }),
+								)}
 							>
 								{LIBRARY_TEXT.toCasting}
 								<ArrowRight data-icon="inline-end" aria-hidden="true" />
 							</Link>
 						</Notice>
-					) : shown.length === 0 ? (
-						<NoMatches onClear={clearAll} />
-					) : (
+					) : shown.length > 0 ? (
 						<RowList
 							ref={listRef}
 							voices={voices}
@@ -233,6 +259,30 @@ function Library() {
 							panelId={panelId}
 							refreshing={false}
 						/>
+					) : presetEmpty === "failed" ? (
+						<ReloadRow
+							text={PRESET_TEXT.listFailed}
+							reloading={presets.isFetching}
+							onReload={() => void presets.refetch()}
+						/>
+					) : presetEmpty === "loading" ? null : presetEmpty === "none" ? (
+						// '조건 모두 해제'는 두지 않는다(누르면 '전체' 보기로 돌아가 이 보기를 잃는다)
+						<Notice
+							title={PRESET_TEXT.noPresetVoices}
+							description={PRESET_TEXT.noPresetVoicesDetail}
+						>
+							<Link
+								href="/casting"
+								className={cn(
+									buttonVariants({ variant: "outline", size: "lg" }),
+								)}
+							>
+								{PRESET_TEXT.toCasting}
+								<ArrowRight data-icon="inline-end" aria-hidden="true" />
+							</Link>
+						</Notice>
+					) : (
+						<NoMatches onClear={clearAll} />
 					)
 				}
 			</CastingWorkspace>

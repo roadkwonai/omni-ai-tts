@@ -31,6 +31,7 @@ const item = (
 		classificationIds: string[];
 	}> = {},
 ) => ({
+	id: `saved-${voiceId}`,
 	voice: {
 		provider: extra.provider ?? "typecast",
 		voiceId,
@@ -119,6 +120,24 @@ describe("filterSaved(그룹 안 OR, 그룹끼리 AND)", () => {
 			classificationIds: ["cat1", "ty1"],
 		}),
 	];
+	it("'프리셋' 보기는 프리셋에 쓰는 성우만(집합이 없으면 아무도 없다)", () => {
+		const only = (presets: ReadonlySet<string>) =>
+			filterSaved(
+				items,
+				{ ...EMPTY_LIBRARY_FILTERS, view: "preset" },
+				presets,
+			).map((i) => i.voice.voiceId);
+		expect(only(new Set(["saved-b"]))).toEqual(["b"]);
+		expect(only(new Set())).toEqual([]);
+	});
+	it("view=preset 쿼리를 읽고 쓴다", () => {
+		expect(filtersFromQuery(new URLSearchParams("view=preset")).view).toBe(
+			"preset",
+		);
+		expect(queryFromFilters({ ...EMPTY_LIBRARY_FILTERS, view: "preset" })).toBe(
+			"view=preset",
+		);
+	});
 	const ids = (f: Partial<typeof EMPTY_LIBRARY_FILTERS>) =>
 		filterSaved(items, { ...EMPTY_LIBRARY_FILTERS, ...f }).map(
 			(i) => i.voice.voiceId,

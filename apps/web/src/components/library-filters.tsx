@@ -24,20 +24,22 @@ import {
 
 import { type AxisView, VoiceConditions } from "./voice-conditions";
 
-// voice-casting.tsx의 sourceItem(출처 전환 칸)과 같다. 그 모듈(캐스팅 전체)을 이 화면 번들에 끌어오지 않으려고 옮겨 적었다
+// voice-casting.tsx의 sourceItem(출처 전환 칸)을 옮겨 적고 안쪽 여백만 px-4 → px-3 md:px-4로 바꿨다(보기 칸 넷이 좁은 폭에 들어가게, 브리프 7절 D9).
+// 그 모듈(캐스팅 전체)을 이 화면 번들에 끌어오지 않으려고 옮겨 적었다
 const viewItem =
-	"min-h-11 shrink-0 px-4 text-muted-foreground focus-visible:z-10 data-pressed:bg-card data-pressed:font-bold data-pressed:text-foreground data-pressed:ring-1 data-pressed:ring-border";
+	"min-h-11 shrink-0 px-3 md:px-4 text-muted-foreground focus-visible:z-10 data-pressed:bg-card data-pressed:font-bold data-pressed:text-foreground data-pressed:ring-1 data-pressed:ring-border";
 
 const VIEWS: { value: LibraryView; label: string }[] = [
 	{ value: "all", label: "전체" },
 	{ value: "favorite", label: "즐겨찾기" },
 	{ value: "frequent", label: "자주 사용" },
+	{ value: "preset", label: "프리셋" },
 ];
 const PROVIDER_OPTIONS = Object.entries(PROVIDER_LABEL).map(
 	([value, label]) => ({ value, label }),
 );
 
-// 보관함 조건 줄(브리프 B4): 캐스팅 조건 줄(VoiceConditions) 그대로 검색 → 보기 세 칸 → 공급자(하나) → 채널·카테고리·타입(여럿, 이름순).
+// 보관함 조건 줄(브리프 B4): 캐스팅 조건 줄(VoiceConditions) 그대로 검색 → 보기 네 칸 → 공급자(하나) → 채널·카테고리·타입(여럿, 이름순).
 // 채널·분류 목록을 받는 중이면 그 드롭다운은 잠기고(선택지도 사유도 없음), 실패면 사유 한 줄, 비었으면 안내와 '채널·분류에서 만들기'
 export function LibraryFilters({
 	filters,

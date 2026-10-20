@@ -127,9 +127,10 @@ export function Problem({
 	const actions = (
 		<>
 			{copy.connections ? (
+				// cn 없이 쓰면 기본 border-transparent가 outline 테두리를 지운다(critique P2)
 				<Link
 					href="/connections"
-					className={buttonVariants({ variant: "outline", size: "lg" })}
+					className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
 				>
 					연결 상태 보기
 				</Link>

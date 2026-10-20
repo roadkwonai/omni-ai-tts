@@ -24,22 +24,15 @@ import {
 	deleteInputSchema,
 } from "../classification-contract";
 import { protectedProcedure } from "../index";
-import { dbCode, found, stored as sharedStored } from "../voice-cache";
+import {
+	found,
+	isUniqueViolation,
+	stored as sharedStored,
+} from "../voice-cache";
 
-// 같은 그룹 같은 이름: 이름 유니크 인덱스(schema/classification.ts) 위반 23505만 본다. drizzle은 pg 오류를 cause에 넣는다(계획 리뷰 E9)
-const NAME_INDEXES = new Set(["channel_name", "classification_name"]);
-function isDuplicateName(error: unknown): boolean {
-	const constraint = (error as { cause?: { constraint?: unknown } } | null)
-		?.cause?.constraint;
-	return (
-		dbCode(error) === "23505" &&
-		typeof constraint === "string" &&
-		NAME_INDEXES.has(constraint)
-	);
-}
-
+// 같은 그룹 같은 이름: 이름 유니크 인덱스(schema/classification.ts) 위반만 본다
 const duplicateName = (error: unknown) =>
-	isDuplicateName(error)
+	isUniqueViolation(error, "channel_name", "classification_name")
 		? new ORPCError("CONFLICT", { data: { reason: "duplicate_name" } })
 		: null;
 

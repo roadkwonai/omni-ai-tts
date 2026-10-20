@@ -16,7 +16,7 @@ import { anyOf } from "./voice-filter";
 export const savedKey = (voice: Pick<Voice, "provider" | "voiceId">) =>
 	`${voice.provider}:${voice.voiceId}`;
 
-export type LibraryView = "all" | "favorite" | "frequent";
+export type LibraryView = "all" | "favorite" | "frequent" | "preset";
 export type LibraryFilters = {
 	q: string;
 	view: LibraryView;
@@ -34,7 +34,7 @@ export const EMPTY_LIBRARY_FILTERS: LibraryFilters = {
 	type: [],
 };
 
-const VIEWS: readonly LibraryView[] = ["all", "favorite", "frequent"];
+const VIEWS: readonly LibraryView[] = ["all", "favorite", "frequent", "preset"];
 
 // 필터는 주소 쿼리가 정본이다('성우 N명' 링크가 이 주소로 온다, 스펙 2절). 모르는 값은 기본값이다
 export function filtersFromQuery(params: URLSearchParams): LibraryFilters {
@@ -79,6 +79,7 @@ export function knownOnly(
 }
 
 type SavedLike = {
+	id: string;
 	voice: Pick<Voice, "provider" | "voiceId" | "name" | "englishName">;
 	favorite: boolean;
 	frequent: boolean;
@@ -91,15 +92,20 @@ type SavedLike = {
 export const foldName = (text: string) =>
 	cleanText(text).toLocaleLowerCase("ko");
 
+// '프리셋' 보기는 프리셋에 쓰는 담은 성우 id 집합으로 거른다(presetVoiceIds, T8)
 // 같은 그룹 안은 하나라도 맞으면(OR), 그룹끼리는 모두 맞아야(AND). 카테고리·타입 id는 uuid라 classificationIds 하나에서 함께 찾는다
 export function filterSaved<T extends SavedLike>(
 	items: readonly T[],
 	filters: LibraryFilters,
+	presetVoices: ReadonlySet<string> = new Set(),
 ): T[] {
 	const q = foldName(filters.q);
 	return items.filter(
 		(item) =>
-			(filters.view === "all" || item[filters.view]) &&
+			(filters.view === "all" ||
+				(filters.view === "preset"
+					? presetVoices.has(item.id)
+					: item[filters.view])) &&
 			(filters.provider === null || item.voice.provider === filters.provider) &&
 			anyOf(filters.channel, item.channelIds) &&
 			anyOf(filters.category, item.classificationIds) &&

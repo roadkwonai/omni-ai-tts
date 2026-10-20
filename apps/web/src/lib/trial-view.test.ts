@@ -10,10 +10,12 @@ import {
 import { describe, expect, it } from "vitest";
 
 import {
+	AIRY_STYLE_LABEL,
 	costCopy,
 	dataNote,
 	modelOptionsOf,
 	needsConfirm,
+	optionText,
 	presetsOf,
 	remainingLabel,
 	remainingLines,
@@ -41,6 +43,44 @@ const voice = (over: Partial<Voice>): Voice =>
 		models: [],
 		...over,
 	}) as Voice;
+
+const AIRY_CALM = AIRY_STYLE_LABEL.calm;
+
+describe("optionText(옵션 이름·값 글자)", () => {
+	it("모델·감정 모드·감정·태그·말투 지시·언어·Airy 말투·슬라이더", () => {
+		expect(optionText("typecast", "model", "ssfm-v21")).toEqual({
+			label: "모델",
+			value: "ssfm-v21",
+		});
+		expect(optionText("typecast", "emotion", "smart").value).toBe("자동");
+		expect(optionText("typecast", "preset", "happy")).toEqual({
+			label: "감정",
+			value: "기쁨",
+		});
+		expect(optionText("elevenlabs", "tag", "")).toEqual({
+			label: "말투 태그",
+			value: "없음",
+		});
+		expect(optionText("fish_audio", "tag", "excited").value).toBe("[excited]");
+		expect(optionText("gemini", "direction", "")).toEqual({
+			label: "말투 지시",
+			value: "없음",
+		});
+		expect(optionText("typecast", "language", "kor").value).toBe("한국어");
+		expect(optionText("airy", "style", "calm")).toEqual({
+			label: "말투",
+			value: AIRY_CALM,
+		});
+		expect(optionText("elevenlabs", "style", 0.3)).toEqual({
+			label: "스타일",
+			value: "0.30",
+		});
+		expect(optionText("typecast", "tempo", 1.1)).toEqual({
+			label: "속도",
+			value: "1.10배",
+		});
+	});
+});
 
 describe("requestOf", () => {
 	it("Typecast 성우가 지원하지 않는 모델·프리셋은 그 성우의 첫 지원 값으로 보정한다", () => {

@@ -317,3 +317,14 @@ export function found<T>(row: T | undefined): T {
 	if (!row) throw new ORPCError("NOT_FOUND");
 	return row;
 }
+
+// 유니크 인덱스 위반(23505)이고 그 인덱스가 names 가운데 하나인가(이름 중복 → CONFLICT). drizzle은 pg 오류를 cause에 넣는다(T6 계획 리뷰 E9)
+export function isUniqueViolation(error: unknown, ...names: string[]): boolean {
+	const constraint = (error as { cause?: { constraint?: unknown } } | null)
+		?.cause?.constraint;
+	return (
+		dbCode(error) === "23505" &&
+		typeof constraint === "string" &&
+		names.includes(constraint)
+	);
+}

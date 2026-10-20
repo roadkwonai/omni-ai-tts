@@ -48,7 +48,7 @@ const goneLink = (error: unknown) =>
 type Row = typeof savedVoice.$inferSelect;
 
 // 저장한 정보가 계약과 어긋나면(계약이 바뀐 옛 행) 이름 자리에 성우 id를 보인다. 다음 확인에서 새 값으로 바뀐다(스펙 3절)
-function voiceOf(row: Row): Voice {
+export function voiceOf(row: Row): Voice {
 	return (
 		voiceSchema.safeParse(row.voice).data ?? {
 			...emptyVoice(row.provider, row.source),
@@ -103,7 +103,7 @@ async function listOf(
 
 // 담기: 공급자 + 성우 id로 upsert(조회 후 삽입이 아니라 유니크 제약이 막는다, data-upsert).
 // 새로 담기면 지금 확인한 것으로 본다(살아 있는 목록에서 담았다). 이미 있으면 정보·출처와 준 필드만 바꾸고 이용 가능 표시는 확인에 맡긴다
-async function upsert(
+export async function upsert(
 	db: Db | Tx,
 	ownerId: string,
 	voice: Voice,

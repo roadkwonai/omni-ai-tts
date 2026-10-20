@@ -44,7 +44,7 @@ export type ClassItem = {
 };
 
 // 행의 아이콘 버튼(44px, 툴팁). 접근 이름은 '{이름} 고치기'처럼 항목 이름을 담는다(사용자 결정 2026-10-06, T5 결과 행과 같다)
-function RowAction({
+export function RowAction({
 	id,
 	label,
 	tip,
@@ -87,7 +87,7 @@ const linkClass =
 	"flex min-h-11 w-fit items-center gap-1 rounded-md text-primary text-sm underline-offset-4 outline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-ring";
 
 // 목록 그릇. 빈 상태도 같은 그릇이라 첫 항목을 만들 때 자리가 튀지 않는다(브리프 5절 B1)
-const boxClass = "rounded-2xl bg-card ring-1 ring-border ring-inset";
+export const boxClass = "rounded-2xl bg-card ring-1 ring-border ring-inset";
 
 // 묶음 하나(머리, 행 목록 또는 로딩·빈·오류). 입력 창과 삭제 확인을 열 때만 마운트하고(계획 리뷰 P12), 연 버튼을 기억한다(E6).
 // 닫힌 뒤 포커스: 취소·저장은 연 버튼, 지운 뒤는 다음 행 → 이전 행 → '만들기'(사용자 결정), 없어진 항목은 '만들기'
