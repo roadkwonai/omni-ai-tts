@@ -5,7 +5,7 @@ API와 TTS 공급자(Typecast, ElevenLabs, Fish Audio) 연동은 모두 `package
 구현 방식은 다음과 같다.
 - 공급자 호출은 공식 TypeScript SDK(`@neosapience/typecast-js`, `@neosapience/typecast-autotag`, `@elevenlabs/elevenlabs-js`)를 쓴다.
 - Fish Audio는 TypeScript SDK가 초기판(`fish-audio` 0.1.0)이라 REST를 직접 부른다.
-- 결합, 무음 압축, 음량 정규화, 형식 변환 같은 오디오 후처리는 Node에서 ffmpeg를 부른다.
+- 결합, 무음 압축, 음량 정규화, 형식 변환 같은 오디오 후처리는 Node에서 ffmpeg를 부른다. (문단 작업실의 한 파일 결합은 예외로 브라우저에서 한다: [ADR 0007](0007-paragraph-join-in-browser.md))
 - 파형, 구간, 영상 편집 화면은 브라우저에서 만든다.
 - 영상 렌더링 방식은 영상 기능을 설계할 때 정한다.
 

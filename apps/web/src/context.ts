@@ -19,6 +19,7 @@ export function createContext(req: Request): Context {
 					fish_audio: ENV.FISH_AUDIO_API_KEY,
 					airy: ENV.AIRY_API_KEY,
 					gemini: ENV.GEMINI_API_KEY,
+					openai: ENV.OPENAI_API_KEY,
 				})
 			: null,
 	};

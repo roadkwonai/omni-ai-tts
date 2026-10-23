@@ -25,7 +25,6 @@ import { toast } from "sonner";
 
 import { blobUrls } from "@/lib/blob-urls";
 import { saveBlob } from "@/lib/browser";
-import { joinSounds } from "@/lib/drama-join";
 import {
 	interrupted,
 	isReadKey,
@@ -53,10 +52,11 @@ import {
 	readBlockOf,
 	zipFileName,
 } from "@/lib/drama-view";
-import { zipStore } from "@/lib/drama-zip";
 import type { Current } from "@/lib/sample-state";
+import { joinSounds } from "@/lib/sound-join";
 import { listLoad } from "@/lib/studio-view";
 import { trialFailureOf } from "@/lib/trial-view";
+import { zipStore } from "@/lib/zip-store";
 import { client, orpc, QUIET } from "@/utils/orpc";
 
 import { dramaFieldId, useDrama, useLines } from "./drama-provider";

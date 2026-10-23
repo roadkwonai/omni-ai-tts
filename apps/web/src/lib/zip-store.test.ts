@@ -1,8 +1,8 @@
-// apps/web/src/lib/drama-zip.test.ts
+// apps/web/src/lib/zip-store.test.ts
 import { cutWav, wavOf } from "@tts-pilot-app/api/drama-script";
 import { describe, expect, it } from "vitest";
 
-import { zipStore } from "./drama-zip";
+import { zipStore } from "./zip-store";
 
 const enc = new TextEncoder();
 const LOCAL = 0x04034b50;

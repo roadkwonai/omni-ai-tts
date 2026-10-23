@@ -96,7 +96,7 @@ const PROVIDER_OPTIONS = PROVIDER_IDS.map((value) => ({
 const noop = () => {};
 
 // 담은 성우·프리셋 탭의 받는 중: 줄 높이 뼈대 셋(브리프 5.7)
-function LoadingRows() {
+export function LoadingRows() {
 	return (
 		<div aria-busy="true" className="flex flex-col gap-2">
 			<Skeleton aria-hidden="true" className="h-16 w-full rounded-xl" />
@@ -108,7 +108,7 @@ function LoadingRows() {
 
 // 담은 성우·프리셋 탭의 목록 실패 줄(브리프 5.7): 경고색 사유 + '다시 불러오기'.
 // 다시 받는 동안에도 남는다(포커스를 쥔 버튼이 사라지지 않게, T9 QA-1)
-function FailedRow({
+export function FailedRow({
 	text,
 	reloading,
 	onReload,
@@ -131,10 +131,9 @@ function FailedRow({
 	);
 }
 
-// '담은 성우' 탭의 성우 한 줄. 음성 작업실 창(studio-voice-dialog VoiceOption, 브리프 studio 5.5)의 줄 그대로에
+// '담은 성우' 탭의 성우 한 줄. 문단 작업실 성우 창(voice-picker-dialog)과 함께 쓴다.
 // 다른 화자가 같은 성우를 쓰면 이름 뒤 회색 배지 usedBy를 더한다(막지 않는다, 브리프 5.7).
-// shortcut: VoiceOption을 복사했다(그 파일은 이 작업 범위 밖), 줄 모양이 다시 바뀌면 공용 컴포넌트로 뺀다
-function SavedOption({
+export function SavedOption({
 	item,
 	now,
 	chosen,
@@ -145,8 +144,8 @@ function SavedOption({
 	item: SavedVoice;
 	now: Date;
 	chosen: boolean;
-	// 이 성우를 쓰는 다른 화자 이름들. 없으면 null
-	usedBy: string | null;
+	// 이 성우를 쓰는 다른 화자 이름들. 없거나 주지 않으면 배지를 그리지 않는다
+	usedBy?: string | null;
 	onPick: () => void;
 	// 창이 열릴 때 첫 포커스(브리프 7절)
 	ref?: Ref<HTMLButtonElement>;
@@ -230,7 +229,7 @@ function SavedOption({
 }
 
 // '프리셋' 탭의 한 줄(브리프 14절 2): 공용 샘플 → 고르기 버튼 '프리셋 이름 · 성우 이름 · 공급자'. 목록은 이용 가능한 성우의 프리셋만이다
-function PresetOption({
+export function PresetOption({
 	preset,
 	voice,
 	chosen,

@@ -34,7 +34,7 @@ export const DRAMA_TAKES_ID = "drama-takes";
 const rowId = (id: string) => `drama-take-${id}`;
 
 // 테이크 목록 첫 받기 실패(브리프 5.10 무대·5.11 이전 테이크): 경고 + outline '다시 불러오기'(채운 청록은 막대의 주 버튼 하나, 브리프 3절).
-// 다시 받는 동안 같은 버튼이 스피너·aria-busy로 남아 포커스를 지킨다(T9 studio-results·ReloadButton과 같다)
+// 다시 받는 동안 같은 버튼이 스피너·aria-busy로 남아 포커스를 지킨다(ReloadButton과 같다)
 export function TakesFailed({ headingId }: { headingId: string }) {
 	const drama = useDrama();
 	const fetching = drama.takesFetching;
@@ -140,7 +140,7 @@ function TakeRow({
 					</p>
 				) : null}
 			</div>
-			{/* 44px 버튼 가운데를 첫 줄에 맞추는 보정은 가로 배치에서만(studio-results와 같다) */}
+			{/* 44px 버튼 가운데를 첫 줄에 맞추는 보정은 가로 배치에서만 */}
 			<div className="flex shrink-0 items-center gap-1 self-end sm:-my-2.5 sm:self-auto">
 				{unknown || onStage ? null : (
 					<Button
@@ -171,7 +171,7 @@ function TakeRow({
 // 지운 뒤 포커스는 다음 줄 → 이전 줄의 첫 버튼 → 무대 제목(구역이 사라진다)
 export function DramaTakes() {
 	const drama = useDrama();
-	// 목록을 받은 시각을 '지금'으로 본다(렌더 중 new Date()는 React Compiler가 첫 값으로 기억한다, studio-results와 같다).
+	// 목록을 받은 시각을 '지금'으로 본다(렌더 중 new Date()는 React Compiler가 첫 값으로 기억한다).
 	// 같은 쿼리의 두 번째 관찰자라 다시 받지 않고(OWNED_LIST 30초), 미확인 15초 다시 받기는 provider 관찰자가 한다
 	const list = useQuery(orpc.dramaList.queryOptions(OWNED_LIST));
 	const remove = useMutation(orpc.dramaDelete.mutationOptions());

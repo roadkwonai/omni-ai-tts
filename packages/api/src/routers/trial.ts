@@ -1,13 +1,10 @@
-import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 
-import type { Context } from "../context";
 import { DRAMA_LINES_MAX } from "../drama-script";
 import { protectedProcedure } from "../index";
 import { providerIdSchema } from "../providers/contract";
-import { providerError, trialError } from "../providers/errors";
+import { trialError } from "../providers/errors";
 import {
-	type TrialErrorData,
 	trialAudioSchema,
 	trialCreateInputSchema,
 	trialFoundSchema,
@@ -38,24 +35,12 @@ import {
 	sweep,
 	withStorage,
 } from "../trial";
-import { cachedList, cooldownOf, guard } from "../voice-cache";
+import { cooldownOf, guard } from "../voice-cache";
+import { elevenLabsRates, rateFor } from "./rates";
 
 // 공급자 응답 오디오 상한. 200자 MP3는 1MB 안팎이다(스펙 4절, Vercel 응답 4.5MB). Typecast MP3는 320kbps라
 // 200자를 속도 0.5로 들으면 상한에 닿을 수 있다. 넘으면 이미 과금된 결과라도 버리고 "문장을 줄이거나 속도를 올려"를 보인다(계획 리뷰 E8). Gemini WAV는 1분 약 2.88MB라 약 87초에서 닿는다(T7.6)
 const MAX_AUDIO_BYTES = 4 * 1024 * 1024;
-
-// ElevenLabs 모델 크레딧 배율. 목록 캐시(24시간, 소유자 없음)를 거친다
-async function elevenLabsRates(context: Context) {
-	const listModels = context.providers?.elevenlabs?.listModels;
-	if (!listModels) throw providerError("elevenlabs", "no_key");
-	return cachedList(
-		context.db,
-		{ ownerId: null, provider: "elevenlabs", kind: "models" },
-		{},
-		z.array(trialModelRateSchema),
-		listModels,
-	);
-}
 
 // 시험 생성('내 문장 듣기', T5 스펙 5절). 크레딧을 쓰는 길은 trialCreate 하나다. 나머지는 DB만 본다(trialModels는 무료 목록 조회)
 export const trialRouter = {
@@ -110,37 +95,7 @@ export const trialRouter = {
 				throw trialError(provider, "rate_limit", {
 					retryAt: until.toISOString(),
 				});
-			// 일반 배율 조회 실패는 배율 1로 계속하지만 429와 대기 시각은 버리지 않는다.
-			let rate: number | null = null;
-			let modelRetryAt: string | null | undefined;
-			if (request.provider === "elevenlabs") {
-				try {
-					const models = await elevenLabsRates(context);
-					rate =
-						models.value.find((r) => r.model === request.settings.model)
-							?.multiplier ?? null;
-					if (models.stale?.reason === "rate_limit")
-						modelRetryAt = models.stale.retryAt;
-				} catch (error) {
-					const data =
-						error instanceof ORPCError
-							? (error.data as Partial<TrialErrorData> | undefined)
-							: undefined;
-					if (data?.reason === "rate_limit")
-						modelRetryAt = data.retryAt ?? null;
-				}
-			}
-			const latestUntil = await withStorage(provider, () =>
-				cooldownOf(db, provider, new Date()),
-			);
-			if (latestUntil)
-				throw trialError(provider, "rate_limit", {
-					retryAt: latestUntil.toISOString(),
-				});
-			if (modelRetryAt !== undefined)
-				throw trialError(provider, "rate_limit", {
-					retryAt: modelRetryAt ?? undefined,
-				});
+			const rate = await rateFor(context, request);
 			const usage = estimate(request, rate);
 			const claimed = await withStorage(provider, () =>
 				claim(db, {

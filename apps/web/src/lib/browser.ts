@@ -1,5 +1,5 @@
 // apps/web/src/lib/browser.ts
-// 화면이 함께 쓰는 브라우저 도우미(음성 작업실·드라마 작업실). studio-provider.tsx에서 그대로 옮겼다(계획 '스펙과 다른 점' 9)
+// 화면이 함께 쓰는 브라우저 도우미(음성 작업실·드라마 작업실)
 
 // 이 브라우저 저장소(임시 작업). 사생활 보호 창·용량 초과·꺼짐이면 던지므로 조용히 넘긴다(client-localstorage-schema)
 export function loadStored(key: string): string | null {

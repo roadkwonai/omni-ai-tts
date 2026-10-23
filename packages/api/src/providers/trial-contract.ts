@@ -84,6 +84,16 @@ export const geminiSettingsSchema = z.object({
 		.regex(/^[^\r\n]*$/)
 		.default(""),
 });
+// 줄·문단의 연기 칸(Typecast 감정과 Airy 말투, drama-acting의 Feel). 드라마·작업실 계약이 함께 쓴다(studio-contract가 drama-contract를 import하면 순환이다)
+export const feelSchema = z.object({
+	typecast: z
+		.object({
+			emotion: z.enum(["smart", ...EMOTION_PRESETS]),
+			intensity: z.number().min(0).max(2),
+		})
+		.optional(),
+	airy: z.object({ style: z.enum(AIRY_STYLES) }).optional(),
+});
 
 // 공급자 성우 id: Typecast tc_·uc_, ElevenLabs 20자, Fish Audio 32자 16진, Airy 16자리 16진(실측), Gemini 소문자 이름(kore)·ko-kr-역할-번호(실측). ElevenLabs 경로에 그대로 들어가므로 글자를 묶는다
 export const voiceIdSchema = z.string().regex(/^[A-Za-z0-9_-]{1,100}$/);
@@ -196,7 +206,8 @@ export const trialFailureSchema = z.enum([
 export type TrialFailure = z.infer<typeof trialFailureSchema>;
 // 시험 생성 오류의 data. provider_input이면 공급자 오류 코드(화면이 문구를 고른다). 저장소 오류는 공급자가 없을 수 있다(결과 id로 부를 때)
 export type TrialErrorData = Omit<ProviderErrorData, "provider" | "reason"> & {
-	provider?: ProviderErrorData["provider"];
+	// openai는 자동 태그 텍스트 호출만(TTS 공급자가 아니다, T10 스펙 16.2)
+	provider?: ProviderErrorData["provider"] | "openai";
 	reason: TrialFailure;
 	providerCode?: string;
 };

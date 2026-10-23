@@ -1,7 +1,8 @@
-// apps/web/src/lib/drama-zip.ts
+// apps/web/src/lib/zip-store.ts
 // '모두 받기' zip(스펙 2절). WAV는 압축 효과가 작아 저장 방식(0)만 쓰고, 새 의존성 없이 PKZIP 머리를 직접 쓴다.
 // 조각을 하나로 이어 붙이지 않고 Blob이 뷰를 그대로 담는다(계획 리뷰 E13)
-// shortcut: zip64 없음(파일·전체 4GiB 미만). 32MiB 장면 + 대사 50개면 넉넉하다. 더 큰 묶음이 생기면 zip64 끝 레코드를 더한다
+// shortcut: zip64 없음(파일·전체 4GiB 미만). 드라마는 32MiB 장면 + 대사 50개라 넉넉하고, 문단 작업실은 문단 200개(결과마다 32MiB 상한)라
+// 이론상 넘을 수 있다. 더 큰 묶음이 실제로 생기면 zip64 끝 레코드를 더한다
 
 const LOCAL = 0x04034b50;
 const CENTRAL = 0x02014b50;

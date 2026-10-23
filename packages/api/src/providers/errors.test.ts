@@ -21,6 +21,8 @@ describe("reasonFromHttp", () => {
 		expect(reasonFromHttp(401)).toBe("provider_auth");
 		expect(reasonFromHttp(403)).toBe("provider_auth");
 		expect(reasonFromHttp(402)).toBe("quota");
+		expect(reasonFromHttp(429, ["insufficient_quota"])).toBe("quota");
+		expect(reasonFromHttp(429, [])).toBe("rate_limit");
 		expect(reasonFromHttp(429)).toBe("rate_limit");
 		expect(reasonFromHttp(400)).toBe("provider_input");
 		expect(reasonFromHttp(422)).toBe("provider_input");

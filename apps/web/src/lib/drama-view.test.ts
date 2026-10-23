@@ -31,7 +31,6 @@ import {
 	autoTagChanges,
 	autoTagInput,
 	autoTagNotes,
-	autoTagProblemText,
 	badgeEdit,
 	badSpeakerNames,
 	barReason,
@@ -50,7 +49,6 @@ import {
 	feelPatch,
 	feelText,
 	firstEmptySpeaker,
-	insertSound,
 	joinFileName,
 	lineFileName,
 	lineText,
@@ -97,7 +95,6 @@ import {
 } from "./drama-view";
 import { announceOf, failedText, stoppedText } from "./sample-state";
 import { trialProblemText } from "./trial-view";
-import { retryTime } from "./voice-view";
 
 const NOW = Date.parse("2026-10-22T01:00:00.000Z");
 // 무료 기간(2026-11-30 0시 KST)과 drama-3 출시가(2026-11-12 0시 KST)가 모두 끝난 뒤
@@ -1042,26 +1039,6 @@ describe("대본 편집 도움", () => {
 		expect(nextSpeakerName([sp("지연"), sp("화자 3".normalize("NFD"))])).toBe(
 			"화자 4",
 		);
-	});
-	it("소리 뱃지는 커서 위치에 '태그 '를 넣고 커서를 그 뒤로(UTF-16 단위). 값은 태그 전체 글이다('스펙과 다른 점' 19)", () => {
-		expect(insertSound("안녕 하세요", 3, "[sighs]")).toEqual({
-			text: "안녕 [sighs] 하세요",
-			caret: 11,
-		});
-		expect(insertSound("", 0, "[clears throat]")).toEqual({
-			text: "[clears throat] ",
-			caret: 16,
-		});
-		// Gemini 꺾쇠도 같은 동작이다
-		expect(insertSound("가나", 1, "<sigh>")).toEqual({
-			text: "가<sigh> 나",
-			caret: 8,
-		});
-		// BMP 밖 글자(이모지)는 UTF-16 두 단위다. 커서도 textarea selectionStart와 같은 단위
-		expect(insertSound("😀가", 2, "[x]")).toEqual({
-			text: "😀[x] 가",
-			caret: 6,
-		});
 	});
 	it("범위 뱃지는 고른 글자를 감싸고 안쪽 글자를 고른다. 빈 범위면 빈 쌍과 가운데 커서", () => {
 		expect(wrapSpan("안녕 하세요", 3, 6, "whisper")).toEqual({
@@ -2157,7 +2134,6 @@ describe("드라마 문구(브리프 8절 정본)", () => {
 			t.pasteCarried("효정2"),
 			t.pasteReplaceNote(6),
 			t.replaced(6, 2),
-			t.badgeName("한숨", "[sighs]"),
 			t.samplingSummary("속도 1.20배"),
 			t.sceneSummary("S03_약속장소", 6, 261),
 			t.castPair("지연", "효정2"),
@@ -2192,7 +2168,6 @@ describe("드라마 문구(브리프 8절 정본)", () => {
 			"성우 이어 씀 · 효정2",
 			"바꾸면 지금 대본 6줄이 이 글로 바뀌어요",
 			"대본을 바꿨어요. 6줄, 화자 2명.",
-			"한숨, [sighs]",
 			"샘플링 · 속도 1.20배",
 			"S03_약속장소 · 6줄 · 261자",
 			"지연 → 효정2",
@@ -2230,12 +2205,11 @@ describe("드라마 문구(브리프 8절 정본)", () => {
 			autoTag: "전체 자동 태그",
 			autoTagTitle: "대본을 보내 연기 값을 제안받을까요?",
 			autoTagBody:
-				"Gemini 텍스트 모델(gemini-3.8-flash)로 대본을 보내요. 예상 약 $0.01. 키가 무료 등급이면 Google이 보낸 대본을 학습에 쓸 수 있어요",
+				"OpenAI 텍스트 모델(gpt-6-luna)로 대본을 보내요. 3번 실패하면 Gemini(gemini-3.8-flash)로 보내요. 예상 약 $0.01. Gemini 키가 무료 등급이면 Google이 보낸 대본을 학습에 쓸 수 있어요",
 			autoTagGo: "제안 받기",
 			autoTagPreviewTitle: "자동 태그 제안",
 			autoTagNone: "바꿀 값이 없어요",
 			autoTagApply: "모두 바꾸기",
-			autoTagReply: "제안을 읽지 못했어요. 다시 해 주세요",
 		});
 		expect([
 			t.readStop(3, 12),
@@ -2358,11 +2332,9 @@ describe("드라마 문구(브리프 8절 정본)", () => {
 		const t = DRAMA_TEXT;
 		// 지시 칸 이름(directionLabel)과 다르게 줄 메뉴 항목 '연기 지시 넣기'를 따른다
 		expect(t.toolbarName(3)).toBe("3번 줄 연기 지시 넣기");
-		expect(t.moreOf("소리")).toBe("소리 더 보기");
+		// 소리·분위기 짧은 이름과 메뉴 알약·뱃지 이름은 두 작업실 공용 TAG_TEXT로 옮겼다(tag-view.test.ts)
 		expect(t).toMatchObject({
-			soundShort: "소리",
 			spanShort: "범위",
-			moodShort: "분위기",
 			// 자동 태그 미리 보기가 지시 칸 이름으로 쓴다
 			palette: "연기 지시",
 		});
@@ -3058,39 +3030,5 @@ describe("전체 자동 태그(브리프 14절 배치 6, 스펙 14.5)", () => {
 		);
 		expect(feelText("airy", { value: "bright", intensity: null })).toBe("밝게");
 		expect(feelText("airy", null)).toBeNull();
-	});
-
-	it("오류: 답을 읽지 못함·대기 시각·받지 못함은 자동 태그 문구, 키·계정 문구는 T5 Gemini 그대로", () => {
-		const problem = (
-			reason: string,
-			extra: { retryAt?: string; providerCode?: string } = {},
-		) =>
-			({
-				reason,
-				retryAt: extra.retryAt ?? null,
-				providerCode: extra.providerCode ?? null,
-			}) as Parameters<typeof autoTagProblemText>[0];
-		expect(
-			autoTagProblemText(
-				problem("provider_input", { providerCode: "auto_tag_reply" }),
-			),
-		).toBe("제안을 읽지 못했어요. 다시 해 주세요");
-		const at = "2026-10-22T03:04:30.000Z";
-		expect(autoTagProblemText(problem("rate_limit", { retryAt: at }))).toBe(
-			`${retryTime(at)} 이후에 다시 제안받을 수 있어요`,
-		);
-		for (const reason of [
-			"provider_error",
-			"unknown_outcome",
-			"unexpected",
-			"odd_reason",
-		])
-			expect(autoTagProblemText(problem(reason))).toBe(
-				"제안을 받지 못했어요. 잠시 뒤 다시 해 주세요",
-			);
-		for (const reason of ["no_key", "provider_auth", "quota", "no_permission"])
-			expect(autoTagProblemText(problem(reason))).toBe(
-				trialProblemText("gemini", problem(reason)).text,
-			);
 	});
 });

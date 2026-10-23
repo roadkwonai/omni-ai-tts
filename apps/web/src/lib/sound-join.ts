@@ -1,4 +1,4 @@
-// apps/web/src/lib/drama-join.ts
+// apps/web/src/lib/sound-join.ts
 // 읽기로 들은 줄을 44.1kHz 16비트 모노 WAV 한 파일로 잇는다(스펙 15절). 서버·공급자 호출 없이 화면에서만 쓴다.
 import { DRAMA_SAMPLE_RATE, wavHeader } from "@tts-pilot-app/api/drama-script";
 
@@ -65,21 +65,39 @@ export function pcm16(samples: Float32Array): Uint8Array<ArrayBuffer> {
 	return bytes;
 }
 
-// [머리, part0, 무음0, part1, …]. 마지막 part 뒤에는 쉼이 없고, 복사 없이 Blob이 조각을 그대로 담는다
-export function joinWav(
-	parts: readonly Uint8Array<ArrayBuffer>[],
+// 조각 사이 쉼의 샘플 수. 앞뒤 숨(EDGE)이 이미 쉼을 채우므로 그만큼 뺀다
+function gapSamples(gap: number, rate: number): number {
+	return Math.max(0, Math.round((gap - 2 * EDGE_SECONDS) * rate));
+}
+
+// 조각 i의 시작·끝(초). 쉼은 조각 사이에만 있고 마지막 조각 뒤에는 없다
+export function spansOf(
+	sampleCounts: readonly number[],
 	gaps: readonly number[],
-): Uint8Array<ArrayBuffer>[] {
-	const body: Uint8Array<ArrayBuffer>[] = [];
+	rate: number,
+): { start: number; end: number }[] {
+	let at = 0;
+	return sampleCounts.map((count, i) => {
+		const start = at / rate;
+		at += count;
+		const end = at / rate;
+		if (i < sampleCounts.length - 1) at += gapSamples(gaps[i] ?? 0, rate);
+		return { start, end };
+	});
+}
+
+// [머리, part0, 무음0, part1, …]. 조각은 16비트 PCM Blob이다. 마지막 part 뒤에는 쉼이 없고, 복사 없이 Blob이 조각을 그대로 담는다
+export function joinWav(
+	parts: readonly Blob[],
+	gaps: readonly number[],
+): [Uint8Array<ArrayBuffer>, ...(Blob | Uint8Array<ArrayBuffer>)[]] {
+	const body: (Blob | Uint8Array<ArrayBuffer>)[] = [];
 	let bytes = 0;
 	parts.forEach((part, i) => {
 		body.push(part);
-		bytes += part.length;
+		bytes += part.size;
 		if (i === parts.length - 1) return;
-		const samples = Math.max(
-			0,
-			Math.round(((gaps[i] ?? 0) - 2 * EDGE_SECONDS) * DRAMA_SAMPLE_RATE),
-		);
+		const samples = gapSamples(gaps[i] ?? 0, DRAMA_SAMPLE_RATE);
 		if (samples === 0) return;
 		body.push(new Uint8Array(samples * 2));
 		bytes += samples * 2;
@@ -87,25 +105,31 @@ export function joinWav(
 	return [wavHeader(bytes), ...body];
 }
 
-// shortcut: 16비트 조각은 모두 쥔다(50줄 × 20초면 약 90MB + Blob 복사). 탭이 죽으면 조각을 더 일찍 Blob으로 넘긴다
-// 디코딩은 줄마다 차례로 하고 바로 16비트로 바꾼다(디코딩 결과를 모두 쥐지 않는다)
-export async function joinSounds(
+// 디코딩은 줄마다 차례로 하고 바로 16비트로 바꿔 Blob 조각으로 넘긴다(16비트 배열을 쥐지 않는다)
+export async function joinTimeline(
 	sounds: readonly { blob: Blob; gap: number }[],
-): Promise<Blob> {
+): Promise<{ blob: Blob; spans: { start: number; end: number }[] }> {
 	const context = new OfflineAudioContext(1, 1, DRAMA_SAMPLE_RATE);
-	const parts: Uint8Array<ArrayBuffer>[] = [];
+	const gaps = sounds.map((sound) => sound.gap);
+	const parts: Blob[] = [];
+	const counts: number[] = [];
 	for (const { blob } of sounds) {
 		const decoded = await context.decodeAudioData(await blob.arrayBuffer());
 		const channels = Array.from({ length: decoded.numberOfChannels }, (_, c) =>
 			decoded.getChannelData(c),
 		);
-		parts.push(pcm16(trimSilence(monoOf(channels))));
+		const pcm = pcm16(trimSilence(monoOf(channels)));
+		counts.push(pcm.length / 2);
+		parts.push(new Blob([pcm]));
 	}
-	return new Blob(
-		joinWav(
-			parts,
-			sounds.map((sound) => sound.gap),
-		),
-		{ type: "audio/wav" },
-	);
+	return {
+		blob: new Blob(joinWav(parts, gaps), { type: "audio/wav" }),
+		spans: spansOf(counts, gaps, DRAMA_SAMPLE_RATE),
+	};
+}
+
+export async function joinSounds(
+	sounds: readonly { blob: Blob; gap: number }[],
+): Promise<Blob> {
+	return (await joinTimeline(sounds)).blob;
 }

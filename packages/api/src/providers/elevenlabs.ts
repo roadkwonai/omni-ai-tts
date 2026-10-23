@@ -23,6 +23,7 @@ import {
 	runCheck,
 	runList,
 	runTrial,
+	type SynthesizeOptions,
 } from "./errors";
 import { clip, emptyVoice, parseVoiceItems, queryOf } from "./list";
 import { SAMPLE_HOST } from "./sample-hosts";
@@ -338,36 +339,44 @@ export function createElevenLabs(apiKey: string): ProviderClient {
 		};
 	}
 	return {
-		synthesize: (request: Extract<TrialRequest, { provider: "elevenlabs" }>) =>
-			runTrial("elevenlabs", async (signal) => {
-				const s = usedSettings(request) as Partial<ElevenLabsSettings> & {
-					model: ElevenLabsModel;
-				};
-				// SDK는 명시적 undefined를 null로 보낸다(설치본 직렬화, 계획 리뷰 E3). 그 모델이 받는 옵션만 키로 남긴다
-				const voiceSettings = Object.fromEntries(
-					Object.entries({
-						stability: s.stability,
-						similarityBoost: s.similarity,
-						style: s.style,
-						speed: s.speed,
-						useSpeakerBoost: s.speakerBoost,
-					}).filter(([, value]) => value !== undefined),
-				);
-				const stream = await client.textToSpeech
-					.convert(
-						request.voiceId,
-						{
-							text: sentText(request),
-							modelId: s.model,
-							outputFormat: "mp3_44100_128",
-							voiceSettings,
-						},
-						// 자동 재시도를 끈다(기본 2회, 408·429·5xx). 시간 제한은 runTrial의 신호로 한다
-						{ maxRetries: 0, abortSignal: signal },
-					)
-					.catch(toHttpError);
-				return new Uint8Array(await new Response(stream).arrayBuffer());
-			}),
+		synthesize: (
+			request: Extract<TrialRequest, { provider: "elevenlabs" }>,
+			options: SynthesizeOptions = {},
+		) =>
+			runTrial(
+				"elevenlabs",
+				async (signal) => {
+					const s = usedSettings(request) as Partial<ElevenLabsSettings> & {
+						model: ElevenLabsModel;
+					};
+					// SDK는 명시적 undefined를 null로 보낸다(설치본 직렬화, 계획 리뷰 E3). 그 모델이 받는 옵션만 키로 남긴다
+					const voiceSettings = Object.fromEntries(
+						Object.entries({
+							stability: s.stability,
+							similarityBoost: s.similarity,
+							style: s.style,
+							speed: s.speed,
+							useSpeakerBoost: s.speakerBoost,
+						}).filter(([, value]) => value !== undefined),
+					);
+					const stream = await client.textToSpeech
+						.convert(
+							request.voiceId,
+							{
+								text: sentText(request),
+								modelId: s.model,
+								outputFormat: "mp3_44100_128",
+								voiceSettings,
+							},
+							// 자동 재시도를 끈다(기본 2회, 408·429·5xx). 시간 제한은 runTrial의 신호로 한다
+							{ maxRetries: 0, abortSignal: signal },
+						)
+						.catch(toHttpError);
+					return new Uint8Array(await new Response(stream).arrayBuffer());
+				},
+				// onLate는 넘기지 않는다: 이 공급자는 시간 초과 때 요청을 끊어 늦은 결과가 없다
+				{ timeoutMs: options.timeoutMs, logPrefix: options.logPrefix },
+			),
 		listModels: () =>
 			runList(
 				"elevenlabs",

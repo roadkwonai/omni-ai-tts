@@ -401,7 +401,7 @@
 | `replaced(줄, 화자)` | 대본을 바꿨어요. {6}줄, 화자 {2}명. | 알림 + '실행 취소' |
 | `palette` / `paletteTarget(n)` / `paletteLocked` | 연기 지시 / {n}번 줄에 넣어요 / 넣을 줄을 먼저 고르세요 | 칸 제목, 상태 글(잠김은 스펙) |
 | `soundGroup` / `spanGroup` / `moodGroup` | 소리 · 커서 위치에 / 범위 · 고른 글자를 감싸요 / 분위기 · 그 줄의 지시 칸에 | 소제목(시안) |
-| `badgeName(이름, 글)` | {한숨}, {[sighs]} | 뱃지 접근 이름 |
+| `badgeName(이름, 글)` | {한숨}, {[sighs]} | 뱃지 접근 이름 (실제 위치: `tag-view.ts`의 `TAG_TEXT.badgeName`, 두 작업실 공용) |
 | `howTo` | 지시 쓰는 법 | 접힌 도움말(스펙) |
 | `howToDot` | 점 태그: `그래 [sighs] 네가 이겼어.` | 도움말(시안 그대로) |
 | `howToSpan` | 범위 태그: `약속해 <whisper>아무한테도 말 안 한다고</whisper>.` | 도움말(시안) |
@@ -690,13 +690,14 @@
 | `autoTag` | 전체 자동 태그 |
 | `autoTagLong(count)` | 대본이 2,000자를 넘어 자동 태그를 쓸 수 없어요 (지금 {count}자) |
 | `autoTagTitle` | 대본을 보내 연기 값을 제안받을까요? |
-| `autoTagBody` | Gemini 텍스트 모델(gemini-3.8-flash)로 대본을 보내요. 예상 약 $0.01. 키가 무료 등급이면 Google이 보낸 대본을 학습에 쓸 수 있어요 |
+| `autoTagBody` | OpenAI 텍스트 모델(gpt-6-luna)로 대본을 보내요. 3번 실패하면 Gemini(gemini-3.8-flash)로 보내요. 예상 약 $0.01. Gemini 키가 무료 등급이면 Google이 보낸 대본을 학습에 쓸 수 있어요 |
 | `autoTagGo` | 제안 받기 |
 | `autoTagPreviewTitle` · `autoTagNone` | 자동 태그 제안 · 바꿀 값이 없어요 |
 | `autoTagSkipped(count)` | 연기 값을 받지 않는 성우의 줄 {count}개는 그대로 둬요 |
 | `autoTagApply` · `autoTagChanged(count)` | 모두 바꾸기 · 보낸 뒤 고친 줄 {count}개는 건너뛰었어요 |
 | `autoTagApplied(count)` | 줄 {count}개를 바꿨어요 (실행 취소 10초) |
-| `autoTagReply` | 제안을 읽지 못했어요. 다시 해 주세요 |
+| `autoTagAccount` | OpenAI 키(OPENAI_API_KEY)나 결제·한도를 확인해 주세요 (`providerCode: "openai_account"`, 실제 위치: `tag-view.ts`의 `AUTO_TAG_ACCOUNT`) |
+| `autoTagReply` | 제안을 읽지 못했어요. 다시 해 주세요 (실제 위치: `tag-view.ts`의 `AUTO_TAG_TEXT.reply`) |
 
 **결정(코디네이터, 2026-10-22)**
 - 스펙 14.4의 카드 글 '성우 이름 · 공급자'와 계획의 두 줄 배치를 함께 따른다(1줄 이름, 2줄 공급자·모델).

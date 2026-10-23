@@ -34,10 +34,10 @@ import {
 	complete,
 	findSaved,
 	findStudio,
+	findStudioMany,
 	type Kind,
 	type LateTarget,
 	listResults,
-	listStudio,
 	recordFailure,
 	recordUse,
 	remove,
@@ -47,6 +47,7 @@ import {
 	settle,
 	TRIAL_CONTRACT_VERSION,
 	usableVoices,
+	withStorage,
 } from "./trial";
 import { cacheKey, cooldownOf } from "./voice-cache";
 
@@ -69,12 +70,13 @@ async function row(
 	end: "done" | "failed" | "unknown" | "pending",
 	audio: Uint8Array = MP3,
 	request: TrialRequest = req(),
+	keyKind: Kind = kind,
 ) {
 	const claimed = await claim(db, {
 		ownerId,
 		requestId: crypto.randomUUID(),
 		request,
-		key: comboKey(request, kind),
+		key: comboKey(request, keyKind),
 		usage,
 		kind,
 	});
@@ -202,6 +204,27 @@ describe("조합 키의 화면(T9 스펙 2절)", () => {
 	});
 });
 
+describe("withStorage 접두어", () => {
+	it("withStorage는 접두어를 받아 DB 실패를 그 접두어로 남긴다", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => {});
+		const failure = Object.assign(new Error("secret"), {
+			code: "ECONNREFUSED",
+		});
+		await expect(
+			withStorage(
+				"typecast",
+				async () => {
+					throw failure;
+				},
+				"[studio]",
+			),
+		).rejects.toMatchObject({
+			data: { provider: "typecast", reason: "storage" },
+		});
+		expect(String(log.mock.calls[0]?.[0])).toMatch(/^\[studio\] 저장소 실패/);
+	});
+});
+
 describe.skipIf(!url)("작업실 생성 기록", () => {
 	beforeEach(async () => {
 		await db.delete(trialGeneration);
@@ -231,7 +254,9 @@ describe.skipIf(!url)("작업실 생성 기록", () => {
 		expect((await findStudio(db, A, comboKey(req(), "studio")))?.id).toBe(
 			studio,
 		);
-		expect((await listStudio(db, A)).map((item) => item.id)).toEqual([studio]);
+		expect(
+			await findStudioMany(db, A, [comboKey(req(), "studio")]),
+		).toMatchObject([{ id: studio, status: "done" }]);
 		await expect(audioPart(db, A, trial, 0)).rejects.toMatchObject({
 			code: "NOT_FOUND",
 		});
@@ -256,32 +281,64 @@ describe.skipIf(!url)("작업실 생성 기록", () => {
 		expect(await findStudio(db, B, comboKey(req(), "studio"))).toBeNull();
 	});
 
-	it("목록은 완료·미확인 최근 20개(최신순)이고 실패·진행 중·시험 생성·남의 결과는 없다. 미확인은 길이 0", async () => {
-		for (let i = 0; i < 21; i += 1)
-			await row(A, "studio", "done", MP3, req(`대본 ${i}`));
-		const unknown = await row(A, "studio", "unknown", MP3, req("미확인"));
-		await row(A, "studio", "failed", MP3, req("실패"));
-		await row(A, "trial", "done", MP3, req("내 문장"));
-		await row(B, "studio", "done");
-		await row(A, "studio", "pending", MP3, req("진행 중"));
-		const items = await listStudio(db, A);
-		expect(items).toHaveLength(20);
-		expect(items[0]).toMatchObject({
-			id: unknown,
-			status: "unknown",
-			bytes: 0,
-			request: { provider: "typecast", voiceId: "tc_0001", text: "미확인" },
-		});
-		expect(items[1]).toMatchObject({
-			status: "done",
+	it("findStudioMany: 키 순서대로 돌려주고 없는 키는 null", async () => {
+		const x = await row(A, "studio", "done", MP3, req("가"));
+		const y = await row(A, "studio", "done", MP3, req("나"));
+		const key = (text: string) => comboKey(req(text), "studio");
+		const found = await findStudioMany(db, A, [
+			key("나"),
+			key("없음"),
+			key("가"),
+		]);
+		expect(found.map((hit) => hit?.id ?? null)).toEqual([y, null, x]);
+		expect(found[0]).toEqual({
+			id: y,
+			createdAt: expect.any(String),
+			usage,
 			bytes: MP3.byteLength,
-			request: { text: "대본 20" },
+			status: "done",
 		});
-		expect(
-			items.every(
-				(item) => item.status === "done" || item.status === "unknown",
-			),
-		).toBe(true);
+	});
+
+	it("같은 키에 완료와 더 늦은 미확인이 있으면 완료를 돌려준다", async () => {
+		const done = await row(A, "studio", "done");
+		await row(A, "studio", "unknown");
+		const [hit] = await findStudioMany(db, A, [comboKey(req(), "studio")]);
+		expect(hit).toMatchObject({ id: done, status: "done" });
+	});
+
+	it("미확인만 있으면 status unknown", async () => {
+		await row(A, "studio", "unknown");
+		const latest = await row(A, "studio", "unknown");
+		const [hit] = await findStudioMany(db, A, [comboKey(req(), "studio")]);
+		expect(hit).toMatchObject({ id: latest, status: "unknown", bytes: 0 });
+	});
+
+	it("실패·진행 중·만료·다른 소유자·kind trial·kind drama 행은 null", async () => {
+		await row(A, "studio", "failed", MP3, req("실패"));
+		const old = await row(A, "studio", "done", MP3, req("만료"));
+		await db
+			.update(trialGeneration)
+			.set({ expiresAt: new Date(Date.now() - 1000) })
+			.where(eq(trialGeneration.id, old));
+		await row(B, "studio", "done", MP3, req("남"));
+		// 키는 조회하는 studio 키와 같고 kind만 다르다: studioRow 조건이 걸러야 한다
+		await row(A, "trial", "done", MP3, req("시험"), "studio");
+		await row(A, "drama", "done", MP3, req("드라마"), "studio");
+		await row(A, "studio", "pending", MP3, req("진행"));
+		// 진행 중 행은 소유자의 다음 선점을 막으므로 마지막에 둔다
+		const keys = ["실패", "진행", "만료", "남", "시험", "드라마"].map((text) =>
+			comboKey(req(text), "studio"),
+		);
+		expect(await findStudioMany(db, A, keys)).toEqual(keys.map(() => null));
+	});
+
+	it("bytes는 오디오 길이와 같고 만료 시각은 바뀌지 않는다", async () => {
+		const id = await row(A, "studio", "done");
+		const before = (await rowOf(id))?.expiresAt;
+		const [hit] = await findStudioMany(db, A, [comboKey(req(), "studio")]);
+		expect(hit?.bytes).toBe(MP3.byteLength);
+		expect((await rowOf(id))?.expiresAt).toEqual(before);
 	});
 
 	it("조각: 3MiB를 넘는 오디오의 조각을 이으면 원본이고, 범위 밖·남의 것은 NOT_FOUND, 0번 조각이 보관을 30일로 늘린다", async () => {
@@ -395,7 +452,7 @@ describe.skipIf(!url)("작업실 생성 기록", () => {
 		const request = req();
 		const key = comboKey(request, "studio");
 		const requestId = crypto.randomUUID();
-		expect(await replayStudio(db, A, requestId, key)).toBeNull();
+		expect(await replayStudio(db, A, requestId, key, "typecast")).toBeNull();
 		const pending = await claim(db, {
 			ownerId: A,
 			requestId,
@@ -405,7 +462,9 @@ describe.skipIf(!url)("작업실 생성 기록", () => {
 			kind: "studio",
 		});
 		if (pending.kind !== "claimed") throw new Error("선점하지 못했다");
-		await expect(replayStudio(db, A, requestId, key)).rejects.toMatchObject({
+		await expect(
+			replayStudio(db, A, requestId, key, "typecast"),
+		).rejects.toMatchObject({
 			code: "TOO_MANY_REQUESTS",
 			data: { reason: "in_progress" },
 		});
@@ -413,7 +472,9 @@ describe.skipIf(!url)("작업실 생성 기록", () => {
 			.update(trialGeneration)
 			.set({ createdAt: new Date(Date.now() - 6 * 60_000) })
 			.where(eq(trialGeneration.id, pending.id));
-		await expect(replayStudio(db, A, requestId, key)).rejects.toMatchObject({
+		await expect(
+			replayStudio(db, A, requestId, key, "typecast"),
+		).rejects.toMatchObject({
 			code: "GATEWAY_TIMEOUT",
 			data: { reason: "unknown_outcome" },
 		});
@@ -431,18 +492,20 @@ describe.skipIf(!url)("작업실 생성 기록", () => {
 		});
 		if (done.kind !== "claimed") throw new Error("선점하지 못했다");
 		await complete(db, A, done.id, MP3, "audio/mpeg");
-		expect(await replayStudio(db, A, doneId, doneKey)).toEqual({
+		expect(await replayStudio(db, A, doneId, doneKey, "typecast")).toEqual({
 			id: done.id,
 			createdAt: done.createdAt,
 			usage,
 			bytes: MP3.byteLength,
 			segments: null,
 		});
-		await expect(replayStudio(db, A, doneId, key)).rejects.toMatchObject({
+		await expect(
+			replayStudio(db, A, doneId, key, "typecast"),
+		).rejects.toMatchObject({
 			code: "BAD_REQUEST",
 			data: { reason: "request_mismatch" },
 		});
-		expect(await replayStudio(db, B, doneId, doneKey)).toBeNull();
+		expect(await replayStudio(db, B, doneId, doneKey, "typecast")).toBeNull();
 	});
 
 	it("recordUse는 성우마다 1씩, 같은 id 두 번이어도 1. Typecast로 담은 같은 id는 그대로다", async () => {

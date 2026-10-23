@@ -574,13 +574,19 @@ const bodyOf = (i = 0) =>
 	JSON.parse(String(fetchMock.mock.calls[i]?.[1]?.body));
 
 describe("Fish Audio 시험 생성 (Review Focus 2)", () => {
-	const synth = (settings: Partial<FishSettings> = {}) =>
-		createFishAudio(KEY).synthesize?.({
-			provider: "fish_audio",
-			voiceId: "f".repeat(32),
-			text: "안녕",
-			settings: { ...DEFAULT_SETTINGS.fish_audio, ...settings },
-		});
+	const synth = (
+		settings: Partial<FishSettings> = {},
+		options?: SynthesizeOptions,
+	) =>
+		createFishAudio(KEY).synthesize?.(
+			{
+				provider: "fish_audio",
+				voiceId: "f".repeat(32),
+				text: "안녕",
+				settings: { ...DEFAULT_SETTINGS.fish_audio, ...settings },
+			},
+			options,
+		);
 
 	it("두 모델 모두 model 헤더를 그대로 보내고 즉석 클론 필드는 보내지 않는다", async () => {
 		fetchMock.mockImplementation(async () => audio());
@@ -628,6 +634,39 @@ describe("Fish Audio 시험 생성 (Review Focus 2)", () => {
 			data: { reason: "unknown_outcome" },
 		});
 		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+	it("작업실 대기(timeoutMs)를 받으면 60초를 넘겨도 끊지 않는다", async () => {
+		vi.useFakeTimers();
+		fetchMock.mockImplementation(
+			() =>
+				new Promise<Response>((resolve) =>
+					setTimeout(() => resolve(audio()), 120_000),
+				),
+		);
+		const pending = synth({}, { timeoutMs: STUDIO_TIMEOUT_MS });
+		await vi.advanceTimersByTimeAsync(120_000);
+		await expect(pending).resolves.toBeDefined();
+	});
+
+	it("timeoutMs를 넘기면 unknown_outcome이고 onLate를 부르지 않는다", async () => {
+		vi.useFakeTimers();
+		fetchMock.mockImplementation(
+			(_url, init) =>
+				new Promise<Response>((_resolve, reject) => {
+					init?.signal?.addEventListener("abort", () =>
+						reject(new DOMException("aborted", "AbortError")),
+					);
+				}),
+		);
+		const onLate = vi.fn();
+		const assertion = expect(
+			synth({}, { timeoutMs: STUDIO_TIMEOUT_MS, onLate }),
+		).rejects.toMatchObject({
+			data: { provider: "fish_audio", reason: "unknown_outcome" },
+		});
+		await vi.advanceTimersByTimeAsync(STUDIO_TIMEOUT_MS);
+		await assertion;
+		expect(onLate).not.toHaveBeenCalled();
 	});
 });
 
@@ -775,6 +814,17 @@ describe("Fish Audio 장면 생성 (T9.5)", () => {
 		over: Partial<SceneRequest> = {},
 		options?: SynthesizeOptions<SceneAudio>,
 	) => createFishAudio(KEY).synthesizeScene?.({ ...SCENE, ...over }, options);
+
+	it("synthesizeScene에 logPrefix를 주면 실패 로그가 [drama]로 시작한다", async () => {
+		const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+		fetchMock.mockRejectedValueOnce(new TypeError("fetch failed"));
+		await expect(scene({}, { logPrefix: "[drama]" })).rejects.toMatchObject({
+			data: { reason: "unknown_outcome" },
+		});
+		expect(String(spy.mock.calls[0]?.[0])).toMatch(
+			/^\[drama\] fish_audio 생성 실패:/,
+		);
+	});
 
 	it("POST /v1/tts/stream/with-timestamp, model 헤더는 세 모델 각각 그대로, 본문은 정한 칸만", async () => {
 		fetchMock.mockImplementation(async () => sseOf(SMALL));

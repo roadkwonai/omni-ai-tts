@@ -1,6 +1,6 @@
 // apps/web/src/components/bar-height.ts
 // 음성 작업실·드라마 하단 막대가 함께 쓰는 막대 도움(지난 초, 기다림 안내 경계, 띠 높이).
-// studio-bar와 drama-bar가 둘 다 여기서 가져와 드라마 화면이 음성 작업실 모듈(studio-bar·studio-provider)을 끌어오지 않는다
+// paragraph-bar와 drama-bar가 둘 다 여기서 가져와 드라마 화면이 음성 작업실 모듈(paragraph-bar·paragraph-provider)을 끌어오지 않는다
 import { type RefObject, useEffect, useState } from "react";
 
 // 만드는 중 이 초가 지나면 한 줄 칸에 기다림 안내(음성 작업실 브리프 5.6, 드라마 브리프 5.8 waitNote, 디자인 리뷰 D12)

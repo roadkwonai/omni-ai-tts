@@ -37,7 +37,6 @@ import { toast } from "sonner";
 
 import { saveBlob } from "@/lib/browser";
 import { saveFailure } from "@/lib/classes-view";
-import { joinSounds } from "@/lib/drama-join";
 import { joinPlan } from "@/lib/drama-read";
 import {
 	chipStateOf,
@@ -54,7 +53,8 @@ import {
 	takeTime,
 	zipFileName,
 } from "@/lib/drama-view";
-import { zipStore } from "@/lib/drama-zip";
+import { joinSounds } from "@/lib/sound-join";
+import { zipStore } from "@/lib/zip-store";
 
 import { stageOrMain, useDrama } from "./drama-provider";
 import { LatestLines } from "./drama-read";

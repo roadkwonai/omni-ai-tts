@@ -25,7 +25,7 @@ description: >-
 ## 구조
 - 공급자 호출은 `packages/api/src/providers/<공급자>.ts`에만 둔다. 프로시저(`routers/`)는 이 모듈을 부르고 SDK를 직접 부르지 않는다.
 - 공급자 공통 계약(성우, 생성 요청과 결과, 오류)은 zod로 한 번 정의해 화면까지 쓴다. 계약은 SDK나 서버 모듈을 import하지 않는 파일(`providers/contract.ts`)에 두어 클라이언트 번들에 공급자 모듈이 딸려 가지 않게 한다.
-- Typecast와 ElevenLabs는 공식 SDK(`@neosapience/typecast-js`, `@elevenlabs/elevenlabs-js`)를 쓴다. Fish Audio·Airy·Gemini는 REST를 `fetch`로 직접 부른다(ADR 0002). Airy 호스트는 `https://api.airy.so` 고정, 키는 `Authorization: Bearer`. Gemini 호스트는 `https://generativelanguage.googleapis.com` 고정, 키는 `x-goog-api-key` 헤더다. SDK `@google/genai`는 쓰지 않는다(기본 5회 시도·연결 오류 재시도·`GOOGLE_API_KEY`/`GEMINI_API_KEY` 환경변수 대체).
+- Typecast와 ElevenLabs는 공식 SDK(`@neosapience/typecast-js`, `@elevenlabs/elevenlabs-js`)를 쓴다. Fish Audio·Airy·Gemini는 REST를 `fetch`로 직접 부른다(ADR 0002). Airy 호스트는 `https://api.airy.so` 고정, 키는 `Authorization: Bearer`. Gemini 호스트는 `https://generativelanguage.googleapis.com` 고정, 키는 `x-goog-api-key` 헤더다. SDK `@google/genai`는 쓰지 않는다(기본 5회 시도·연결 오류 재시도·`GOOGLE_API_KEY`/`GEMINI_API_KEY` 환경변수 대체). OpenAI는 자동 태그 텍스트에만 쓴다(TTS 공급자가 아니다). 호스트는 `https://api.openai.com` 고정, 키는 `Authorization: Bearer`, `POST /v1/responses`를 `fetch`로 직접 부른다. SDK `openai`는 쓰지 않는다(ADR 0008).
 - 단, ElevenLabs 성우 목록·억양 조회는 REST로 부른다. SDK가 응답 전체를 한 번에 검사해(`parseOrThrow`) 성우 하나의 빠진 필드가 목록 전체를 막기 때문이다(T4). 키는 `xi-api-key` 헤더, 호스트는 `https://api.elevenlabs.io`로 고정한다.
 - 키는 `apps/web/.env.schema`에 `@sensitive`로 선언된 값을 varlock `ENV`로 읽는다. 공급자 클라이언트는 소유자가 있는 요청마다 `apps/web/src/context.ts`가 `createProviders(키)`(`packages/api/src/providers/index.ts`)로 만들어 context의 `providers`로 넘긴다. 요청마다 만들어 `.env`의 키 교체가 반영된다. 소유자가 없는 요청에는 만들지 않는다. 루프백 요청이면 `publicProcedure`의 context에도 `providers`가 들어 있으므로 `publicProcedure`에서 `context.providers`를 쓰지 않는다. `packages/api`에서 `process.env`를 읽지 않는다.
 - SDK 생성자에는 키와 공식 호스트를 명시적으로 넘긴다. 두 SDK는 인자가 없으면 `process.env`(`TYPECAST_API_KEY`·`TYPECAST_API_HOST`·`ELEVENLABS_API_KEY`)로 조용히 대체한다. 키가 없으면 클라이언트를 만들지 않고 그 공급자를 "연결 안 됨"으로 처리한다.
@@ -47,6 +47,7 @@ description: >-
 - 공급자 429의 `Retry-After` 시각은 공급자별로 DB에 두고, 그 전에는 다시 부르지 않는다. 서버리스 인스턴스끼리 메모리를 나누지 않기 때문이다. 잔액·인증·입력 오류는 사용자가 조치하기 전에 반복하지 않는다.
 - 생성·클론 호출은 SDK 자동 재시도를 끈다. ElevenLabs SDK는 408·429·5xx에서 기본 2회 다시 보내므로 요청 옵션에 `maxRetries: 0`을 준다. 과금이 없는 조회 호출은 재시도해도 된다. 다만 성우 목록은 아래 "목록 규칙"대로 자동 재시도하지 않는다.
 - 공급자 응답 상태 코드를 받지 못한 실패는 "처리 여부 미확인"이다. SDK가 연결 끊김을 statusCode 없는 오류로 바꿔 던질 수 있으므로 네트워크 오류도 포함한다. 자동으로 다시 생성하지 않는다. 일반 재시도는 먼저 같은 조합의 저장본을 찾아 재생하고, 없으면 확인 후 다시 만든다. 명시적 새로 만들기만 저장본 조회를 건너뛴다. T5는 완료 저장이 실패해도 받은 오디오를 반환하고, 그 기록은 pending으로 남아 뒤에 unknown 처리된다.
+- 예외: 자동 태그 텍스트 호출(`studioAutoTag`·`dramaAutoTag`)은 서버가 한 묶음에 OpenAI를 최대 3번, 실패하면 Gemini를 1번 자동으로 다시 부른다(처리 여부 미확인 포함, 과금이 겹칠 수 있음). 사용자 결정 2026-10-23, ADR 0008. 키·결제·한도·입력 거절은 다시 부르지 않는다. 429(과금되지 않음)는 `Retry-After`를 따르지 않고 기다림 없이 다시 부르며 `provider_cooldown`을 쓰지 않는다. 생성·시험 생성·클론에는 적용하지 않는다.
 
 ## 오류 매핑
 공급자 문제를 `UNAUTHORIZED`나 `FORBIDDEN`으로 던지지 않는다. 클라이언트가 로그인 만료로 처리한다. 아래 코드에 `data: { provider, reason }`을 붙여 던지고, 화면은 `reason`으로 안내를 고른다.
@@ -116,7 +117,7 @@ description: >-
 - 업로드는 서버에서 크기, 형식(파일 앞 바이트), 길이를 다시 검사한다(REQ-13).
 - Gemini 출력은 WAV뿐이다(24kHz 모노 16비트, 1분 약 2.88MB라 4 MiB 상한이 약 87초). 생성 기록의 `audio_type`(`audio/wav`·`audio/mpeg`)으로 파일 형식을 정한다(`audioTypeOf`, 저장본과 `trialAudio`의 `File`). 요청 본문은 `store: false`로 공급자가 요청·응답을 저장하지 않게 하고 말투 지시는 대본이 아니라 `annotations`의 `speech_metadata.style`로 보낸다.
 - SDK의 오디오 인자에는 바이트(`Uint8Array`, `Blob`, `File`)만 넘긴다. Typecast SDK의 `cloneVoice`는 문자열을 서버 파일 경로로 읽어 업로드하므로 입력 문자열이 닿으면 서버 파일이 공급자에게 나간다.
-- 긴 대본 결합과 ffmpeg 후처리는 P1-04 범위다(ADR 0002: Blob과 백그라운드 작업). P0에서 미리 만들지 않는다.
+- 문단 작업실의 긴 대본 결합(한 파일 WAV·zip·SRT)은 서버가 아니라 브라우저 Web Audio에서 한다([ADR 0007](../../../docs/adr/0007-paragraph-join-in-browser.md)). 서버는 문단 결과 오디오만 저장한다. ffmpeg 후처리와 Blob·백그라운드 작업(ADR 0002)은 서버 후처리가 필요해질 때(P1-02·P1-04) 새로 정하고 미리 만들지 않는다.
 
 ## 사용량 표시 (REQ-11)
 - 예상 사용량 단위는 공급자마다 다르다. Typecast·ElevenLabs는 글자 수, Fish Audio는 UTF-8 바이트다(서버 `Buffer.byteLength(text, "utf8")`, 브라우저 `new TextEncoder().encode(text).length`). 한글은 대부분 한 글자가 3바이트다. 교정을 반영한 발음용 대본으로 계산한다.
@@ -134,7 +135,7 @@ description: >-
 ## 확인한 SDK 동작 (2026-09-28, 2026-09-30, 2026-10-04, 2026-10-07, npm 패키지 소스)
 | SDK | 판 | 동작 |
 |---|---|---|
-| `@elevenlabs/elevenlabs-js` | 2.70.0 | 기본 `maxRetries` 2, 408·429·5xx 재시도(요청 옵션 `maxRetries: 0`으로 끈다). 키가 없으면 `process.env.ELEVENLABS_API_KEY`, 그래도 없으면 생성자가 예외. 요청 옵션 `maxRetries`·`abortSignal`·`timeoutInSeconds`(기본 240초). 네트워크 오류는 `errors/handleNonStatusCodeError.js` 경로에서 `statusCode` 없는 `ElevenLabsError`로 던질 수 있다. 프로젝트는 합성마다 `maxRetries: 0`, 60초 `AbortSignal`, fetch `redirect: "error"`를 적용한다. `undefined` 필드는 SDK 직렬화 때 `null`이 되므로 요청에서 생략한다. 구독 조회 `user.subscription.get()`과 voice 목록은 응답 전체를 검사한다. HTTP는 호출 시점의 전역 `fetch` |
+| `@elevenlabs/elevenlabs-js` | 2.70.0 | 기본 `maxRetries` 2, 408·429·5xx 재시도(요청 옵션 `maxRetries: 0`으로 끈다). 키가 없으면 `process.env.ELEVENLABS_API_KEY`, 그래도 없으면 생성자가 예외. 요청 옵션 `maxRetries`·`abortSignal`·`timeoutInSeconds`(기본 240초). 네트워크 오류는 `errors/handleNonStatusCodeError.js` 경로에서 `statusCode` 없는 `ElevenLabsError`로 던질 수 있다. 프로젝트는 합성마다 `maxRetries: 0`, `AbortSignal`(시험 생성 60초, 작업실 180초), fetch `redirect: "error"`를 적용한다. `undefined` 필드는 SDK 직렬화 때 `null`이 되므로 요청에서 생략한다. 구독 조회 `user.subscription.get()`과 voice 목록은 응답 전체를 검사한다. HTTP는 호출 시점의 전역 `fetch` |
 | `@neosapience/typecast-js` | 0.4.15 | 키가 없으면 `process.env.TYPECAST_API_KEY`(없어도 헤더 없이 요청), 호스트는 `TYPECAST_API_HOST`. 생성자 `{ apiKey, baseHost, source, generatedBy }`에서 `source`와 `generatedBy`는 함께 줘야 하고 형식이 틀리면 생성자가 예외(연동 식별은 `source: "api-docs"`, `generatedBy: "codex"`). SDK에는 시간 제한·취소·재시도·응답 검증이 없다. 구독 조회 `getMySubscription()`. HTTP 오류는 `TypecastAPIError`(`statusCode`, `response`)이고 응답 헤더가 없어 `Retry-After`를 읽지 못한다. 프로젝트는 설치본 fetch를 `redirect: "error"`로 패치했다. T5 대기 종료 뒤에도 공급자 요청은 계속될 수 있다. SDK는 TTS `seed`를 보내지 않는다. 한 명 조회 `getVoiceV3(voiceId)`(`GET /v3/voices/{id}`, 경로에 `encodeURIComponent`)는 시간 제한·취소·재시도가 없어 `runList`의 10초 경주로만 끊는다. 404는 `TypecastAPIError.statusCode`로 오고 헤더가 없어 429의 `Retry-After`는 읽지 못한다(2026-10-07) |
 
 `@google/genai` 2.27.0은 쓰지 않는다(research 12절).

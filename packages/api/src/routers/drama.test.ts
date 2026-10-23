@@ -468,7 +468,7 @@ describe("전체 자동 태그 dramaAutoTag(T9.5 스펙 14.5)", () => {
 		}
 	});
 
-	it("Gemini 키 없음(클라이언트 없음·자동 태그 없음) → no_key, 공급자 0회", async () => {
+	it("OpenAI·Gemini 키 없음(Gemini는 클라이언트 없음·자동 태그 없음) → no_key + openai_account, 공급자 0회", async () => {
 		for (const gemini of [undefined, { checkStatus: vi.fn() }])
 			await expect(
 				autoTag(
@@ -480,9 +480,69 @@ describe("전체 자동 태그 dramaAutoTag(T9.5 스펙 14.5)", () => {
 				),
 			).rejects.toMatchObject({
 				code: "PRECONDITION_FAILED",
-				data: { provider: "gemini", reason: "no_key" },
+				data: {
+					provider: "openai",
+					reason: "no_key",
+					providerCode: "openai_account",
+				},
 			});
 		expect(suggestActing).not.toHaveBeenCalled();
+	});
+
+	// 호출 순서는 askSuggestions 한 곳이다(T10 스펙 16.1). 문단 작업실 테스트가 전체 경우를 본다
+	describe("OpenAI 우선, Gemini 보조", () => {
+		const openai = vi.fn(async (_prompt: unknown) => null as string | null);
+		const withOpenai = (extra: Partial<Providers> = {}) =>
+			as(OWNER, {
+				db: failingDb,
+				providers: {
+					...providers,
+					openai: { suggestActing: openai },
+					...extra,
+				},
+			});
+		beforeEach(() => {
+			openai.mockReset();
+			suggestActing.mockReset();
+			vi.spyOn(console, "warn").mockImplementation(() => {});
+		});
+		afterEach(() => {
+			vi.restoreAllMocks();
+		});
+
+		it("OpenAI가 첫 시도에 맞으면 OpenAI 1회, Gemini 0회", async () => {
+			openai.mockResolvedValueOnce(
+				JSON.stringify({ lines: [tip(0, { direction: "icy calm" })] }),
+			);
+			const result = await autoTag({}, withOpenai());
+			expect(result.lines[0]?.direction).toBe("icy calm");
+			expect(openai).toHaveBeenCalledTimes(1);
+			expect(suggestActing).not.toHaveBeenCalled();
+		});
+
+		it("OpenAI가 3번 provider_error면 OpenAI 3회 뒤 Gemini 1회, Gemini 제안", async () => {
+			openai.mockRejectedValue(trialError("openai", "provider_error"));
+			answer(tip(0, { direction: "calm" }));
+			const result = await autoTag({}, withOpenai());
+			expect(result.lines[0]?.direction).toBe("calm");
+			expect(openai).toHaveBeenCalledTimes(3);
+			expect(suggestActing).toHaveBeenCalledTimes(1);
+		});
+
+		it("둘 다 없으면 no_key + openai_account, 호출 0회", async () => {
+			await expect(
+				autoTag({}, withOpenai({ gemini: undefined, openai: undefined })),
+			).rejects.toMatchObject({
+				code: "PRECONDITION_FAILED",
+				data: {
+					provider: "openai",
+					reason: "no_key",
+					providerCode: "openai_account",
+				},
+			});
+			expect(openai).not.toHaveBeenCalled();
+			expect(suggestActing).not.toHaveBeenCalled();
+		});
 	});
 
 	it("공급자 오류는 그대로 화면으로: 429 → retryAt, 시간 초과 → unknown_outcome(대기 표를 쓰지 않는다)", async () => {

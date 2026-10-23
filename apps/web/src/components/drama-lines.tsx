@@ -52,7 +52,6 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
-import { gapText } from "@/lib/drama-join";
 import { readKey } from "@/lib/drama-read";
 import {
 	DRAMA_TEXT,
@@ -65,6 +64,7 @@ import {
 	speakerNameOf,
 	tagSpans,
 } from "@/lib/drama-view";
+import { gapText } from "@/lib/sound-join";
 import type { TrialProblem } from "@/lib/trial-view";
 
 import { fieldClass, isComposingEnter } from "./class-form-dialog";
@@ -718,11 +718,17 @@ function LineRow({
 			{/* 마지막 줄 뒤에는 쉼이 없다(그 줄 쉼은 남아도 쓰이지 않는다) */}
 			{last ? null : (
 				<LineGap
-					lineId={line.id}
+					id={line.id}
 					n={n}
 					gap={line.gap}
 					defaultGap={defaultGap}
-					onChange={onChange}
+					onChange={(gap) => onChange(line.id, { gap })}
+					text={{
+						name: DRAMA_TEXT.gapLineName,
+						reset: DRAMA_TEXT.gapReset,
+						resetLine: DRAMA_TEXT.gapResetLine,
+						unit: DRAMA_TEXT.gapUnit,
+					}}
 				/>
 			)}
 		</li>
@@ -815,7 +821,15 @@ export function DramaLines() {
 							{overMark(chars > limit)}
 							{DRAMA_TEXT.count(lines.length, chars, limit)}
 						</p>
-						<DefaultGap />
+						<DefaultGap
+							value={drama.gap}
+							onChange={drama.setGap}
+							text={{
+								label: DRAMA_TEXT.gapDefault,
+								unit: DRAMA_TEXT.gapUnit,
+								help: DRAMA_TEXT.gapHelp,
+							}}
+						/>
 						<DramaPasteDialog opener={pasteRef} showUndo={showScriptUndo} />
 						<AutoTagButton />
 					</>

@@ -100,7 +100,7 @@ export const appRouter = {
 	...savedVoiceRouter,
 	// 프리셋 여섯 프로시저(T8)
 	...presetRouter,
-	// 음성 작업실 다섯 프로시저(T9)
+	// 음성 작업실 네 프로시저(T9, T10 studioFindMany)
 	...studioRouter,
 	// 드라마 작업실 네 프로시저(T9.5)
 	...dramaRouter,

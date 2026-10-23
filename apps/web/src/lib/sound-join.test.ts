@@ -1,16 +1,19 @@
-// apps/web/src/lib/drama-join.test.ts
+// apps/web/src/lib/sound-join.test.ts
 import { DRAMA_SAMPLE_RATE } from "@tts-pilot-app/api/drama-script";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
 	gapOf,
 	gapText,
+	joinSounds,
+	joinTimeline,
 	joinWav,
 	monoOf,
 	pcm16,
 	SILENCE,
+	spansOf,
 	trimSilence,
-} from "./drama-join";
+} from "./sound-join";
 
 describe("gapOf", () => {
 	it.each<[unknown, number | null]>([
@@ -98,13 +101,13 @@ describe("pcm16", () => {
 });
 
 describe("joinWav", () => {
-	const part = (samples: number) => new Uint8Array(samples * 2).fill(1);
+	const part = (samples: number) =>
+		new Blob([new Uint8Array(samples * 2).fill(1)]);
 	it("part 사이에 쉼 무음을 넣고 머리를 맞춘다", () => {
 		const out = joinWav([part(10), part(20)], [0.1]);
 		const silence = Math.round((0.1 - 0.04) * DRAMA_SAMPLE_RATE);
 		expect(out).toHaveLength(4);
-		expect(out[2].length).toBe(silence * 2);
-		expect(out[2].every((b) => b === 0)).toBe(true);
+		expect(out[2]).toEqual(new Uint8Array(silence * 2));
 		const bytes = (10 + 20 + silence) * 2;
 		const v = new DataView(out[0].buffer);
 		expect(v.getUint32(4, true)).toBe(36 + bytes);
@@ -112,8 +115,8 @@ describe("joinWav", () => {
 		expect(v.getUint32(40, true)).toBe(bytes);
 	});
 	it("조각 순서가 part0, 무음, part1이다", () => {
-		const a = new Uint8Array(20).fill(1);
-		const b = new Uint8Array(40).fill(2);
+		const a = new Blob([new Uint8Array(20).fill(1)]);
+		const b = new Blob([new Uint8Array(40).fill(2)]);
 		const out = joinWav([a, b], [0.1]);
 		expect(out[1]).toBe(a);
 		expect(out[3]).toBe(b);
@@ -127,5 +130,77 @@ describe("joinWav", () => {
 	});
 	it("gaps가 모자라면 쉼 0이다", () => {
 		expect(joinWav([part(1), part(1)], [])).toHaveLength(3);
+	});
+});
+
+describe("spansOf", () => {
+	it("spansOf: 쉼을 더하고 마지막 조각 뒤 쉼은 없다", () => {
+		const [a, b] = spansOf([44100, 22050], [0.5, 0.5], 44100);
+		expect(a.start).toBeCloseTo(0, 3);
+		expect(a.end).toBeCloseTo(1, 3);
+		expect(b.start).toBeCloseTo(1.46, 3);
+		expect(b.end).toBeCloseTo(1.96, 3);
+	});
+	it("쉼이 EDGE 두 배보다 짧으면 0", () => {
+		const [, b] = spansOf([44100, 100], [0.03, 0], 44100);
+		expect(b.start).toBeCloseTo(1, 3);
+	});
+	it("spansOf의 끝 = joinWav 바이트로 센 길이", () => {
+		const counts = [1000, 2000, 3000];
+		const gaps = [0.1, 0.3, 0];
+		const parts = counts.map((n) => new Blob([new Uint8Array(n * 2)]));
+		const out = joinWav(parts, gaps);
+		const bytes = new Blob(out).size - out[0].length;
+		const spans = spansOf(counts, gaps, DRAMA_SAMPLE_RATE);
+		expect(spans[2].end).toBeCloseTo(bytes / 2 / DRAMA_SAMPLE_RATE, 6);
+	});
+});
+
+describe("joinTimeline·joinSounds(문단 한 파일·자막, 드라마 잇기)", () => {
+	// node에는 Web Audio가 없어 디코딩만 흉내 낸다: Blob 바이트가 곧 모노 float32 샘플이다
+	beforeEach(() => {
+		vi.stubGlobal(
+			"OfflineAudioContext",
+			class {
+				async decodeAudioData(buffer: ArrayBuffer) {
+					const samples = new Float32Array(buffer);
+					return { numberOfChannels: 1, getChannelData: () => samples };
+				}
+			},
+		);
+	});
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+	const sound = (count: number, gap: number) => ({
+		blob: new Blob([new Float32Array(count).fill(0.5)]),
+		gap,
+	});
+	const silence = (gap: number) => Math.round((gap - 0.04) * DRAMA_SAMPLE_RATE);
+	it("WAV는 [머리, 조각, 쉼, …]이고 자막 끝 = WAV 길이(마지막 쉼 없음)", async () => {
+		const sounds = [sound(1000, 0.1), sound(2000, 0.3), sound(3000, 2)];
+		const { blob, spans } = await joinTimeline(sounds);
+		const data = (1000 + 2000 + 3000 + silence(0.1) + silence(0.3)) * 2;
+		expect(blob.type).toBe("audio/wav");
+		expect(blob.size).toBe(44 + data);
+		const v = new DataView(await blob.arrayBuffer());
+		expect(v.getUint32(4, true)).toBe(36 + data);
+		expect(v.getUint32(40, true)).toBe(data);
+		// 첫 조각 끝 뒤는 쉼(0), 쉼 뒤 둘째 조각 첫 샘플은 0.5
+		expect(v.getInt16(44 + 1000 * 2, true)).toBe(0);
+		expect(v.getInt16(44 + (1000 + silence(0.1)) * 2, true)).toBe(16384);
+		expect(
+			spans.map((span) => Math.round(span.end * DRAMA_SAMPLE_RATE)),
+		).toEqual([1000, 3000 + silence(0.1), 6000 + silence(0.1) + silence(0.3)]);
+		expect(spans[2].end).toBeCloseTo(data / 2 / DRAMA_SAMPLE_RATE, 6);
+	});
+	it("드라마 joinSounds는 joinTimeline과 같은 바이트", async () => {
+		const sounds = [sound(500, 0.5), sound(700, 0)];
+		const timeline = await joinTimeline(sounds);
+		const drama = await joinSounds(sounds);
+		expect(drama.type).toBe("audio/wav");
+		expect(new Uint8Array(await drama.arrayBuffer())).toEqual(
+			new Uint8Array(await timeline.blob.arrayBuffer()),
+		);
 	});
 });

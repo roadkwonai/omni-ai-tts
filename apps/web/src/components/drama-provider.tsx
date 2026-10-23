@@ -36,7 +36,6 @@ import { toast } from "sonner";
 
 import { loadStored, store } from "@/lib/browser";
 import { MESSAGES, saveFailure } from "@/lib/classes-view";
-import { GAP_DEFAULT } from "@/lib/drama-join";
 import {
 	actingOf,
 	allFish,
@@ -63,6 +62,7 @@ import {
 	voiceOfSpeaker,
 	withoutPicks,
 } from "@/lib/drama-view";
+import { GAP_DEFAULT } from "@/lib/sound-join";
 import {
 	createFailureOf,
 	fetchAudio,
@@ -403,7 +403,7 @@ function LinesProvider({
 	);
 }
 
-// 테이크 목록(최근 20, 완료·미확인). 만든 지 6분 안의 미확인이 있으면 15초마다 다시 받아 늦은 결과를 완료로 바꾼다(T9 useStudioItems와 같다)
+// 테이크 목록(최근 20, 완료·미확인). 만든 지 6분 안의 미확인이 있으면 15초마다 다시 받아 늦은 결과를 완료로 바꾼다
 const useDramaTakes = () =>
 	useQuery({
 		...orpc.dramaList.queryOptions(OWNED_LIST),
@@ -448,7 +448,7 @@ export function DramaProvider({ children }: { children: ReactNode }) {
 	};
 	const receiveTicket = useRef(0);
 
-	const savedVoices = pickableVoices(saved.data ?? [], null);
+	const savedVoices = pickableVoices(saved.data ?? []);
 	const presets = (presetList.data ?? []).filter(
 		(preset) => preset.voice !== null && !preset.unavailable,
 	);

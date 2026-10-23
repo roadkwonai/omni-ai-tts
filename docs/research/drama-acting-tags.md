@@ -436,3 +436,15 @@
 - `response_format`이 `text` + `mime_type` + `schema` 모양인 것은 구조화 출력 문서에서 확인했고, API 참조(S6)에서는 ResponseFormat 필드를 못 읽었다.
 - 사고 토큰의 과금 방식과 `thinking_level: low`의 효과, 한국어 태깅 품질은 문서에 없다. 무료 호출이 없으므로 승인된 소수 호출로 시험해야 한다.
 
+## OpenAI 자동 태그 조사 (2026-10-23)
+- 확인: 2026-10-23. 자동 태그 텍스트 호출을 OpenAI 우선으로 바꾸는 피드백 2([ADR 0008](../adr/0008-auto-tag-openai-first.md)) 설계용. 공식 문서만 읽었고 API는 부르지 않았다.
+- `gpt-6-luna`: "Fastest and most cost-effective". 1M 토큰당 입력 $0.10·캐시 입력 $0.01·출력 $0.50. 컨텍스트 1,050,000, 최대 출력 128,000. `reasoning.effort`는 none·low·medium(기본)·high·xhigh·max. Responses·Chat Completions와 Structured Outputs를 지원한다.
+- 모델 목록: luna는 `gpt-6-luna`·`gpt-5.6-luna`이고 6.1은 `gpt-6.1-sol`뿐이다. `gpt-6.1-luna`는 없다(그래서 사용자가 `gpt-6-luna`를 골랐다). `gpt-6.1-sol`은 입력 $2·출력 $10이다.
+- Structured Outputs(`strict: true`) 조건: 루트는 object(`anyOf` 불가), 모든 칸 `required`, `additionalProperties: false`. `minItems`·`maxItems`·`anyOf`(칸 안)·`enum`은 지원하고 enum 값 합계 1000개 등 한도가 있다. 거절은 message content의 type `refusal`로 온다.
+- 우리 값: `effort: "low"`, `max_output_tokens: 8192`, `store: false`. 2,000자 묶음 1회는 약 $0.002(추정)다.
+- 출처:
+  - https://developers.openai.com/api/docs/models/gpt-6-luna.md
+  - https://developers.openai.com/api/docs/models/all
+  - https://developers.openai.com/api/docs/pricing
+  - https://developers.openai.com/api/docs/guides/structured-outputs
+  - https://developers.openai.com/api/docs/guides/latest-model

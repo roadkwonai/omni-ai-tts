@@ -252,37 +252,45 @@ export function createFishAudio(apiKey: string): ProviderClient {
 			signal,
 		);
 	return {
-		synthesize: (request: Extract<TrialRequest, { provider: "fish_audio" }>) =>
-			runTrial("fish_audio", async (signal) => {
-				const s = usedSettings(request) as Partial<FishSettings> & {
-					model: FishModel;
-				};
-				const response = await fetchOk(
-					`${FISH_AUDIO_HOST}/v1/tts`,
-					{
-						method: "POST",
-						headers: {
-							Authorization: `Bearer ${apiKey}`,
-							"Content-Type": "application/json",
-							// 늘 보낸다. 빠지거나 모르는 값이면 오류 없이 유료 s2.1-pro로 처리된다(스펙 4절)
-							model: s.model,
+		synthesize: (
+			request: Extract<TrialRequest, { provider: "fish_audio" }>,
+			options: SynthesizeOptions = {},
+		) =>
+			runTrial(
+				"fish_audio",
+				async (signal) => {
+					const s = usedSettings(request) as Partial<FishSettings> & {
+						model: FishModel;
+					};
+					const response = await fetchOk(
+						`${FISH_AUDIO_HOST}/v1/tts`,
+						{
+							method: "POST",
+							headers: {
+								Authorization: `Bearer ${apiKey}`,
+								"Content-Type": "application/json",
+								// 늘 보낸다. 빠지거나 모르는 값이면 오류 없이 유료 s2.1-pro로 처리된다(스펙 4절)
+								model: s.model,
+							},
+							// 계약 필드로만 만든다. references(요청 안의 즉석 클론)는 보내지 않는다(tts-provider)
+							body: JSON.stringify({
+								text: sentText(request),
+								reference_id: request.voiceId,
+								temperature: s.temperature,
+								prosody: { speed: s.speed },
+								format: "mp3",
+								mp3_bitrate: 128,
+								latency: "normal",
+							}),
+							signal,
 						},
-						// 계약 필드로만 만든다. references(요청 안의 즉석 클론)는 보내지 않는다(tts-provider)
-						body: JSON.stringify({
-							text: sentText(request),
-							reference_id: request.voiceId,
-							temperature: s.temperature,
-							prosody: { speed: s.speed },
-							format: "mp3",
-							mp3_bitrate: 128,
-							latency: "normal",
-						}),
-						signal,
-					},
-					fishCodes,
-				);
-				return new Uint8Array(await response.arrayBuffer());
-			}),
+						fishCodes,
+					);
+					return new Uint8Array(await response.arrayBuffer());
+				},
+				// onLate는 넘기지 않는다: 이 공급자는 시간 초과 때 요청을 끊어 늦은 결과가 없다
+				{ timeoutMs: options.timeoutMs, logPrefix: options.logPrefix },
+			),
 		// 드라마 장면 1회(T9.5). runTrial의 신호는 넘기지 않는다. 넘기면 시간 초과(180초)에 요청이 끊겨 늦은 결과가 오지 않는다(계획 '스펙과 다른 점' 3)
 		synthesizeScene: (
 			scene: SceneRequest,

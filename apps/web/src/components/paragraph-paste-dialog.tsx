@@ -1,0 +1,254 @@
+// apps/web/src/components/paragraph-paste-dialog.tsx
+"use client";
+
+import {
+	PARAGRAPHS_MAX,
+	STUDIO_TEXT_MAX,
+	studioTextMax,
+} from "@tts-pilot-app/api/providers/trial-options";
+import { Button } from "@tts-pilot-app/ui/components/button";
+import {
+	Dialog,
+	DialogClose,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@tts-pilot-app/ui/components/dialog";
+import { Textarea } from "@tts-pilot-app/ui/components/textarea";
+import { Toggle } from "@tts-pilot-app/ui/components/toggle";
+import { ToggleGroup } from "@tts-pilot-app/ui/components/toggle-group";
+import { cn } from "@tts-pilot-app/ui/lib/utils";
+import { ClipboardPaste, TriangleAlert } from "lucide-react";
+import { useId, useRef, useState } from "react";
+
+import {
+	type Paragraph,
+	pasteToTexts,
+	splitBlocks,
+	splitLong,
+} from "@/lib/paragraph-script";
+import { PARAGRAPH_TEXT } from "@/lib/studio-text";
+import { STUDIO_TEXT } from "@/lib/studio-view";
+
+import { fieldClass } from "./class-form-dialog";
+import { DialogCloseButton } from "./dialog-close-button";
+import { centered, paragraphTextId } from "./paragraph-focus";
+import { useParagraphs, useWork } from "./paragraph-provider";
+import { sourceItem } from "./setting-fields";
+import { lockedButton } from "./voice-problem";
+
+// 대본 붙여 넣기 창(T10 브리프 5.8). 빈 줄로 덩어리를 나누고 상한을 넘는 덩어리는 문장 끝에서 더 나눈다(pasteToTexts).
+// 넣으면 창을 닫고 '되돌리기' 알림(useParagraphs().edit), 포커스는 넣은 첫 문단의 대본 칸(브리프 7절).
+// 대본이 있으면 처음 방식은 '이어 넣기'이고, '전체 바꾸기'를 고르면 미리 보기 위에 지울 문단 수를 경고한다(critique 반영)
+
+type Mode = "replace" | "append";
+// '이어 넣기'는 끝 문단이 비었으면 그 자리에 넣는다(목록 가운데 빈 카드가 남지 않게). '전체 바꾸기' 경고도 빈 끝 문단은 세지 않는다
+const withoutBlankEnd = (ps: Paragraph[]) =>
+	ps.at(-1)?.text.trim() === "" ? ps.slice(0, -1) : ps;
+
+// 창 안(열려 있을 때만 그려져 문단 목록을 읽는다). 빈 글이면 미리 보기 없이 '넣기'만 잠근다(쓰기 전부터 경고를 띄우지 않는다)
+function PasteBody({
+	textId,
+	raw,
+	onRaw,
+	onInserted,
+}: {
+	textId: string;
+	// 붙여 넣을 글은 창 밖에 둔다(글이 있는 동안 바깥 누르기로 닫히지 않게)
+	raw: string;
+	onRaw: (raw: string) => void;
+	onInserted: (firstId: string) => void;
+}) {
+	const work = useWork();
+	const { paragraphs, edit } = useParagraphs();
+	const [mode, setMode] = useState<Mode>("append");
+	const previewId = useId();
+	const emptyId = useId();
+	// 지금 대본이 비었으면 세그먼트가 없고 늘 바꾼다(빈 카드를 남기지 않는다)
+	const hasScript = paragraphs.some((p) => p.text.trim() !== "");
+	const append = hasScript && mode === "append";
+	// '전체 바꾸기'로 사라질 문단과 그 가운데 성우나 설정을 따로 바꾼 문단(설정을 바꾸면 ownSettings가 자기 성우를 만든다)
+	const kept = withoutBlankEnd(paragraphs);
+	const own = kept.filter((p) => p.voice !== undefined).length;
+	// 새 문단은 기본 성우를 따른다. 기본 성우가 없으면 일반 상한
+	const voice = work.work.defaultVoice;
+	const max = voice ? studioTextMax(voice.provider) : STUDIO_TEXT_MAX;
+	const room = append ? PARAGRAPHS_MAX - kept.length : PARAGRAPHS_MAX;
+	const { texts, extra } = pasteToTexts(raw, max, room);
+	// 미리 보기의 '긴 덩어리' 수는 pasteToTexts가 돌려주지 않아 같은 나누기로 센다(Task 6 리뷰)
+	const long = splitBlocks(raw).filter(
+		(block) => splitLong(block, max).length > 1,
+	).length;
+	const empty = raw.trim() === "";
+
+	function insert() {
+		if (texts.length === 0) return;
+		const fresh: Paragraph[] = texts.map((text) => ({
+			id: crypto.randomUUID(),
+			text,
+		}));
+		edit(
+			(ps) =>
+				append
+					? [...withoutBlankEnd(ps), ...fresh].slice(0, PARAGRAPHS_MAX)
+					: fresh,
+			{ message: PARAGRAPH_TEXT.inserted(fresh.length, extra) },
+		);
+		onInserted(fresh[0].id);
+	}
+
+	return (
+		<>
+			{/* 오른쪽 위 '닫기'(44px + 12px)와 제목이 겹치지 않게 오른쪽을 비운다 */}
+			<DialogHeader className="pr-12">
+				<DialogTitle>{PARAGRAPH_TEXT.paste}</DialogTitle>
+				<DialogDescription>
+					{PARAGRAPH_TEXT.pasteDescription(max)}
+				</DialogDescription>
+			</DialogHeader>
+			<div className="flex min-w-0 flex-col gap-3">
+				<label htmlFor={textId} className="sr-only">
+					{PARAGRAPH_TEXT.pasteLabel}
+				</label>
+				{/* 입력을 자르지 않는다. 길면 칸 안에서 스크롤한다 */}
+				<Textarea
+					id={textId}
+					name="paragraph-paste"
+					autoComplete="off"
+					value={raw}
+					onChange={(event) => onRaw(event.target.value)}
+					aria-describedby={previewId}
+					className={cn(fieldClass, "max-h-96 min-h-60")}
+				/>
+				{hasScript ? (
+					<ToggleGroup
+						value={[mode]}
+						onValueChange={(next) => {
+							if (next[0]) setMode(next[0] as Mode);
+						}}
+						aria-label={PARAGRAPH_TEXT.pasteMode}
+						className="bg-muted p-1"
+					>
+						<Toggle value="append" className={sourceItem}>
+							{PARAGRAPH_TEXT.append}
+						</Toggle>
+						<Toggle value="replace" className={sourceItem}>
+							{PARAGRAPH_TEXT.replaceAll}
+						</Toggle>
+					</ToggleGroup>
+				) : null}
+				{/* 늘 그려 두어(빈 글이어도 한 줄 자리) 바뀐 수가 읽히고 칸 아래가 튀지 않는다. '전체 바꾸기' 경고는 맨 위 줄이라 고르면 읽히고 '넣기' 설명에도 든다 */}
+				<div id={previewId} aria-live="polite" className="flex flex-col gap-1">
+					{hasScript && !append ? (
+						<p className="flex gap-2 text-sm text-warning">
+							<TriangleAlert
+								aria-hidden="true"
+								className="mt-0.5 size-4 shrink-0"
+							/>
+							{PARAGRAPH_TEXT.replaceWarning(kept.length, own)}
+						</p>
+					) : null}
+					<p className="min-h-5 font-bold text-sm tabular-nums">
+						{empty
+							? null
+							: `${PARAGRAPH_TEXT.splitsInto(texts.length + extra)}${long > 0 ? PARAGRAPH_TEXT.splitLonger(long) : ""}`}
+					</p>
+					{extra > 0 ? (
+						<p className="flex items-center gap-2 text-sm text-warning">
+							<TriangleAlert aria-hidden="true" className="size-4 shrink-0" />
+							{PARAGRAPH_TEXT.overLimit(extra)}
+						</p>
+					) : null}
+				</div>
+			</div>
+			{/* 767px 이하 시트에서는 두 버튼이 가로 반반(DialogButtons와 같다) */}
+			<DialogFooter>
+				<DialogClose
+					render={
+						<Button
+							variant="neutral"
+							size="lg"
+							className="flex-1 md:flex-none"
+						/>
+					}
+				>
+					{PARAGRAPH_TEXT.cancel}
+				</DialogClose>
+				{/* 잠기면 무채색 neutral(잠긴 주 버튼은 채움 50%가 아니다, 브리프 3절) */}
+				<Button
+					variant={texts.length === 0 ? "neutral" : "default"}
+					size="lg"
+					focusableWhenDisabled
+					disabled={texts.length === 0}
+					// 잠긴 이유: 빈 글이면 화면 밖 문구, 자리가 없으면 보이는 넘침 줄
+					aria-describedby={empty ? emptyId : previewId}
+					className={cn("flex-1 md:flex-none", lockedButton(true))}
+					onClick={insert}
+				>
+					{PARAGRAPH_TEXT.insert}
+				</Button>
+				{empty ? (
+					<span id={emptyId} className="sr-only">
+						{PARAGRAPH_TEXT.pasteEmpty}
+					</span>
+				) : null}
+			</DialogFooter>
+			{/* DOM 끝에 둔다(Tab 순서에서 버튼보다 뒤) */}
+			<DialogCloseButton label={STUDIO_TEXT.close} />
+		</>
+	);
+}
+
+// '대본 붙여 넣기' 버튼과 창(레일·1단 작업 띠가 하나씩 그린다). filled는 채운 청록 우선순위(fillOf)가 이 버튼일 때다.
+// 열면 포커스는 글 칸, 넣으면 넣은 첫 문단의 대본 칸(가운데로 옮긴 뒤), 취소·닫기는 이 버튼(브리프 7절).
+// 글이 있는 동안은 바깥 누르기로 닫히지 않는다(DESIGN.md 입력 창)
+export function ParagraphPasteDialog({ filled }: { filled: boolean }) {
+	const [open, setOpen] = useState(false);
+	const [raw, setRaw] = useState("");
+	// 넣은 첫 문단 id. 창이 닫힌 뒤(문단이 그려진 뒤) 그 대본 칸으로 간다
+	const inserted = useRef<string | null>(null);
+	const textId = useId();
+	return (
+		<Dialog
+			open={open}
+			disablePointerDismissal={raw !== ""}
+			onOpenChange={(next) => {
+				if (next) {
+					inserted.current = null;
+					setRaw("");
+				}
+				setOpen(next);
+			}}
+		>
+			<DialogTrigger
+				render={<Button variant={filled ? "default" : "neutral"} size="lg" />}
+			>
+				<ClipboardPaste data-icon="inline-start" aria-hidden="true" />
+				{PARAGRAPH_TEXT.paste}
+			</DialogTrigger>
+			<DialogContent
+				initialFocus={() => document.getElementById(textId) ?? true}
+				// Base UI는 preventScroll로 돌려주므로 먼저 가운데로 옮긴다('문단 N 보기'와 같은 착지)
+				finalFocus={() =>
+					(inserted.current !== null &&
+						centered(paragraphTextId(inserted.current))) ||
+					true
+				}
+				className="md:max-w-2xl"
+			>
+				<PasteBody
+					textId={textId}
+					raw={raw}
+					onRaw={setRaw}
+					onInserted={(id) => {
+						inserted.current = id;
+						setOpen(false);
+					}}
+				/>
+			</DialogContent>
+		</Dialog>
+	);
+}

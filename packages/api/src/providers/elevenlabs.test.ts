@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ListInputOf } from "./contract";
 import { createElevenLabs } from "./elevenlabs";
-import { CHECK_TIMEOUT_MS } from "./errors";
+import {
+	CHECK_TIMEOUT_MS,
+	STUDIO_TIMEOUT_MS,
+	type SynthesizeOptions,
+} from "./errors";
 import {
 	calledUrl,
 	elAccountInput,
@@ -746,13 +750,20 @@ const bodyOf = (i = 0) =>
 	JSON.parse(String(fetchMock.mock.calls[i]?.[1]?.body));
 
 describe("ElevenLabs 시험 생성", () => {
-	const synth = (settings: Partial<ElevenLabsSettings> = {}, text = "안녕") =>
-		createElevenLabs(KEY).synthesize?.({
-			provider: "elevenlabs",
-			voiceId: "el0001",
-			text,
-			settings: { ...DEFAULT_SETTINGS.elevenlabs, ...settings },
-		});
+	const synth = (
+		settings: Partial<ElevenLabsSettings> = {},
+		text = "안녕",
+		options?: SynthesizeOptions,
+	) =>
+		createElevenLabs(KEY).synthesize?.(
+			{
+				provider: "elevenlabs",
+				voiceId: "el0001",
+				text,
+				settings: { ...DEFAULT_SETTINGS.elevenlabs, ...settings },
+			},
+			options,
+		);
 
 	it("v4: 말투 태그를 문장 앞에, 안정성·유사도만, MP3 128kbps", async () => {
 		fetchMock.mockResolvedValueOnce(audio());
@@ -868,6 +879,39 @@ describe("ElevenLabs 시험 생성", () => {
 			data: { provider: "elevenlabs", reason: "unknown_outcome" },
 		});
 		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+	it("작업실 대기(timeoutMs)를 받으면 60초를 넘겨도 끊지 않는다", async () => {
+		vi.useFakeTimers();
+		fetchMock.mockImplementation(
+			() =>
+				new Promise<Response>((resolve) =>
+					setTimeout(() => resolve(audio()), 120_000),
+				),
+		);
+		const pending = synth({}, "안녕", { timeoutMs: STUDIO_TIMEOUT_MS });
+		await vi.advanceTimersByTimeAsync(120_000);
+		await expect(pending).resolves.toBeDefined();
+	});
+
+	it("timeoutMs를 넘기면 unknown_outcome이고 onLate를 부르지 않는다", async () => {
+		vi.useFakeTimers();
+		fetchMock.mockImplementation(
+			(_url, init) =>
+				new Promise<Response>((_resolve, reject) => {
+					init?.signal?.addEventListener("abort", () =>
+						reject(new DOMException("aborted", "AbortError")),
+					);
+				}),
+		);
+		const onLate = vi.fn();
+		const assertion = expect(
+			synth({}, "안녕", { timeoutMs: STUDIO_TIMEOUT_MS, onLate }),
+		).rejects.toMatchObject({
+			data: { provider: "elevenlabs", reason: "unknown_outcome" },
+		});
+		await vi.advanceTimersByTimeAsync(STUDIO_TIMEOUT_MS);
+		await assertion;
+		expect(onLate).not.toHaveBeenCalled();
 	});
 });
 

@@ -57,8 +57,8 @@ import {
 import type { SavedVoice } from "@tts-pilot-app/api/saved-voice-contract";
 
 import { PROVIDER_IDS, PROVIDER_LABEL } from "./connection-view";
-import { GAP_DEFAULT, gapOf } from "./drama-join";
 import type { ReadProblem } from "./drama-read";
+import { GAP_DEFAULT, gapOf } from "./sound-join";
 import {
 	kstStamp,
 	pressedEmotion,
@@ -66,10 +66,12 @@ import {
 	savedOf,
 	VOICE_ID,
 } from "./studio-view";
+import { insertSound } from "./tag-view";
 import {
 	presetsOf,
 	resultWhen,
 	type TrialProblem,
+	trialFallback,
 	trialProblemText,
 	requestOf as trialRequestOf,
 	typecastModelsOf,
@@ -197,16 +199,13 @@ export const DRAMA_TEXT = {
 	replaced: (lines: number, speakers: number) =>
 		`대본을 바꿨어요. ${n(lines)}줄, 화자 ${speakers}명.`,
 	palette: "연기 지시",
-	// 도구줄(스펙 17.3): 접근 이름(지시 칸 directionLabel과 다르게 줄 메뉴 항목을 따른다), 첫 묶음 나머지를 담은 메뉴 알약, 묶음 짧은 이름(메뉴 알약 글). 메뉴 안 머리는 긴 묶음 이름이다
+	// 도구줄(스펙 17.3): 접근 이름(지시 칸 directionLabel과 다르게 줄 메뉴 항목을 따른다), 범위 묶음 짧은 이름(메뉴 알약 글). 메뉴 안 머리는 긴 묶음 이름이다.
+	// 메뉴 알약·소리·분위기 짧은 이름·뱃지 이름은 두 작업실 공용 TAG_TEXT(tag-view)다
 	toolbarName: (line: number) => `${line}번 줄 연기 지시 넣기`,
-	moreOf: (name: string) => `${name} 더 보기`,
-	soundShort: "소리",
 	spanShort: "범위",
-	moodShort: "분위기",
 	soundGroup: "소리 · 커서 위치에",
 	spanGroup: "범위 · 고른 글자를 감싸요",
 	moodGroup: "분위기 · 그 줄의 지시 칸에",
-	badgeName: (label: string, text: string) => `${label}, ${text}`,
 	howTo: "지시 쓰는 법",
 	howToDot: "점 태그: `그래 [sighs] 네가 이겼어.`",
 	howToSpan: "범위 태그: `약속해 <whisper>아무한테도 말 안 한다고</whisper>.`",
@@ -467,7 +466,7 @@ export const DRAMA_TEXT = {
 		`대본이 ${n(DRAMA_SCENE_MAX)}자를 넘어 자동 태그를 쓸 수 없어요 (지금 ${n(count)}자)`,
 	autoTagTitle: "대본을 보내 연기 값을 제안받을까요?",
 	autoTagBody:
-		"Gemini 텍스트 모델(gemini-3.8-flash)로 대본을 보내요. 예상 약 $0.01. 키가 무료 등급이면 Google이 보낸 대본을 학습에 쓸 수 있어요",
+		"OpenAI 텍스트 모델(gpt-6-luna)로 대본을 보내요. 3번 실패하면 Gemini(gemini-3.8-flash)로 보내요. 예상 약 $0.01. Gemini 키가 무료 등급이면 Google이 보낸 대본을 학습에 쓸 수 있어요",
 	autoTagGo: "제안 받기",
 	autoTagPreviewTitle: "자동 태그 제안",
 	autoTagNone: "바꿀 값이 없어요",
@@ -478,10 +477,6 @@ export const DRAMA_TEXT = {
 		`보낸 뒤 고친 줄 ${n(count)}개는 건너뛰었어요`,
 	autoTagApplied: (count: number) =>
 		`줄 ${n(count)}개를 바꿨어요 (실행 취소 10초)`,
-	autoTagReply: "제안을 읽지 못했어요. 다시 해 주세요",
-	// 수정 회차 1(코디네이터 판정): 맥락이 틀린 T5 문구만 바꾼다
-	autoTagRetryAt: (time: string) => `${time} 이후에 다시 제안받을 수 있어요`,
-	autoTagFailed: "제안을 받지 못했어요. 잠시 뒤 다시 해 주세요",
 	// 미리 보기 전·후의 화면 밖 이름표(줄 긋기는 읽히지 않는다)
 	autoTagBefore: "전",
 	autoTagAfter: "후",
@@ -1282,19 +1277,6 @@ export function parsePaste(
 	};
 }
 
-// 소리 뱃지: 커서 위치에 '태그 '를 넣고 커서를 그 뒤로(위치는 UTF-16 단위, textarea selectionStart와 같다).
-// 값은 태그 전체 글이다(ACTING의 sound, [sighs]·<sigh>, '스펙과 다른 점' 19)
-export function insertSound(
-	text: string,
-	at: number,
-	tag: string,
-): { text: string; caret: number } {
-	const inserted = `${tag} `;
-	return {
-		text: `${text.slice(0, at)}${inserted}${text.slice(at)}`,
-		caret: at + inserted.length,
-	};
-}
 // 범위 뱃지: 고른 글자를 감싸고 안쪽 글자를 고른다. 빈 범위면 빈 쌍을 넣고 커서를 가운데에
 export function wrapSpan(
 	text: string,
@@ -1792,14 +1774,6 @@ export function autoTagNotes(
 	return notes;
 }
 
-// T5 기본 실패 문구(trialProblemText의 그 밖 사유). 맥락이 다른 화면이 이 문구만 바꾼다
-const trialFallback = (provider: ProviderId) =>
-	trialProblemText(provider, {
-		reason: "unexpected",
-		retryAt: null,
-		providerCode: null,
-	}).text;
-
 // 읽기 줄 실패 문구: T5 그대로, 다만 '내 문장을 듣지 못했어요…' 기본 문구는 이 줄 문구(readLineFailed)
 export function readLineProblemText(
 	provider: ProviderId,
@@ -1809,19 +1783,4 @@ export function readLineProblemText(
 	return view.text === trialFallback(provider)
 		? { ...view, text: DRAMA_TEXT.readLineFailed }
 		: view;
-}
-
-// 자동 태그 오류 줄(확인 창 안, 코디네이터 판정): 답을 읽지 못함은 autoTagReply, 대기 시각은 '제안받을 수 있어요',
-// 공급자 오류·처리 여부 미확인·예상 못 한 사유는 autoTagFailed, 나머지(키·계정·잔액 등)는 T5 Gemini 문구 그대로
-export function autoTagProblemText(problem: TrialProblem): string {
-	if (problem.providerCode === "auto_tag_reply") return DRAMA_TEXT.autoTagReply;
-	if (problem.reason === "rate_limit" && problem.retryAt)
-		return DRAMA_TEXT.autoTagRetryAt(retryTime(problem.retryAt));
-	if (
-		problem.reason === "provider_error" ||
-		problem.reason === "unknown_outcome"
-	)
-		return DRAMA_TEXT.autoTagFailed;
-	const { text } = trialProblemText("gemini", problem);
-	return text === trialFallback("gemini") ? DRAMA_TEXT.autoTagFailed : text;
 }

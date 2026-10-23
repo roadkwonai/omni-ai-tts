@@ -53,6 +53,7 @@ export function reasonFromHttp(
 			: "provider_auth";
 	}
 	if (status === 402) return "quota";
+	if (status === 429 && codes.includes("insufficient_quota")) return "quota";
 	if (status === 429) return "rate_limit";
 	// Google 400 FAILED_PRECONDITION은 결제·지역 같은 계정 조건이다(입력 거절이 아니다). 확정은 실측 뒤(T7.6 스펙 6절)
 	if (status === 400 && codes.includes("FAILED_PRECONDITION")) return "quota";
@@ -110,6 +111,8 @@ export type CheckOutcome = {
 // T는 결과 모양이다(runTrial의 제네릭, 드라마 장면 생성은 PCM과 정렬)
 export type SynthesizeOptions<T = Uint8Array> = {
 	timeoutMs?: number;
+	// 실패 로그 접두어. 기본 "[trial]", 작업실 "[studio]", 드라마 "[drama]"
+	logPrefix?: string;
 	onLate?: (late: Promise<T>) => void;
 };
 
@@ -132,8 +135,8 @@ export type ProviderClient = {
 		scene: SceneRequest,
 		options?: SynthesizeOptions<SceneAudio>,
 	): Promise<SceneAudio>;
-	// Gemini만: 드라마 전체 자동 태그 1회(T9.5 Part 2). 유료다(약 $0.01). 텍스트 모델의 답 글(JSON 문자열)을 읽지 않고 돌려준다(없으면 null).
-	// 읽기·검사는 라우터가 한다. 재시도하지 않는다
+	// Gemini·OpenAI: 자동 태그 텍스트 호출 1회(T9.5 Part 2, T10 스펙 16). 유료다(약 $0.01). 텍스트 모델의 답 글(JSON 문자열)을 읽지 않고 돌려준다(없으면 null).
+	// 읽기·검사는 askSuggestions가 한다. 이 메서드는 재시도하지 않는다(순서·다시 부르기는 askSuggestions)
 	suggestActing?(prompt: {
 		system: string;
 		input: string;
@@ -393,7 +396,7 @@ const TRIAL_CODE = {
 
 // 시험 생성 오류. data에는 공급자·사유(·다음 호출 가능 시각·입력 거절의 공급자 오류 코드)만 담고 원래 오류를 붙이지 않는다
 export function trialError(
-	provider: ProviderId | undefined,
+	provider: ProviderId | "openai" | undefined,
 	reason: TrialFailure,
 	extra: { retryAt?: string; providerCode?: string } = {},
 ) {
@@ -442,9 +445,13 @@ export function retryAtFrom(retryAfter: string | null): string | undefined {
 // 원래 오류 객체는 던지지 않는다(rpc onError가 통째로 로그에 쓴다). 로그는 logFailure 한 줄(이름·필드 이름)뿐이다
 // 작업실은 시간 제한을 늘리고(timeoutMs) 끊긴 요청의 결과 약속을 onLate로 받는다(T9). 경주가 그 약속에 처리기를 달아 두므로 늦은 거절이 처리 안 된 거절이 되지 않는다
 export async function runTrial<T>(
-	provider: ProviderId,
+	provider: ProviderId | "openai",
 	call: (signal: AbortSignal) => Promise<T>,
-	{ timeoutMs = TRIAL_TIMEOUT_MS, onLate }: SynthesizeOptions<T> = {},
+	{
+		timeoutMs = TRIAL_TIMEOUT_MS,
+		onLate,
+		logPrefix = "[trial]",
+	}: SynthesizeOptions<T> = {},
 ): Promise<T> {
 	let started: Promise<T> | undefined;
 	try {
@@ -465,7 +472,7 @@ export async function runTrial<T>(
 				providerCode: reason === "provider_input" ? error.codes[0] : undefined,
 			});
 		}
-		logFailure(`[trial] ${provider} 생성 실패`, error, []);
+		logFailure(`${logPrefix} ${provider} 생성 실패`, error, []);
 		throw trialError(provider, "unknown_outcome");
 	}
 }

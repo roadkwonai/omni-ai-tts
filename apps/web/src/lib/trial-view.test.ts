@@ -29,6 +29,7 @@ import {
 	trialAriaLabel,
 	trialBlock,
 	trialFailureOf,
+	trialFallback,
 	trialProblemText,
 	typecastOverdrawn,
 	usageBasis,
@@ -409,6 +410,18 @@ describe("오류", () => {
 			"내 문장을 듣지 못했어요. 잠시 뒤 다시 눌러 주세요",
 		);
 	});
+	it("trialFallback은 그 공급자의 그 밖 사유 문구(맥락이 다른 화면이 이 문구만 바꾼다)", () => {
+		expect(trialFallback("elevenlabs")).toBe(
+			"내 문장을 듣지 못했어요. 잠시 뒤 다시 눌러 주세요",
+		);
+		expect(trialFallback("gemini")).toBe(
+			trialProblemText("gemini", {
+				reason: "unexpected",
+				retryAt: null,
+				providerCode: null,
+			}).text,
+		);
+	});
 	it("Airy 입력 거절은 공급자 코드 없이 고칠 방법을 말한다(D7)", () => {
 		const text = (providerCode: string) =>
 			trialProblemText(
@@ -626,9 +639,48 @@ describe("확인 창 글(T9)", () => {
 			// 같은 서명의 미확인 줄이 있을 때 경고 줄(브리프 5.7)
 			unknownRetry:
 				"같은 대본·성우·설정의 앞 요청은 처리 여부를 아직 몰라요. 다시 만들면 크레딧이 한 번 더 쓰일 수 있어요",
+			paid: true,
 		});
 		expect(confirmCopy("studio", typecast("짧은 대본")).text).toBe(
 			"짧은 대본 (총 5자)",
 		);
+	});
+	it("작업실 Gemini 문단은 크레딧이 아니라 비용이다(전체 만들기 창과 같은 문법)", () => {
+		const gemini = {
+			provider: "gemini",
+			voiceId: "kore",
+			text: "짧은 대본",
+			settings: DEFAULT_SETTINGS.gemini,
+		} as TrialRequest;
+		expect(confirmCopy("studio", gemini)).toEqual({
+			title: "비용이 드는 음성을 만들까요?",
+			action: "비용 내고 만들기",
+			textLabel: "대본",
+			text: "짧은 대본 (총 5자)",
+			unknownRetry:
+				"같은 대본·성우·설정의 앞 요청은 처리 여부를 아직 몰라요. 다시 만들면 비용이 한 번 더 들 수 있어요",
+			paid: true,
+		});
+	});
+	it("작업실 무료 요청(미확인이라 창이 뜬다)은 크레딧·비용 말 없이 '만들기', 무료 기간이 끝나면 유료 문구", () => {
+		const fish = {
+			provider: "fish_audio",
+			voiceId: "fa_1",
+			text: "짧은 대본",
+			settings: { ...DEFAULT_SETTINGS.fish_audio, model: "s2.1-pro-free" },
+		} as TrialRequest;
+		expect(confirmCopy("studio", fish, FISH_FREE_UNTIL - 1)).toEqual({
+			title: "문단을 만들까요?",
+			action: "만들기",
+			textLabel: "대본",
+			text: "짧은 대본 (총 5자)",
+			unknownRetry:
+				"같은 대본·성우·설정의 앞 요청은 처리 여부를 아직 몰라요. 다시 만들어도 무료예요",
+			paid: false,
+		});
+		expect(confirmCopy("studio", fish, FISH_FREE_UNTIL)).toMatchObject({
+			action: "크레딧 쓰고 만들기",
+			paid: true,
+		});
 	});
 });

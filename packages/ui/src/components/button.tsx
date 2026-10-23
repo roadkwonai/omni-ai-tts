@@ -10,6 +10,9 @@ const buttonVariants = cva(
 				default: "bg-primary text-primary-foreground hover:bg-primary-hover",
 				outline:
 					"border-primary bg-card text-primary hover:bg-primary/8 aria-expanded:bg-primary/8",
+				// 무채색 보조 버튼(청록 outline 대신, 채운 청록 하나 규칙을 흐리지 않게)
+				neutral:
+					"border-border bg-card text-foreground hover:bg-muted aria-expanded:bg-muted",
 				secondary:
 					"bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
 				ghost:

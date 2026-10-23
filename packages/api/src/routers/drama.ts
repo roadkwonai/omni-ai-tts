@@ -5,7 +5,6 @@ import {
 	autoTagPrompt,
 	checkSuggestion,
 	familyOf,
-	type Suggestion,
 } from "../drama-acting";
 import {
 	dramaAudioInputSchema,
@@ -35,6 +34,7 @@ import {
 	utf8Bytes,
 } from "../providers/trial-options";
 import {
+	askSuggestions,
 	audioPart,
 	claimRow,
 	dramaKey,
@@ -74,27 +74,7 @@ function toStored(scene: SceneAudio, lines: readonly DramaLine[]): Stored {
 	return { audio: wavOf(scene.pcm), audioType: WAV, segments };
 }
 
-// 자동 태그 답(JSON schema로 요청했어도 서버가 다시 읽는다). 줄 수·index는 믿지 않는다
-const autoTagReplySchema = z.object({
-	lines: z.array(
-		z.object({
-			index: z.number().int(),
-			direction: z.string(),
-			text: z.string(),
-			emotion: z.string(),
-			intensity: z.number().nullable(),
-		}),
-	),
-});
-const parseReply = (reply: string | null): unknown => {
-	try {
-		return JSON.parse(reply ?? "");
-	} catch {
-		return undefined;
-	}
-};
-
-// 드라마 작업실(T9.5 스펙 3·14절). 돈을 쓰는 길은 dramaCreate(Fish 장면)와 dramaAutoTag(Gemini 텍스트) 둘이다. 나머지는 DB만 본다
+// 드라마 작업실(T9.5 스펙 3·14절). 돈을 쓰는 길은 dramaCreate(Fish 장면)와 dramaAutoTag(OpenAI, 실패하면 Gemini 텍스트, 묶음당 최대 4회 ADR 0008) 둘이다. 나머지는 DB만 본다
 export const dramaRouter = {
 	dramaCreate: protectedProcedure
 		.input(dramaCreateInputSchema)
@@ -109,20 +89,26 @@ export const dramaRouter = {
 			const { text, referenceIds } = sceneText(request);
 			const key = dramaKey(request);
 			const replayed = () =>
-				withStorage(PROVIDER, () =>
-					replayStudio(db, ownerId, requestId, key, PROVIDER),
+				withStorage(
+					PROVIDER,
+					() => replayStudio(db, ownerId, requestId, key, PROVIDER),
+					PREFIX,
 				);
 			// 같은 요청 id(두 번 누름·재전송)는 성우 검사·대기 시각보다 먼저 그 행을 돌려준다(T5 순서, tts-provider)
 			const existing = await replayed();
 			if (existing) return existing;
 			// 서버 성우 검사(T9.5 스펙 2절): 보낼 성우(쓰인 화자의 성우)가 모두 이 소유자가 Fish Audio로 담은 이용 가능한 성우
-			const usable = await withStorage(PROVIDER, () =>
-				usableVoices(db, ownerId, PROVIDER, referenceIds),
+			const usable = await withStorage(
+				PROVIDER,
+				() => usableVoices(db, ownerId, PROVIDER, referenceIds),
+				PREFIX,
 			);
 			if (!usable) throw trialError(PROVIDER, "voice_unavailable");
 			// 대기 시각 표를 읽지 못하면 부르지 않는다(로드맵 T5 메모)
-			const until = await withStorage(PROVIDER, () =>
-				cooldownOf(db, PROVIDER, new Date()),
+			const until = await withStorage(
+				PROVIDER,
+				() => cooldownOf(db, PROVIDER, new Date()),
+				PREFIX,
 			);
 			if (until)
 				throw trialError(PROVIDER, "rate_limit", {
@@ -130,22 +116,25 @@ export const dramaRouter = {
 				});
 			const { sceneName, speakers, lines, model, settings } = request;
 			const usage = dramaUsage(model, utf8Bytes(text));
-			const claimed = await withStorage(PROVIDER, () =>
-				claimRow(db, {
-					ownerId,
-					requestId,
-					key,
-					usage,
-					provider: PROVIDER,
-					fields: {
-						kind: "drama",
-						voiceId: referenceIds.join(","),
-						model,
-						settings,
-						text,
-						script: { sceneName, speakers, lines },
-					},
-				}),
+			const claimed = await withStorage(
+				PROVIDER,
+				() =>
+					claimRow(db, {
+						ownerId,
+						requestId,
+						key,
+						usage,
+						provider: PROVIDER,
+						fields: {
+							kind: "drama",
+							voiceId: referenceIds.join(","),
+							model,
+							settings,
+							text,
+							script: { sceneName, speakers, lines },
+						},
+					}),
+				PREFIX,
 			);
 			if (claimed.kind === "existing") {
 				// 선점이 같은 요청 id에 걸렸다(동시 재전송). 그 행의 상태를 돌려준다(진행 중이면 in_progress)
@@ -170,6 +159,7 @@ export const dramaRouter = {
 					{ model, text, referenceIds, ...settings },
 					{
 						timeoutMs: STUDIO_TIMEOUT_MS,
+						logPrefix: PREFIX,
 						onLate: (result) => {
 							late.result = result;
 						},
@@ -207,7 +197,7 @@ export const dramaRouter = {
 				segments: stored.segments ?? null,
 			};
 		}),
-	// 전체 자동 태그(T9.5 스펙 14.5). 유료 Gemini 텍스트 호출 1회이고 DB를 쓰지 않는다(기록·대기 시각 표 없음, 429는 화면에만 알린다)
+	// 전체 자동 태그(T9.5 스펙 14.5). 유료 텍스트 호출(OpenAI 우선·Gemini 보조, askSuggestions, 스펙 16.1)이고 DB를 쓰지 않는다(기록·대기 시각 표 없음, 429는 화면에만 알린다)
 	dramaAutoTag: protectedProcedure
 		.input(dramaAutoTagInputSchema)
 		.output(dramaAutoTagOutputSchema)
@@ -229,21 +219,12 @@ export const dramaRouter = {
 			// 받을 줄이 없으면 돈을 쓰지 않는다. 키가 없어도 할 일이 없으니 오류가 아니다(리뷰 수정 1)
 			if (skipped === lines.length)
 				return { lines: lines.map(originalOf), skipped };
-			const suggestActing = context.providers?.gemini?.suggestActing;
-			if (!suggestActing) throw trialError("gemini", "no_key");
-			const reply = autoTagReplySchema.safeParse(
-				parseReply(await suggestActing(autoTagPrompt(acting, lines))),
+			// 줄마다 그 index의 첫 제안. 없으면 원래 값이다
+			const first = await askSuggestions(
+				context,
+				autoTagPrompt(acting, lines),
+				"lines",
 			);
-			// 답 글·대본은 data에 넣지 않는다
-			if (!reply.success)
-				throw trialError("gemini", "provider_input", {
-					providerCode: "auto_tag_reply",
-				});
-			// 줄마다 그 index의 첫 제안만 본다. 없으면 원래 값이다
-			const first = new Map<number, Suggestion>();
-			for (const suggestion of reply.data.lines)
-				if (!first.has(suggestion.index))
-					first.set(suggestion.index, suggestion);
 			const pairs = lines.map((line, index) => {
 				const original = originalOf(line);
 				const suggestion = first.get(index);
@@ -277,23 +258,32 @@ export const dramaRouter = {
 	dramaList: protectedProcedure
 		.output(z.array(dramaItemSchema))
 		.handler(({ context }) =>
-			withStorage(PROVIDER, () => listDrama(context.db, context.ownerId)),
+			withStorage(
+				PROVIDER,
+				() => listDrama(context.db, context.ownerId),
+				PREFIX,
+			),
 		),
 	// 오디오 조각 하나(multipart File, 3MiB 이하). 0번 조각이 보관을 30일 뒤로 늘린다
 	dramaAudio: protectedProcedure
 		.input(dramaAudioInputSchema)
 		.output(z.file())
 		.handler(({ input, context }) =>
-			withStorage(undefined, () =>
-				audioPart(context.db, context.ownerId, input.id, input.part, "drama"),
+			withStorage(
+				undefined,
+				() =>
+					audioPart(context.db, context.ownerId, input.id, input.part, "drama"),
+				PREFIX,
 			),
 		),
 	dramaDelete: protectedProcedure
 		.input(z.object({ id: z.uuid() }))
 		.output(z.object({ deleted: z.literal(true) }))
 		.handler(async ({ input, context }) => ({
-			deleted: await withStorage(undefined, () =>
-				remove(context.db, context.ownerId, input.id, "drama"),
+			deleted: await withStorage(
+				undefined,
+				() => remove(context.db, context.ownerId, input.id, "drama"),
+				PREFIX,
 			),
 		})),
 };

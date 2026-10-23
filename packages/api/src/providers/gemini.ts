@@ -11,6 +11,7 @@ import {
 	runCheck,
 	runList,
 	runTrial,
+	type SynthesizeOptions,
 } from "./errors";
 import { clip, emptyVoice, parseVoiceItems } from "./list";
 import { voiceIdSchema } from "./trial-contract";
@@ -263,50 +264,58 @@ export function createGemini(apiKey: string): ProviderClient {
 
 	return {
 		// 매개변수는 이 공급자의 요청만 받는다(메서드 이변성, ProviderClient 주석)
-		synthesize: (request: Extract<TrialRequest, { provider: "gemini" }>) =>
-			runTrial("gemini", async (signal) => {
-				const { model, direction } = request.settings;
-				const response = await waitDefault(
-					fetchOk(
-						`${GEMINI_HOST}/v1beta/interactions`,
-						{
-							method: "POST",
-							headers: { ...auth, "Content-Type": "application/json" },
-							// 계약 필드만 서버가 만든다. store: false로 공급자가 요청·응답을 저장하지 않게 한다(research 10절). 언어는 모델이 감지한다
-							body: JSON.stringify({
-								model,
-								input: [
-									{
-										type: "user_input",
-										content: [
-											{
-												type: "text",
-												text: sentText(request),
-												// 말투 지시는 대본이 아니라 주석이다(문서: 대본에 쓴 지시는 읽힐 수 있다)
-												...(direction
-													? {
-															annotations: [
-																{ type: "speech_metadata", style: direction },
-															],
-														}
-													: {}),
-											},
-										],
+		synthesize: (
+			request: Extract<TrialRequest, { provider: "gemini" }>,
+			options: SynthesizeOptions = {},
+		) =>
+			runTrial(
+				"gemini",
+				async (signal) => {
+					const { model, direction } = request.settings;
+					const response = await waitDefault(
+						fetchOk(
+							`${GEMINI_HOST}/v1beta/interactions`,
+							{
+								method: "POST",
+								headers: { ...auth, "Content-Type": "application/json" },
+								// 계약 필드만 서버가 만든다. store: false로 공급자가 요청·응답을 저장하지 않게 한다(research 10절). 언어는 모델이 감지한다
+								body: JSON.stringify({
+									model,
+									input: [
+										{
+											type: "user_input",
+											content: [
+												{
+													type: "text",
+													text: sentText(request),
+													// 말투 지시는 대본이 아니라 주석이다(문서: 대본에 쓴 지시는 읽힐 수 있다)
+													...(direction
+														? {
+																annotations: [
+																	{ type: "speech_metadata", style: direction },
+																],
+															}
+														: {}),
+												},
+											],
+										},
+									],
+									response_format: { type: "audio" },
+									generation_config: {
+										speech_config: [{ voice: request.voiceId }],
 									},
-								],
-								response_format: { type: "audio" },
-								generation_config: {
-									speech_config: [{ voice: request.voiceId }],
-								},
-								store: false,
-							}),
-							signal,
-						},
-						geminiCodes,
-					),
-				);
-				return wavOf(await response.json());
-			}),
+									store: false,
+								}),
+								signal,
+							},
+							geminiCodes,
+						),
+					);
+					return wavOf(await response.json());
+				},
+				// onLate는 넘기지 않는다: 이 공급자는 시간 초과 때 요청을 끊어 늦은 결과가 없다
+				{ timeoutMs: options.timeoutMs, logPrefix: options.logPrefix },
+			),
 		// 대본은 input 문자열로 보낸다(문서 텍스트 예시). 2026-10-22 사용자 승인 실호출에서 이 모양이 200으로 받아들여졌다(research drama-acting-tags 3-2)
 		suggestActing: ({ system, input, schema }) =>
 			runTrial(

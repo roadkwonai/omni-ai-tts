@@ -3,7 +3,10 @@ import type { Database } from "@tts-pilot-app/db";
 import { savedVoice } from "@tts-pilot-app/db/schema/saved-voice";
 import { trialGeneration } from "@tts-pilot-app/db/schema/trial-generation";
 import { and, desc, eq, gt, inArray, lt, ne, sql } from "drizzle-orm";
+import { z } from "zod";
 
+import type { Context } from "./context";
+import { parseJsonReply, type Suggestion } from "./drama-acting";
 import type { DramaItemInput } from "./drama-contract";
 import {
 	DRAMA_RESULTS_SHOWN,
@@ -26,21 +29,19 @@ import {
 	normalizeText,
 	STUDIO_AUDIO_MAX,
 	STUDIO_PART_BYTES,
-	STUDIO_RESULTS_SHOWN,
 	TRIAL_RESULTS_SHOWN,
 	type TrialRequest,
 	type Usage,
 	usedSettings,
 } from "./providers/trial-options";
-import type { StudioItemInput, StudioResult } from "./studio-contract";
+import type { StudioFound, StudioResult } from "./studio-contract";
 import { cacheKey, guard, logDbFailure, recordCooldown } from "./voice-cache";
 
 // 생성 기록과 결과(ADR 0003 '듣기 결과', T5 스펙 5절, T9 작업실). 모든 읽기·쓰기에 소유자 조건을 넣는다(prokit-api 불변식 3).
 // 정리·옵션·조합 글자가 바뀌어 같은 요청이 다른 소리를 내게 되면 판을 올린다(옛 결과를 찾지 않는다). 작업실 키도 같은 판을 쓴다.
 // 판을 올릴 때는 같은 마이그레이션에서 `delete from trial_generation where kind = 'trial'`로 내 문장 결과만 지운다. 목록(listResults)은 판을 거르지 않고
 // 화면의 '저장된 결과' 판정(comboSignature)에는 판이 없어서, 옛 행이 남으면 '저장됨'인데 찾기가 못 찾는다(계획 리뷰 E13).
-// 작업실 결과(유료, 최대 32MiB)는 지우지 않는다. 판이 바뀌면 studioFind만 못 찾고, 이전 결과 목록에 있는 줄은 화면이 id로 계속 연다(T9 계획 리뷰 E5).
-// 화면의 판정(comboSignature)에도 판이 없어 최근 20개 안의 같은 서명은 옛 판이어도 '음성 만들기'가 '저장된 결과 열기'로 연다(다시 만들지 않아 돈은 안전하다). 이것이 문제가 되면 StudioItem에 판을 싣는다(계획 재리뷰 N1)
+// 작업실 결과(유료, 최대 32MiB)는 지우지 않는다. 판이 바뀌면 studioFind·studioFindMany가 옛 결과를 찾지 못한다(T9 계획 리뷰 E5).
 export const TRIAL_CONTRACT_VERSION = 1;
 const KEEP_MS = 30 * 24 * 60 * 60 * 1000;
 // 함수 최대 실행 시간(ADR 0002: 300초)보다 오래 '만드는 중'이면 처리 여부를 모르는 것으로 옮긴다(tts-provider)
@@ -74,12 +75,13 @@ export const audioTypeOf = (provider: ProviderId) =>
 export async function withStorage<T>(
 	provider: ProviderId | undefined,
 	run: () => Promise<T>,
+	prefix = "[trial]",
 ): Promise<T> {
 	try {
 		return await run();
 	} catch (error) {
 		if (error instanceof ORPCError) throw error;
-		logDbFailure("[trial]", "저장소", error);
+		logDbFailure(prefix, "저장소", error);
 		throw trialError(provider, "storage");
 	}
 }
@@ -546,40 +548,35 @@ export async function findStudio(
 	return row ? studioOf(row) : null;
 }
 
-// 이전 결과: 완료와 처리 여부 미확인 최근 20개(오디오 없음). 요청은 저장한 정리 값이고 출력 스키마가 기본값을 채워 다시 검사한다
-export async function listStudio(
+// 여러 키의 저장된 작업실 결과를 한 번에 찾는다(완료·미확인, 미만료). 키마다 완료가 있으면 가장 최근 완료, 없으면 가장 최근 미확인.
+// 오디오를 읽지 않고 보관 기한도 늘리지 않는다. 키는 호출자가 200개 이하로 막는다
+export async function findStudioMany(
 	db: Database,
 	ownerId: string,
-): Promise<StudioItemInput[]> {
+	keys: readonly string[],
+): Promise<(StudioFound | null)[]> {
 	const rows = await db
-		.select({
-			...studioColumns,
-			status: t.status,
-			voiceId: t.voiceId,
-			text: t.text,
-			settings: t.settings,
-		})
+		.select({ ...studioColumns, comboKey: t.comboKey, status: t.status })
 		.from(t)
 		.where(
 			and(
 				eq(t.ownerId, ownerId),
 				studioRow,
+				inArray(t.comboKey, keys),
 				inArray(t.status, ["done", "unknown"]),
 				gt(t.expiresAt, new Date()),
 			),
 		)
-		.orderBy(desc(t.createdAt))
-		.limit(STUDIO_RESULTS_SHOWN);
-	return rows.map((row) => ({
-		...studioOf(row),
-		status: row.status as "done" | "unknown",
-		request: {
-			provider: "typecast",
-			voiceId: row.voiceId,
-			text: row.text,
-			settings: row.settings,
-		} as StudioItemInput["request"],
-	}));
+		.orderBy(desc(t.createdAt));
+	const best = new Map<string, StudioFound>();
+	for (const row of rows) {
+		const status = row.status === "done" ? "done" : "unknown";
+		const held = best.get(row.comboKey);
+		// 최신순이라 처음 본 것이 가장 최근이다. 미확인이 잡혀 있을 때만 완료가 이긴다
+		if (held && (held.status === "done" || status === "unknown")) continue;
+		best.set(row.comboKey, { ...studioOf(row), status });
+	}
+	return keys.map((key) => best.get(key) ?? null);
 }
 
 // ── 드라마 작업실(T9.5) ──
@@ -710,13 +707,13 @@ export async function recordUse(
 }
 
 // 작업실·드라마의 같은 요청 id 재생(replayRequest와 같은 규칙). 오디오 대신 길이만 읽는다(32MiB를 통째로 읽지 않는다, 계획 리뷰 P4·E3).
-// 사유의 공급자는 넘긴 값이다(음성 작업실은 Typecast, 드라마는 fish_audio). 음성 작업실 출력 스키마가 segments를 걸러 낸다
+// 사유의 공급자는 요청의 공급자다. 음성 작업실 출력 스키마가 segments를 걸러 낸다
 export async function replayStudio(
 	db: Database,
 	ownerId: string,
 	requestId: string,
 	key: string,
-	provider: ProviderId = "typecast",
+	provider: ProviderId,
 ): Promise<(StudioResult & { segments: LineSpan[] | null }) | null> {
 	const find = async () => {
 		const [row] = await db
@@ -860,4 +857,87 @@ export async function recordSuccess(
 		prefix,
 	);
 	await guard("정리", () => sweep(db, ownerId), prefix);
+}
+
+// 자동 태그 답 한 항목(JSON schema로 요청했어도 서버가 다시 읽는다). 항목 수·index는 믿지 않는다
+const suggestionSchema = z.object({
+	index: z.number().int(),
+	direction: z.string(),
+	text: z.string(),
+	emotion: z.string(),
+	intensity: z.number().nullable(),
+});
+
+// OpenAI 시도 횟수(T10 스펙 16.1). 시도 사이에 기다리지 않는다
+export const OPENAI_TRIES = 3;
+// 다시 불러 볼 OpenAI 실패. 나머지(키·권한·결제·한도, 요청 거절)는 같은 실패라 남은 시도를 건너뛴다
+const RETRY_REASONS = new Set([
+	"unknown_outcome",
+	"rate_limit",
+	"provider_error",
+]);
+const ACCOUNT_REASONS = new Set(["provider_auth", "no_permission", "quota"]);
+
+// 답 글을 읽는다(시도마다 같다). 못 읽으면 그 공급자의 auto_tag_reply다. 답 글·대본은 data에 넣지 않는다
+function readReply(
+	reply: string | null,
+	key: "lines" | "paragraphs",
+	provider: "openai" | "gemini",
+) {
+	const read = z
+		.object({ [key]: z.array(suggestionSchema) })
+		.safeParse(parseJsonReply(reply));
+	if (!read.success)
+		throw trialError(provider, "provider_input", {
+			providerCode: "auto_tag_reply",
+		});
+	return read.data;
+}
+
+// 자동 태그 텍스트 호출(유료, 드라마 dramaAutoTag·문단 studioAutoTag). 순서는 스펙 16.1이다:
+// OpenAI 최대 3번 → 끝내 실패하거나 키가 없으면 Gemini 1번 → 모두 실패하면 마지막 실패. 한 묶음의 유료 호출은 최대 4번이다.
+// 처리 여부 미확인(시간 초과)도 다시 부르는 것은 tts-provider "유료 호출은 자동으로 다시 하지 않는다"의 사용자 결정 예외다(ADR 0008).
+// 항목마다 그 index의 첫 제안만 돌려준다. 받을 줄·문단이 없을 때 부르지 않는 판단과 제안 검사는 라우터가 한다
+export async function askSuggestions(
+	context: Context,
+	prompt: { system: string; input: string; schema: Record<string, unknown> },
+	key: "lines" | "paragraphs",
+): Promise<Map<number, Suggestion>> {
+	const openai = context.providers?.openai?.suggestActing;
+	const gemini = context.providers?.gemini?.suggestActing;
+	let last: ORPCError<string, TrialErrorData> | undefined;
+	let reply: ReturnType<typeof readReply> | undefined;
+	if (openai) {
+		for (let attempt = 1; attempt <= OPENAI_TRIES && !reply; attempt++) {
+			try {
+				reply = readReply(await openai(prompt), key, "openai");
+			} catch (error) {
+				// 사유가 없는 예상 밖 예외는 그대로 던진다
+				if (!(error instanceof ORPCError) || !error.data?.reason) throw error;
+				last = error;
+				const { reason, providerCode } = error.data as TrialErrorData;
+				const shown = providerCode === "auto_tag_reply" ? providerCode : reason;
+				console.warn(
+					`[autoTag] openai 실패 ${attempt}/${OPENAI_TRIES} ${shown}`,
+				);
+				if (!RETRY_REASONS.has(reason) && shown !== "auto_tag_reply") break;
+			}
+		}
+	} else if (gemini) {
+		console.warn("[autoTag] openai 키 없음, gemini로");
+	}
+	if (!reply && gemini) reply = readReply(await gemini(prompt), key, "gemini");
+	if (!reply) {
+		if (!last)
+			throw trialError("openai", "no_key", { providerCode: "openai_account" });
+		const { reason } = last.data as TrialErrorData;
+		throw ACCOUNT_REASONS.has(reason)
+			? trialError("openai", reason, { providerCode: "openai_account" })
+			: last;
+	}
+	const first = new Map<number, Suggestion>();
+	// 키는 위 schema가 보장한다(계산한 키라 타입은 undefined를 남긴다)
+	for (const suggestion of reply[key] ?? [])
+		if (!first.has(suggestion.index)) first.set(suggestion.index, suggestion);
+	return first;
 }

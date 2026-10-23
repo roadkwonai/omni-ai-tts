@@ -11,11 +11,9 @@ import {
 import { cn } from "@tts-pilot-app/ui/lib/utils";
 import { X } from "lucide-react";
 import { type RefObject, useId, useRef, useState } from "react";
-import { GAP_DEFAULT, gapOf, gapText } from "@/lib/drama-join";
-import { DRAMA_TEXT } from "@/lib/drama-view";
+import { GAP_DEFAULT, gapOf, gapText } from "@/lib/sound-join";
 
 import { fieldClass, isComposingEnter } from "./class-form-dialog";
-import { useDrama, type useLines } from "./drama-provider";
 
 // 쉼 칸(브리프 15절 1, 16절 1, 17절 3·5): 대본 머리의 기본 쉼 칸과 줄 사이 가름선. 두 칸이 같은 숫자 칸 부품(GapInput)을 쓴다
 
@@ -42,7 +40,7 @@ const LINE_GAP_FIELD =
 // 쉼 숫자 칸(기본 쉼·가름선 두 칸이 쓴다, 브리프 16절 1). 칸을 떠날 때와 Enter(조합 중 제외)에 gapOf로 맞춘 값을 onCommit에 한 번 넘긴다(비우거나 글자면 null).
 // 고치는 동안만 글(text)을 따로 두고, 고치지 않을 때는 value(저장된 값)를 그대로 보여 바깥 변경(임시 작업 읽기·'기본으로')을 따라간다.
 // data-drama-field: 767px 이하에서 입력하는 동안 막대 결과 칸을 숨긴다(index.css drama-bar-result)
-function GapInput({
+export function GapInput({
 	id,
 	name,
 	value,
@@ -98,19 +96,27 @@ function GapInput({
 // 값은 줄 쉼이고 굵은 foreground다. 없으면 빈 칸에 기본 쉼이 회색 자리 표시로 보인다.
 // 비우거나 글자를 넣으면 0이 아니라 줄 쉼을 지운다(기본 쉼을 쓴다). 같은 값이면 쓰지 않는다(대본 고침 경로라 오류 줄이 내려간다)
 export function LineGap({
-	lineId,
+	id,
 	n,
 	gap,
 	defaultGap,
 	onChange,
+	text,
 }: {
-	lineId: string;
+	id: string;
 	n: number;
 	gap: number | undefined;
 	defaultGap: number;
-	onChange: ReturnType<typeof useLines>["setLine"];
+	onChange: (gap: number | undefined) => void;
+	// 문구는 호스트(드라마·문단 작업실)가 준다
+	text: {
+		name: (n: number) => string;
+		reset: string;
+		resetLine: (n: number) => string;
+		unit: string;
+	};
 }) {
-	const id = useId();
+	const inputId = useId();
 	const inputRef = useRef<HTMLInputElement>(null);
 	const resetRef = useRef<HTMLButtonElement>(null);
 	return (
@@ -136,11 +142,14 @@ export function LineGap({
 				)}
 			>
 				{/* 위아래 여백(py-2 -my-2)으로 눌림 영역 44px. 접근 이름은 화면 밖 '{n}번 줄 뒤 쉼(초)'이고 보이는 '초'가 그 안에 있다(WCAG 2.5.3) */}
-				<label htmlFor={id} className="-my-2 flex items-center gap-0.5 py-2">
-					<span className="sr-only">{DRAMA_TEXT.gapLineName(n)}</span>
+				<label
+					htmlFor={inputId}
+					className="-my-2 flex items-center gap-0.5 py-2"
+				>
+					<span className="sr-only">{text.name(n)}</span>
 					<GapInput
-						id={id}
-						name={`drama-gap-${lineId}`}
+						id={inputId}
+						name={`drama-gap-${id}`}
 						value={gap === undefined ? "" : gapText(gap)}
 						placeholder={gapText(defaultGap)}
 						describedBy={GAP_HELP_ID}
@@ -148,10 +157,10 @@ export function LineGap({
 						className={LINE_GAP_FIELD}
 						onCommit={(next) => {
 							const value = next ?? undefined;
-							if (value !== gap) onChange(lineId, { gap: value });
+							if (value !== gap) onChange(value);
 						}}
 					/>
-					<span aria-hidden="true">{DRAMA_TEXT.gapUnit}</span>
+					<span aria-hidden="true">{text.unit}</span>
 				</label>
 				{/* 누르면 이 단추가 사라지므로 포커스는 그 줄 숫자 칸으로. 28px 단추에 after로 눌림 영역 44px */}
 				{gap === undefined ? null : (
@@ -162,10 +171,10 @@ export function LineGap({
 									ref={resetRef}
 									variant="ghost"
 									size="icon-sm"
-									aria-label={DRAMA_TEXT.gapResetLine(n)}
+									aria-label={text.resetLine(n)}
 									className="relative text-muted-foreground after:absolute after:-inset-2 hover:text-foreground focus-visible:text-foreground"
 									onClick={() => {
-										onChange(lineId, { gap: undefined });
+										onChange(undefined);
 										inputRef.current?.focus();
 									}}
 								/>
@@ -173,7 +182,7 @@ export function LineGap({
 						>
 							<X aria-hidden="true" className="size-3.5" />
 						</TooltipTrigger>
-						<TooltipContent>{DRAMA_TEXT.gapReset}</TooltipContent>
+						<TooltipContent>{text.reset}</TooltipContent>
 					</Tooltip>
 				)}
 			</div>
@@ -182,26 +191,33 @@ export function LineGap({
 }
 
 // 기본 쉼 칸(브리프 15절 1, 17절 3): 대본 머리의 '기본 쉼 [0.3]초'. 숫자 칸 부품(GapInput)이 맞춘 값을 넣는다(비우거나 글자면 처음 값). 같은 값이면 쓰지 않는다
-export function DefaultGap() {
-	const drama = useDrama();
+export function DefaultGap({
+	value,
+	onChange,
+	text,
+}: {
+	value: number;
+	onChange: (gap: number) => void;
+	text: { label: string; unit: string; help: string };
+}) {
 	const id = useId();
 	const helpId = useId();
 	return (
 		<div className="flex items-center gap-1.5 text-muted-foreground text-sm">
-			<label htmlFor={id}>{DRAMA_TEXT.gapDefault}</label>
+			<label htmlFor={id}>{text.label}</label>
 			<GapInput
 				id={id}
 				name="drama-gap-default"
-				value={gapText(drama.gap)}
+				value={gapText(value)}
 				describedBy={helpId}
 				onCommit={(next) => {
 					const gap = next ?? GAP_DEFAULT;
-					if (gap !== drama.gap) drama.setGap(gap);
+					if (gap !== value) onChange(gap);
 				}}
 			/>
-			<span>{DRAMA_TEXT.gapUnit}</span>
+			<span>{text.unit}</span>
 			<span id={helpId} className="sr-only">
-				{DRAMA_TEXT.gapHelp}
+				{text.help}
 			</span>
 		</div>
 	);

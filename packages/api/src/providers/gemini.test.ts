@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { CHECK_TIMEOUT_MS, TRIAL_TIMEOUT_MS } from "./errors";
+import {
+	CHECK_TIMEOUT_MS,
+	STUDIO_TIMEOUT_MS,
+	type SynthesizeOptions,
+	TRIAL_TIMEOUT_MS,
+} from "./errors";
 import {
 	AUTO_TAG_TIMEOUT_MS,
 	createGemini,
@@ -363,7 +368,8 @@ describe("Gemini 한 명 조회", () => {
 });
 
 describe("Gemini 내 문장 듣기(유료일 수 있다)", () => {
-	const synth = (r = request()) => createGemini(KEY).synthesize?.(r);
+	const synth = (r = request(), options?: SynthesizeOptions) =>
+		createGemini(KEY).synthesize?.(r, options);
 
 	it("Interactions에 모델·문장·성우·오디오 형식·store false만 보내고 WAV 바이트를 돌려준다", async () => {
 		fetchMock.mockResolvedValue(json(200, interaction()));
@@ -561,6 +567,32 @@ describe("Gemini 내 문장 듣기(유료일 수 있다)", () => {
 		await vi.advanceTimersByTimeAsync(TRIAL_TIMEOUT_MS);
 		await assertion;
 		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+	it("작업실 대기(timeoutMs)를 받으면 60초를 넘겨도 끊지 않는다", async () => {
+		vi.useFakeTimers();
+		fetchMock.mockImplementation(
+			() =>
+				new Promise<Response>((resolve) =>
+					setTimeout(() => resolve(json(200, interaction())), 120_000),
+				),
+		);
+		const pending = synth(request(), { timeoutMs: STUDIO_TIMEOUT_MS });
+		await vi.advanceTimersByTimeAsync(120_000);
+		await expect(pending).resolves.toBeDefined();
+	});
+
+	it("timeoutMs를 넘기면 unknown_outcome이고 onLate를 부르지 않는다", async () => {
+		vi.useFakeTimers();
+		fetchMock.mockImplementation(hang);
+		const onLate = vi.fn();
+		const assertion = expect(
+			synth(request(), { timeoutMs: STUDIO_TIMEOUT_MS, onLate }),
+		).rejects.toMatchObject({
+			data: { provider: "gemini", reason: "unknown_outcome" },
+		});
+		await vi.advanceTimersByTimeAsync(STUDIO_TIMEOUT_MS);
+		await assertion;
+		expect(onLate).not.toHaveBeenCalled();
 	});
 });
 

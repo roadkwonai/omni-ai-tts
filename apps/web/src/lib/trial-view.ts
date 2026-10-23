@@ -250,8 +250,13 @@ export const costCopy = (provider: ProviderId) =>
 				saved: "저장된 결과 · 크레딧 0",
 			};
 
-// 작업실은 이번에 Typecast(크레딧)만이다. T10이 다른 공급자를 붙일 때 비용 문구를 공급자로 나눈다
-export function confirmCopy(kind: "trial" | "studio", request: TrialRequest) {
+// 작업실 문단 하나 확인 창(T10). Gemini는 크레딧이 아니라 요금이라 전체 만들기 창(PARAGRAPH_TEXT confirmCost·makeCost·unknownRetry)과 같은 '비용' 문법이다.
+// 무료 요청(needsConfirm 거짓)은 미확인일 때만 창이 떠 크레딧·비용 말 없이 '만들기'이고 paid가 거짓이다(창이 Coins를 그리지 않는다). 캐스팅은 T5 그대로
+export function confirmCopy(
+	kind: "trial" | "studio",
+	request: TrialRequest,
+	now = Date.now(),
+) {
 	const cost = costCopy(request.provider);
 	if (kind === "trial")
 		return {
@@ -262,14 +267,20 @@ export function confirmCopy(kind: "trial" | "studio", request: TrialRequest) {
 		};
 	const text = normalizeText(request.text);
 	const count = codePoints(text);
+	const paid = needsConfirm(request, now);
+	const fee = request.provider === "gemini";
 	return {
-		title: "크레딧을 써서 음성을 만들까요?",
-		action: "크레딧 쓰고 만들기",
+		title: !paid
+			? "문단을 만들까요?"
+			: fee
+				? "비용이 드는 음성을 만들까요?"
+				: "크레딧을 써서 음성을 만들까요?",
+		action: !paid ? "만들기" : fee ? "비용 내고 만들기" : "크레딧 쓰고 만들기",
 		textLabel: "대본",
 		text: `${[...text].slice(0, 100).join("")}${count > 100 ? "…" : ""} (총 ${plain.format(count)}자)`,
 		// 이전 결과에 같은 서명의 미확인 줄이 있을 때 경고 줄(브리프 5.7)
-		unknownRetry:
-			"같은 대본·성우·설정의 앞 요청은 처리 여부를 아직 몰라요. 다시 만들면 크레딧이 한 번 더 쓰일 수 있어요",
+		unknownRetry: `같은 대본·성우·설정의 앞 요청은 처리 여부를 아직 몰라요. ${!paid ? "다시 만들어도 무료예요" : `다시 만들면 ${fee ? "비용이 한 번 더 들" : "크레딧이 한 번 더 쓰일"} 수 있어요`}`,
+		paid,
 	};
 }
 
@@ -586,3 +597,10 @@ export function trialProblemText(
 			};
 	}
 }
+// T5 기본 실패 문구(trialProblemText의 그 밖 사유). 맥락이 다른 화면(드라마 읽기·자동 태그)이 이 문구만 바꾼다
+export const trialFallback = (provider: ProviderId) =>
+	trialProblemText(provider, {
+		reason: "unexpected",
+		retryAt: null,
+		providerCode: null,
+	}).text;

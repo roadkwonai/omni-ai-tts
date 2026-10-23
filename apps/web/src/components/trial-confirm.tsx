@@ -71,12 +71,15 @@ export function TrialConfirm({
 	onClose,
 	onConfirm,
 	kind = "trial",
+	finalFocus,
 }: {
 	pending: TrialPending | null;
 	onClose: () => void;
 	onConfirm: (pending: TrialPending) => void;
 	// 작업실은 대본 앞 100자·총 글자 수와 '만들기' 문구다(T9 스펙 4절). boolean 대신 값 하나(patterns-explicit-variants)
 	kind?: "trial" | "studio";
+	// 닫힐 때 갈 곳(문단 작업실: 연 단추가 빠지면 그 카드 숨은 제목). 없으면 연 단추(캐스팅 그대로)
+	finalFocus?: () => HTMLElement | boolean;
 }) {
 	const cancelRef = useRef<HTMLButtonElement>(null);
 	return (
@@ -87,7 +90,10 @@ export function TrialConfirm({
 			{pending ? (
 				<AlertDialogContent
 					initialFocus={cancelRef}
-					finalFocus={pending.opener ? { current: pending.opener } : undefined}
+					finalFocus={
+						finalFocus ??
+						(pending.opener ? { current: pending.opener } : undefined)
+					}
 				>
 					<ConfirmBody
 						pending={pending}
@@ -135,6 +141,8 @@ function ConfirmBody({
 	const { status: sampleStatus, toggle } = useSample(sample ?? "");
 	const cost = costCopy(request.provider);
 	const copy = confirmCopy(kind, request);
+	// 작업실 무료 요청(미확인이라 뜬 창)에는 돈 표식이 없다. 캐스팅 창은 늘 유료라 그대로 붙는다
+	const coins = !("paid" in copy) || copy.paid;
 	// 말투 지시가 있는 Gemini 설정은 길어 '문장'처럼 이름표 위·값 아래로 쌓는다(critique P3)
 	const stacked =
 		request.provider === "gemini" && request.settings.direction.trim() !== "";
@@ -179,7 +187,9 @@ function ConfirmBody({
 							예상 사용량
 						</dt>
 						<dd className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1.5 tabular-nums">
-							<Coins aria-hidden="true" className="size-4 text-warning" />
+							{coins ? (
+								<Coins aria-hidden="true" className="size-4 text-warning" />
+							) : null}
 							{usageText(estimate(request, rate.multiplier))}
 							{rate.missing ? (
 								<span className="text-muted-foreground">
@@ -274,7 +284,7 @@ function ConfirmBody({
 						onConfirm(pending);
 					}}
 				>
-					<Coins data-icon="inline-start" aria-hidden="true" />
+					{coins ? <Coins data-icon="inline-start" aria-hidden="true" /> : null}
 					{copy.action}
 				</AlertDialogAction>
 			</AlertDialogFooter>

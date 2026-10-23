@@ -54,16 +54,18 @@ import { useCreatePreset, useOverwritePreset, usePresetList } from "./presets";
 import type { LoadedPreset } from "./trial-provider";
 import { conditionButton, menuItem } from "./voice-conditions";
 
-// 프리셋 메뉴·불러온 줄·불러오기 창이 읽고 바꾸는 화면 상태(T9 스펙 2절). 캐스팅(TrialSection)은 설정만, 작업실(StudioProvider)은
+// 프리셋 메뉴·불러온 줄·불러오기 창이 읽고 바꾸는 화면 상태(T9 스펙 2절). 캐스팅(TrialSection)은 설정만, 문단 작업실(WorkProvider)은
 // 성우와 설정을 함께 불러온다. 같은 메뉴를 쓰고 차이는 apply·loadView가 맡는다(vercel-composition-patterns state-context-interface)
 export type PresetHost = {
-	provider: ProviderId;
+	// null이면 다섯 공급자 프리셋을 모두 보인다(문단 작업실)
+	provider: ProviderId | null;
 	// 지금 성우. 작업실에서 고르기 전이면 null이고 '새 프리셋 저장'·덮어쓰기가 꺼진다
 	voice: Voice | null;
 	settings: SettingsOf;
 	loaded: LoadedPreset | null;
-	// 프리셋 값을 지금 값으로 두고 기억한 뒤 옵션 칸을 다시 그린다(저장·불러오기·덮어쓰기 뒤, T8 '스펙과 다른 점' 2)
-	apply: (preset: Preset) => void;
+	// 프리셋 값을 지금 값으로 두고 기억한 뒤 옵션 칸을 다시 그린다(저장·불러오기·덮어쓰기 뒤, T8 '스펙과 다른 점' 2).
+	// 불러오지 않았으면 false(문단 작업실: 성우 목록이 없어 막았다, 화면이 이유를 알린다). 불러오기 성공 알림을 띄우지 않는다
+	apply: (preset: Preset) => undefined | false;
 	loadView: (preset: Preset) => LoadView;
 	// 불러오기 알림 문구. 주지 않으면 T8 "‘이름’ 설정을 불러왔어요."(캐스팅), 작업실은 "‘이름’ 프리셋을 불러왔어요."(브리프 DN-5)
 	loadedMessage?: (name: string) => string;
@@ -87,7 +89,7 @@ export function usePresetLoad(host: PresetHost) {
 			return;
 		}
 		const chosen = fresh ?? preset;
-		host.apply(chosen);
+		if (host.apply(chosen) === false) return;
 		toast.success((host.loadedMessage ?? loadedMessage)(chosen.name));
 	};
 }
@@ -235,12 +237,19 @@ export function PresetMenu({
 	const [open, setOpen] = useState<Open>(null);
 	const { provider, voice } = host;
 	const mine = byName(
-		(presets.data ?? []).filter((preset) => preset.provider === provider),
+		(presets.data ?? []).filter(
+			(preset) => provider === null || preset.provider === provider,
+		),
 	);
 	const loadedId = host.loaded?.id;
 	const loaded = presets.data?.find((preset) => preset.id === loadedId);
 	// 저장·덮어쓰기 값. 작업실에서 성우를 고르기 전이면 없다(프리셋은 성우와 함께 저장한다)
 	const shown = voice ? presetSettingsOf(voice, host.settings) : null;
+	// 서버 presetOverwrite는 공급자가 다르면 거절한다. 공급자 고정 화면은 목록이 이미 그 공급자만이다
+	const canOverwrite =
+		loaded &&
+		shown &&
+		(provider !== null || loaded.provider === voice?.provider);
 	// 목록 자리의 상태 줄(받아 둔 목록이 없을 때 받는 중·받지 못함, 또는 없음). 목록이 있으면 null
 	const status = presets.isPending
 		? "loading"
@@ -366,7 +375,7 @@ export function PresetMenu({
 							</>
 						)}
 					</DropdownMenuItem>
-					{loaded && shown ? (
+					{loaded && canOverwrite ? (
 						<DropdownMenuItem
 							className={menuItem}
 							onClick={() => setOpen({ kind: "overwrite", preset: loaded })}
@@ -393,7 +402,9 @@ export function PresetMenu({
 					summary={
 						<>
 							<p>
-								<span translate="no">{PROVIDER_LABEL[provider]}</span>
+								<span translate="no">
+									{PROVIDER_LABEL[provider ?? voice.provider]}
+								</span>
 								{` · ${voice.name} · ${presetSummary(shown)}`}
 							</p>
 							<p>{PRESET_TEXT.saveNote}</p>
@@ -467,9 +478,11 @@ export function PresetLine({ host }: { host: PresetHost }) {
 		? presets.data?.find((item) => item.id === loaded.id)
 		: undefined;
 	if (!loaded || !preset) return null;
+	// 공급자 없는 호스트(문단 작업실)는 목록에서 찾은 프리셋의 공급자로 비교한다(LoadedPreset에는 공급자가 없다)
+	const provider = host.provider ?? preset.provider;
 	const changed = !sameSettings(
-		host.provider,
-		host.settings[host.provider],
+		provider,
+		host.settings[provider],
 		loaded.settings,
 	);
 	return (

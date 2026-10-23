@@ -532,7 +532,7 @@ export function DramaBar() {
 		<section
 			ref={bandRef}
 			aria-label={DRAMA_TEXT.barLabel}
-			// 767px 이하는 바닥에 붙은 판(카드색, 위 모서리만 둥글게), 768px 이상은 페이지 바탕 띠 안에 뜬 카드. z-5는 앱 메뉴(z-10) 아래다(studio-bar와 같다)
+			// 767px 이하는 바닥에 붙은 판(카드색, 위 모서리만 둥글게), 768px 이상은 페이지 바탕 띠 안에 뜬 카드. z-5는 앱 메뉴(z-10) 아래다(paragraph-bar와 같다)
 			className="studio-bar-scroll fixed inset-x-0 bottom-0 z-5 rounded-t-2xl bg-card px-4 pt-3 pb-4 ring-1 ring-border md:left-16 md:rounded-none md:bg-background md:px-11 md:ring-0 xl:left-64"
 		>
 			{/* 1024px 이상은 결과 칸과 동작 칸이 한 줄이고 한 줄 칸이 줄을 바꿔 가득 폭이다 */}

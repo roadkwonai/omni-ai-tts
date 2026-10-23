@@ -16,14 +16,8 @@ import {
 	sceneLimit,
 } from "./drama-script";
 import { providerIdSchema } from "./providers/contract";
-import { voiceIdSchema } from "./providers/trial-contract";
-import {
-	AIRY_STYLES,
-	codePoints,
-	EMOTION_PRESETS,
-	normalizeText,
-	RANGES,
-} from "./providers/trial-options";
+import { feelSchema, voiceIdSchema } from "./providers/trial-contract";
+import { codePoints, normalizeText, RANGES } from "./providers/trial-options";
 import { studioAudioInputSchema, studioResultSchema } from "./studio-contract";
 
 // 드라마 작업실 프로시저의 입력·출력(T9.5 스펙). 서버가 검증하고 화면은 타입만 가져간다(import type). 값은 drama-script.ts
@@ -145,17 +139,6 @@ export type DramaItem = z.output<typeof dramaItemSchema>;
 export type DramaItemInput = z.input<typeof dramaItemSchema>;
 
 export const dramaAudioInputSchema = studioAudioInputSchema;
-
-// 줄의 연기 칸(Typecast 감정과 Airy 말투, drama-acting의 Feel)
-const feelSchema = z.object({
-	typecast: z
-		.object({
-			emotion: z.enum(["smart", ...EMOTION_PRESETS]),
-			intensity: z.number().min(0).max(2),
-		})
-		.optional(),
-	airy: z.object({ style: z.enum(AIRY_STYLES) }).optional(),
-});
 
 // 전체 자동 태그(T9.5 스펙 14.5). 상한은 드라마 계약과 같고 대본 합계도 2,000자다(계획 '스펙과 다른 점' 20).
 // mode는 태그를 넣은 줄의 상한(장면 300자, 읽기 200자)을 고른다. emotions는 Typecast 성우가 가진 감정이고 제안을 좁히는 데만 쓴다

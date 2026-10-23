@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AIRY_CATALOG_TIMEOUT_MS, createAiry } from "./airy";
-import { CHECK_TIMEOUT_MS, TRIAL_TIMEOUT_MS } from "./errors";
+import {
+	CHECK_TIMEOUT_MS,
+	STUDIO_TIMEOUT_MS,
+	type SynthesizeOptions,
+	TRIAL_TIMEOUT_MS,
+} from "./errors";
 import { calledUrl, fetchMock, json, useFetchMock } from "./test-utils";
 import { type AirySettings, DEFAULT_SETTINGS } from "./trial-options";
 
@@ -378,13 +383,20 @@ describe("Airy 목록", () => {
 const MP3 = new Uint8Array([0xff, 0xfb, 0x90, 0x64, 9]);
 const audio = () =>
 	new Response(MP3, { status: 200, headers: { "content-type": "audio/mpeg" } });
-const synth = (settings: Partial<AirySettings> = {}, text = "안녕하세요") =>
-	createAiry(KEY).synthesize?.({
-		provider: "airy",
-		voiceId: ID,
-		text,
-		settings: { ...DEFAULT_SETTINGS.airy, ...settings },
-	});
+const synth = (
+	settings: Partial<AirySettings> = {},
+	text = "안녕하세요",
+	options?: SynthesizeOptions,
+) =>
+	createAiry(KEY).synthesize?.(
+		{
+			provider: "airy",
+			voiceId: ID,
+			text,
+			settings: { ...DEFAULT_SETTINGS.airy, ...settings },
+		},
+		options,
+	);
 
 describe("Airy 시험 생성", () => {
 	it("본문은 필드 여섯뿐이고 공식 호스트에 POST 1회, 바이트를 돌려준다", async () => {
@@ -449,6 +461,43 @@ describe("Airy 시험 생성", () => {
 			data: { reason: "unknown_outcome" },
 		});
 		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+	it("작업실 대기(timeoutMs)를 받으면 60초를 넘겨도 끊지 않는다", async () => {
+		vi.useFakeTimers();
+		fetchMock.mockImplementation(
+			() =>
+				new Promise<Response>((resolve) =>
+					setTimeout(() => resolve(audio()), 120_000),
+				),
+		);
+		const pending = synth({}, "안녕하세요", { timeoutMs: STUDIO_TIMEOUT_MS });
+		await vi.advanceTimersByTimeAsync(120_000);
+		await expect(pending).resolves.toBeDefined();
+	});
+
+	it("timeoutMs를 넘기면 unknown_outcome이고 onLate를 부르지 않는다", async () => {
+		vi.useFakeTimers();
+		fetchMock.mockImplementation(hang);
+		const onLate = vi.fn();
+		const assertion = expect(
+			synth({}, "안녕하세요", { timeoutMs: STUDIO_TIMEOUT_MS, onLate }),
+		).rejects.toMatchObject({
+			data: { provider: "airy", reason: "unknown_outcome" },
+		});
+		await vi.advanceTimersByTimeAsync(STUDIO_TIMEOUT_MS);
+		await assertion;
+		expect(onLate).not.toHaveBeenCalled();
+	});
+
+	it("logPrefix를 주면 실패 로그 접두어가 바뀐다", async () => {
+		const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+		fetchMock.mockRejectedValueOnce(new TypeError("fetch failed"));
+		await expect(
+			synth({}, "안녕하세요", { logPrefix: "[studio]" }),
+		).rejects.toMatchObject({ data: { reason: "unknown_outcome" } });
+		expect(String(spy.mock.calls[0]?.[0])).toMatch(
+			/^\[studio\] airy 생성 실패:/,
+		);
 	});
 });
 

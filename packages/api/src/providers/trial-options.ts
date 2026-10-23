@@ -10,8 +10,12 @@ export const TRIAL_RESULTS_SHOWN = 20;
 
 // 음성 작업실(T9 스펙 3절). 화면(글자 수·조각 수)과 서버가 함께 쓴다
 export const STUDIO_TEXT_MAX = 2000;
-// 이전 결과에 보이는 수(최신순, 완료와 처리 여부 미확인)
-export const STUDIO_RESULTS_SHOWN = 20;
+// Airy 입력 상한(공식 문서 /v1/audio/speech input 1–1600자, 2026-10-23). 나머지 공급자는 STUDIO_TEXT_MAX
+export const AIRY_TEXT_MAX = 1600;
+// 문단 작업실(T10)의 문단 수 상한. studioFindMany 입력 상한이기도 하다
+export const PARAGRAPHS_MAX = 200;
+export const studioTextMax = (provider: ProviderId) =>
+	provider === "airy" ? AIRY_TEXT_MAX : STUDIO_TEXT_MAX;
 // 오디오를 나눠 받는 조각 크기. 조각 응답(multipart, 머리 약 300바이트)이 배포 환경 응답 상한 4.5MB 안에 든다(T9 계획 '설치본·문서로 확인한 것' 1)
 export const STUDIO_PART_BYTES = 3 * 1024 * 1024;
 // 작업실 결과 오디오 상한(T5는 4MiB). Typecast 320kbps MP3로 약 13분이다. 넘으면 이미 과금된 결과라도 버린다(audio_too_large)

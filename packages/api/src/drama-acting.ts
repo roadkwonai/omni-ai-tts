@@ -314,7 +314,7 @@ export type Suggestion = {
 
 const bare = (text: string) =>
 	text.replace(TAGS, "").replace(/\s+/g, " ").trim();
-const tagsOf = (text: string): string[] => text.match(TAGS) ?? [];
+export const tagsOf = (text: string): string[] => text.match(TAGS) ?? [];
 // 쌍 태그가 바른 차례로 열고 닫히는가(뒤집힘·엇갈림·닫지 않은 여는 태그가 없다)
 function spansOk(text: string): boolean {
 	const open: string[] = [];
@@ -364,7 +364,7 @@ function textOk(
 		: codePoints(readText(family, suggested).text) <= TRIAL_TEXT_MAX;
 }
 
-function feelOf(
+export function feelOf(
 	family: ActingFamily,
 	emotions: readonly string[] | null,
 	original: ActingLine,
@@ -422,11 +422,29 @@ export function checkSuggestion(
 	return feel ? { direction, text, feel } : { direction, text };
 }
 
+// 모델 답 글(JSON 문자열)을 읽는다. 깨진 글·답 없음은 undefined이고, 모양 검사는 trial.ts askSuggestions의 zod가 한다
+export const parseJsonReply = (reply: string | null): unknown => {
+	try {
+		return JSON.parse(reply ?? "");
+	} catch {
+		return undefined;
+	}
+};
+
 export type AutoTagSpeaker = {
 	name: string;
 	family: ActingFamily;
 	emotions: readonly string[] | null;
 };
+
+// 그 family에서 성우가 가진 감정·말투 값(v30 smart는 늘, emotions가 null이면 전부). 드라마·문단 자동 태그 프롬프트가 함께 쓴다
+export const feelValues = (
+	family: ActingFamily,
+	emotions: readonly string[] | null,
+): string[] =>
+	ACTING[family].feel
+		.map((t) => t.value)
+		.filter((v) => v === "smart" || !emotions || emotions.includes(v));
 
 // 화자 한 명에게 허용한 값을 한 줄 글로 만든다
 function allowedOf({ family, emotions }: AutoTagSpeaker): string {
@@ -443,9 +461,7 @@ function allowedOf({ family, emotions }: AutoTagSpeaker): string {
 			`spans in the text: ${span.map((t) => `<${t.value}>…</${t.value}>`).join(" ")}`,
 		);
 	if (feel.length) {
-		const values = feel
-			.map((t) => t.value)
-			.filter((v) => v === "smart" || !emotions || emotions.includes(v));
+		const values = feelValues(family, emotions);
 		parts.push(
 			`emotion (one of: ${values.join(", ")})${family.startsWith("typecast") ? `, intensity one of ${TYPECAST_INTENSITIES.join(", ")}` : ""}`,
 		);
@@ -455,11 +471,37 @@ function allowedOf({ family, emotions }: AutoTagSpeaker): string {
 		: "no tags allowed (return the line unchanged)";
 }
 
-const EMOTIONS = [
+export const EMOTIONS = [
 	...new Set(Object.values(ACTING).flatMap((c) => c.feel.map((t) => t.value))),
 ];
 
-// 자동 태그 요청 글(Gemini 텍스트 모델). 규칙은 ElevenLabs Enhance 프롬프트 요약이다
+// 자동 태그 답의 JSON schema(드라마 lines, 문단 paragraphs). 항목 수는 보낸 수와 같다. 서버는 답을 zod로 다시 읽는다(trial.ts askSuggestions)
+export const replySchemaOf = (key: "lines" | "paragraphs", count: number) => ({
+	type: "object",
+	properties: {
+		[key]: {
+			type: "array",
+			minItems: count,
+			maxItems: count,
+			items: {
+				type: "object",
+				properties: {
+					index: { type: "integer" },
+					direction: { type: "string" },
+					text: { type: "string" },
+					emotion: { type: "string", enum: ["", ...EMOTIONS] },
+					intensity: { anyOf: [{ type: "number" }, { type: "null" }] },
+				},
+				required: ["index", "direction", "text", "emotion", "intensity"],
+				additionalProperties: false,
+			},
+		},
+	},
+	required: [key],
+	additionalProperties: false,
+});
+
+// 자동 태그 요청 글(OpenAI, 실패하면 Gemini 텍스트 모델). 규칙은 ElevenLabs Enhance 프롬프트 요약이다
 export function autoTagPrompt(
 	speakers: readonly AutoTagSpeaker[],
 	lines: readonly (ActingLine & { speaker: number })[],
@@ -487,29 +529,5 @@ export function autoTagPrompt(
 			text: line.text,
 		})),
 	);
-	const schema = {
-		type: "object",
-		properties: {
-			lines: {
-				type: "array",
-				minItems: lines.length,
-				maxItems: lines.length,
-				items: {
-					type: "object",
-					properties: {
-						index: { type: "integer" },
-						direction: { type: "string" },
-						text: { type: "string" },
-						emotion: { type: "string", enum: ["", ...EMOTIONS] },
-						intensity: { anyOf: [{ type: "number" }, { type: "null" }] },
-					},
-					required: ["index", "direction", "text", "emotion", "intensity"],
-					additionalProperties: false,
-				},
-			},
-		},
-		required: ["lines"],
-		additionalProperties: false,
-	};
-	return { system, input, schema };
+	return { system, input, schema: replySchemaOf("lines", lines.length) };
 }

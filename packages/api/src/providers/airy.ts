@@ -10,6 +10,7 @@ import {
 	runCheck,
 	runList,
 	runTrial,
+	type SynthesizeOptions,
 	withTimeout,
 } from "./errors";
 import { emptyVoice, parseVoiceItems } from "./list";
@@ -130,29 +131,37 @@ export function createAiry(apiKey: string): ProviderClient {
 
 	return {
 		// 매개변수는 이 공급자의 요청만 받는다(메서드 이변성, ProviderClient 주석)
-		synthesize: (request: Extract<TrialRequest, { provider: "airy" }>) =>
-			runTrial("airy", async (signal) => {
-				const { model, language, style } = request.settings;
-				const response = await fetchOk(
-					`${AIRY_HOST}/v1/audio/speech`,
-					{
-						method: "POST",
-						headers: { ...auth, "Content-Type": "application/json" },
-						// 계약 필드 여섯만 서버가 만든다. trailing_silence·다른 형식은 보내지 않는다(스펙 2절)
-						body: JSON.stringify({
-							model,
-							input: sentText(request),
-							voice: request.voiceId,
-							language,
-							style,
-							response_format: "mp3",
-						}),
-						signal,
-					},
-					airyCodes,
-				);
-				return new Uint8Array(await response.arrayBuffer());
-			}),
+		synthesize: (
+			request: Extract<TrialRequest, { provider: "airy" }>,
+			options: SynthesizeOptions = {},
+		) =>
+			runTrial(
+				"airy",
+				async (signal) => {
+					const { model, language, style } = request.settings;
+					const response = await fetchOk(
+						`${AIRY_HOST}/v1/audio/speech`,
+						{
+							method: "POST",
+							headers: { ...auth, "Content-Type": "application/json" },
+							// 계약 필드 여섯만 서버가 만든다. trailing_silence·다른 형식은 보내지 않는다(스펙 2절)
+							body: JSON.stringify({
+								model,
+								input: sentText(request),
+								voice: request.voiceId,
+								language,
+								style,
+								response_format: "mp3",
+							}),
+							signal,
+						},
+						airyCodes,
+					);
+					return new Uint8Array(await response.arrayBuffer());
+				},
+				// onLate는 넘기지 않는다: 이 공급자는 시간 초과 때 요청을 끊어 늦은 결과가 없다
+				{ timeoutMs: options.timeoutMs, logPrefix: options.logPrefix },
+			),
 		checkStatus: () =>
 			runCheck("airy", async (signal) => {
 				const { total_balance, tier } = balanceSchema.parse(

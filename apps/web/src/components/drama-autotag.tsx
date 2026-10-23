@@ -44,7 +44,6 @@ import {
 	autoTagChanges,
 	autoTagInput,
 	autoTagNotes,
-	autoTagProblemText,
 	DRAMA_TEXT,
 	type DraftLine,
 	feelText,
@@ -54,14 +53,16 @@ import {
 	speakerValue,
 	voiceOfSpeaker,
 } from "@/lib/drama-view";
+import { autoTagProblemText } from "@/lib/tag-view";
 import { trialFailureOf } from "@/lib/trial-view";
 import { orpc } from "@/utils/orpc";
 
+import { BeforeAfter } from "./before-after";
 import { dramaFieldId, useDrama, useLines } from "./drama-provider";
 import { SpeakerMark } from "./drama-voice-dialog";
 import { lockedButton } from "./voice-problem";
 
-// 전체 자동 태그(브리프 14절 배치 6, 17절 3, 스펙 14.4·14.5): 대본 머리의 버튼 → 확인 창 → dramaAutoTag 한 번(Gemini 텍스트, 유료) →
+// 전체 자동 태그(브리프 14절 배치 6, 17절 3, 스펙 14.4·14.5): 대본 머리의 버튼 → 확인 창 → dramaAutoTag 한 번(OpenAI, 실패하면 Gemini 텍스트, 유료) →
 // 미리 보기 → '모두 바꾸기'(대본 실행 취소 10초) 또는 '닫기'. 창 둘은 편집기에 하나씩 두고(DramaAutoTag), 버튼은 대본 머리에 있다(AutoTagButton).
 // 자동으로 다시 보내지 않는다(tts-provider). 보낸 줄은 그때의 줄 객체로 기억해 그사이 고친 줄을 건너뛴다(autoTagApply)
 
@@ -358,19 +359,12 @@ function PreviewBody({
 										<dt className="w-16 shrink-0 text-muted-foreground">
 											{fieldLabel(field, line.speaker)}
 										</dt>
-										{/* 전은 지운 글(del, 줄 긋기 회색), 후는 넣는 글(ins). 전이 비었으면 후만. 줄 긋기는 읽히지 않아 화면 밖 이름표를 붙인다 */}
-										<dd className="wrap-anywhere flex min-w-0 flex-col break-keep">
-											{before ? (
-												<del className="text-muted-foreground">
-													<span className="sr-only">{`${DRAMA_TEXT.autoTagBefore} `}</span>
-													{before}
-												</del>
-											) : null}
-											<ins className="no-underline">
-												<span className="sr-only">{`${DRAMA_TEXT.autoTagAfter} `}</span>
-												{after}
-											</ins>
-										</dd>
+										<BeforeAfter
+											before={before}
+											after={after}
+											beforeLabel={DRAMA_TEXT.autoTagBefore}
+											afterLabel={DRAMA_TEXT.autoTagAfter}
+										/>
 									</div>
 								))}
 							</dl>
@@ -401,7 +395,7 @@ function PreviewBody({
 	);
 }
 
-// 대본 머리의 '전체 자동 태그'(경고색 Coins, 유료 Gemini 텍스트 호출). 서버가 거절할 이름·줄이 있거나 대본 합계가 2,000자를 넘으면
+// 대본 머리의 '전체 자동 태그'(경고색 Coins, 유료 OpenAI(실패하면 Gemini) 텍스트 호출). 서버가 거절할 이름·줄이 있거나 대본 합계가 2,000자를 넘으면
 // 잠기고 그 이유를 보인다(autoTagBlock, 화자가 섞여도 본다). 버튼과 이유는 줄을 바꾸는 부모 flex의 칸 둘이다.
 // 767px 이하 보이는 글은 '자동 태그'이고 접근 이름은 늘 전체(autoTagName, 브리프 17절 3)다
 export function AutoTagButton() {

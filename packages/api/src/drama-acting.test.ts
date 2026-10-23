@@ -7,8 +7,10 @@ import {
 	applyLine,
 	autoTagPrompt,
 	checkSuggestion,
+	EMOTIONS,
 	familyOf,
 	readText,
+	replySchemaOf,
 	type Suggestion,
 	tagSent,
 } from "./drama-acting";
@@ -450,5 +452,35 @@ describe("autoTagPrompt", () => {
 			{ index: 0, speaker: "민지", direction: "", text: "안녕" },
 			{ index: 1, speaker: "도윤", direction: "calm", text: "그래" },
 		]);
+	});
+	it("schema는 replySchemaOf('lines')이고 키 순서까지 그대로다", () => {
+		const schema = {
+			type: "object",
+			properties: {
+				lines: {
+					type: "array",
+					minItems: 2,
+					maxItems: 2,
+					items: {
+						type: "object",
+						properties: {
+							index: { type: "integer" },
+							direction: { type: "string" },
+							text: { type: "string" },
+							emotion: { type: "string", enum: ["", ...EMOTIONS] },
+							intensity: { anyOf: [{ type: "number" }, { type: "null" }] },
+						},
+						required: ["index", "direction", "text", "emotion", "intensity"],
+						additionalProperties: false,
+					},
+				},
+			},
+			required: ["lines"],
+			additionalProperties: false,
+		};
+		expect(JSON.stringify(replySchemaOf("lines", 2))).toBe(
+			JSON.stringify(schema),
+		);
+		expect(JSON.stringify(prompt.schema)).toBe(JSON.stringify(schema));
 	});
 });
