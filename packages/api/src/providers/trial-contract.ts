@@ -159,6 +159,13 @@ export const trialAudioSchema = z.object({
 	audio: z.file(),
 });
 export type TrialAudio = z.infer<typeof trialAudioSchema>;
+// 저장된 결과 하나의 요약(오디오 없음). 소리는 trialAudio로 받는다
+export const trialFoundSchema = z.object({
+	id: z.uuid(),
+	createdAt: z.iso.datetime(),
+	usage: usageSchema,
+});
+export type TrialFound = z.infer<typeof trialFoundSchema>;
 // 결과 목록 한 줄(오디오 없음). 요청을 통째로 담아 '새로 만들기'와 저장된 결과 알아보기에 쓴다(계획 '스펙과 다른 점' 4)
 export const trialItemSchema = z.object({
 	id: z.uuid(),

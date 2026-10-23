@@ -660,4 +660,97 @@ describe.skipIf(!url)("시험 생성 프로시저", () => {
 		});
 		expect(made.audio).toMatchObject({ type: "audio/mpeg", name: "trial.mp3" });
 	});
+
+	it("trialFindMany: 요청 순서대로 저장본만 찾고 진행 중·실패·만료·작업실 행은 null, 같은 키면 최근 것, 만료·공급자는 그대로", async () => {
+		const reqs = [1, 2, 3, 4, 5, 6].map((n) => request(`문장 ${n}`));
+		const ids: string[] = [];
+		for (const r of reqs) {
+			const made = await as(OWNER).trialCreate({
+				requestId: crypto.randomUUID(),
+				request: r,
+			});
+			ids.push(made.id);
+		}
+		const patch = (
+			n: number,
+			values: Partial<typeof trialGeneration.$inferInsert>,
+		) =>
+			db
+				.update(trialGeneration)
+				.set(values)
+				.where(eq(trialGeneration.id, ids[n] as string));
+		await patch(2, { status: "pending", audio: null, audioType: null });
+		await patch(3, {
+			status: "failed",
+			failureReason: "provider_error",
+			audio: null,
+			audioType: null,
+		});
+		await patch(4, { expiresAt: new Date(Date.now() - 1000) });
+		await patch(5, { kind: "studio" });
+		// 같은 키의 더 최근 완료 행
+		const [row] = await db
+			.select()
+			.from(trialGeneration)
+			.where(eq(trialGeneration.id, ids[0] as string));
+		const { id: _id, ...first } = row as NonNullable<typeof row>;
+		const [newer] = await db
+			.insert(trialGeneration)
+			.values({
+				...first,
+				requestId: crypto.randomUUID(),
+				createdAt: new Date(first.createdAt.getTime() + 1000),
+			})
+			.returning({ id: trialGeneration.id });
+		const before = await db.select().from(trialGeneration);
+		synthesize.mockClear();
+		const found = await as(OWNER).trialFindMany(reqs);
+		expect(found.map((f) => f?.id ?? null)).toEqual([
+			newer?.id,
+			ids[1],
+			null,
+			null,
+			null,
+			null,
+		]);
+		expect(found[1]).toMatchObject({ usage: { unit: "credit" } });
+		expect(synthesize).not.toHaveBeenCalled();
+		const after = await db.select().from(trialGeneration);
+		const expires = (rows: typeof before) =>
+			new Map(rows.map((r) => [r.id, r.expiresAt.getTime()]));
+		expect(expires(after)).toEqual(expires(before));
+	});
+
+	it("trialFindMany: 같은 요청 두 번은 같은 id, 드라마 행은 null(kind 조건)", async () => {
+		const [r1, r2] = [request("같은 줄"), request("드라마 줄")];
+		const made = await as(OWNER).trialCreate({
+			requestId: crypto.randomUUID(),
+			request: r1,
+		});
+		const other = await as(OWNER).trialCreate({
+			requestId: crypto.randomUUID(),
+			request: r2,
+		});
+		await db
+			.update(trialGeneration)
+			.set({ kind: "drama" })
+			.where(eq(trialGeneration.id, other.id));
+		const found = await as(OWNER).trialFindMany([r1, r1, r2]);
+		expect(found.map((f) => f?.id ?? null)).toEqual([made.id, made.id, null]);
+		expect(synthesize).toHaveBeenCalledTimes(2);
+	});
+
+	it("trialFindMany: 51개는 BAD_REQUEST, 빈 목록도 거절, 소유자가 없으면 UNAUTHORIZED이고 DB 0회", async () => {
+		await expect(
+			as(OWNER).trialFindMany(Array.from({ length: 51 }, () => request())),
+		).rejects.toMatchObject({ code: "BAD_REQUEST" });
+		await expect(as(OWNER).trialFindMany([])).rejects.toMatchObject({
+			code: "BAD_REQUEST",
+		});
+		dbTouches = 0;
+		await expect(
+			as(null, { db: failingDb }).trialFindMany([request()]),
+		).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+		expect(dbTouches).toBe(0);
+	});
 });

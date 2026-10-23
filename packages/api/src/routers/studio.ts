@@ -1,12 +1,8 @@
-import { ORPCError } from "@orpc/server";
-import { savedVoice } from "@tts-pilot-app/db/schema/saved-voice";
-import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import type { Context } from "../context";
 import { protectedProcedure } from "../index";
-import { logFailure, STUDIO_TIMEOUT_MS, trialError } from "../providers/errors";
-import type { TrialAudio, TrialErrorData } from "../providers/trial-contract";
+import { STUDIO_TIMEOUT_MS, trialError } from "../providers/errors";
+import type { TrialAudio } from "../providers/trial-contract";
 import { estimate, STUDIO_AUDIO_MAX } from "../providers/trial-options";
 import {
 	type StudioResult,
@@ -21,19 +17,19 @@ import {
 	audioTypeOf,
 	claim,
 	comboKey,
-	complete,
 	findStudio,
+	type LateTarget,
 	listStudio,
-	recordUse,
+	recordFailure,
+	recordSuccess,
 	remove,
 	replay,
 	replayStudio,
 	saveLate,
-	settle,
-	sweep,
+	usableVoices,
 	withStorage,
 } from "../trial";
-import { cooldownOf, guard, recordCooldown } from "../voice-cache";
+import { cooldownOf } from "../voice-cache";
 
 const PREFIX = "[studio]";
 // 이번 작업실은 Typecast만 만든다(스펙 1절). T10이 다른 공급자를 붙인다
@@ -47,29 +43,6 @@ const resultOf = (audio: TrialAudio): StudioResult => ({
 	usage: audio.usage,
 	bytes: audio.audio.size,
 });
-
-// 서버 성우 검사(T9 스펙 2절, 로드맵 T8 보안 메모): 이 소유자가 담은 Typecast 성우이고 현재 이용 불가가 아니어야 한다.
-// 클라이언트가 보낸 voice id를 믿지 않는다. 담은 성우는 소유자 조건으로만 찾는다(prokit-api 불변식 3, tts-provider 클론 보이스 절)
-// 담은 성우의 voice id도 원래 클라이언트가 보낸 값(savedVoiceSave)이라 이 검사는 '이 소유자가 담은 성우'라는 앱 수준 일관성 검사이고, 공급자 소유(Typecast uc_ 커스텀 등) 검증은 아니다. 소유자가 여럿이 되면(T14) 공급자 확인을 더한다
-async function usableVoice(
-	db: Context["db"],
-	ownerId: string,
-	voiceId: string,
-) {
-	const [row] = await db
-		.select({ id: savedVoice.id })
-		.from(savedVoice)
-		.where(
-			and(
-				eq(savedVoice.ownerId, ownerId),
-				eq(savedVoice.provider, PROVIDER),
-				eq(savedVoice.voiceId, voiceId),
-				eq(savedVoice.unavailable, false),
-			),
-		)
-		.limit(1);
-	return row !== undefined;
-}
 
 // 음성 작업실(T9 스펙 3절). 크레딧을 쓰는 길은 studioCreate 하나다. 나머지는 DB만 본다
 export const studioRouter = {
@@ -86,8 +59,9 @@ export const studioRouter = {
 				replayStudio(db, ownerId, requestId, key),
 			);
 			if (existing) return existing;
+			// 서버 성우 검사(T9 스펙 2절): 이 소유자가 담은 이용 가능한 Typecast 성우
 			const usable = await withStorage(PROVIDER, () =>
-				usableVoice(db, ownerId, request.voiceId),
+				usableVoices(db, ownerId, PROVIDER, [request.voiceId]),
 			);
 			if (!usable) throw trialError(PROVIDER, "voice_unavailable");
 			// 대기 시각 표를 읽지 못하면 부르지 않는다(로드맵 T5 메모)
@@ -104,6 +78,14 @@ export const studioRouter = {
 			);
 			if (claimed.kind === "existing")
 				return resultOf(replay(PROVIDER, claimed.row));
+			// 늦은 결과·성공 기록의 대상: 이 소유자의 이 작업실 행, 사용 이력을 올릴 성우
+			const target: LateTarget = {
+				ownerId,
+				id: claimed.id,
+				kind: "studio",
+				provider: PROVIDER,
+				voiceIds: [request.voiceId],
+			};
 			// 끊긴 요청의 결과 약속(onLate). 콜백 안에서 채우므로 객체 칸에 둔다(지역 변수는 타입 좁히기가 콜백 대입을 보지 못한다)
 			const late: { result?: Promise<Uint8Array> } = {};
 			let audio: Uint8Array;
@@ -120,66 +102,31 @@ export const studioRouter = {
 					});
 				}
 			} catch (error) {
-				// runTrial이 모든 실패를 사유 있는 ORPCError로 바꾼다. 아닌 예외는 응답을 받았는지 모르므로 처리 여부 미확인이다(T5와 같다)
-				if (!(error instanceof ORPCError))
-					logFailure(`${PREFIX} ${PROVIDER} 생성 실패`, error, []);
-				const failure =
-					error instanceof ORPCError
-						? error
-						: trialError(PROVIDER, "unknown_outcome");
-				const data = failure.data as Partial<TrialErrorData> | undefined;
-				const reason = data?.reason ?? "provider_error";
-				await guard(
-					"실패 기록",
-					() =>
-						settle(
-							db,
-							ownerId,
-							claimed.id,
-							reason === "unknown_outcome" ? "unknown" : "failed",
-							reason,
-						),
-					PREFIX,
+				// 미확인·실패와 429 대기 시각을 적는다(E7, 내 문장·드라마와 같은 recordFailure)
+				const failure = await recordFailure(
+					db,
+					{ ownerId, id: claimed.id, provider: PROVIDER, prefix: PREFIX },
+					error,
 				);
-				const retryAt = data?.retryAt;
-				if (reason === "rate_limit" && retryAt) {
-					await guard(
-						"대기 쓰기",
-						() => recordCooldown(db, PROVIDER, new Date(retryAt)),
-						PREFIX,
-					);
-				}
 				// 미확인을 적은 뒤에 늦은 결과를 받는다. 늦은 결과 저장은 미확인 행만 완료로 바꾸므로, 미확인을 적기 전에 부르면 아직 진행 중인 행이라 늦은 결과를 잃는다. 기다리지 않는다.
 				// shortcut: 끊긴 Typecast 요청은 응답까지(최대 300초) 뒤에서 돌지만 기록이 미확인이라 동시 1건에 들지 않는다.
 				// 그동안 새 생성을 받으면 공급자 요청이 둘 겹칠 수 있다(계획 리뷰 P8). 다중 사용자·배포(T10·T15 메모) 때 미확인 뒤 막을 시간을 정한다
 				if (late.result)
-					void saveLate(db, ownerId, claimed.id, request.voiceId, late.result);
+					void saveLate(
+						db,
+						target,
+						late.result.then((audio) => ({
+							audio,
+							audioType: audioTypeOf(PROVIDER),
+						})),
+					);
 				throw failure;
 			}
-			// 저장하지 못하면 화면이 조각을 받을 수 없다. 출력에 오디오가 없어 T5처럼 돌려줄 수 없으므로 처리 여부 미확인으로 알린다('스펙과 다른 점' 4)
-			const saved = await guard(
-				"완료 기록",
-				async () => {
-					await complete(db, ownerId, claimed.id, audio, audioTypeOf(PROVIDER));
-					return true;
-				},
-				PREFIX,
-			);
-			if (!saved) {
-				await guard(
-					"미확인 기록",
-					() => settle(db, ownerId, claimed.id, "unknown", "unknown_outcome"),
-					PREFIX,
-				);
-				throw trialError(PROVIDER, "unknown_outcome");
-			}
-			// 결과는 저장됐다. 사용 이력·정리가 실패해도 결과를 돌려준다(로그 한 줄)
-			await guard(
-				"사용 이력",
-				() => recordUse(db, ownerId, request.voiceId),
-				PREFIX,
-			);
-			await guard("정리", () => sweep(db, ownerId), PREFIX);
+			// 저장하지 못하면 미확인으로 적고 unknown_outcome을 던진다('스펙과 다른 점' 4). 저장되면 사용 이력·정리(드라마와 같은 recordSuccess)
+			await recordSuccess(db, target, {
+				audio,
+				audioType: audioTypeOf(PROVIDER),
+			});
 			return {
 				id: claimed.id,
 				createdAt: claimed.createdAt,

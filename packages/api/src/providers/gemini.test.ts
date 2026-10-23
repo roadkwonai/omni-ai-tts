@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CHECK_TIMEOUT_MS, TRIAL_TIMEOUT_MS } from "./errors";
-import { createGemini, GEMINI_CLASSIC_IDS, referenceUrl } from "./gemini";
+import {
+	AUTO_TAG_TIMEOUT_MS,
+	createGemini,
+	GEMINI_CLASSIC_IDS,
+	referenceUrl,
+} from "./gemini";
 import { calledUrl, fetchMock, json, useFetchMock } from "./test-utils";
 import {
 	DEFAULT_SETTINGS,
@@ -554,6 +559,106 @@ describe("Gemini 내 문장 듣기(유료일 수 있다)", () => {
 			data: { provider: "gemini", reason: "unknown_outcome" },
 		});
 		await vi.advanceTimersByTimeAsync(TRIAL_TIMEOUT_MS);
+		await assertion;
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("Gemini 전체 자동 태그(유료, T9.5 Part 2)", () => {
+	const PROMPT = {
+		system: "You add acting tags.",
+		input: '[{"index":0,"speaker":"지연","direction":"","text":"안녕"}]',
+		schema: { type: "object", required: ["lines"] },
+	};
+	const suggest = () => createGemini(KEY).suggestActing?.(PROMPT);
+	// 사용자 입력 단계에도 글이 있다(답으로 읽지 않아야 한다)
+	const replied = (...steps: unknown[]) => ({
+		id: "i2",
+		status: "completed",
+		steps: [
+			{ type: "user_input", content: [{ type: "text", text: "질문 글" }] },
+			...steps,
+		],
+	});
+	const output = (...content: unknown[]) => ({ type: "model_output", content });
+
+	it("텍스트 모델·지시문·문자열 입력·JSON 형식·사고 low·출력 상한·store false만 보내고 답 글을 돌려준다", async () => {
+		fetchMock.mockResolvedValue(
+			json(200, replied(output({ type: "text", text: '{"lines":[]}' }))),
+		);
+		await expect(suggest()).resolves.toBe('{"lines":[]}');
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		expect(calledUrl().href).toBe(`${HOST}/v1beta/interactions`);
+		const init = fetchMock.mock.calls[0]?.[1];
+		expect(init?.method).toBe("POST");
+		expect(init?.redirect).toBe("error");
+		expect(new Headers(init?.headers).get("x-goog-api-key")).toBe(KEY);
+		expect(JSON.parse(String(init?.body))).toEqual({
+			model: "gemini-3.8-flash",
+			system_instruction: PROMPT.system,
+			input: PROMPT.input,
+			response_format: {
+				type: "text",
+				mime_type: "application/json",
+				schema: PROMPT.schema,
+			},
+			generation_config: { max_output_tokens: 8192, thinking_level: "low" },
+			store: false,
+		});
+	});
+
+	it("200인데 잘린 JSON 글이면 오류가 아니라 그 글을 그대로 돌려준다(읽기는 라우터, 계획 리뷰 L5). 나뉜 글은 잇는다", async () => {
+		const cut = '{"lines":[{"index":0,"direction":"icy';
+		fetchMock.mockResolvedValueOnce(
+			json(200, replied(output({ type: "text", text: cut }))),
+		);
+		await expect(suggest()).resolves.toBe(cut);
+		fetchMock.mockResolvedValueOnce(
+			json(
+				200,
+				replied(
+					output(
+						{ type: "text", text: '{"lines":' },
+						{ type: "thought", summary: "x" },
+						{ type: "text", text: "[]}" },
+					),
+				),
+			),
+		);
+		await expect(suggest()).resolves.toBe('{"lines":[]}');
+	});
+
+	it("model_output 단계나 그 안의 글이 없으면 null이다(사용자 입력 단계의 글은 보지 않는다)", async () => {
+		for (const body of [
+			replied(),
+			replied(output()),
+			replied(output({ type: "audio", data: "AAAA" })),
+			{ status: "completed" },
+			{ status: "completed", steps: "x" },
+		]) {
+			fetchMock.mockResolvedValueOnce(json(200, body));
+			await expect(suggest()).resolves.toBeNull();
+		}
+	});
+
+	it("429는 요청 제한이고(Retry-After 없으면 60초) 한 번만 부른다", async () => {
+		fetchMock.mockResolvedValue(
+			json(429, googleError(429, "RESOURCE_EXHAUSTED")),
+		);
+		const seconds = await waitSeconds(suggest());
+		expect(seconds).toBeGreaterThan(55);
+		expect(seconds).toBeLessThan(65);
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+
+	it("60초 안에 답하지 않으면 처리 여부 미확인이고 다시 부르지 않는다", async () => {
+		expect(AUTO_TAG_TIMEOUT_MS).toBe(60_000);
+		vi.useFakeTimers();
+		fetchMock.mockImplementation(hang);
+		const assertion = expect(suggest()).rejects.toMatchObject({
+			data: { provider: "gemini", reason: "unknown_outcome" },
+		});
+		await vi.advanceTimersByTimeAsync(AUTO_TAG_TIMEOUT_MS);
 		await assertion;
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 	});

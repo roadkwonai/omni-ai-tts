@@ -1,0 +1,42 @@
+{
+	"ok": true,
+	"leftoverWords": 0,
+	"spans": [
+		{
+			"speaker": "지연",
+			"need": 17,
+			"got": 17,
+			"start": 0,
+			"end": 2.96,
+			"cutStart": 0,
+			"cutEnd": 3.2800000000000002
+		},
+		{
+			"speaker": "민수",
+			"need": 17,
+			"got": 17,
+			"start": 3.6,
+			"end": 7.28,
+			"cutStart": 3.2800000000000002,
+			"cutEnd": 7.36
+		},
+		{
+			"speaker": "지연",
+			"need": 14,
+			"got": 14,
+			"start": 7.44,
+			"end": 9.76,
+			"cutStart": 7.36,
+			"cutEnd": 9.922630385487528
+		},
+		{
+			"speaker": "민수",
+			"need": 14,
+			"got": 14,
+			"start": 10.085260770975056,
+			"end": 13.365260770975055,
+			"cutStart": 9.922630385487528,
+			"cutEnd": 13.500226757369614
+		}
+	]
+}

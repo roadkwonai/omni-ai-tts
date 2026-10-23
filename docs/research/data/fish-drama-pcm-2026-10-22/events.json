@@ -1,0 +1,775 @@
+[
+	{
+		"audio_base64": "<40960 bytes>",
+		"content": "너 지금 몇 시인지 알아? 회의 벌써 시작했어.\n 알아, 알아. 버스를 놓쳐서 한 대 더 기다렸어.\n <whisper>팀장님은 아직 모르셔.</whisper> 빨리 들어가.",
+		"alignment": {
+			"segments": [
+				{
+					"text": "너",
+					"start": 0,
+					"end": 0.16
+				}
+			],
+			"audio_duration": 0.46439909297052157
+		},
+		"chunk_seq": 0,
+		"chunk_audio_offset_sec": 0
+	},
+	{
+		"audio_base64": "<40960 bytes>",
+		"content": "너 지금 몇 시인지 알아? 회의 벌써 시작했어.\n 알아, 알아. 버스를 놓쳐서 한 대 더 기다렸어.\n <whisper>팀장님은 아직 모르셔.</whisper> 빨리 들어가.",
+		"alignment": {
+			"segments": [
+				{
+					"text": "너",
+					"start": 0,
+					"end": 0.16
+				},
+				{
+					"text": "지금",
+					"start": 0.16,
+					"end": 0.32
+				},
+				{
+					"text": "몇",
+					"start": 0.4,
+					"end": 0.48
+				},
+				{
+					"text": "시인",
+					"start": 0.48,
+					"end": 0.72
+				}
+			],
+			"audio_duration": 0.9287981859410431
+		},
+		"chunk_seq": 0,
+		"chunk_audio_offset_sec": 0
+	},
+	{
+		"audio_base64": "<49152 bytes>",
+		"content": "너 지금 몇 시인지 알아? 회의 벌써 시작했어.\n 알아, 알아. 버스를 놓쳐서 한 대 더 기다렸어.\n <whisper>팀장님은 아직 모르셔.</whisper> 빨리 들어가.",
+		"alignment": {
+			"segments": [
+				{
+					"text": "너",
+					"start": 0,
+					"end": 0.16
+				},
+				{
+					"text": "지금",
+					"start": 0.16,
+					"end": 0.32
+				},
+				{
+					"text": "몇",
+					"start": 0.4,
+					"end": 0.48
+				},
+				{
+					"text": "시인",
+					"start": 0.48,
+					"end": 0.72
+				}
+			],
+			"audio_duration": 1.486077097505669
+		},
+		"chunk_seq": 0,
+		"chunk_audio_offset_sec": 0
+	},
+	{
+		"audio_base64": "<131072 bytes>",
+		"content": "너 지금 몇 시인지 알아? 회의 벌써 시작했어.\n 알아, 알아. 버스를 놓쳐서 한 대 더 기다렸어.\n <whisper>팀장님은 아직 모르셔.</whisper> 빨리 들어가.",
+		"alignment": {
+			"segments": [
+				{
+					"text": "너",
+					"start": 0,
+					"end": 0.16
+				},
+				{
+					"text": "지금",
+					"start": 0.16,
+					"end": 0.32
+				},
+				{
+					"text": "몇",
+					"start": 0.4,
+					"end": 0.48
+				},
+				{
+					"text": "시인",
+					"start": 0.48,
+					"end": 0.72
+				},
+				{
+					"text": "지",
+					"start": 0.8,
+					"end": 0.8
+				},
+				{
+					"text": "알아",
+					"start": 0.8,
+					"end": 1.04
+				},
+				{
+					"text": "회의",
+					"start": 1.04,
+					"end": 1.12
+				},
+				{
+					"text": "벌써",
+					"start": 1.6,
+					"end": 1.92
+				},
+				{
+					"text": "시작",
+					"start": 1.92,
+					"end": 2.24
+				}
+			],
+			"audio_duration": 2.972154195011338
+		},
+		"chunk_seq": 0,
+		"chunk_audio_offset_sec": 0
+	},
+	{
+		"audio_base64": "<262144 bytes>",
+		"content": "너 지금 몇 시인지 알아? 회의 벌써 시작했어.\n 알아, 알아. 버스를 놓쳐서 한 대 더 기다렸어.\n <whisper>팀장님은 아직 모르셔.</whisper> 빨리 들어가.",
+		"alignment": {
+			"segments": [
+				{
+					"text": "너",
+					"start": 0,
+					"end": 0.16
+				},
+				{
+					"text": "지금",
+					"start": 0.16,
+					"end": 0.32
+				},
+				{
+					"text": "몇",
+					"start": 0.4,
+					"end": 0.48
+				},
+				{
+					"text": "시인",
+					"start": 0.48,
+					"end": 0.72
+				},
+				{
+					"text": "지",
+					"start": 0.8,
+					"end": 0.8
+				},
+				{
+					"text": "알아",
+					"start": 0.8,
+					"end": 1.04
+				},
+				{
+					"text": "회의",
+					"start": 1.04,
+					"end": 1.12
+				},
+				{
+					"text": "벌써",
+					"start": 1.6,
+					"end": 1.92
+				},
+				{
+					"text": "시작",
+					"start": 1.92,
+					"end": 2.24
+				},
+				{
+					"text": "했어",
+					"start": 2.24,
+					"end": 2.96
+				},
+				{
+					"text": "알아",
+					"start": 3.68,
+					"end": 4.24
+				},
+				{
+					"text": "알아",
+					"start": 4.32,
+					"end": 4.8
+				},
+				{
+					"text": "버스",
+					"start": 5.12,
+					"end": 5.44
+				},
+				{
+					"text": "를",
+					"start": 5.44,
+					"end": 5.52
+				}
+			],
+			"audio_duration": 5.944308390022676
+		},
+		"chunk_seq": 0,
+		"chunk_audio_offset_sec": 0
+	},
+	{
+		"audio_base64": "<262144 bytes>",
+		"content": "너 지금 몇 시인지 알아? 회의 벌써 시작했어.\n 알아, 알아. 버스를 놓쳐서 한 대 더 기다렸어.\n <whisper>팀장님은 아직 모르셔.</whisper> 빨리 들어가.",
+		"alignment": {
+			"segments": [
+				{
+					"text": "너",
+					"start": 0,
+					"end": 0.16
+				},
+				{
+					"text": "지금",
+					"start": 0.16,
+					"end": 0.32
+				},
+				{
+					"text": "몇",
+					"start": 0.4,
+					"end": 0.48
+				},
+				{
+					"text": "시인",
+					"start": 0.48,
+					"end": 0.72
+				},
+				{
+					"text": "지",
+					"start": 0.8,
+					"end": 0.8
+				},
+				{
+					"text": "알아",
+					"start": 0.8,
+					"end": 1.04
+				},
+				{
+					"text": "회의",
+					"start": 1.04,
+					"end": 1.12
+				},
+				{
+					"text": "벌써",
+					"start": 1.6,
+					"end": 1.92
+				},
+				{
+					"text": "시작",
+					"start": 1.92,
+					"end": 2.24
+				},
+				{
+					"text": "했어",
+					"start": 2.24,
+					"end": 2.96
+				},
+				{
+					"text": "알아",
+					"start": 3.68,
+					"end": 4.24
+				},
+				{
+					"text": "알아",
+					"start": 4.32,
+					"end": 4.8
+				},
+				{
+					"text": "버스",
+					"start": 5.12,
+					"end": 5.44
+				},
+				{
+					"text": "를",
+					"start": 5.44,
+					"end": 5.52
+				},
+				{
+					"text": "놓쳐서",
+					"start": 5.52,
+					"end": 5.92
+				},
+				{
+					"text": "한",
+					"start": 5.92,
+					"end": 6.16
+				},
+				{
+					"text": "대",
+					"start": 6.16,
+					"end": 6.24
+				},
+				{
+					"text": "더",
+					"start": 6.24,
+					"end": 6.4
+				},
+				{
+					"text": "기다렸",
+					"start": 6.4,
+					"end": 6.96
+				},
+				{
+					"text": "어",
+					"start": 6.96,
+					"end": 7.28
+				},
+				{
+					"text": "whisper팀장님은",
+					"start": 7.44,
+					"end": 8
+				},
+				{
+					"text": "아직",
+					"start": 8,
+					"end": 8.24
+				},
+				{
+					"text": "모르",
+					"start": 8.24,
+					"end": 8.48
+				}
+			],
+			"audio_duration": 8.916462585034013
+		},
+		"chunk_seq": 0,
+		"chunk_audio_offset_sec": 0
+	},
+	{
+		"audio_base64": "<81920 bytes>",
+		"content": "너 지금 몇 시인지 알아? 회의 벌써 시작했어.\n 알아, 알아. 버스를 놓쳐서 한 대 더 기다렸어.\n <whisper>팀장님은 아직 모르셔.</whisper> 빨리 들어가.",
+		"alignment": {
+			"segments": [
+				{
+					"text": "너",
+					"start": 0,
+					"end": 0.16
+				},
+				{
+					"text": "지금",
+					"start": 0.16,
+					"end": 0.32
+				},
+				{
+					"text": "몇",
+					"start": 0.4,
+					"end": 0.48
+				},
+				{
+					"text": "시인",
+					"start": 0.48,
+					"end": 0.72
+				},
+				{
+					"text": "지",
+					"start": 0.8,
+					"end": 0.8
+				},
+				{
+					"text": "알아",
+					"start": 0.8,
+					"end": 1.04
+				},
+				{
+					"text": "회의",
+					"start": 1.04,
+					"end": 1.12
+				},
+				{
+					"text": "벌써",
+					"start": 1.6,
+					"end": 1.92
+				},
+				{
+					"text": "시작",
+					"start": 1.92,
+					"end": 2.24
+				},
+				{
+					"text": "했어",
+					"start": 2.24,
+					"end": 2.96
+				},
+				{
+					"text": "알아",
+					"start": 3.68,
+					"end": 4.24
+				},
+				{
+					"text": "알아",
+					"start": 4.32,
+					"end": 4.8
+				},
+				{
+					"text": "버스",
+					"start": 5.12,
+					"end": 5.44
+				},
+				{
+					"text": "를",
+					"start": 5.44,
+					"end": 5.52
+				},
+				{
+					"text": "놓쳐서",
+					"start": 5.52,
+					"end": 5.92
+				},
+				{
+					"text": "한",
+					"start": 5.92,
+					"end": 6.16
+				},
+				{
+					"text": "대",
+					"start": 6.16,
+					"end": 6.24
+				},
+				{
+					"text": "더",
+					"start": 6.24,
+					"end": 6.4
+				},
+				{
+					"text": "기다렸",
+					"start": 6.4,
+					"end": 6.96
+				},
+				{
+					"text": "어",
+					"start": 6.96,
+					"end": 7.28
+				},
+				{
+					"text": "whisper팀장님은",
+					"start": 7.44,
+					"end": 8
+				},
+				{
+					"text": "아직",
+					"start": 8,
+					"end": 8.24
+				},
+				{
+					"text": "모르",
+					"start": 8.24,
+					"end": 8.48
+				},
+				{
+					"text": "셔whisper",
+					"start": 8.48,
+					"end": 8.8
+				},
+				{
+					"text": "빨리",
+					"start": 8.88,
+					"end": 9.12
+				}
+			],
+			"audio_duration": 9.845260770975056
+		},
+		"chunk_seq": 0,
+		"chunk_audio_offset_sec": 0
+	},
+	{
+		"audio_base64": "<64320 bytes>",
+		"content": "너 지금 몇 시인지 알아? 회의 벌써 시작했어.\n 알아, 알아. 버스를 놓쳐서 한 대 더 기다렸어.\n <whisper>팀장님은 아직 모르셔.</whisper> 빨리 들어가.",
+		"alignment": {
+			"segments": [
+				{
+					"text": "너",
+					"start": 0,
+					"end": 0.16
+				},
+				{
+					"text": "지금",
+					"start": 0.16,
+					"end": 0.4
+				},
+				{
+					"text": "몇",
+					"start": 0.4,
+					"end": 0.56
+				},
+				{
+					"text": "시인",
+					"start": 0.56,
+					"end": 0.8
+				},
+				{
+					"text": "지",
+					"start": 0.8,
+					"end": 0.8
+				},
+				{
+					"text": "알아",
+					"start": 0.8,
+					"end": 1.04
+				},
+				{
+					"text": "회의",
+					"start": 1.04,
+					"end": 1.12
+				},
+				{
+					"text": "벌써",
+					"start": 1.6,
+					"end": 1.92
+				},
+				{
+					"text": "시작",
+					"start": 1.92,
+					"end": 2.24
+				},
+				{
+					"text": "했어",
+					"start": 2.24,
+					"end": 2.96
+				},
+				{
+					"text": "알아",
+					"start": 3.6,
+					"end": 4.24
+				},
+				{
+					"text": "알아",
+					"start": 4.32,
+					"end": 4.8
+				},
+				{
+					"text": "버스",
+					"start": 5.12,
+					"end": 5.44
+				},
+				{
+					"text": "를",
+					"start": 5.44,
+					"end": 5.52
+				},
+				{
+					"text": "놓쳐서",
+					"start": 5.52,
+					"end": 5.92
+				},
+				{
+					"text": "한",
+					"start": 5.92,
+					"end": 6.16
+				},
+				{
+					"text": "대",
+					"start": 6.16,
+					"end": 6.24
+				},
+				{
+					"text": "더",
+					"start": 6.24,
+					"end": 6.4
+				},
+				{
+					"text": "기다렸",
+					"start": 6.4,
+					"end": 6.96
+				},
+				{
+					"text": "어",
+					"start": 6.96,
+					"end": 7.28
+				},
+				{
+					"text": "whisper팀장님은",
+					"start": 7.44,
+					"end": 8
+				},
+				{
+					"text": "아직",
+					"start": 8,
+					"end": 8.24
+				},
+				{
+					"text": "모르",
+					"start": 8.24,
+					"end": 8.48
+				},
+				{
+					"text": "셔whisper",
+					"start": 8.48,
+					"end": 8.8
+				},
+				{
+					"text": "빨리",
+					"start": 8.88,
+					"end": 9.12
+				},
+				{
+					"text": "들어가",
+					"start": 9.12,
+					"end": 9.76
+				}
+			],
+			"audio_duration": 9.845260770975056
+		},
+		"chunk_seq": 0,
+		"chunk_audio_offset_sec": 0
+	},
+	{
+		"audio_base64": "<40960 bytes>",
+		"content": "고마워, 진짜. 오늘 커피는 내가 살게.",
+		"alignment": {
+			"segments": [
+				{
+					"text": "고마워",
+					"start": 0.24,
+					"end": 0.96
+				}
+			],
+			"audio_duration": 1.1936507936507936
+		},
+		"chunk_seq": 1,
+		"chunk_audio_offset_sec": 9.845260770975056
+	},
+	{
+		"audio_base64": "<49152 bytes>",
+		"content": "고마워, 진짜. 오늘 커피는 내가 살게.",
+		"alignment": {
+			"segments": [
+				{
+					"text": "고마워",
+					"start": 0.24,
+					"end": 0.96
+				}
+			],
+			"audio_duration": 1.7509297052154196
+		},
+		"chunk_seq": 1,
+		"chunk_audio_offset_sec": 9.845260770975056
+	},
+	{
+		"audio_base64": "<131072 bytes>",
+		"content": "고마워, 진짜. 오늘 커피는 내가 살게.",
+		"alignment": {
+			"segments": [
+				{
+					"text": "고마워",
+					"start": 0.24,
+					"end": 0.96
+				},
+				{
+					"text": "진짜",
+					"start": 1.12,
+					"end": 1.76
+				},
+				{
+					"text": "오늘",
+					"start": 2.08,
+					"end": 2.4
+				},
+				{
+					"text": "커피",
+					"start": 2.4,
+					"end": 2.64
+				},
+				{
+					"text": "는",
+					"start": 2.64,
+					"end": 2.8
+				}
+			],
+			"audio_duration": 3.2370068027210883
+		},
+		"chunk_seq": 1,
+		"chunk_audio_offset_sec": 9.845260770975056
+	},
+	{
+		"audio_base64": "<36864 bytes>",
+		"content": "고마워, 진짜. 오늘 커피는 내가 살게.",
+		"alignment": {
+			"segments": [
+				{
+					"text": "고마워",
+					"start": 0.24,
+					"end": 0.96
+				},
+				{
+					"text": "진짜",
+					"start": 1.12,
+					"end": 1.76
+				},
+				{
+					"text": "오늘",
+					"start": 2.08,
+					"end": 2.4
+				},
+				{
+					"text": "커피",
+					"start": 2.4,
+					"end": 2.64
+				},
+				{
+					"text": "는",
+					"start": 2.64,
+					"end": 2.8
+				},
+				{
+					"text": "내가",
+					"start": 2.8,
+					"end": 3.04
+				}
+			],
+			"audio_duration": 3.654965986394558
+		},
+		"chunk_seq": 1,
+		"chunk_audio_offset_sec": 9.845260770975056
+	},
+	{
+		"audio_base64": "",
+		"content": "고마워, 진짜. 오늘 커피는 내가 살게.",
+		"alignment": {
+			"segments": [
+				{
+					"text": "고마워",
+					"start": 0.24,
+					"end": 0.88
+				},
+				{
+					"text": "진짜",
+					"start": 1.12,
+					"end": 1.76
+				},
+				{
+					"text": "오늘",
+					"start": 2.08,
+					"end": 2.4
+				},
+				{
+					"text": "커피",
+					"start": 2.4,
+					"end": 2.64
+				},
+				{
+					"text": "는",
+					"start": 2.64,
+					"end": 2.8
+				},
+				{
+					"text": "내가",
+					"start": 2.8,
+					"end": 3.04
+				},
+				{
+					"text": "살게",
+					"start": 3.04,
+					"end": 3.52
+				}
+			],
+			"audio_duration": 3.654965986394558
+		},
+		"chunk_seq": 1,
+		"chunk_audio_offset_sec": 9.845260770975056
+	}
+]

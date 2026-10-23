@@ -10,7 +10,13 @@ import {
 import type { ProviderId } from "@tts-pilot-app/api/providers/contract";
 import { Button } from "@tts-pilot-app/ui/components/button";
 import { Spinner } from "@tts-pilot-app/ui/components/spinner";
-import { type MouseEvent, useEffect, useRef, useState } from "react";
+import {
+	type ComponentProps,
+	type MouseEvent,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 
 import { PROVIDER_LABEL } from "@/lib/connection-view";
 import { keepFirstPage } from "@/lib/list-query";
@@ -54,7 +60,22 @@ import {
 	problemCopy,
 	useListRecovery,
 } from "./voice-problem";
-import { RowList } from "./voice-row";
+import { RowList, type Select } from "./voice-row";
+
+// 캐스팅은 행을 골라 옆 패널에 보이고(onChoose), 드라마 성우 고르기 창은 행 누름이 고르기다(pick, 옆 패널 없음, T9.5 계획 '스펙과 다른 점' 8).
+// 모드 둘이라 판별 유니온으로 가른다. 다섯 공급자 목록(OneList 포함)이 같은 유니온을 받는다. 세 번째 모드가 생기면 목록 몸통을 빼서 변형 컴포넌트로 나눈다(계획 재사용 표)
+export type Choice =
+	| { onChoose: (key: string) => void; pick?: never; busyKey?: never }
+	// busyKey: 고른 성우를 담는 중인 행(행에 스피너, 브리프 5.7)
+	| { pick: Select; busyKey?: string | null; onChoose?: never };
+
+export function ListWorkspace(
+	props: Omit<ComponentProps<typeof CastingWorkspace>, "onChoose"> & Choice,
+) {
+	if (props.pick)
+		return props.children({ selectedKey: props.chosen, select: props.pick });
+	return <CastingWorkspace {...props} />;
+}
 
 // 목록 쿼리 인자. '전체' 탭 묶음이 같은 인자를 써서 브라우저 키가 같다(계획 리뷰 E15).
 // 키에 첫 페이지 입력(조건 전부)이 들어가므로 조건마다 쿼리가 따로 있고 늦은 응답이 다른 조건의 목록을 덮지 않는다(Review Focus 1)
@@ -98,19 +119,18 @@ export function ServerVoiceList({
 	list,
 	onListChange,
 	chosen,
-	onChoose,
 	focusRequested,
 	onFocusHandled,
+	...choice
 }: {
 	list: ServerList;
 	onListChange: (list: ServerList) => void;
 	chosen: string | null;
-	onChoose: (key: string) => void;
 	// '전체' 탭 '모두 보기 →'가 이 목록에 포커스를 넘겼다(계획 리뷰 D8). 마운트·갱신 때 인원 글자로 옮기고 onFocusHandled로 요청을 지운다.
 	// 한 번 쓰고 없어지는 요청이라 출처를 바꿔 목록이 다시 마운트돼도 포커스를 가져가지 않는다
 	focusRequested: boolean;
 	onFocusHandled: () => void;
-}) {
+} & Choice) {
 	const { provider, source } = list;
 	const label = PROVIDER_LABEL[provider];
 	const queryClient = useQueryClient();
@@ -315,11 +335,11 @@ export function ServerVoiceList({
 					onReload={reload}
 				/>
 			) : null}
-			<CastingWorkspace
+			<ListWorkspace
 				voices={problem ? [] : rows}
 				provider={provider}
 				chosen={chosen}
-				onChoose={onChoose}
+				{...choice}
 				pending={loading}
 			>
 				{({ selectedKey, select, panelId }) => {
@@ -364,6 +384,7 @@ export function ServerVoiceList({
 								panelId={panelId}
 								// 첫 페이지를 다시 받는 동안 지금 목록은 흐리게 두고 누를 수 없다
 								refreshing={refreshing}
+								busyKey={choice.busyKey}
 							/>
 							{end === "more" ? (
 								<div className="mt-4 flex flex-col items-center gap-2">
@@ -407,7 +428,7 @@ export function ServerVoiceList({
 						</>
 					);
 				}}
-			</CastingWorkspace>
+			</ListWorkspace>
 		</div>
 	);
 }

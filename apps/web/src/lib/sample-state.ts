@@ -1,7 +1,7 @@
 // 샘플 플레이어의 상태 전이(브리프 7절). 오디오 요소 조작과 스크린 리더 알림은 sample-player.tsx가 한다.
 // 지금 재생 대상 하나만 상태를 가진다. 행과 패널은 샘플 주소(키)로 읽으므로 같은 샘플은 모두 같은 상태다.
 export type SampleStatus = "idle" | "loading" | "playing" | "failed";
-export type Noun = "샘플" | "내 문장" | "저장된 결과";
+export type Noun = "샘플" | "내 문장" | "저장된 결과" | "대사";
 export type Current = {
 	voiceId: string;
 	name: string;
@@ -10,8 +10,9 @@ export type Current = {
 	status: Exclude<SampleStatus, "idle">;
 } | null;
 
+// 받침 없는 말(저장된 결과, 대사)은 '를'
 const object = (noun: Noun) =>
-	noun === "저장된 결과" ? `${noun}를` : `${noun}을`;
+	noun === "저장된 결과" || noun === "대사" ? `${noun}를` : `${noun}을`;
 // 저장된 결과의 owner는 voiceKey라 "공급자:…"로 시작한다. Gemini는 크레딧이 아니라 요금이다(trial-view costCopy)
 export const announceOf = (current: NonNullable<Current>) =>
 	`${current.name} ${current.noun} 재생 중${current.noun === "저장된 결과" ? (current.owner?.startsWith("gemini:") ? ", 요금 없음" : ", 크레딧 0") : ""}`;

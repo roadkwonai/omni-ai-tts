@@ -59,6 +59,20 @@
 	--primary-subtle: oklch(
 		0.945 0.016 200
 	); /* 요약 띠·활성 메뉴 바탕, primary 글자 4.73:1 */
+	/* 화자 색(드라마 작업실 브리프 9.2): -N 화자 원·시간축 막대, -subtle 화자 칩 바탕(글자는 foreground), -on 원 안 번호.
+	   경고 50°·위험 21°·성공 155°·대표 198°를 피했다. 대비는 번호 -on on -N / 원 -N vs 카드 / 칩 foreground on -subtle */
+	--speaker-1: oklch(0.46 0.15 262); /* 파랑, 7.31 / 7.31 */
+	--speaker-1-subtle: oklch(0.95 0.02 262); /* 13.46 */
+	--speaker-1-on: oklch(1 0 0);
+	--speaker-2: oklch(0.6 0.12 95); /* 금색, 4.72 / 3.94 */
+	--speaker-2-subtle: oklch(0.955 0.035 95); /* 13.64 */
+	--speaker-2-on: oklch(0 0 0 / 0.85);
+	--speaker-3: oklch(0.54 0.19 345); /* 자주, 5.63 / 5.63 */
+	--speaker-3-subtle: oklch(0.95 0.025 345); /* 13.36 */
+	--speaker-3-on: oklch(1 0 0);
+	--speaker-4: oklch(0.56 0.19 305); /* 보라, 5.10 / 5.10 */
+	--speaker-4-subtle: oklch(0.955 0.025 305); /* 13.55 */
+	--speaker-4-on: oklch(1 0 0);
 	color-scheme: light;
 }
 
@@ -104,6 +118,19 @@
 	--success-subtle: oklch(0.32 0.045 150); /* green-300 글자 5.58:1 */
 	--warning-subtle: oklch(0.33 0.05 58); /* orange-300 글자 5.63:1 */
 	--primary-subtle: oklch(0.31 0.035 198); /* brand-350 글자 6.75:1 */
+	/* 화자 색(브리프 9.2). 번호 -on on -N / 원 -N vs 카드 / 칩 foreground on -subtle */
+	--speaker-1: oklch(0.68 0.13 262); /* 5.78 / 5.33 */
+	--speaker-1-subtle: oklch(0.32 0.05 262); /* 10.62 */
+	--speaker-1-on: oklch(0.232 0.006 286);
+	--speaker-2: oklch(0.84 0.12 95); /* 10.33 / 9.52 */
+	--speaker-2-subtle: oklch(0.32 0.04 95); /* 10.58 */
+	--speaker-2-on: oklch(0.232 0.006 286);
+	--speaker-3: oklch(0.74 0.14 345); /* 6.83 / 6.29 */
+	--speaker-3-subtle: oklch(0.32 0.05 345); /* 10.82 */
+	--speaker-3-on: oklch(0.232 0.006 286);
+	--speaker-4: oklch(0.8 0.11 305); /* 8.68 / 8.00 */
+	--speaker-4-subtle: oklch(0.32 0.055 305); /* 10.79 */
+	--speaker-4-on: oklch(0.232 0.006 286);
 	color-scheme: dark;
 }
 
@@ -132,6 +159,18 @@
 	--color-success-subtle: var(--success-subtle);
 	--color-warning-subtle: var(--warning-subtle);
 	--color-primary-subtle: var(--primary-subtle);
+	--color-speaker-1: var(--speaker-1);
+	--color-speaker-1-subtle: var(--speaker-1-subtle);
+	--color-speaker-1-on: var(--speaker-1-on);
+	--color-speaker-2: var(--speaker-2);
+	--color-speaker-2-subtle: var(--speaker-2-subtle);
+	--color-speaker-2-on: var(--speaker-2-on);
+	--color-speaker-3: var(--speaker-3);
+	--color-speaker-3-subtle: var(--speaker-3-subtle);
+	--color-speaker-3-on: var(--speaker-3-on);
+	--color-speaker-4: var(--speaker-4);
+	--color-speaker-4-subtle: var(--speaker-4-subtle);
+	--color-speaker-4-on: var(--speaker-4-on);
 	--color-ring: var(--ring);
 	--color-input: var(--input);
 	--color-border: var(--border);

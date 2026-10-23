@@ -29,8 +29,11 @@ import {
 } from "@/lib/voice-view";
 import { orpc } from "@/utils/orpc";
 
-import { CastingWorkspace } from "./casting-workspace";
-import { useListRefresh } from "./server-voice-list";
+import {
+	type Choice,
+	ListWorkspace,
+	useListRefresh,
+} from "./server-voice-list";
 import { type AxisView, VoiceConditions } from "./voice-conditions";
 import {
 	LIST_QUERY,
@@ -91,8 +94,8 @@ export function OneList({
 	focusRequested,
 	onFocusHandled,
 	chosen,
-	onChoose,
 	children,
+	...choice
 }: {
 	provider: OneListProvider;
 	search: ComponentProps<typeof VoiceConditions>["search"];
@@ -116,14 +119,13 @@ export function OneList({
 	focusRequested: boolean;
 	onFocusHandled: () => void;
 	chosen: string | null;
-	onChoose: (key: string) => void;
 	children: (props: {
 		selectedKey: string | null;
 		select: Select;
 		panelId?: string;
 		refreshing: boolean;
 	}) => ReactNode;
-}) {
+} & Choice) {
 	const voices = useQuery(ONE_LIST_OPTIONS[provider]);
 	const { refresh, pending, blockedUntil } = useListRefresh(provider);
 
@@ -194,11 +196,11 @@ export function OneList({
 					onReload={reload}
 				/>
 			) : null}
-			<CastingWorkspace
+			<ListWorkspace
 				voices={problem ? [] : shown}
 				provider={provider}
 				chosen={chosen}
-				onChoose={onChoose}
+				{...choice}
 				pending={loading}
 			>
 				{({ selectedKey, select, panelId }) => {
@@ -227,7 +229,7 @@ export function OneList({
 					if (noMatches) return <NoMatches onClear={onClear} />;
 					return children({ selectedKey, select, panelId, refreshing });
 				}}
-			</CastingWorkspace>
+			</ListWorkspace>
 		</div>
 	);
 }
@@ -236,22 +238,22 @@ export function OneList({
 export type AiryState = { query: string; genders: string[] };
 export const EMPTY_AIRY: AiryState = { query: "", genders: [] };
 
-// Airy 탭(T7.5 스펙 4절, 브리프 13절). 한 번에 받아 브라우저에서 이름·성우 id·성별로 거른다. 묶음 없이 한 목록이다
+// Airy 탭(T7.5 스펙 4절, 브리프 13절). 한 번에 받아 브라우저에서 이름·성우 id·성별로 거른다. 묶음 없이 한 목록이다.
+// 캐스팅은 onChoose, 드라마 성우 창 '전체'는 pick(행 누름 = 고르고 담기)
 export function AiryVoiceList({
 	state,
 	onStateChange,
 	chosen,
-	onChoose,
 	focusRequested,
 	onFocusHandled,
+	...choice
 }: {
 	state: AiryState;
 	onStateChange: (state: AiryState) => void;
 	chosen: string | null;
-	onChoose: (key: string) => void;
 	focusRequested: boolean;
 	onFocusHandled: () => void;
-}) {
+} & Choice) {
 	const { data } = useQuery(airyListOptions);
 	const searchRef = useRef<HTMLInputElement>(null);
 	const countRef = useRef<HTMLParagraphElement>(null);
@@ -315,7 +317,7 @@ export function AiryVoiceList({
 			focusRequested={focusRequested}
 			onFocusHandled={onFocusHandled}
 			chosen={chosen}
-			onChoose={onChoose}
+			{...choice}
 		>
 			{({ selectedKey, select, panelId, refreshing }) => (
 				<RowList
@@ -325,6 +327,7 @@ export function AiryVoiceList({
 					select={select}
 					panelId={panelId}
 					refreshing={refreshing}
+					busyKey={choice.busyKey}
 				/>
 			)}
 		</OneList>
@@ -351,22 +354,22 @@ const GEMINI_AXES: {
 	{ key: "personas", label: "페르소나", translate: "no" as const },
 ];
 
-// Gemini 탭(T7.6 스펙 5절, 브리프 14절). 한 번에 받아 브라우저에서 거른다. 대표 성우 먼저, 검색어가 있으면 일치 순서(filterGemini 정렬, 서버 순서와 다름)
+// Gemini 탭(T7.6 스펙 5절, 브리프 14절). 한 번에 받아 브라우저에서 거른다. 대표 성우 먼저, 검색어가 있으면 일치 순서(filterGemini 정렬, 서버 순서와 다름).
+// 캐스팅은 onChoose, 드라마 성우 창 '전체'는 pick(행 누름 = 고르고 담기)
 export function GeminiVoiceList({
 	state,
 	onStateChange,
 	chosen,
-	onChoose,
 	focusRequested,
 	onFocusHandled,
+	...choice
 }: {
 	state: GeminiState;
 	onStateChange: (state: GeminiState) => void;
 	chosen: string | null;
-	onChoose: (key: string) => void;
 	focusRequested: boolean;
 	onFocusHandled: () => void;
-}) {
+} & Choice) {
 	const { data } = useQuery(geminiListOptions);
 	const searchRef = useRef<HTMLInputElement>(null);
 	const countRef = useRef<HTMLParagraphElement>(null);
@@ -427,7 +430,7 @@ export function GeminiVoiceList({
 			focusRequested={focusRequested}
 			onFocusHandled={onFocusHandled}
 			chosen={chosen}
-			onChoose={onChoose}
+			{...choice}
 		>
 			{({ selectedKey, select, panelId, refreshing }) => (
 				<RowList
@@ -437,6 +440,7 @@ export function GeminiVoiceList({
 					select={select}
 					panelId={panelId}
 					refreshing={refreshing}
+					busyKey={choice.busyKey}
 				/>
 			)}
 		</OneList>

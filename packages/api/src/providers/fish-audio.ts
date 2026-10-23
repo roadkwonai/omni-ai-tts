@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+import {
+	DRAMA_SAMPLE_RATE,
+	mergeChunks,
+	pcmSeconds,
+	type SceneAudio,
+	type SceneChunk,
+	type SceneRequest,
+} from "../drama-script";
 import type { ListInputOf, Voice, VoiceSource } from "./contract";
 import {
 	fetchJson,
@@ -10,12 +18,17 @@ import {
 	runCheck,
 	runList,
 	runTrial,
+	SCENE_LATE_MAX_MS,
+	STUDIO_TIMEOUT_MS,
+	type SynthesizeOptions,
+	trialError,
 } from "./errors";
 import { clip, emptyVoice, parseVoiceItems, queryOf } from "./list";
 import { SAMPLE_HOST } from "./sample-hosts";
 import {
 	type FishModel,
 	type FishSettings,
+	STUDIO_AUDIO_MAX,
 	sentText,
 	type TrialRequest,
 	usedSettings,
@@ -135,6 +148,102 @@ function fishVoice(
 	};
 }
 
+// 장면 SSE 이벤트는 두 층으로 읽는다(계획 리뷰 E1). 오디오(돈)는 느슨하게 읽어 정렬 모양이 달라도 잃지 않고,
+// 정렬은 이벤트마다 엄격하게 읽는다(조사 4·9절 모양). alignment가 없거나 null인 이벤트는 정렬이 없는 것이다
+const sceneAudioSchema = z.object({
+	audio_base64: z.string().nullish(),
+	// zod 4는 z.unknown() 칸도 있어야 한다고 본다
+	alignment: z.unknown().optional(),
+});
+const sceneChunkSchema = z
+	.object({
+		alignment: z.object({
+			segments: z.array(
+				z.object({ text: z.string(), start: z.number(), end: z.number() }),
+			),
+			audio_duration: z.number(),
+		}),
+		chunk_seq: z.number().int().nonnegative(),
+		chunk_audio_offset_sec: z.number().nonnegative(),
+	})
+	.transform(
+		(event): SceneChunk => ({
+			seq: event.chunk_seq,
+			offset: event.chunk_audio_offset_sec,
+			duration: event.alignment.audio_duration,
+			segments: event.alignment.segments,
+		}),
+	);
+
+// SSE 블록 구분(빈 줄)
+const SSE_GAP = /\r?\n\r?\n/;
+// 덜 온 블록 하나의 상한(글자). base64는 바이트의 약 4/3이고 JSON이 붙는다. 이보다 긴 블록은 오디오만으로 32MiB를 넘어 어차피 버려진다
+const SSE_BLOCK_MAX = STUDIO_AUDIO_MAX * 2;
+
+// SSE 본문을 조각마다 읽는다(조사 자료 pcm-check.mjs). 빈 줄로 블록을 나누고 덜 온 끝만 들고 있어 본문 전체를 한 문자열로 만들지 않는다(E14).
+// 끝에 빈 줄 없이 남은 블록도 같은 규칙으로 읽는다(버리면 오디오가 잘려도 정상 결과처럼 보인다). JSON이 아니거나 오디오 칸 모양이 다르면 던진다(runTrial이 처리 여부 미확인으로 바꾼다)
+// 오디오가 32MiB를 넘거나 덜 온 블록이 상한을 넘으면 더 읽지 않는다(for await를 빠져나가면 본문이 취소된다, 서버 리뷰)
+async function readScene(response: Response): Promise<SceneAudio> {
+	const decoder = new TextDecoder();
+	const audio: Buffer[] = [];
+	let pcmBytes = 0;
+	const chunks: SceneChunk[] = [];
+	let misshapen = false;
+	const take = (block: string) => {
+		const data = block
+			.split(/\r?\n/)
+			.filter((line) => line.startsWith("data:"))
+			.map((line) => line.slice(5).trim())
+			.join("");
+		if (!data || data === "[DONE]") return;
+		const event: unknown = JSON.parse(data);
+		const { audio_base64, alignment } = sceneAudioSchema.parse(event);
+		if (audio_base64) {
+			const bytes = Buffer.from(audio_base64, "base64");
+			audio.push(bytes);
+			pcmBytes += bytes.length;
+		}
+		if (alignment == null) return;
+		const chunk = sceneChunkSchema.safeParse(event);
+		if (chunk.success) chunks.push(chunk.data);
+		else misshapen = true;
+	};
+	// 덜 온 블록은 조각 배열로 들고, 구분은 새 조각과 앞 끝 3글자에서만 찾는다(구분은 최대 4글자). 덜 온 블록 전체를 조각마다 다시 훑지 않는다
+	let pending: string[] = [];
+	let pendingChars = 0;
+	let tail = "";
+	for await (const part of response.body ?? []) {
+		const piece = decoder.decode(part, { stream: true });
+		pending.push(piece);
+		pendingChars += piece.length;
+		if (SSE_GAP.test(tail + piece)) {
+			const blocks = pending.join("").split(SSE_GAP);
+			const rest = blocks.pop() ?? "";
+			for (const block of blocks) take(block);
+			pending = [rest];
+			pendingChars = rest.length;
+			tail = rest.slice(-3);
+		} else tail = (tail + piece).slice(-3);
+		// 넘은 오디오는 라우터가 audio_too_large(늦은 결과면 '늦은 결과 버림')로 버린다. 정렬은 쓰지 않는다
+		if (pcmBytes > STUDIO_AUDIO_MAX)
+			return { pcm: Buffer.concat(audio), segments: null };
+		// 오디오는 상한 안인데 블록이 끝나지 않는다: 깨진 스트림
+		if (pendingChars > SSE_BLOCK_MAX) throw new RangeError("SSE block");
+	}
+	take(pending.join("") + decoder.decode());
+	const pcm = Buffer.concat(audio);
+	if (pcm.byteLength === 0) throw trialError("fish_audio", "unknown_outcome");
+	// 모양이 다른 정렬이 하나라도 있으면 장면의 정렬을 모두 버린다. 틀리게 자른 파일보다 나누지 못함이 낫다
+	if (misshapen) {
+		console.error("[drama] 정렬 버림: 모양");
+		return { pcm, segments: null };
+	}
+	const segments = mergeChunks(chunks, pcmSeconds(pcm.byteLength));
+	// 정렬이 왔는데 합치지 못했다(끝이 PCM 길이와 0.1초 넘게 다름). 정렬이 아예 없으면 남기지 않는다
+	if (!segments && chunks.length > 0) console.error("[drama] 정렬 버림: 길이");
+	return { pcm, segments };
+}
+
 export function createFishAudio(apiKey: string): ProviderClient {
 	const getJson = (path: string, signal: AbortSignal) =>
 		fetchJson(
@@ -174,6 +283,54 @@ export function createFishAudio(apiKey: string): ProviderClient {
 				);
 				return new Uint8Array(await response.arrayBuffer());
 			}),
+		// 드라마 장면 1회(T9.5). runTrial의 신호는 넘기지 않는다. 넘기면 시간 초과(180초)에 요청이 끊겨 늦은 결과가 오지 않는다(계획 '스펙과 다른 점' 3)
+		synthesizeScene: (
+			scene: SceneRequest,
+			options?: SynthesizeOptions<SceneAudio>,
+		) =>
+			runTrial(
+				"fish_audio",
+				async () => {
+					// shortcut: 끊긴 요청은 최대 300초 뒤에서 돌고 그동안 동시 1건에 들지 않는다(T9 P8과 같다). 배포·긴 장면은 T15에서 정한다
+					const cap = new AbortController();
+					// AbortSignal.timeout()은 가짜 타이머로 진행되지 않는다(withTimeout과 같다)
+					const timer = setTimeout(() => cap.abort(), SCENE_LATE_MAX_MS);
+					try {
+						const response = await fetchOk(
+							`${FISH_AUDIO_HOST}/v1/tts/stream/with-timestamp`,
+							{
+								method: "POST",
+								headers: {
+									Authorization: `Bearer ${apiKey}`,
+									"Content-Type": "application/json",
+									// DRAMA_MODELS 값 그대로. 모르는 값이면 오류 없이 유료 s2.1-pro로 처리된다
+									model: scene.model,
+								},
+								body: JSON.stringify({
+									text: scene.text,
+									// 화자 번호가 배열 위치다. 한 명이면 문자열로 보낸다
+									reference_id:
+										scene.referenceIds.length === 1
+											? scene.referenceIds[0]
+											: scene.referenceIds,
+									format: "pcm",
+									sample_rate: DRAMA_SAMPLE_RATE,
+									temperature: scene.temperature,
+									prosody: { speed: scene.speed },
+									latency: "normal",
+								}),
+								signal: cap.signal,
+							},
+							fishCodes,
+						);
+						return await readScene(response);
+					} finally {
+						clearTimeout(timer);
+					}
+				},
+				// 옵션 없이 불러도 작업실 시간(180초)이다. runTrial 기본 60초면 늦은 결과를 받을 곳 없이 일찍 끊긴다
+				{ ...options, timeoutMs: options?.timeoutMs ?? STUDIO_TIMEOUT_MS },
+			),
 		checkStatus: () =>
 			runCheck("fish_audio", async (signal) => {
 				const { credit } = creditSchema.parse(

@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>드라마 작업실 시안</title>
+<style>
+:root {
+  --bg: oklch(0.988 0 286); --surface: #fff; --sunken: oklch(0.976 0.001 286);
+  --ink: oklch(0 0 0 / .85); --muted: oklch(0 0 0 / .6); --faint: oklch(0 0 0 / .4); --line: oklch(0 0 0 / .08);
+  --brand: oklch(0.51 0.085 200); --brand-hover: oklch(0.46 0.076 201); --on-brand: #fff; --brand-subtle: oklch(0.945 0.016 200);
+  --a: oklch(0.6 0.146 54); --a-subtle: oklch(0.945 0.03 60);
+  --b: oklch(0.57 0.156 257); --b-subtle: oklch(0.94 0.03 255);
+  --c: oklch(0.591 0.208 297); --c-subtle: oklch(0.95 0.03 297);
+  --tag: oklch(0.52 0.12 50); --tag-bg: oklch(0.945 0.03 60);
+  --warn: oklch(0.52 0.12 50); --warn-subtle: oklch(0.945 0.03 60);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: oklch(0.205 0.006 286); --surface: oklch(0.232 0.006 286); --sunken: oklch(0.261 0.004 286);
+    --ink: oklch(1 0 0 / .9); --muted: oklch(1 0 0 / .62); --faint: oklch(1 0 0 / .42); --line: oklch(1 0 0 / .12);
+    --brand: oklch(0.78 0.105 198); --brand-hover: oklch(0.84 0.09 198); --on-brand: oklch(0.2 0.02 200); --brand-subtle: oklch(0.31 0.035 198);
+    --a: oklch(0.764 0.148 58); --a-subtle: oklch(0.33 0.05 58);
+    --b: oklch(0.724 0.125 245); --b-subtle: oklch(0.31 0.05 250);
+    --c: oklch(0.74 0.15 297); --c-subtle: oklch(0.32 0.06 297);
+    --tag: oklch(0.764 0.148 58); --tag-bg: oklch(0.33 0.05 58);
+    --warn: oklch(0.764 0.148 58); --warn-subtle: oklch(0.33 0.05 58);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: oklch(0.205 0.006 286); --surface: oklch(0.232 0.006 286); --sunken: oklch(0.261 0.004 286);
+  --ink: oklch(1 0 0 / .9); --muted: oklch(1 0 0 / .62); --faint: oklch(1 0 0 / .42); --line: oklch(1 0 0 / .12);
+  --brand: oklch(0.78 0.105 198); --brand-hover: oklch(0.84 0.09 198); --on-brand: oklch(0.2 0.02 200); --brand-subtle: oklch(0.31 0.035 198);
+  --a: oklch(0.764 0.148 58); --a-subtle: oklch(0.33 0.05 58);
+  --b: oklch(0.724 0.125 245); --b-subtle: oklch(0.31 0.05 250);
+  --c: oklch(0.74 0.15 297); --c-subtle: oklch(0.32 0.06 297);
+  --tag: oklch(0.764 0.148 58); --tag-bg: oklch(0.33 0.05 58);
+  --warn: oklch(0.764 0.148 58); --warn-subtle: oklch(0.33 0.05 58);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.55 "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", system-ui, sans-serif; word-break: keep-all; }
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.app { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+.side { border-right: 1px solid var(--line); padding: 20px 12px; background: var(--surface); }
+.logo { font-weight: 800; font-size: 16px; padding: 4px 10px 18px; }
+.nav a { display: block; padding: 8px 10px; border-radius: 8px; color: var(--muted); text-decoration: none; font-weight: 500; }
+.nav a.on { background: var(--brand-subtle); color: var(--brand); font-weight: 700; }
+.nav .new { font-size: 11px; color: var(--brand); margin-left: 6px; font-weight: 700; }
+main { padding: 24px 28px 120px; min-width: 0; }
+.head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+.head h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+.head .grow { flex: 1; }
+.field { display: flex; align-items: center; gap: 8px; }
+.field label { color: var(--muted); font-size: 13px; }
+.input { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 7px 10px; min-width: 0; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; padding: 3px; background: var(--sunken); }
+.seg button { border: 0; background: none; padding: 6px 12px; border-radius: 8px; color: var(--muted); font-weight: 600; font-size: 13px; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px oklch(0 0 0 / .08); }
+.seg small { font-weight: 500; color: var(--faint); margin-left: 4px; }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; column-gap: 20px; align-items: start; }
+.grid > section { grid-column: 1; }
+.rail { grid-column: 2; grid-row: 1 / span 4; align-self: start; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+.card h2 { font-size: 15px; margin: 0; }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.between { justify-content: space-between; }
+.hint { color: var(--muted); font-size: 13px; }
+.cast { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.actor { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; min-width: 200px; background: var(--surface); }
+.actor .name { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+.actor .voice { display: flex; align-items: center; gap: 6px; border: 1px dashed var(--line); border-radius: 8px; padding: 5px 8px; background: var(--sunken); text-align: left; }
+.actor .voice small { color: var(--faint); }
+.add { border: 1px dashed var(--line); background: none; border-radius: 10px; color: var(--muted); padding: 10px 14px; min-width: 120px; }
+.ghost { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 6px 10px; font-size: 13px; }
+.icon { border: 0; background: none; color: var(--muted); border-radius: 6px; padding: 4px 6px; }
+.icon:hover, .ghost:hover { background: var(--sunken); }
+.lines { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 6px; }
+.ln { display: grid; grid-template-columns: 26px 92px minmax(0, 1fr) auto; gap: 8px; align-items: start; padding: 8px; border-radius: 10px; border: 1px solid transparent; }
+.ln:focus-within { border-color: var(--line); background: var(--sunken); }
+.ln .n { color: var(--faint); font-variant-numeric: tabular-nums; font-weight: 600; padding-top: 7px; text-align: right; }
+.who { border: 0; border-radius: 999px; padding: 5px 10px; font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; justify-self: start; }
+.ln .body { display: grid; gap: 4px; min-width: 0; }
+.dir { border: 0; background: none; color: var(--tag); font-size: 13px; padding: 2px 0; width: 100%; }
+.dir::placeholder { color: var(--faint); }
+.txt { border: 0; background: none; resize: none; width: 100%; font-size: 15px; line-height: 1.6; padding: 2px 0; field-sizing: content; min-height: 1.6em; }
+.tools { display: flex; gap: 2px; opacity: .55; }
+.ln:hover .tools, .ln:focus-within .tools { opacity: 1; }
+.count { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
+.rail { position: sticky; top: 16px; }
+.pal h3 { font-size: 12px; color: var(--faint); letter-spacing: .04em; margin: 14px 0 6px; font-weight: 700; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 10px; font-size: 13px; }
+.chip span { color: var(--faint); font-size: 12px; margin-left: 4px; }
+.chip.ev { background: var(--tag-bg); border-color: transparent; color: var(--tag); }
+.chip.sp { background: var(--b-subtle); border-color: transparent; color: var(--b); }
+.chip.md { background: var(--c-subtle); border-color: transparent; color: var(--c); }
+.chip:disabled { opacity: .45; cursor: not-allowed; }
+details { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+details code { font: 12px ui-monospace, Menlo, monospace; background: var(--sunken); padding: 1px 5px; border-radius: 4px; }
+details p { margin: 6px 0; font-size: 13px; color: var(--muted); }
+.stage-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.take { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); border-radius: 10px; padding: 2px; }
+.take b { font-variant-numeric: tabular-nums; padding: 0 6px; }
+audio { width: 100%; margin: 12px 0 8px; }
+.tl { position: relative; height: 40px; border-radius: 8px; background: var(--sunken); cursor: pointer; overflow: hidden; }
+.bar { position: absolute; top: 8px; bottom: 8px; border-radius: 4px; color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; }
+.bar.on { outline: 2px solid var(--ink); outline-offset: 1px; }
+.cut { position: absolute; top: 0; bottom: 0; border-left: 1px dashed var(--faint); }
+.head-line { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--ink); pointer-events: none; }
+.sl { list-style: none; margin: 10px 0 0; padding: 0; }
+.sl li { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px; border-radius: 8px; }
+.sl li.on { background: var(--sunken); }
+.sl .t { font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.sl .acts { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.tk { display: inline-flex; gap: 2px; }
+.tk button { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; width: 26px; height: 26px; font-size: 12px; font-weight: 700; padding: 0; }
+.tk button[aria-pressed="true"] { background: var(--brand); color: var(--on-brand); border-color: var(--brand); }
+.primary { border: 0; background: var(--brand); color: var(--on-brand); border-radius: 10px; padding: 10px 18px; font-weight: 700; display: inline-flex; gap: 8px; align-items: center; }
+.primary:hover { background: var(--brand-hover); }
+.takes { list-style: none; margin: 10px 0 0; padding: 0; }
+.takes li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 4px; border-top: 1px solid var(--line); }
+.badge { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--warn-subtle); color: var(--warn); }
+.badge.ok { background: var(--brand-subtle); color: var(--brand); }
+.bottom { position: fixed; left: 220px; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line); padding: 12px 28px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; z-index: 5; }
+.bottom .grow { flex: 1; }
+.coin { width: 16px; height: 16px; border-radius: 50%; background: oklch(0.824 0.16 88); display: inline-block; border: 2px solid oklch(0.789 0.161 82); }
+.mock { margin: 0 0 12px; background: var(--warn-subtle); color: var(--warn); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; }
+.toast { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; }
+.toast.show { opacity: 1; }
+dialog { border: 1px solid var(--line); border-radius: 14px; padding: 20px; width: min(460px, calc(100vw - 32px)); background: var(--surface); color: var(--ink); }
+dialog::backdrop { background: oklch(0 0 0 / .4); }
+dialog dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 14px 0; font-size: 13px; }
+dialog dt { color: var(--muted); }
+dialog dd { margin: 0; }
+@media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } .grid > * { grid-column: 1; grid-row: auto; } .rail { position: static; order: 2; } .a-cast { order: 0; } .a-script { order: 1; } .a-stage { order: 3; } .a-takes { order: 4; } }
+@media (max-width: 760px) {
+  .app { grid-template-columns: 1fr; }
+  .side { display: none; }
+  main { padding: 16px 16px 140px; }
+  .bottom { left: 0; padding: 10px 16px; }
+  .ln { grid-template-columns: 22px minmax(0, 1fr) auto; }
+  .ln .who { grid-column: 2; }
+  .ln .body { grid-column: 2 / 4; }
+  .ln .tools { grid-column: 3; grid-row: 1; }
+  .actor { min-width: 0; flex: 1 1 140px; }
+  .sl li { grid-template-columns: 22px minmax(0, 1fr); }
+  .sl .acts { grid-column: 2; justify-content: flex-start; }
+  .takes li { grid-template-columns: auto minmax(0, 1fr); }
+  .takes li > .row { grid-column: 2; }
+}
+</style>
+</head>
+<body id="top">
+<div class="app">
+  <aside class="side">
+    <div class="logo">TTS Pilot</div>
+    <nav class="nav" aria-label="주요 메뉴">
+      <a href="#top">음성 작업실</a>
+      <a href="#top" class="on" aria-current="page">드라마 작업실<span class="new">새로</span></a>
+      <a href="#top">성우 캐스팅</a>
+      <a href="#top">성우 보관함</a>
+      <a href="#top">프리셋</a>
+      <a href="#top">연결 상태</a>
+      <a href="#top">채널·분류</a>
+    </nav>
+  </aside>
+  <main>
+    <p class="mock">시안 · 생성 버튼은 동작하지 않아요. 무대 소리(audio/)는 저장소에 넣지 않았어요(2026-10-21 시험 결과)</p>
+    <div class="head">
+      <h1>드라마 작업실</h1>
+      <div class="grow"></div>
+      <div class="field"><label for="scene">장면 이름</label><input id="scene" class="input" placeholder="장면" value="S03_약속장소" size="14"></div>
+      <!-- biome-ignore lint/a11y/useSemanticElements: fieldset would change prototype layout -->
+      <div class="seg" role="group" aria-label="모델">
+        <button type="button" aria-pressed="false" data-model="drama">Drama 3<small>유료</small></button>
+        <button type="button" aria-pressed="false" data-model="pro">S2.1 Pro<small>유료</small></button>
+        <button type="button" aria-pressed="true" data-model="free">S2.1 Pro Free<small>무료 · 11/30까지</small></button>
+      </div>
+    </div>
+
+    <div class="grid">
+        <section class="card a-cast" aria-labelledby="cast-h">
+          <div class="row between"><h2 id="cast-h">배역</h2><span class="hint">대본에 나오는 배역만 장면에 들어가요 · 최대 4명</span></div>
+          <div class="cast">
+            <div class="actor">
+              <div class="name"><span class="dot" style="background:var(--a)"></span><input class="input" value="지연" aria-label="배역 1 이름" size="6" style="padding:2px 6px;font-weight:700"><button type="button" class="icon" aria-label="배역 빼기">✕</button></div>
+              <button type="button" class="voice" data-pick>▶ 효정2 <small>· Fish Audio</small></button>
+            </div>
+            <div class="actor">
+              <div class="name"><span class="dot" style="background:var(--b)"></span><input class="input" value="민수" aria-label="배역 2 이름" size="6" style="padding:2px 6px;font-weight:700"><button type="button" class="icon" aria-label="배역 빼기">✕</button></div>
+              <button type="button" class="voice" data-pick>▶ 보이스1 <small>· Fish Audio</small></button>
+            </div>
+            <button type="button" class="add" data-toast="배역 추가: 4명까지">＋ 배역 추가</button>
+          </div>
+        </section>
+
+        <section class="card a-script" aria-labelledby="script-h">
+          <div class="row between"><h2 id="script-h">대본</h2>
+            <div class="row"><span class="count" id="count"></span><button type="button" class="ghost" data-toast="이름: 대사 형식을 붙여 넣으면 줄과 배역으로 바뀌어요">대본 붙여 넣기</button></div>
+          </div>
+          <ol class="lines" id="lines"></ol>
+          <div class="row" style="margin-top:8px"><button type="button" class="ghost" id="addLine">＋ 줄 추가</button><span class="hint">마지막 줄에서 Enter를 누르면 다음 배역 줄이 생겨요</span></div>
+        </section>
+
+        <section class="card a-stage" aria-labelledby="stage-h">
+          <div class="stage-head">
+            <h2 id="stage-h">무대</h2>
+            <!-- biome-ignore lint/a11y/useSemanticElements: fieldset would change prototype layout -->
+            <div class="take" role="group" aria-label="테이크"><button type="button" class="icon" aria-label="이전 테이크">‹</button><b>테이크 2 / 2</b><button type="button" class="icon" aria-label="다음 테이크">›</button></div>
+            <span class="hint">10:42 · S2.1 Pro Free · 18.3초</span>
+            <div style="flex:1"></div>
+            <button type="button" class="ghost" data-toast="S03_약속장소_장면_20261021-1042.wav">장면 받기</button>
+            <button type="button" class="primary" style="padding:7px 14px" data-toast="S03_약속장소_20261021-1042.zip · 장면 1 + 대사 6">모두 받기 (zip)</button>
+          </div>
+          <audio id="scene" src="audio/scene.mp3" controls preload="auto"><track kind="captions"></audio>
+          <!-- biome-ignore lint/a11y/useAriaPropsSupportedByRole: label for the timeline drawn by script -->
+          <div class="tl" id="tl" aria-label="장면 시간축"><div class="head-line" id="playhead"></div></div>
+          <ol class="sl" id="sl"></ol>
+        </section>
+
+        <section class="card a-takes" aria-labelledby="takes-h">
+          <h2 id="takes-h">이전 테이크</h2>
+          <ul class="takes">
+            <li><span class="badge ok">완료</span><div><b>테이크 2</b> · S03_약속장소 · 지연·민수 · 18.3초<div class="hint">10:42 · S2.1 Pro Free · 또 늦었네. 삼십 분이나 기다렸어.</div></div><div class="row"><button type="button" class="ghost">무대에 올리기</button><button type="button" class="icon" aria-label="지우기">🗑</button></div></li>
+            <li><span class="badge ok">완료</span><div><b>테이크 1</b> · S03_약속장소 · 지연·민수 · 17.9초<div class="hint">10:38 · S2.1 Pro Free · 또 늦었네. 삼십 분이나 기다렸어.</div></div><div class="row"><button type="button" class="ghost">무대에 올리기</button><button type="button" class="icon" aria-label="지우기">🗑</button></div></li>
+            <li><span class="badge">처리 여부 미확인</span><div><b>S02_카페</b> · 지연·민수·사장 · 9줄<div class="hint">어제 21:10 · Drama 3 · 늦게 도착하면 여기서 완료로 바뀌어요</div></div><div class="row"><button type="button" class="icon" aria-label="지우기">🗑</button></div></li>
+          </ul>
+        </section>
+
+      <aside class="rail">
+        <section class="card pal" aria-labelledby="pal-h">
+          <h2 id="pal-h">연기 지시</h2>
+          <p class="hint" id="palHint" style="margin:6px 0 0">줄을 누른 뒤 고르면 그 줄에 들어가요</p>
+          <h3>소리 · 커서 위치에</h3>
+          <div class="chips">
+            <button type="button" class="chip ev" data-ev="sighs">한숨<span>sighs</span></button>
+            <button type="button" class="chip ev" data-ev="laughs">웃음<span>laughs</span></button>
+            <button type="button" class="chip ev" data-ev="chuckles">피식<span>chuckles</span></button>
+            <button type="button" class="chip ev" data-ev="gasps">헉<span>gasps</span></button>
+            <button type="button" class="chip ev" data-ev="pause">쉼<span>pause</span></button>
+            <button type="button" class="chip ev" data-ev="clears throat">헛기침<span>clears throat</span></button>
+            <button type="button" class="chip ev" data-ev="hesitates">머뭇<span>hesitates</span></button>
+          </div>
+          <h3>범위 · 고른 글자를 감싸요</h3>
+          <div class="chips">
+            <button type="button" class="chip sp" data-sp="whisper">속삭임</button>
+            <button type="button" class="chip sp" data-sp="soft">부드럽게</button>
+            <button type="button" class="chip sp" data-sp="slow">천천히</button>
+            <button type="button" class="chip sp" data-sp="fast">빠르게</button>
+            <button type="button" class="chip sp" data-sp="emphasis">강조</button>
+            <button type="button" class="chip sp" data-sp="stress">강세</button>
+            <button type="button" class="chip sp" data-sp="forceful">힘차게</button>
+          </div>
+          <h3>분위기 · 그 줄의 지시 칸에</h3>
+          <div class="chips">
+            <button type="button" class="chip md" data-md="with bright eager excitement">들뜬 설렘</button>
+            <button type="button" class="chip md" data-md="icy calm">차갑게 침착</button>
+            <button type="button" class="chip md" data-md="heavy, deflated sadness">무거운 슬픔</button>
+            <button type="button" class="chip md" data-md="sarcastic and deadpan">비꼬듯 무표정</button>
+            <button type="button" class="chip md" data-md="breathless and terrified">숨차고 겁먹은</button>
+            <button type="button" class="chip md" data-md="furious, barely holding it together">겨우 참는 분노</button>
+            <button type="button" class="chip md" data-md="warm, gentle bedtime voice">다정한 잠자리 목소리</button>
+          </div>
+          <details>
+            <summary>지시 쓰는 법</summary>
+            <p>점 태그: <code>그래 [sighs] 네가 이겼어.</code></p>
+            <p>범위 태그: <code>약속해 &lt;whisper&gt;아무한테도 말 안 한다고&lt;/whisper&gt;.</code></p>
+            <p>줄 지시: 지시 칸에 <code>icy calm</code> 또는 <code>작게 한숨 쉬며</code>. 어떤 말로 써도 되고 소리로 읽지 않아요.</p>
+            <p>한국어 지시와 영어 지시 중 무엇이 나은지는 들어 보고 정해요.</p>
+          </details>
+        </section>
+      </aside>
+    </div>
+  </main>
+</div>
+
+<div class="bottom">
+  <details style="margin:0;border:0;padding:0"><summary>샘플링</summary><div class="row" style="margin-top:6px"><label class="hint">연기 변화 <input type="range" min="0" max="1" step="0.05" value="0.7"></label><label class="hint">속도 <input type="range" min="0.5" max="2" step="0.05" value="1"></label></div></details>
+  <div class="grow"></div>
+  <span class="count" id="est"></span>
+  <button type="button" class="primary" id="make"><span class="coin" id="coin"></span>장면 만들기</button>
+</div>
+
+<dialog id="confirm" aria-labelledby="cf-h">
+  <h2 id="cf-h" style="margin:0;font-size:17px">Drama 3로 장면을 만들까요?</h2>
+  <dl>
+    <dt>장면</dt><dd>S03_약속장소 · 6줄 · 261자</dd>
+    <dt>배역</dt><dd>지연 → 효정2, 민수 → 보이스1</dd>
+    <dt>대본</dt><dd>또 늦었네. 삼십 분이나 기다렸어. 미안, 미안! 지하철이 갑자기 멈춰 버렸어. 지난주에도…</dd>
+    <dt>예상</dt><dd>추정 $0.003 (11/12까지 출시가 $10/100만 글자) · 정가 $0.013<br><span class="hint">과금 단위는 첫 생성 뒤 대시보드로 확인해요</span></dd>
+  </dl>
+  <div class="row" style="justify-content:flex-end"><button type="button" class="ghost" id="cfNo">취소</button><button type="button" class="primary" id="cfYes"><span class="coin"></span>크레딧 쓰고 만들기</button></div>
+</dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const ACT = [
+  { name: "지연", color: "var(--a)", subtle: "var(--a-subtle)" },
+  { name: "민수", color: "var(--b)", subtle: "var(--b-subtle)" },
+];
+const LINES = [
+  [0, "작게 한숨 쉬며", "또 늦었네. 삼십 분이나 기다렸어."],
+  [1, "숨을 헐떡이며", "미안, 미안! 지하철이 갑자기 멈춰 버렸어."],
+  [0, "의심스럽게", "지난주에도 지하철 핑계였잖아."],
+  [1, "멋쩍게 웃으며", "이번엔 진짜야. 대신 오늘 저녁은 내가 살게."],
+  [0, "못 이기는 척", "비싼 거 먹을 거야. 각오해."],
+  [1, "", "<whisper>지갑아, 미안하다.</whisper>"],
+];
+// 2026-10-21 무료 모델 시험 결과의 실제 구간
+const SEG = [[0.64, 3.68, 0, 4.04], [4.4, 7.2, 4.04, 7.76], [8.32, 10.56, 7.76, 10.74], [10.92, 13.88, 10.74, 13.92], [13.96, 16.04, 13.92, 16.73], [17.42, 18.06, 16.73, 18.26]];
+const DUR = 18.26;
+const $ = (s) => document.querySelector(s);
+let focused = null;
+let model = "free";
+
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 2200); }
+
+function lineEl(a, dir, text) {
+  const li = document.createElement("li");
+  li.className = "ln";
+  li.innerHTML = '<span class="n"></span><button type="button" class="who"></button><div class="body"><input class="dir" placeholder="연기 지시(선택) 예: 작게 한숨 쉬며" maxlength="60" aria-label="연기 지시"><textarea class="txt" rows="1" maxlength="300" aria-label="대사"></textarea></div><div class="tools"><button type="button" class="icon" aria-label="위로" data-up>↑</button><button type="button" class="icon" aria-label="아래로" data-down>↓</button><button type="button" class="icon" aria-label="지우기" data-del>✕</button></div>';
+  li.dataset.a = a;
+  li.querySelector(".dir").value = dir;
+  li.querySelector(".txt").value = text;
+  paintWho(li);
+  return li;
+}
+function paintWho(li) {
+  const a = ACT[li.dataset.a];
+  const w = li.querySelector(".who");
+  w.innerHTML = `<span class="dot" style="background:${a.color}"></span>${a.name}`;
+  w.style.background = a.subtle; w.style.color = a.color;
+  w.setAttribute("aria-label", `배역 ${a.name}, 눌러서 바꾸기`);
+}
+function renumber() {
+  [...$("#lines").children].forEach((li, i) => { li.querySelector(".n").textContent = i + 1; });
+  const chars = [...$("#lines").children].reduce((n, li) => n + [...li.querySelector(".dir").value].length + [...li.querySelector(".txt").value].length, 0);
+  const bytes = [...$("#lines").children].reduce((n, li) => n + new TextEncoder().encode(li.querySelector(".dir").value + li.querySelector(".txt").value).length, 0);
+  $("#count").textContent = `${$("#lines").children.length}줄 · ${chars.toLocaleString()} / 2,000자`;
+  $("#est").textContent = `${chars}자 · ${bytes}바이트${model === "drama" ? ` · 추정 $${(chars * 10 / 1e6).toFixed(4)}` : model === "pro" ? ` · 추정 $${(bytes * 15 / 1e6).toFixed(4)}` : " · 무료"}`;
+}
+for (const [a, d, t] of LINES) $("#lines").append(lineEl(a, d, t));
+renumber();
+
+$("#lines").addEventListener("focusin", (e) => { const li = e.target.closest(".ln"); if (li) { focused = li; $("#palHint").textContent = `${li.querySelector(".n").textContent}번 줄에 넣어요`; } });
+$("#lines").addEventListener("input", renumber);
+$("#lines").addEventListener("click", (e) => {
+  const li = e.target.closest(".ln"); if (!li) return;
+  if (e.target.closest(".who")) { li.dataset.a = (+li.dataset.a + 1) % ACT.length; paintWho(li); }
+  if (e.target.closest("[data-up]") && li.previousElementSibling) li.previousElementSibling.before(li);
+  if (e.target.closest("[data-down]") && li.nextElementSibling) li.nextElementSibling.after(li);
+  if (e.target.closest("[data-del]")) { li.remove(); focused = null; }
+  renumber();
+});
+$("#lines").addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || e.shiftKey || e.isComposing || !e.target.classList.contains("txt")) return;
+  const li = e.target.closest(".ln");
+  if (li !== $("#lines").lastElementChild) return;
+  e.preventDefault();
+  const next = lineEl((+li.dataset.a + 1) % ACT.length, "", "");
+  li.after(next); renumber(); next.querySelector(".txt").focus();
+});
+$("#addLine").onclick = () => { const last = $("#lines").lastElementChild; const n = lineEl(last ? (+last.dataset.a + 1) % ACT.length : 0, "", ""); $("#lines").append(n); renumber(); n.querySelector(".txt").focus(); };
+
+document.querySelector(".pal").addEventListener("mousedown", (e) => { if (e.target.closest(".chip")) e.preventDefault(); });
+document.querySelector(".pal").addEventListener("click", (e) => {
+  const c = e.target.closest(".chip"); if (!c) return;
+  if (!focused?.isConnected) return toast("넣을 줄을 먼저 고르세요");
+  const ta = focused.querySelector(".txt");
+  if (c.dataset.md) { focused.querySelector(".dir").value = c.dataset.md; }
+  else {
+    const s = ta.selectionStart ?? ta.value.length;
+    const en = ta.selectionEnd ?? s;
+    const v = ta.value;
+    if (c.dataset.ev) { const ins = `[${c.dataset.ev}] `; ta.value = v.slice(0, s) + ins + v.slice(en); ta.setSelectionRange(s + ins.length, s + ins.length); }
+    else { const o = `<${c.dataset.sp}>`;
+const cl = `</${c.dataset.sp}>`; ta.value = v.slice(0, s) + o + v.slice(s, en) + cl + v.slice(en); const p = en + o.length; ta.setSelectionRange(s === en ? p : p + cl.length, s === en ? p : p + cl.length); }
+    ta.focus();
+  }
+  renumber();
+});
+
+document.querySelectorAll(".seg button").forEach((b) => { b.onclick = () => {
+  document.querySelectorAll(".seg button").forEach((x) => { x.setAttribute("aria-pressed", String(x === b)); });
+  model = b.dataset.model; $("#coin").style.display = model === "free" ? "none" : ""; renumber();
+}; });
+$("#coin").style.display = "none";
+$("#make").onclick = () => (model !== "free" ? $("#confirm").showModal() : toast("시안이라 만들지 않아요 · 무료 모델은 확인 없이 바로 만들어요"));
+$("#cfNo").onclick = () => $("#confirm").close();
+$("#cfYes").onclick = () => { $("#confirm").close(); toast("시안이라 만들지 않아요"); };
+document.querySelectorAll("[data-toast]").forEach((b) => { b.onclick = () => toast(b.dataset.toast); });
+document.querySelectorAll("[data-pick]").forEach((b) => { b.onclick = () => toast("성우 고르기: 담은 성우 · Fish Audio 전체 탭"); });
+
+// 무대
+const audio = $("#scene");
+const tl = $("#tl");
+const sl = $("#sl");
+const _stopAt = null;
+let clip = null;
+const pct = (t) => `${(t / DUR) * 100}%`;
+SEG.forEach(([s, e, cs], i) => {
+  const a = ACT[LINES[i][0]];
+  const bar = document.createElement("div"); bar.className = "bar"; bar.dataset.i = i;
+  bar.style.left = pct(s); bar.style.width = pct(Math.max(e - s, 0.3)); bar.style.background = a.color; bar.textContent = i + 1;
+  tl.append(bar);
+  if (i) { const c = document.createElement("div"); c.className = "cut"; c.style.left = pct(cs); tl.append(c); }
+  const li = document.createElement("li"); li.dataset.i = i;
+  li.innerHTML = `<span class="n" style="color:var(--faint);font-weight:600;text-align:right">${i + 1}</span><div style="min-width:0"><span class="dot" style="background:${a.color};margin-right:6px"></span><b>${a.name}</b> <span class="t">${s.toFixed(2)}–${e.toFixed(2)}초</span><div></div></div><div class="acts"><span class="tk" role="group" aria-label="${i + 1}번 줄 테이크"><button type="button" aria-pressed="${i === 3 ? "false" : "true"}" data-k="2">2</button><button type="button" aria-pressed="${i === 3 ? "true" : "false"}" data-k="1">1</button></span><button type="button" class="ghost" data-play>듣기</button><button type="button" class="ghost" data-dl>받기</button></div>`;
+  li.querySelector("div div").textContent = LINES[i][2].replace(/<\/?whisper>/g, "");
+  sl.append(li);
+});
+const FILES = ["01_지연", "02_민수", "03_지연", "04_민수", "05_지연", "06_민수"];
+sl.addEventListener("click", (e) => {
+  const li = e.target.closest("li"); if (!li) return; const i = +li.dataset.i;
+  if (e.target.dataset.k) { li.querySelectorAll(".tk button").forEach((b) => { b.setAttribute("aria-pressed", String(b === e.target)); }); toast(`${i + 1}번 줄은 테이크 ${e.target.dataset.k}로 받아요`); }
+  if (e.target.closest("[data-play]")) { if (clip) clip.pause(); audio.pause(); clip = new Audio(encodeURI(`audio/${FILES[i]}.mp3`)); clip.play(); mark(i); clip.onended = () => mark(null); }
+  if (e.target.closest("[data-dl]")) toast(`S03_약속장소_${String(i + 1).padStart(2, "0")}_${ACT[LINES[i][0]].name}.wav`);
+});
+tl.onclick = (e) => { const r = tl.getBoundingClientRect(); if (clip) clip.pause(); audio.currentTime = ((e.clientX - r.left) / r.width) * DUR; audio.play(); };
+function mark(i) { document.querySelectorAll(".bar, #sl li").forEach((el) => { el.classList.toggle("on", i !== null && +el.dataset.i === i); }); }
+(function tick() {
+  const t = audio.currentTime; $("#playhead").style.left = pct(t);
+  if (!clip || clip.paused) { const i = SEG.findIndex(([, , cs], k) => t >= cs && t < (SEG[k + 1]?.[2] ?? DUR + 1)); mark(audio.paused && t === 0 ? null : i < 0 ? null : i); }
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

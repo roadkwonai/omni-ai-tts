@@ -198,6 +198,7 @@ export function VoiceRow({
 	onSelect,
 	panelId,
 	tabbable,
+	busyKey,
 }: {
 	voice: Voice;
 	selected: boolean;
@@ -206,11 +207,14 @@ export function VoiceRow({
 	panelId?: string;
 	// 목록의 Tab 정지가 이 행이면 그 칸(0 재생, 1 고르기, 캐스팅은 2 내 문장 듣기·3 별, 보관함은 2 별), 아니면 null(모든 버튼 tabIndex -1)
 	tabbable: Col | null;
+	// 고르는 일이 진행 중인 행의 키(드라마 성우 고르기 창의 담는 중, 브리프 5.7). 그 행의 고르기 버튼이 aria-busy이고 이름 옆에 스피너
+	busyKey?: string | null;
 }) {
 	const id = useId();
 	const url = voice.previewUrl;
 	const trial = useOptionalTrial();
 	const key = voiceKey(voice);
+	const busy = busyKey === key;
 	const trialProblem = trial?.problem(key) ?? null;
 	const saved = useSavedItem(voice);
 	const { channels, classes } = useClassLists();
@@ -290,6 +294,7 @@ export function VoiceRow({
 				// '더 보기' 뒤 새로 붙은 첫 행으로 포커스를 옮길 때 찾는 표지(Task 11b)
 				data-select=""
 				aria-current={selected ? "true" : undefined}
+				aria-busy={busy || undefined}
 				aria-labelledby={`${id}-name`}
 				aria-describedby={`${id}-detail`}
 				aria-controls={panelId}
@@ -317,6 +322,9 @@ export function VoiceRow({
 								voice.name
 							)}
 						</span>
+						{busy ? (
+							<Spinner aria-hidden="true" className="shrink-0 self-center" />
+						) : null}
 						{/* 영문 이름은 남는 자리만 쓴다(basis 0, 내용 너비까지). 좁은 행에서 이름보다 먼저 줄어든다(audit P2-1) */}
 						{voice.englishName ? (
 							<span
@@ -487,6 +495,7 @@ export function RowList({
 	select,
 	panelId,
 	refreshing,
+	busyKey,
 	ref,
 }: {
 	voices: Voice[];
@@ -495,6 +504,8 @@ export function RowList({
 	select: Select;
 	panelId?: string;
 	refreshing: boolean;
+	// 고르는 일이 진행 중인 행의 키(VoiceRow busyKey)
+	busyKey?: string | null;
 	// '더 보기' 뒤 새로 붙은 첫 행을 찾는다(서버 목록)
 	ref?: Ref<HTMLUListElement>;
 }) {
@@ -579,6 +590,7 @@ export function RowList({
 								onSelect={select}
 								panelId={panelId}
 								tabbable={key === stop?.key ? stop.col : null}
+								busyKey={busyKey}
 							/>
 						</li>
 					);

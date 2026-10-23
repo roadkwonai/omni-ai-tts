@@ -10,7 +10,7 @@ import { Spinner } from "@tts-pilot-app/ui/components/spinner";
 import { cn } from "@tts-pilot-app/ui/lib/utils";
 import { Coins, Download, TriangleAlert } from "lucide-react";
 import Link from "next/link";
-import { type RefObject, useEffect, useId, useRef, useState } from "react";
+import { type RefObject, useEffect, useId, useRef } from "react";
 
 import {
 	liveProblem,
@@ -22,24 +22,10 @@ import {
 } from "@/lib/studio-view";
 import { costCopy, usageText } from "@/lib/trial-view";
 
+import { useBarHeight, useElapsed, WAIT_NOTE_AFTER } from "./bar-height";
 import { usePlayer } from "./sample-player";
 import { useShownScript, useStudio, useStudioItems } from "./studio-provider";
 import { lockedButton } from "./voice-problem";
-
-// 만드는 중 이 초가 지나면 한 줄 칸에 기다림 안내(브리프 5.6, 디자인 리뷰 D12)
-const WAIT_NOTE_AFTER = 20;
-
-// 만드는 중 지난 시간(초). 공급자가 진행률을 주지 않아 지난 시간만 보인다(가짜 진행률 없음, tts-provider).
-// 처음 1초는 0이다(지난 생성의 now가 남아 있어도 since보다 앞이라 0으로 잘린다)
-function useElapsed(since: number | null): number {
-	const [now, setNow] = useState(() => Date.now());
-	useEffect(() => {
-		if (since === null) return;
-		const id = setInterval(() => setNow(Date.now()), 1000);
-		return () => clearInterval(id);
-	}, [since]);
-	return since === null ? 0 : Math.max(0, Math.floor((now - since) / 1000));
-}
 
 // 하단 막대(브리프 5.6): 화면 바닥에 고정된 띠, DOM은 카드 바로 뒤(DN-1). 결과 칸(캡션·플레이어·'내려받기') → 동작 칸(주 버튼 → 한 줄 칸).
 // 늦춘 대본으로 그린다(입력이 끊는다). 띠 높이를 <html>의 --studio-bar-height(단위 px)로 알려 열 바닥 여백·scroll-padding·알림 간격이 쓴다.
@@ -121,23 +107,7 @@ export function StudioBar({
 	// 주 버튼이 '저장된 결과 열기'이고 그 결과가 이미 플레이어에 있으면 outline(채운 청록은 하나, critique P2-3)
 	const quiet = shownSame && !creating && !receivingNew;
 
-	// 띠 높이를 단위 붙은 값으로 둔다(providers.tsx Toaster가 calc() 안에서 쓴다). 떠나면 지운다
-	useEffect(() => {
-		const band = bandRef.current;
-		if (!band) return;
-		const root = document.documentElement;
-		const observer = new ResizeObserver(() => {
-			root.style.setProperty(
-				"--studio-bar-height",
-				`${band.getBoundingClientRect().height}px`,
-			);
-		});
-		observer.observe(band);
-		return () => {
-			observer.disconnect();
-			root.style.removeProperty("--studio-bar-height");
-		};
-	}, []);
+	useBarHeight(bandRef);
 	// 기본 샘플이 재생을 시작하면 결과를 멈춘다(오디오 요소 동기화)
 	useEffect(() => {
 		if (sampling) audioRef.current?.pause();

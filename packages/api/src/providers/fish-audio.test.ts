@@ -1,6 +1,14 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { AlignedSegment, SceneAudio, SceneRequest } from "../drama-script";
 import type { ListInputOf } from "./contract";
-import { CHECK_TIMEOUT_MS } from "./errors";
+import {
+	CHECK_TIMEOUT_MS,
+	SCENE_LATE_MAX_MS,
+	STUDIO_TIMEOUT_MS,
+	type SynthesizeOptions,
+} from "./errors";
 import { createFishAudio } from "./fish-audio";
 import {
 	calledUrl,
@@ -668,5 +676,443 @@ describe("Fish Audio 성우 한 명 조회(T7)", () => {
 		await expect(get()).rejects.toMatchObject({
 			data: { provider: "fish_audio", reason: "provider_auth" },
 		});
+	});
+});
+
+// 2026-10-22 실제 응답(조사 9절). 이벤트의 오디오는 길이("<N bytes>")로만 남아 있어 그 길이만큼의 0바이트로 되살린다
+const research = <T>(file: string) =>
+	JSON.parse(
+		readFileSync(
+			fileURLToPath(
+				new URL(
+					`../../../../docs/research/data/fish-drama-pcm-2026-10-22/${file}`,
+					import.meta.url,
+				),
+			),
+			"utf8",
+		),
+	) as T;
+type SseEvent = Record<string, unknown>;
+const EVENTS = research<SseEvent[]>("events.json").map((event) => {
+	const bytes = /^<(\d+) bytes>$/.exec(String(event.audio_base64))?.[1];
+	return bytes
+		? {
+				...event,
+				audio_base64: Buffer.alloc(Number(bytes)).toString("base64"),
+			}
+		: event;
+});
+const WORDS = research<AlignedSegment[]>("words.json");
+
+// SSE 본문을 size바이트 조각의 스트림으로 흘린다(한글 글자 가운데서도 끊긴다)
+const streamOf = (text: string, size = 4093) => {
+	const bytes = new TextEncoder().encode(text);
+	return new Response(
+		new ReadableStream<Uint8Array>({
+			start(controller) {
+				for (let at = 0; at < bytes.length; at += size)
+					controller.enqueue(bytes.subarray(at, at + size));
+				controller.close();
+			},
+		}),
+		{ status: 200, headers: { "content-type": "text/event-stream" } },
+	);
+};
+const sseOf = (events: readonly unknown[]) =>
+	streamOf(
+		events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(""),
+	);
+const b64 = (...bytes: number[]) => Buffer.from(bytes).toString("base64");
+// 정렬 하나(청크 0, 오프셋 0). 4바이트 오디오는 2샘플이라 길이 0초로 둔다
+const aligned = (segments: AlignedSegment[]) => ({
+	alignment: { segments, audio_duration: 0 },
+	chunk_seq: 0,
+	chunk_audio_offset_sec: 0,
+});
+// 늦은 결과 시험의 작은 장면
+const SMALL = [
+	{
+		audio_base64: b64(1, 2, 3, 4),
+		...aligned([{ text: "안녕", start: 0, end: 0 }]),
+	},
+];
+// 공급자 신호를 따르는 fetch: 끊기면 AbortError로 거절한다
+const abortable = (
+	init: RequestInit | undefined,
+	reject: (e: unknown) => void,
+) =>
+	init?.signal?.addEventListener("abort", () =>
+		reject(new DOMException("aborted", "AbortError")),
+	);
+// 같은 조각을 times번까지 흘리는 본문. 미리 당기지 않아(highWaterMark 0) 꺼낸 횟수가 읽은 조각 수다
+const repeated = (chunk: Uint8Array, times: number) => {
+	const seen = { pulls: 0, cancel: vi.fn() };
+	const body = new ReadableStream<Uint8Array>(
+		{
+			pull(controller) {
+				if (seen.pulls < times) {
+					seen.pulls++;
+					controller.enqueue(chunk);
+				} else controller.close();
+			},
+			cancel: seen.cancel,
+		},
+		{ highWaterMark: 0 },
+	);
+	return { response: new Response(body, { status: 200 }), seen };
+};
+const MiB = 1024 * 1024;
+
+describe("Fish Audio 장면 생성 (T9.5)", () => {
+	const SCENE: SceneRequest = {
+		model: "drama-3",
+		text: "<|speaker:0|>[놀라며] 너 지금 몇 시인지 알아?\n<|speaker:1|>알아, 알아.",
+		referenceIds: ["a".repeat(32), "b".repeat(32)],
+		speed: 1.1,
+		temperature: 0.6,
+	};
+	const scene = (
+		over: Partial<SceneRequest> = {},
+		options?: SynthesizeOptions<SceneAudio>,
+	) => createFishAudio(KEY).synthesizeScene?.({ ...SCENE, ...over }, options);
+
+	it("POST /v1/tts/stream/with-timestamp, model 헤더는 세 모델 각각 그대로, 본문은 정한 칸만", async () => {
+		fetchMock.mockImplementation(async () => sseOf(SMALL));
+		for (const model of ["s2.1-pro-free", "s2.1-pro", "drama-3"] as const) {
+			fetchMock.mockClear();
+			await scene({ model });
+			expect(fetchMock).toHaveBeenCalledTimes(1);
+			const [url, init] = fetchMock.mock.calls[0] ?? [];
+			expect(String(url)).toBe(
+				"https://api.fish.audio/v1/tts/stream/with-timestamp",
+			);
+			expect(init?.method).toBe("POST");
+			const headers = new Headers(init?.headers);
+			expect(headers.get("model")).toBe(model);
+			expect(headers.get("authorization")).toBe(`Bearer ${KEY}`);
+			expect(headers.get("content-type")).toBe("application/json");
+			expect(bodyOf()).toEqual({
+				text: SCENE.text,
+				reference_id: ["a".repeat(32), "b".repeat(32)],
+				format: "pcm",
+				sample_rate: 44100,
+				temperature: 0.6,
+				prosody: { speed: 1.1 },
+				latency: "normal",
+			});
+		}
+	});
+
+	it("reference_id는 성우 하나면 문자열이다", async () => {
+		fetchMock.mockImplementation(async () => sseOf(SMALL));
+		await scene({ referenceIds: ["a".repeat(32)] });
+		expect(bodyOf().reference_id).toBe("a".repeat(32));
+	});
+
+	it("실제 응답(events.json) → pcm은 이벤트 오디오의 합, segments는 words.json(청크 1은 오프셋을 더한 값)", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => {});
+		fetchMock.mockImplementation(async () => sseOf(EVENTS));
+		const result = await scene();
+		expect(result?.pcm.byteLength).toBe(1_190_720);
+		expect(WORDS).toHaveLength(33);
+		expect(result?.segments).toEqual(WORDS);
+		// 청크 1의 첫 세그먼트(0.24~0.88초)에 청크 오프셋 9.845260770975056초를 더했다
+		expect(result?.segments?.[26]).toEqual({
+			text: "고마워",
+			start: 10.085260770975056,
+			end: 10.725260770975057,
+		});
+		expect(log).not.toHaveBeenCalled();
+	});
+
+	it("CRLF 구분, event: 줄, [DONE], 빈 data를 건너뛰고 1바이트씩 와도(한글 가운데 끊김) 같다", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => {});
+		const first = {
+			audio_base64: b64(1, 2),
+			...aligned([{ text: "안녕", start: 0, end: 0 }]),
+		};
+		const second = {
+			audio_base64: b64(3, 4),
+			...aligned([
+				{ text: "안녕", start: 0, end: 0 },
+				{ text: "하세요", start: 0, end: 0 },
+			]),
+		};
+		fetchMock.mockImplementation(async () =>
+			streamOf(
+				[
+					`event: message\r\ndata: ${JSON.stringify(first)}\r\n\r\n`,
+					"event: message\r\ndata:\r\n\r\n",
+					`data: ${JSON.stringify(second)}\r\n\r\n`,
+					"data: [DONE]\r\n\r\n",
+				].join(""),
+				1,
+			),
+		);
+		const result = await scene();
+		expect(Array.from(result?.pcm ?? [])).toEqual([1, 2, 3, 4]);
+		// 같은 청크의 마지막 스냅샷만 쓴다
+		expect(result?.segments).toEqual([
+			{ text: "안녕", start: 0, end: 0 },
+			{ text: "하세요", start: 0, end: 0 },
+		]);
+		expect(log).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		["chunk_seq null", { chunk_seq: null }],
+		["alignment {}", { alignment: {} }],
+		["segments 없음", { alignment: { audio_duration: 1 } }],
+	])(
+		"정렬 모양이 다르면(%s) pcm은 그대로이고 segments null, 로그 한 줄(E1)",
+		async (_name, broken) => {
+			const log = vi.spyOn(console, "error").mockImplementation(() => {});
+			fetchMock.mockImplementation(async () =>
+				sseOf(
+					EVENTS.map((event, i) => (i === 5 ? { ...event, ...broken } : event)),
+				),
+			);
+			const result = await scene();
+			expect(result?.pcm.byteLength).toBe(1_190_720);
+			expect(result?.segments).toBeNull();
+			expect(log.mock.calls).toEqual([["[drama] 정렬 버림: 모양"]]);
+		},
+	);
+
+	it("audio_base64가 없거나 null인 정렬만의 이벤트는 오디오 없이 정렬만 쓴다", async () => {
+		const segments = [{ text: "안녕", start: 0, end: 0 }];
+		fetchMock.mockImplementation(async () =>
+			sseOf([
+				{ audio_base64: b64(1, 2) },
+				{ audio_base64: null, ...aligned([]) },
+				{ audio_base64: b64(3, 4) },
+				aligned(segments),
+			]),
+		);
+		const result = await scene();
+		expect(Array.from(result?.pcm ?? [])).toEqual([1, 2, 3, 4]);
+		expect(result?.segments).toEqual(segments);
+	});
+
+	it("alignment가 없거나 null인 응답은 segments null이고 로그가 없다", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => {});
+		fetchMock.mockImplementation(async () =>
+			sseOf(
+				EVENTS.map(({ alignment: _drop, ...rest }, i) =>
+					i % 2 ? rest : { ...rest, alignment: null },
+				),
+			),
+		);
+		const result = await scene();
+		expect(result?.pcm.byteLength).toBe(1_190_720);
+		expect(result?.segments).toBeNull();
+		expect(log).not.toHaveBeenCalled();
+	});
+
+	it("오디오 합이 0바이트면 처리 여부 미확인이다", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => {});
+		fetchMock.mockImplementation(async () =>
+			sseOf(EVENTS.map((event) => ({ ...event, audio_base64: "" }))),
+		);
+		await expect(scene()).rejects.toMatchObject({
+			code: "GATEWAY_TIMEOUT",
+			data: { provider: "fish_audio", reason: "unknown_outcome" },
+		});
+		// runTrial 공통 틀의 한 줄(ORPCError의 name은 Error다)
+		expect(log.mock.calls).toEqual([["[trial] fish_audio 생성 실패: Error"]]);
+	});
+
+	it("JSON이 아닌 data는 처리 여부 미확인이고 로그에는 오류 이름만 남는다", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => {});
+		fetchMock.mockImplementation(async () =>
+			streamOf(
+				`data: ${JSON.stringify(SMALL[0])}\n\ndata: {"audio_base64": "AQI\n\n`,
+			),
+		);
+		await expect(scene()).rejects.toMatchObject({
+			code: "GATEWAY_TIMEOUT",
+			data: { provider: "fish_audio", reason: "unknown_outcome" },
+		});
+		expect(log.mock.calls).toEqual([
+			["[trial] fish_audio 생성 실패: SyntaxError"],
+		]);
+	});
+
+	it("402는 quota, 429 + Retry-After는 rate_limit과 다음 호출 가능 시각, 재시도하지 않는다", async () => {
+		fetchMock.mockResolvedValueOnce(
+			json(402, { status: 402, message: "x", reason: null }),
+		);
+		await expect(scene()).rejects.toMatchObject({
+			code: "BAD_GATEWAY",
+			data: { provider: "fish_audio", reason: "quota" },
+		});
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+
+		fetchMock.mockResolvedValueOnce(
+			json(429, { status: 429, message: "x" }, { "retry-after": "30" }),
+		);
+		const before = Date.now();
+		const error = (await scene()?.catch((e: unknown) => e)) as {
+			code: string;
+			data: { reason: string; retryAt?: string };
+		};
+		expect(error).toMatchObject({
+			code: "TOO_MANY_REQUESTS",
+			data: { reason: "rate_limit" },
+		});
+		const wait = Date.parse(error.data.retryAt ?? "") - before;
+		expect(wait).toBeGreaterThanOrEqual(30_000);
+		expect(wait).toBeLessThan(31_000);
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+	});
+
+	it("180초가 지나면 처리 여부 미확인이고 요청은 끊지 않아 onLate의 약속이 나중에 장면 결과로 풀린다", async () => {
+		vi.useFakeTimers();
+		fetchMock.mockImplementation(
+			(_url, init) =>
+				new Promise<Response>((resolve, reject) => {
+					abortable(init, reject);
+					// 180초 뒤, 300초 전에 답한다
+					setTimeout(() => resolve(sseOf(SMALL)), STUDIO_TIMEOUT_MS + 20_000);
+				}),
+		);
+		const onLate = vi.fn<(late: Promise<SceneAudio>) => void>();
+		const pending = scene({}, { timeoutMs: STUDIO_TIMEOUT_MS, onLate });
+		const failed = expect(pending).rejects.toMatchObject({
+			code: "GATEWAY_TIMEOUT",
+			data: { provider: "fish_audio", reason: "unknown_outcome" },
+		});
+		await vi.advanceTimersByTimeAsync(STUDIO_TIMEOUT_MS);
+		await failed;
+		const signal = fetchMock.mock.calls[0]?.[1]?.signal;
+		expect(signal?.aborted).toBe(false);
+		expect(onLate).toHaveBeenCalledTimes(1);
+		await vi.advanceTimersByTimeAsync(20_000);
+		const late = await onLate.mock.calls[0]?.[0];
+		expect(Array.from(late?.pcm ?? [])).toEqual([1, 2, 3, 4]);
+		expect(late?.segments).toEqual([{ text: "안녕", start: 0, end: 0 }]);
+		// 끝난 요청의 300초 상한 타이머는 지웠다
+		expect(vi.getTimerCount()).toBe(0);
+		await vi.advanceTimersByTimeAsync(SCENE_LATE_MAX_MS);
+		expect(signal?.aborted).toBe(false);
+	});
+
+	it("300초까지 답이 없으면 fetch 신호를 끊고 늦은 약속은 거절된다(E2)", async () => {
+		vi.useFakeTimers();
+		fetchMock.mockImplementation(
+			(_url, init) =>
+				new Promise<Response>((_resolve, reject) => abortable(init, reject)),
+		);
+		const onLate = vi.fn<(late: Promise<SceneAudio>) => void>();
+		const pending = scene({}, { timeoutMs: STUDIO_TIMEOUT_MS, onLate });
+		const failed = expect(pending).rejects.toMatchObject({
+			data: { reason: "unknown_outcome" },
+		});
+		await vi.advanceTimersByTimeAsync(STUDIO_TIMEOUT_MS);
+		await failed;
+		const late = onLate.mock.calls[0]?.[0];
+		const lateFailed = expect(late).rejects.toHaveProperty(
+			"name",
+			"AbortError",
+		);
+		const signal = fetchMock.mock.calls[0]?.[1]?.signal;
+		await vi.advanceTimersByTimeAsync(
+			SCENE_LATE_MAX_MS - STUDIO_TIMEOUT_MS - 1,
+		);
+		expect(signal?.aborted).toBe(false);
+		await vi.advanceTimersByTimeAsync(1);
+		expect(signal?.aborted).toBe(true);
+		await lateFailed;
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+
+	it("옵션 없이 부르면 60초가 아니라 180초까지 기다린다(유료 결과를 일찍 버리지 않는다)", async () => {
+		vi.useFakeTimers();
+		fetchMock.mockImplementation(
+			(_url, init) =>
+				new Promise<Response>((_resolve, reject) => abortable(init, reject)),
+		);
+		const settled = vi.fn();
+		const pending = scene();
+		pending?.then(settled, settled);
+		await vi.advanceTimersByTimeAsync(STUDIO_TIMEOUT_MS - 1);
+		expect(settled).not.toHaveBeenCalled();
+		const failed = expect(pending).rejects.toMatchObject({
+			data: { reason: "unknown_outcome" },
+		});
+		await vi.advanceTimersByTimeAsync(1);
+		await failed;
+		// 끊긴 요청은 300초 상한까지 그대로 둔다(아래 정리용으로 끝까지 돌린다)
+		expect(fetchMock.mock.calls[0]?.[1]?.signal?.aborted).toBe(false);
+		await vi.advanceTimersByTimeAsync(SCENE_LATE_MAX_MS);
+	});
+
+	it("빈 줄 없이 끝난 마지막 블록도 읽는다(오디오가 잘려도 정상처럼 보이지 않게)", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => {});
+		const segments = [{ text: "안녕", start: 0, end: 0 }];
+		fetchMock.mockImplementation(async () =>
+			streamOf(
+				`data: ${JSON.stringify({ audio_base64: b64(1, 2) })}\n\ndata: ${JSON.stringify(
+					{ audio_base64: b64(3, 4), ...aligned(segments) },
+				)}`,
+				1,
+			),
+		);
+		const result = await scene();
+		expect(Array.from(result?.pcm ?? [])).toEqual([1, 2, 3, 4]);
+		expect(result?.segments).toEqual(segments);
+		expect(log).not.toHaveBeenCalled();
+	});
+
+	it("PCM이 32MiB(STUDIO_AUDIO_MAX)를 넘으면 더 읽지 않고 본문을 취소하며 모은 오디오를 정렬 없이 돌려준다", async () => {
+		// 8MiB 오디오 이벤트 하나를 열 번까지 흘린다. 다섯 번째(40MiB)에서 32MiB를 넘는다
+		const event = new TextEncoder().encode(
+			`data: ${JSON.stringify({ audio_base64: Buffer.alloc(8 * MiB).toString("base64"), ...aligned([]) })}\n\n`,
+		);
+		const { response, seen } = repeated(event, 10);
+		fetchMock.mockResolvedValue(response);
+		const result = await scene();
+		expect(result?.pcm.byteLength).toBe(40 * MiB);
+		expect(result?.segments).toBeNull();
+		expect(seen.pulls).toBe(5);
+		expect(seen.cancel).toHaveBeenCalledTimes(1);
+	});
+
+	it("빈 줄 없이 덜 온 블록이 STUDIO_AUDIO_MAX × 2글자를 넘으면 본문을 취소하고 처리 여부 미확인이다", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => {});
+		// 16MiB 'A' 조각. 네 번째까지 64Mi글자(= 상한), 다섯 번째에서 넘는다
+		const { response, seen } = repeated(new Uint8Array(16 * MiB).fill(65), 8);
+		fetchMock.mockResolvedValue(response);
+		await expect(scene()).rejects.toMatchObject({
+			code: "GATEWAY_TIMEOUT",
+			data: { provider: "fish_audio", reason: "unknown_outcome" },
+		});
+		expect(seen.pulls).toBe(5);
+		expect(seen.cancel).toHaveBeenCalledTimes(1);
+		expect(log.mock.calls).toEqual([
+			["[trial] fish_audio 생성 실패: RangeError"],
+		]);
+	});
+
+	it("정렬 모양은 맞는데 끝이 PCM 길이와 다르면 segments null, 로그 한 줄", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => {});
+		fetchMock.mockImplementation(async () =>
+			sseOf([
+				// 4바이트(약 0초)인데 정렬은 1초라고 한다
+				{
+					audio_base64: b64(1, 2, 3, 4),
+					alignment: {
+						segments: [{ text: "안녕", start: 0, end: 0 }],
+						audio_duration: 1,
+					},
+					chunk_seq: 0,
+					chunk_audio_offset_sec: 0,
+				},
+			]),
+		);
+		const result = await scene();
+		expect(Array.from(result?.pcm ?? [])).toEqual([1, 2, 3, 4]);
+		expect(result?.segments).toBeNull();
+		expect(log.mock.calls).toEqual([["[drama] 정렬 버림: 길이"]]);
 	});
 });

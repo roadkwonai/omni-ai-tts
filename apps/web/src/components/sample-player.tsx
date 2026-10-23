@@ -21,13 +21,15 @@ import {
 	stoppedText,
 } from "@/lib/sample-state";
 
-// name은 알림의 "{name} 샘플 재생 중"에 들어간다. '샘플'은 알림이 붙이므로 부르는 쪽은 넘기지 않는다(브리프 9절)
+// name은 알림의 "{name} 샘플 재생 중"에 들어간다. '샘플'은 알림이 붙이므로 부르는 쪽은 넘기지 않는다(브리프 9절).
+// onEnded는 이 소리가 끝까지 재생됐을 때만 부른다(드라마 읽기의 다음 줄, T9.5 '스펙과 다른 점' 17). 다른 소비자는 넘기지 않는다
 type Toggle = (
 	voiceId: string,
 	name: string,
 	url: string,
 	noun?: Noun,
 	owner?: string | null,
+	onEnded?: () => void,
 ) => void;
 
 const SamplePlayerContext = createContext<{
@@ -47,6 +49,8 @@ export function SamplePlayerProvider({ children }: { children: ReactNode }) {
 	const latestVoiceId = useRef<string | null>(null);
 	const [current, setCurrent] = useState<Current>(null);
 	const currentRef = useRef<Current>(null);
+	// 마지막으로 튼 키의 끝 콜백. 누를 때마다 바뀌므로 앞 소리의 콜백이 남지 않는다
+	const endedRef = useRef<{ key: string; run: () => void } | null>(null);
 	const versionRef = useRef(0);
 	const [announcement, setAnnouncement] = useState("");
 	const updateCurrent = (next: Current) => {
@@ -69,13 +73,16 @@ export function SamplePlayerProvider({ children }: { children: ReactNode }) {
 		setAnnouncement(failedText(next));
 	}
 
-	const toggle: Toggle = (voiceId, name, url, noun = "샘플", owner = null) => {
+	// noun·owner의 처음 값('샘플'·null)은 pressSample이 넣는다
+	const toggle: Toggle = (voiceId, name, url, noun, owner, onEnded) => {
 		const audio = audioRef.current;
 		if (!audio) return;
 		const previous = currentRef.current;
 		const { next, effect } = pressSample(previous, voiceId, name, noun, owner);
 		versionRef.current += 1;
 		updateCurrent(next);
+		endedRef.current =
+			effect === "load" && onEnded ? { key: voiceId, run: onEnded } : null;
 		if (effect === "stop") {
 			latestVoiceId.current = null;
 			audio.pause();
@@ -130,7 +137,16 @@ export function SamplePlayerProvider({ children }: { children: ReactNode }) {
 					updateCurrent(next);
 					setAnnouncement(announceOf(next));
 				}}
-				onEnded={() => updateCurrent(null)}
+				onEnded={() => {
+					const key = currentRef.current?.voiceId;
+					const ended = endedRef.current;
+					updateCurrent(null);
+					// 비운 뒤에 부른다. 콜백이 다음 소리를 틀어도 그 current가 지워지지 않는다(재리뷰 N1)
+					if (ended && ended.key === key) {
+						endedRef.current = null;
+						ended.run();
+					}
+				}}
 				onError={(event) => {
 					// 멈출 때 src를 지워 생긴 이벤트는 실패가 아니다.
 					const latest = currentRef.current;

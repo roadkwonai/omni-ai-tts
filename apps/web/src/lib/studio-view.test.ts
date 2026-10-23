@@ -263,6 +263,47 @@ describe("성우 고르기 창(스펙 4절)", () => {
 			"b",
 		]);
 	});
+	it("공급자 인자: 담은 Fish Audio 성우만 같은 순서로(드라마 작업실, 기본은 Typecast)", () => {
+		const fish = (id: string, over: Partial<SavedVoice> = {}) =>
+			saved({
+				id,
+				voice: voice({ provider: "fish_audio", voiceId: `f_${id}` }),
+				...over,
+			});
+		const items = [
+			saved({ id: "t" }),
+			fish("a"),
+			fish("b", { favorite: true }),
+		];
+		expect(pickableVoices(items, "fish_audio").map((item) => item.id)).toEqual([
+			"b",
+			"a",
+		]);
+		expect(savedOf(items, "f_a", "fish_audio")?.id).toBe("a");
+		// 같은 id라도 다른 공급자로 담았으면 없다
+		expect(savedOf(items, "tc_1", "fish_audio")).toBeNull();
+		expect(savedOf(items, "f_a")).toBeNull();
+	});
+	it("공급자 null: 모든 공급자 성우를 같은 정렬로(드라마 작업실 화자)", () => {
+		const items = [
+			saved({ id: "t" }),
+			saved({
+				id: "f",
+				voice: voice({ provider: "fish_audio", voiceId: "f_1" }),
+				favorite: true,
+			}),
+			saved({
+				id: "e",
+				voice: voice({ provider: "elevenlabs" }),
+				lastUsedAt: new Date(NOW).toISOString(),
+			}),
+		];
+		expect(pickableVoices(items, null).map((item) => item.id)).toEqual([
+			"e",
+			"f",
+			"t",
+		]);
+	});
 	it("사용 이력 줄과 이름 찾기", () => {
 		const item = saved({
 			lastUsedAt: new Date(NOW - 3 * 24 * 60 * 60 * 1000).toISOString(),
@@ -542,6 +583,11 @@ describe("나눠 받기(스펙 2절 A안)", () => {
 		);
 		expect(unknownNoteOf(ago(6), new Date(NOW))).toBe(
 			"확인 시간이 지났어요. 크레딧 사용 여부는 Typecast 사용 기록에서 확인해 주세요",
+		);
+		// 만료 문구 인자(드라마 작업실은 Fish Audio 사용 기록). 창 안 문구는 같다
+		expect(unknownNoteOf(ago(6), new Date(NOW), "만료")).toBe("만료");
+		expect(unknownNoteOf(ago(5.9), new Date(NOW), "만료")).toBe(
+			"늦게 도착하면 여기서 완료로 바뀌어요",
 		);
 		// 다시 받기가 멈추는 때와 같다
 		expect(

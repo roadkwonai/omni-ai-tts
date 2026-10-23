@@ -2,13 +2,15 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 
 import type { Context } from "../context";
+import { DRAMA_LINES_MAX } from "../drama-script";
 import { protectedProcedure } from "../index";
 import { providerIdSchema } from "../providers/contract";
-import { logFailure, providerError, trialError } from "../providers/errors";
+import { providerError, trialError } from "../providers/errors";
 import {
 	type TrialErrorData,
 	trialAudioSchema,
 	trialCreateInputSchema,
+	trialFoundSchema,
 	trialItemSchema,
 	trialModelRateSchema,
 	trialRequestSchema,
@@ -26,16 +28,17 @@ import {
 	claim,
 	comboKey,
 	complete,
+	findMany,
 	findSaved,
 	listResults,
+	recordFailure,
 	remove,
 	replay,
 	replayRequest,
-	settle,
 	sweep,
 	withStorage,
 } from "../trial";
-import { cachedList, cooldownOf, guard, recordCooldown } from "../voice-cache";
+import { cachedList, cooldownOf, guard } from "../voice-cache";
 
 // 공급자 응답 오디오 상한. 200자 MP3는 1MB 안팎이다(스펙 4절, Vercel 응답 4.5MB). Typecast MP3는 320kbps라
 // 200자를 속도 0.5로 들으면 상한에 닿을 수 있다. 넘으면 이미 과금된 결과라도 버리고 "문장을 줄이거나 속도를 올려"를 보인다(계획 리뷰 E8). Gemini WAV는 1분 약 2.88MB라 약 87초에서 닿는다(T7.6)
@@ -68,6 +71,19 @@ export const trialRouter = {
 		.handler(({ input, context }) =>
 			withStorage(input.provider, () =>
 				findSaved(context.db, context.ownerId, comboKey(input)),
+			),
+		),
+	// 드라마 읽기: 줄 여러 개의 저장 여부를 한 번에(쿼리 1회, 순서 그대로). 공급자를 부르지 않고 보관 기한도 늘리지 않는다
+	trialFindMany: protectedProcedure
+		.input(z.array(trialRequestSchema).min(1).max(DRAMA_LINES_MAX))
+		.output(z.array(trialFoundSchema.nullable()))
+		.handler(({ input, context }) =>
+			withStorage(undefined, () =>
+				findMany(
+					context.db,
+					context.ownerId,
+					input.map((request) => comboKey(request)),
+				),
 			),
 		),
 	trialCreate: protectedProcedure
@@ -145,37 +161,12 @@ export const trialRouter = {
 					});
 				}
 			} catch (error) {
-				// runTrial이 모든 실패를 사유 있는 ORPCError로 바꾼다. 그래도 아닌 예외가 오면 응답을 받았는지 모르므로
-				// 처리 여부 미확인으로 기록하고 원래 오류는 던지지 않는다(계획 리뷰 E1)
-				if (!(error instanceof ORPCError))
-					logFailure(`[trial] ${provider} 생성 실패`, error, []);
-				const failure =
-					error instanceof ORPCError
-						? error
-						: trialError(provider, "unknown_outcome");
-				const data = failure.data as Partial<TrialErrorData> | undefined;
-				const reason = data?.reason ?? "provider_error";
-				await guard(
-					"실패 기록",
-					() =>
-						settle(
-							db,
-							ownerId,
-							claimed.id,
-							reason === "unknown_outcome" ? "unknown" : "failed",
-							reason,
-						),
-					"[trial]",
+				// 미확인·실패와 429 대기 시각을 적는다(E7, 작업실·드라마와 같은 recordFailure)
+				throw await recordFailure(
+					db,
+					{ ownerId, id: claimed.id, provider, prefix: "[trial]" },
+					error,
 				);
-				const retryAt = data?.retryAt;
-				if (reason === "rate_limit" && retryAt) {
-					await guard(
-						"대기 쓰기",
-						() => recordCooldown(db, provider, new Date(retryAt)),
-						"[trial]",
-					);
-				}
-				throw failure;
 			}
 			// 결과를 저장하지 못해도 오디오는 돌려준다(스펙 5절). 그 행은 pending으로 남고 5분 뒤 unknown이 된다
 			await guard(

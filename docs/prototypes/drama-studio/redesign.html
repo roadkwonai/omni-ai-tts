@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>드라마 작업실 시안 2</title>
+<!-- 피드백 5(2026-10-23) 방향 A "대본 지면 + 결과 막대" 시안. 앱 토큰(packages/ui globals.css)을 그대로 옮겼다. 실제 동작은 없고 상태는 ?state=fish|mixed|empty&theme=dark|light&chrome=0 -->
+<style>
+@font-face { font-family: "Pretendard Variable"; src: url("../../../apps/web/src/app/fonts/PretendardVariable.woff2") format("woff2-variations"); font-weight: 45 920; font-display: swap; }
+:root {
+  --background: oklch(0.976 0.001 286); --foreground: oklch(0 0 0 / 0.85);
+  --card: oklch(1 0 0); --popover: oklch(1 0 0);
+  --primary: oklch(0.51 0.085 200); --primary-foreground: oklch(1 0 0); --primary-hover: oklch(0.46 0.076 201);
+  --muted: oklch(0.952 0.001 286); --muted-foreground: oklch(0 0 0 / 0.6);
+  --accent: oklch(0 0 0 / 0.05); --border: oklch(0 0 0 / 0.08); --input: oklch(0 0 0 / 0.45); --ring: oklch(0.51 0.085 200);
+  --warning: oklch(0.52 0.12 50); --warning-subtle: oklch(0.945 0.03 60); --primary-subtle: oklch(0.945 0.016 200);
+  --sidebar: oklch(1 0 0);
+  --s1: oklch(0.46 0.15 262); --s1-subtle: oklch(0.95 0.02 262); --s1-on: oklch(1 0 0);
+  --s2: oklch(0.6 0.12 95); --s2-subtle: oklch(0.955 0.035 95); --s2-on: oklch(0 0 0 / 0.85);
+  --s3: oklch(0.54 0.19 345); --s3-subtle: oklch(0.95 0.025 345); --s3-on: oklch(1 0 0);
+  --s4: oklch(0.56 0.19 305); --s4-subtle: oklch(0.955 0.025 305); --s4-on: oklch(1 0 0);
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --background: oklch(0.232 0.006 286); --foreground: oklch(1 0 0 / 0.9);
+  --card: oklch(0.261 0.004 286); --popover: oklch(0.283 0.007 286);
+  --primary: oklch(0.78 0.105 198); --primary-foreground: oklch(0.232 0.006 286); --primary-hover: oklch(0.84 0.09 198);
+  --muted: oklch(0.283 0.007 286); --muted-foreground: oklch(1 0 0 / 0.6);
+  --accent: oklch(1 0 0 / 0.06); --border: oklch(1 0 0 / 0.12); --input: oklch(1 0 0 / 0.35); --ring: oklch(0.78 0.105 198);
+  --warning: oklch(0.764 0.148 58); --warning-subtle: oklch(0.33 0.05 58); --primary-subtle: oklch(0.31 0.035 198);
+  --sidebar: oklch(0.261 0.004 286);
+  --s1: oklch(0.68 0.13 262); --s1-subtle: oklch(0.32 0.05 262); --s1-on: oklch(0.232 0.006 286);
+  --s2: oklch(0.84 0.12 95); --s2-subtle: oklch(0.32 0.04 95); --s2-on: oklch(0.232 0.006 286);
+  --s3: oklch(0.74 0.14 345); --s3-subtle: oklch(0.32 0.05 345); --s3-on: oklch(0.232 0.006 286);
+  --s4: oklch(0.8 0.11 305); --s4-subtle: oklch(0.32 0.055 305); --s4-on: oklch(0.232 0.006 286);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-bottom: 180px; }
+body { margin: 0; background: var(--background); color: var(--foreground); font: 16px/1.5 "Pretendard Variable", -apple-system, BlinkMacSystemFont, system-ui, sans-serif; word-break: keep-all; -webkit-font-smoothing: antialiased; }
+::selection { background: var(--primary-subtle); color: var(--foreground); }
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; padding: 0; }
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tnum { font-variant-numeric: tabular-nums; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* 시안 조작 띠(앱 밖) */
+.chrome { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 16px; font-size: 13px; background: var(--muted); color: var(--muted-foreground); border-bottom: 1px solid var(--border); }
+.chrome[hidden] { display: none; }
+.chrome b { color: var(--foreground); margin-right: 4px; }
+.chrome button { height: 28px; padding: 0 10px; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--border); background: var(--card); color: var(--foreground); }
+.chrome button[aria-pressed="true"] { background: var(--primary-subtle); color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); font-weight: 700; }
+.chrome .sep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
+
+/* 앱 틀 */
+.app { display: grid; grid-template-columns: 256px minmax(0, 1fr); min-height: 100vh; }
+.side { position: sticky; top: 0; height: 100vh; background: var(--sidebar); border-right: 1px solid var(--border); padding: 28px 12px; }
+.logo { font-size: 22px; font-weight: 700; padding: 0 12px 24px; letter-spacing: -0.02em; }
+.nav { display: grid; gap: 4px; }
+.nav span { display: block; height: 44px; line-height: 44px; padding: 0 12px; border-radius: 10px; font-size: 18px; color: var(--foreground); }
+.nav span.on { background: var(--primary-subtle); color: var(--primary); font-weight: 700; }
+.topnav { display: none; }
+main { min-width: 0; padding: 40px 44px 200px; }
+.col { max-width: 1024px; }
+
+/* 공용 버튼 */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 16px; border-radius: 8px; font-size: 14px; font-weight: 700; white-space: nowrap; transition: background-color .15s cubic-bezier(.3,0,0,1), color .15s cubic-bezier(.3,0,0,1); }
+.btn.outline { box-shadow: inset 0 0 0 1px var(--primary); color: var(--primary); background: var(--card); }
+.btn.outline:hover { background: color-mix(in oklab, var(--primary) 8%, var(--card)); }
+.btn.solid { background: var(--primary); color: var(--primary-foreground); }
+.btn.solid:hover { background: var(--primary-hover); }
+.btn.ghost { color: var(--foreground); }
+.btn.ghost:hover { background: var(--accent); }
+.btn.quiet { box-shadow: inset 0 0 0 1px var(--border); background: var(--card); color: var(--foreground); }
+.btn.quiet:hover { background: var(--muted); }
+.btn[aria-disabled="true"] { opacity: .5; cursor: default; }
+.btn .warn { color: var(--warning); }
+.icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 8px; color: var(--muted-foreground); flex: none; }
+.icon-btn:hover { background: var(--accent); color: var(--foreground); }
+.split { display: inline-flex; }
+.split .btn:first-child { border-radius: 8px 0 0 8px; }
+.split .btn:last-child { border-radius: 0 8px 8px 0; width: 40px; padding: 0; border-left: 1px solid color-mix(in oklab, var(--primary-foreground) 25%, transparent); }
+
+/* 머리 */
+h1 { margin: 0; font-size: 30px; line-height: 1.25; font-weight: 700; letter-spacing: -0.02em; }
+.lead { margin: 6px 0 0; color: var(--muted-foreground); font-size: 16px; }
+.head-actions { margin-top: 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.field { height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--input); background: var(--card); font-size: 14px; min-width: 0; }
+:root[data-theme="dark"] .field { background: color-mix(in oklab, var(--input) 30%, var(--background)); }
+.field:focus { outline: none; border-color: var(--ring); box-shadow: 0 0 0 1px var(--ring); }
+.label { font-size: 14px; font-weight: 700; margin-right: 4px; }
+.scene { display: inline-flex; align-items: center; gap: 4px; }
+.scene-name { width: 192px; }
+
+/* 구역 */
+.sec { margin-top: 32px; }
+.sec-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 12px; min-height: 44px; }
+h2 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+.meta { color: var(--muted-foreground); font-size: 14px; }
+.grow { flex: 1; }
+
+/* 화자 띠 */
+.cast { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.strip { display: flex; align-items: center; gap: 2px; padding: 0 2px 0 12px; height: 52px; border-radius: 16px; background: var(--card); box-shadow: inset 0 0 0 1px var(--border); min-width: 0; }
+.dot { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 999px; background: var(--sp); color: var(--sp-on); font-size: 12px; font-weight: 700; flex: none; }
+.s1 { --sp: var(--s1); --sp-subtle: var(--s1-subtle); --sp-on: var(--s1-on); }
+.s2 { --sp: var(--s2); --sp-subtle: var(--s2-subtle); --sp-on: var(--s2-on); }
+.s3 { --sp: var(--s3); --sp-subtle: var(--s3-subtle); --sp-on: var(--s3-on); }
+.s4 { --sp: var(--s4); --sp-subtle: var(--s4-subtle); --sp-on: var(--s4-on); }
+.name-in { width: 84px; height: 44px; padding: 0 8px; margin-left: 4px; border: 1px solid transparent; border-radius: 10px; background: transparent; font-size: 16px; font-weight: 700; }
+.name-in:hover { background: var(--muted); }
+.name-in:focus { outline: none; border-color: var(--ring); background: var(--card); }
+.voice { display: inline-flex; align-items: baseline; gap: 6px; height: 44px; padding: 0 12px; border-radius: 10px; max-width: 260px; min-width: 0; }
+.voice:hover { background: var(--muted); }
+.voice b { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 44px; }
+.voice span { font-size: 14px; color: var(--muted-foreground); white-space: nowrap; }
+.strip .btn { height: 40px; margin: 0 4px; }
+.play-round { width: 44px; height: 44px; border-radius: 999px; display: inline-grid; place-items: center; color: var(--primary); }
+.play-round:hover { background: var(--accent); }
+.play-round svg { fill: currentColor; width: 14px; height: 14px; }
+
+/* 대본 머리 */
+.gap-default { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--muted-foreground); margin-right: 4px; }
+.gap-default input { width: 56px; height: 44px; text-align: center; }
+
+/* 대본 지면 */
+.page { list-style: none; margin: 0; padding: 8px 0; border-radius: 16px; background: var(--card); box-shadow: inset 0 0 0 1px var(--border); }
+.line { position: relative; padding: 0 12px; }
+.row { display: grid; grid-template-columns: 28px 120px 136px minmax(0, 1fr) auto; column-gap: 8px; align-items: start; padding: 4px 0; }
+.num { height: 44px; line-height: 44px; text-align: right; font-size: 14px; font-weight: 700; color: var(--muted-foreground); }
+.chip { display: inline-flex; align-items: center; gap: 8px; width: 120px; height: 44px; padding: 0 10px 0 12px; border-radius: 999px; background: var(--sp-subtle); color: var(--foreground); font-size: 15px; font-weight: 700; }
+.chip .nm { flex: 1; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip svg { color: var(--muted-foreground); }
+.dir { width: 100%; height: 44px; padding: 0 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; font-size: 14px; color: var(--muted-foreground); }
+.dir::placeholder { color: transparent; }
+.line:hover .dir::placeholder, .line.focused .dir::placeholder { color: color-mix(in oklab, var(--muted-foreground) 70%, transparent); }
+.dir:hover, .text:hover { background: var(--muted); }
+.dir:focus, .text:focus { outline: none; border-color: var(--ring); background: var(--card); }
+.emo { display: inline-flex; align-items: center; gap: 6px; width: 100%; height: 44px; padding: 0 10px; border-radius: 10px; font-size: 14px; color: var(--muted-foreground); }
+.emo:hover { background: var(--muted); }
+.text { display: block; width: 100%; min-height: 44px; padding: 9px 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; font-size: 16px; line-height: 1.6; resize: none; overflow: hidden; field-sizing: content; }
+.tag { background: var(--muted); text-decoration: underline; text-decoration-color: var(--muted-foreground); text-underline-offset: 3px; border-radius: 4px; }
+.acts { display: flex; align-items: center; }
+.take { display: inline-flex; align-items: center; gap: 2px; height: 44px; padding: 0 6px 0 10px; border-radius: 8px; font-size: 14px; font-weight: 700; color: var(--muted-foreground); }
+.take:hover { background: var(--accent); color: var(--foreground); }
+.take.picked { color: var(--primary); }
+.kcell { display: none; }
+.line .icon-btn.play { color: var(--primary); }
+.line .icon-btn.play svg { fill: currentColor; width: 14px; height: 14px; }
+.line.playing { background: var(--primary-subtle); }
+.line.playing .num { color: var(--primary); }
+.status { display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 10px; font-size: 14px; color: var(--muted-foreground); }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+
+/* 줄 사이 쉼 */
+.gap { position: relative; display: flex; align-items: center; height: 28px; margin: -2px 0; }
+.gap::before, .gap::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.gap-ctl { display: inline-flex; align-items: center; gap: 2px; padding: 0 6px; font-size: 13px; color: var(--muted-foreground); }
+.gap-ctl input { width: 40px; height: 28px; padding: 0 4px; border: 1px solid transparent; border-radius: 6px; background: transparent; text-align: right; font-size: 13px; }
+.gap-ctl input::placeholder { color: var(--muted-foreground); }
+.gap-ctl input:hover { background: var(--muted); }
+.gap-ctl input:focus { outline: none; border-color: var(--ring); background: var(--card); }
+.gap.set .gap-ctl { color: var(--foreground); font-weight: 700; }
+.gap.set .gap-ctl input { font-weight: 700; color: var(--foreground); }
+.gap-reset { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 6px; color: var(--muted-foreground); }
+.gap-reset:hover { background: var(--accent); color: var(--foreground); }
+/* biome-ignore lint/style/noDescendingSpecificity: 시안 CSS, 아이콘 크기만 덮어쓴다 */
+.gap-reset svg { width: 14px; height: 14px; }
+
+/* 연기 지시 도구줄(포커스한 줄 아래) */
+.tools { display: none; grid-column: 3 / -1; flex-wrap: wrap; align-items: center; gap: 6px; padding: 2px 0 8px; }
+.line.focused .tools { display: flex; }
+.tools .lbl { font-size: 13px; color: var(--muted-foreground); margin-right: 2px; }
+.pill { display: inline-flex; align-items: center; gap: 4px; height: 36px; padding: 0 12px; border-radius: 999px; background: var(--card); box-shadow: inset 0 0 0 1px var(--border); font-size: 14px; }
+.pill:hover { background: var(--muted); }
+.pill.menu { color: var(--muted-foreground); }
+.pill.on { background: var(--primary-subtle); color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); font-weight: 700; }
+.below { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.help { font-size: 14px; color: var(--muted-foreground); }
+
+/* 무대(시간축)·이전 테이크 */
+.box { border-radius: 16px; background: var(--card); box-shadow: inset 0 0 0 1px var(--border); padding: 16px 20px; }
+.lanes { display: grid; gap: 4px; margin: 12px 0 8px; }
+.lane { position: relative; height: 20px; border-radius: 4px; background: var(--muted); margin-left: 28px; }
+.lane .dot { position: absolute; left: -28px; top: 0; }
+.seg { position: absolute; top: 0; height: 20px; border-radius: 4px; background: var(--sp); color: var(--sp-on); font-size: 12px; font-weight: 700; line-height: 20px; padding-left: 6px; overflow: hidden; }
+.head-line { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--foreground); left: 37%; }
+.takes { list-style: none; margin: 0; padding: 0; border-radius: 16px; background: var(--card); box-shadow: inset 0 0 0 1px var(--border); }
+.takes li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 16px; }
+.takes li + li { border-top: 1px solid var(--border); }
+.takes li.on { background: var(--primary-subtle); }
+.badge { display: inline-flex; align-items: center; height: 24px; padding: 0 8px; border-radius: 6px; background: var(--muted); font-size: 13px; color: var(--muted-foreground); font-weight: 700; }
+.ttl { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 하단 막대 */
+.bar-band { position: fixed; left: 256px; right: 0; bottom: 0; padding: 0 44px 16px; pointer-events: none; z-index: 5; }
+.bar { pointer-events: auto; max-width: 1024px; min-width: 0; border-radius: 16px; background: var(--card); box-shadow: inset 0 0 0 1px var(--border), 0 8px 24px oklch(0 0 0 / .18); padding: 12px 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center; }
+.result { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.cap { font-size: 14px; font-weight: 700; white-space: nowrap; padding: 0 4px; }
+.cap.dim { font-weight: 400; color: var(--muted-foreground); padding-left: 4px; }
+.player { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; height: 44px; padding: 0 14px 0 4px; border-radius: 999px; background: var(--muted); margin-left: 6px; }
+.player .pp { width: 36px; height: 36px; border-radius: 999px; display: inline-grid; place-items: center; color: var(--foreground); }
+/* biome-ignore lint/style/noDescendingSpecificity: 시안 CSS, 아이콘 크기만 덮어쓴다 */
+.player .pp svg { fill: currentColor; width: 14px; height: 14px; }
+.track { position: relative; flex: 1; height: 4px; border-radius: 4px; background: color-mix(in oklab, var(--foreground) 18%, transparent); }
+.track i { position: absolute; left: 0; top: 0; bottom: 0; width: 37%; border-radius: 4px; background: var(--foreground); }
+.track i::after { content: ""; position: absolute; right: -6px; top: -4px; width: 12px; height: 12px; border-radius: 999px; background: var(--foreground); }
+.time { font-size: 13px; color: var(--muted-foreground); white-space: nowrap; }
+.acts-bar { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.slot { grid-column: 1 / -1; display: flex; justify-content: flex-end; align-items: center; gap: 8px; font-size: 14px; color: var(--muted-foreground); min-height: 20px; }
+.slot .link { color: var(--primary); font-weight: 700; }
+.empty-result { font-size: 14px; color: var(--muted-foreground); padding-left: 4px; }
+
+/* 1023px 이하 */
+@media (max-width: 1023px) {
+  .row { grid-template-columns: 28px 112px 104px minmax(0, 1fr) auto; }
+  .chip { width: 112px; }
+}
+/* 767px 이하: 위 막대 메뉴, 줄은 두 층, 막대는 바닥 판 */
+@media (max-width: 767px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .app > div { min-width: 0; }
+  .side { display: none; }
+  .topnav { display: flex; position: sticky; top: 0; z-index: 10; background: var(--sidebar); border-bottom: 1px solid var(--border); }
+  .topnav span { flex: 1; height: 52px; display: grid; place-items: center; font-size: 12px; color: var(--muted-foreground); }
+  .topnav span.on { color: var(--primary); font-weight: 700; background: var(--primary-subtle); }
+  main { padding: 20px 16px 220px; }
+  h1 { font-size: 24px; }
+  .lead { font-size: 14px; }
+  .scene { flex: 1 1 100%; }
+  .scene-name { flex: 1; width: auto; font-size: 16px; }
+  .hide-m { display: none; }
+  .sec { margin-top: 24px; }
+  .sec-head .meta.tnum { font-size: 13px; }
+  .gap-default { margin-right: 0; }
+  .strip { width: 100%; }
+  .voice { flex: 1; max-width: none; }
+  .name-in { width: 72px; }
+  .page { padding: 4px 0; }
+  .line { padding: 0 8px; }
+  .row { grid-template-columns: 24px auto minmax(0, 1fr) auto; grid-template-areas: "n c d k" "t t t a"; row-gap: 0; }
+  .row > .num { grid-area: n; }
+  .row > .chip { grid-area: c; width: auto; max-width: 120px; }
+  .row > .dcell { grid-area: d; }
+  .row > .kcell { grid-area: k; display: block; }
+  .acts .take { display: none; }
+  .row > .tcell { grid-area: t; }
+  .row > .acts { grid-area: a; }
+  .dir { font-size: 16px; }
+  .tools { grid-column: 1 / -1; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .tools .lbl { display: none; }
+  .pill { flex: none; }
+  .bar-band { left: 0; padding: 0; }
+  .bar { border-radius: 16px 16px 0 0; grid-template-columns: 1fr; padding: 10px 12px 14px; box-shadow: inset 0 0 0 1px var(--border); }
+  .result .cap { padding: 0; font-size: 13px; }
+  .result .icon-btn { width: 36px; }
+  .acts-bar { justify-content: stretch; }
+  .acts-bar .split, .acts-bar .main { flex: 1; }
+  .slot, .slot .est { min-width: 0; }
+  .empty-result { font-size: 13px; }
+  .acts-bar .split .btn:first-child { flex: 1; }
+  .slot { justify-content: flex-start; }
+  .slot .est { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .takes li .grow { flex-basis: 100%; }
+}
+</style>
+</head>
+<body>
+<div class="chrome" id="chrome">
+  <b>시안 2</b> 상태
+  <button type="button" data-state="fish">Fish 장면</button><button type="button" data-state="mixed">섞인 성우</button><button type="button" data-state="empty">빈 대본</button>
+  <span class="sep"></span> 테마
+  <button type="button" data-theme-btn="dark">다크</button><button type="button" data-theme-btn="light">라이트</button>
+  <span class="sep"></span><span>줄을 누르면 그 줄 아래에 연기 지시 도구줄이 열립니다</span>
+</div>
+<div class="app">
+  <aside class="side">
+    <div class="logo">TTS Pilot</div>
+    <nav class="nav"><span>음성 작업실</span><span class="on">드라마 작업실</span><span>성우 캐스팅</span><span>성우 보관함</span><span>프리셋</span><span>연결 상태</span><span>채널·분류</span></nav>
+  </aside>
+  <div>
+    <nav class="topnav"><span>음성 작업실</span><span>성우 캐스팅</span><span>연결 상태</span><span class="on">더보기</span></nav>
+    <main><div class="col" id="col"></div></main>
+  </div>
+</div>
+<div class="bar-band"><section class="bar" id="bar" aria-label="장면 만들기"></section></div>
+
+<script>
+const S = (p) => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`;
+const I = {
+  play: S('<polygon points="6 3 20 12 6 21 6 3"/>'),
+  stop: S('<rect width="14" height="14" x="5" y="5" rx="2"/>'),
+  down: S('<path d="m6 9 6 6 6-6"/>'),
+  left: S('<path d="m15 18-6-6 6-6"/>'),
+  right: S('<path d="m9 18 6-6-6-6"/>'),
+  more: S('<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>'),
+  dl: S('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>'),
+  paste: S('<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M16 4h2a2 2 0 0 1 2 2v4"/><path d="M21 14H11"/><path d="m15 10-4 4 4 4"/>'),
+  user: S('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/>'),
+  x: S('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'),
+  coins: S('<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/>'),
+  plus: S('<path d="M5 12h14"/><path d="M12 5v14"/>'),
+  spin: S('<path d="M21 12a9 9 0 1 1-6.219-8.56"/>').replace('class="i"', 'class="i spin"'),
+};
+
+const STATES = {
+  fish: {
+    scene: "편의점 새벽 3시", model: "S2.1 Pro Free", fishOnly: true, gap: 0.4,
+    speakers: [
+      { name: "민준", voice: "유튭", provider: "Fish Audio" },
+      { name: "서연", voice: "일반여성2", provider: "Fish Audio" },
+    ],
+    lines: [
+      { s: 0, dir: "졸린 목소리로", text: "어서 오세요… 아, 또 너야?" },
+      { s: 1, dir: "", text: "[sighs] 응, 또 나야. 컵라면 하나만 줘." },
+      { s: 0, dir: "", text: "새벽 세 시에 컵라면이면 오늘도 야근이구나.", gap: 1.2, focused: true },
+      { s: 1, dir: "작게 웃으며", text: "티 나? 보고서가 끝나질 않아.", take: 1 },
+      { s: 0, dir: "", text: "물은 저쪽에 있어. 뜨거우니까 조심하고.", playing: true },
+      { s: 1, dir: "", text: "고마워. 너는 안 졸려?" },
+      { s: 0, dir: "속삭이듯", text: "졸리지. 그래도 너 오면 좀 깨." },
+      { s: 1, dir: "", text: "[laughs] 그게 무슨 말이야." },
+    ],
+    stageTake: 2, takes: 3,
+  },
+  mixed: {
+    scene: "저녁 식탁", model: "S2.1 Pro Free", fishOnly: false, gap: 0.3,
+    speakers: [
+      { name: "민준", voice: "유튭", provider: "Fish Audio" },
+      { name: "서연", voice: "포세이돈", provider: "Typecast" },
+      { name: "지호", voice: "Bin - Measured and Serious", provider: "ElevenLabs" },
+      { name: "하늘", voice: "Puck", provider: "Gemini" },
+    ],
+    lines: [
+      { s: 0, dir: "", text: "오늘 왜 이렇게 늦었어?", ready: true },
+      { s: 1, emo: "감정 · 자동", text: "길이 너무 막혔어.", gap: 1.2, ready: true },
+      { s: 2, dir: "단호하게", text: "그래도 연락은 했어야지.", making: true, focused: false },
+      { s: 3, dir: "", text: "다들 그만하고 밥 먹자." },
+    ],
+  },
+  empty: {
+    scene: "", model: "S2.1 Pro Free", fishOnly: true, gap: 0.3,
+    speakers: [ { name: "화자 1" }, { name: "화자 2" } ],
+    lines: [ { s: 0, dir: "", text: "", focused: false } ],
+  },
+};
+
+const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+let current = "fish";
+
+function castHtml(st) {
+  const firstMissing = st.speakers.findIndex((s) => !s.voice);
+  const strips = st.speakers.map((sp, i) => `
+    <div class="strip s${i + 1}">
+      <span class="dot">${i + 1}</span>
+      <input class="name-in" value="${sp.name}" aria-label="화자 ${i + 1} 이름">
+      ${sp.voice
+        ? `<button class="voice" aria-label="화자 ${i + 1} 성우 ${sp.voice}, 바꾸기"><b>${sp.voice}</b><span>${sp.provider}</span></button>
+           <button class="play-round" aria-label="${sp.voice} 기본 샘플 듣기">${I.play}</button>`
+        : `<button class="btn ${i === firstMissing ? "solid" : "outline"}">성우 고르기</button>`}
+      <button class="icon-btn" aria-label="화자 ${i + 1} 빼기">${I.x}</button>
+    </div>`).join("");
+  return `<div class="cast">${strips}</div>`;
+}
+
+function lineHtml(st, ln, i) {
+  const n = i + 1;
+  const sp = st.speakers[ln.s];
+  const takeBtn = st.fishOnly && st.stageTake
+    ? `<button class="take ${ln.take ? "picked" : ""}" aria-label="${n}번 줄 받을 테이크, ${ln.take ?? st.stageTake}${ln.take ? "" : " · 무대 따라감"}">T${ln.take ?? st.stageTake}${I.down}</button>` : "";
+  const play = ln.making
+    ? `<span class="status">${I.spin}만드는 중</span>`
+    : `<button class="icon-btn play" aria-label="${n}번 줄 ${sp.name} ${ln.playing ? "정지" : "듣기"}">${ln.playing ? I.stop : I.play}</button>`;
+  const dirCell = ln.emo
+    ? `<button class="emo" aria-label="${n}번 줄 감정, 자동">${ln.emo}${I.down}</button>`
+    : `<input class="dir" value="${ln.dir}" placeholder="지시" aria-label="${n}번 줄 연기 지시">`;
+  const tools = ln.emo
+    ? `<span class="lbl">강도</span><button class="pill on">1</button><button class="pill">1.5</button><button class="pill">2</button><button class="pill menu">감정${I.down}</button>`
+    : `<span class="lbl">소리</span><button class="pill">한숨</button><button class="pill">웃음</button><button class="pill">피식</button><button class="pill">헛기침</button><button class="pill">쉼</button><button class="pill menu">소리 더 보기${I.down}</button><button class="pill menu">분위기${I.down}</button>`;
+  const last = i === st.lines.length - 1;
+  const gapVal = ln.gap ?? null;
+  const gap = last ? "" : `
+    <div class="gap ${gapVal !== null ? "set" : ""}">
+      <span class="gap-ctl"><input class="tnum" inputmode="decimal" ${gapVal !== null ? `value="${gapVal}"` : ""} placeholder="${st.gap}" aria-label="${n}번 줄 뒤 쉼(초)">초
+      ${gapVal !== null ? `<button class="gap-reset" aria-label="기본으로, ${n}번 줄 뒤 쉼" title="기본으로">${I.x}</button>` : ""}</span>
+    </div>`;
+  return `
+    <li class="line s${ln.s + 1} ${ln.focused ? "focused" : ""} ${ln.playing ? "playing" : ""}" ${ln.playing ? 'aria-current="true"' : ""}>
+      <div class="row">
+        <span class="num tnum" aria-hidden="true">${n}</span>
+        <button class="chip" aria-label="${n}번 줄 화자, ${sp.name}"><span class="dot">${ln.s + 1}</span><span class="nm">${sp.name}</span>${I.down}</button>
+        <div class="dcell">${dirCell}</div>
+        <div class="kcell">${takeBtn}</div>
+        <div class="tcell"><textarea class="text" rows="1" aria-label="${n}번 줄 대사" placeholder="대사">${esc(ln.text)}</textarea></div>
+        <div class="acts">${takeBtn}${play}<button class="icon-btn" aria-label="${n}번 줄 메뉴">${I.more}</button></div>
+        <div class="tools" role="toolbar" aria-label="${n}번 줄 연기 지시">${tools}</div>
+      </div>
+      ${gap}
+    </li>`;
+}
+
+function stageHtml(st) {
+  if (!st.fishOnly || !st.stageTake) {
+    return st === STATES.mixed ? `
+      <section class="sec"><div class="sec-head"><h2>이전 테이크</h2></div>
+        <ul class="takes"><li><span class="ttl">편의점 새벽 3시 · 어서 오세요… 아, 또 너야?</span><span class="badge">다른 대본</span><span class="grow meta tnum">11시간 전 · S2.1 Pro Free · 민준·서연 · 19.0초 · 무료</span><button class="btn outline">무대에 올리기</button><button class="icon-btn" aria-label="지우기">${S('<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>')}</button></li></ul>
+      </section>` : "";
+  }
+  const segs = [[0, 0, 0, 14], [1, 1, 16, 34], [2, 0, 36, 52], [3, 1, 54, 66], [4, 0, 68, 80], [5, 1, 82, 88], [6, 0, 89, 96], [7, 1, 97, 100]];
+  const lane = (s) => `<div class="lane s${s + 1}"><span class="dot">${s + 1}</span>${segs.filter((g) => g[1] === s).map((g) => `<span class="seg" style="left:${g[2]}%;width:${g[3] - g[2]}%">${g[0] + 1}</span>`).join("")}${s === 0 ? '<span class="head-line"></span>' : ""}</div>`;
+  return `
+    <section class="sec"><div class="sec-head"><h2>무대</h2><span class="meta tnum">테이크 2 / 3 · 10:42 · S2.1 Pro Free · 18.3초</span></div>
+      <div class="box">
+        <div class="lanes" aria-hidden="true">${lane(0)}${lane(1)}</div>
+        <div class="help">대사 파일: 8줄 · 4번 줄은 테이크 1 <button class="btn ghost" style="height:36px;color:var(--primary)">모든 줄을 이 테이크로</button></div>
+      </div>
+    </section>
+    <section class="sec"><div class="sec-head"><h2>이전 테이크</h2></div>
+      <ul class="takes">
+        <li class="on" aria-current="true"><span class="ttl">편의점 새벽 3시 · 어서 오세요… 아, 또 너야?</span><span class="badge">무대에 있음</span><span class="grow meta tnum">3분 전 · S2.1 Pro Free · 민준·서연 · 18.3초 · 무료</span><button class="icon-btn" aria-label="지우기">${S('<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>')}</button></li>
+        <li><span class="ttl">편의점 새벽 3시 · 어서 오세요… 아, 또 너야?</span><span class="grow meta tnum">8분 전 · S2.1 Pro Free · 민준·서연 · 17.9초 · 무료</span><button class="btn outline">무대에 올리기</button><button class="icon-btn" aria-label="지우기">${S('<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>')}</button></li>
+      </ul>
+    </section>`;
+}
+
+function barHtml(st) {
+  const empty = !st.speakers[0].voice;
+  let result;
+  let main;
+  let slot;
+  if (empty) {
+    result = `<span class="empty-result">장면을 만들면 여기서 들을 수 있어요</span>`;
+    main = `<span class="split"><button class="btn solid" aria-disabled="true">장면 만들기</button><button class="btn solid" aria-disabled="true" aria-label="다른 방법">${I.down}</button></span>`;
+    slot = `<span>화자 '화자 1'의 성우를 골라 주세요</span><button class="link">성우 고르기</button>`;
+  } else if (st.fishOnly) {
+    result = `<button class="icon-btn" aria-label="앞 테이크">${I.left}</button><span class="cap tnum">테이크 2 / 3</span><button class="icon-btn" aria-label="다음 테이크">${I.right}</button>
+      <div class="player"><button class="pp" aria-label="재생">${I.play}</button><span class="track"><i></i></span><span class="time tnum">0:07 / 0:18</span></div>`;
+    main = `<span class="split"><button class="btn solid">장면 만들기</button><button class="btn solid" aria-label="다른 방법: 줄마다 읽기">${I.down}</button></span>`;
+    slot = `<span class="est tnum">173자 · 507바이트 · 무료 · 11월 29일까지</span>`;
+  } else {
+    result = `<span class="empty-result">모든 줄을 읽으면 여기서 이어 들을 수 있어요</span>`;
+    main = `<button class="btn solid main">${I.stop}멈춤 · 3/4줄</button>`;
+    slot = `<span class="est tnum">4줄 · 49자 · 유료 공급자 화자가 있어요 · 누르면 예상 사용량을 먼저 보여 드려요</span>`;
+  }
+  return `<div class="result">${result}</div>
+    <div class="acts-bar"><button class="btn outline" ${empty ? 'aria-disabled="true"' : ""}>${I.dl}받기${I.down}</button>${main}</div>
+    <div class="slot">${slot}</div>`;
+}
+
+function render() {
+  const st = STATES[current];
+  document.getElementById("col").innerHTML = `
+    <header>
+      <h1>드라마 작업실</h1>
+      <p class="lead">화자마다 성우를 붙이고 대본을 연기시켜요.</p>
+      <div class="head-actions">
+        <label class="scene"><span class="label">장면 이름</span><input class="field scene-name" value="${st.scene}" placeholder="장면"></label>
+        <button class="btn quiet">모델 · ${st.model}${I.down}</button>
+        <button class="btn quiet">샘플링</button>
+      </div>
+    </header>
+    <section class="sec"><div class="sec-head"><h2>화자</h2><span class="meta hide-m">대본에 나오는 화자만 들어가요 · 최대 4명</span><span class="grow"></span><button class="btn outline">${I.user}화자 추가</button></div>${castHtml(st)}</section>
+    <section class="sec">
+      <div class="sec-head"><h2>대본</h2><span class="meta tnum">${st.lines.length}줄 · ${st.lines.reduce((a, l) => a + l.text.length, 0)} / 2,000자</span><span class="grow"></span>
+        <label class="gap-default">기본 쉼 <input class="field tnum" value="${st.gap}" inputmode="decimal" aria-label="줄 사이 기본 쉼(초)">초</label>
+        <button class="btn outline" aria-label="대본 붙여 넣기">${I.paste}<span><span class="hide-m">대본 </span>붙여 넣기</span></button>
+        <button class="btn outline" aria-label="전체 자동 태그, 크레딧 사용"><span class="warn">${I.coins}</span><span><span class="hide-m">전체 </span>자동 태그</span></button>
+      </div>
+      <ol class="page">${st.lines.map((ln, i) => lineHtml(st, ln, i)).join("")}</ol>
+      <div class="below"><button class="btn outline">${I.plus}줄 추가</button><span class="help">대사 칸에서 Enter를 누르면 다음 화자의 새 줄이 생겨요</span></div>
+    </section>
+    ${stageHtml(st)}`;
+  document.getElementById("bar").innerHTML = barHtml(st);
+  document.querySelectorAll("[data-state]").forEach((b) => {
+    b.setAttribute("aria-pressed", String(b.dataset.state === current));
+  });
+  document.querySelectorAll("[data-theme-btn]").forEach((b) => {
+    b.setAttribute("aria-pressed", String(b.dataset.themeBtn === document.documentElement.dataset.theme));
+  });
+}
+
+// 포커스한 줄에만 도구줄을 연다(마지막으로 포커스한 줄이 유지)
+document.addEventListener("focusin", (e) => {
+  const line = e.target.closest?.(".line");
+  if (!line || e.target.closest(".gap")) return;
+  document.querySelectorAll(".line.focused").forEach((l) => {
+    if (l !== line) l.classList.remove("focused");
+  });
+  line.classList.add("focused");
+});
+document.addEventListener("click", (e) => {
+  const s = e.target.closest("[data-state]"); if (s) { current = s.dataset.state; render(); }
+  const t = e.target.closest("[data-theme-btn]"); if (t) { document.documentElement.dataset.theme = t.dataset.themeBtn; render(); }
+});
+const q = new URLSearchParams(location.search);
+if (STATES[q.get("state")]) current = q.get("state");
+if (q.get("theme")) document.documentElement.dataset.theme = q.get("theme");
+if (q.get("chrome") === "0") document.getElementById("chrome").hidden = true;
+render();
+</script>
+</body>
+</html>

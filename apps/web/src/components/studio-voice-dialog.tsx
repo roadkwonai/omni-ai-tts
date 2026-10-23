@@ -6,7 +6,6 @@ import { Badge } from "@tts-pilot-app/ui/components/badge";
 import { Button, buttonVariants } from "@tts-pilot-app/ui/components/button";
 import {
 	Dialog,
-	DialogClose,
 	DialogContent,
 	DialogDescription,
 	DialogHeader,
@@ -14,13 +13,8 @@ import {
 	DialogTrigger,
 } from "@tts-pilot-app/ui/components/dialog";
 import { Skeleton } from "@tts-pilot-app/ui/components/skeleton";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@tts-pilot-app/ui/components/tooltip";
 import { cn } from "@tts-pilot-app/ui/lib/utils";
-import { ArrowRight, Check, X } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
 import { type Ref, useId, useRef, useState } from "react";
 
@@ -28,6 +22,7 @@ import { LIBRARY_TEXT } from "@/lib/saved-voice-view";
 import { STUDIO_TEXT, usageLine } from "@/lib/studio-view";
 import { metaLine, sampleKindOf } from "@/lib/voice-view";
 
+import { DialogCloseButton } from "./dialog-close-button";
 import { usePlayer, useSample } from "./sample-player";
 import { useStudio } from "./studio-provider";
 import { ReloadButton } from "./voice-problem";
@@ -242,25 +237,7 @@ export function VoicePicker() {
 							))}
 						</ul>
 					)}
-					<Tooltip>
-						<TooltipTrigger
-							render={
-								<DialogClose
-									render={
-										<Button
-											variant="ghost"
-											size="icon-lg"
-											aria-label={STUDIO_TEXT.close}
-											className="absolute top-3 right-3"
-										/>
-									}
-								/>
-							}
-						>
-							<X aria-hidden="true" />
-						</TooltipTrigger>
-						<TooltipContent>{STUDIO_TEXT.close}</TooltipContent>
-					</Tooltip>
+					<DialogCloseButton label={STUDIO_TEXT.close} />
 				</DialogContent>
 			</Dialog>
 			{chosen?.unavailable ? (

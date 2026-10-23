@@ -282,7 +282,8 @@ export function RadioMenu<T extends string>({
 }: {
 	label: string;
 	value: T;
-	options: readonly { value: T; label: string; free?: true }[];
+	// note: 항목 이름 아래 회색 둘째 줄(드라마 모델의 결과 차이). 트리거 글자와 접근 이름에는 넣지 않는다
+	options: readonly { value: T; label: string; free?: true; note?: string }[];
 	onChange: (value: T) => void;
 	disabled?: boolean;
 	align?: "start" | "end";
@@ -328,8 +329,20 @@ export function RadioMenu<T extends string>({
 							value={option.value}
 							closeOnClick
 						>
-							{option.label}
-							{option.free ? <Badge variant="success">무료</Badge> : null}
+							{option.note ? (
+								<span className="flex flex-col gap-0.5">
+									<span className="flex items-center gap-2">
+										{option.label}
+										{option.free ? <Badge variant="success">무료</Badge> : null}
+									</span>
+									<span className="text-muted-foreground">{option.note}</span>
+								</span>
+							) : (
+								<>
+									{option.label}
+									{option.free ? <Badge variant="success">무료</Badge> : null}
+								</>
+							)}
 						</DropdownMenuRadioItem>
 					))}
 				</DropdownMenuRadioGroup>

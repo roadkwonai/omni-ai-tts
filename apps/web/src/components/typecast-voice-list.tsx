@@ -18,6 +18,7 @@ import {
 import { flattenPages } from "@/lib/voice-view";
 
 import { count, OneList, typecastListOptions } from "./one-list";
+import type { Choice } from "./server-voice-list";
 import type { AxisView } from "./voice-conditions";
 import { VoiceShelf } from "./voice-list-parts";
 import { RowList } from "./voice-row";
@@ -38,24 +39,30 @@ export type TypecastState = {
 	// 조건 없이 상태 줄 '한 목록으로 보기'로 한 목록을 보는 중
 	showAll: boolean;
 };
+// 처음 상태(조건 없음, 콘텐츠별 묶음). 캐스팅 Typecast 탭과 드라마 성우 창 '전체'가 같이 쓴다
+export const EMPTY_TYPECAST: TypecastState = {
+	query: "",
+	filters: EMPTY_FILTERS,
+	showAll: false,
+};
 
-// Typecast 탭(브리프 5절). 목록 하나를 받아 브라우저에서 거른다. 동작은 T3 그대로이고 몸통은 OneList(Airy와 공통), 콘텐츠 묶음은 Typecast만이다
+// Typecast 탭(브리프 5절). 목록 하나를 받아 브라우저에서 거른다. 동작은 T3 그대로이고 몸통은 OneList(Airy와 공통), 콘텐츠 묶음은 Typecast만이다.
+// 캐스팅은 onChoose, 드라마 성우 창 '전체'는 pick(행 누름 = 고르고 담기)
 export function TypecastVoiceList({
 	state,
 	onStateChange,
 	chosen,
-	onChoose,
 	focusRequested,
 	onFocusHandled,
+	...choice
 }: {
 	state: TypecastState;
 	onStateChange: (state: TypecastState) => void;
 	chosen: string | null;
-	onChoose: (key: string) => void;
 	// '전체' 탭 '모두 보기 →'가 이 목록에 포커스를 넘겼다(계획 리뷰 D8)
 	focusRequested: boolean;
 	onFocusHandled: () => void;
-}) {
+} & Choice) {
 	const { data } = useQuery(typecastListOptions);
 	const searchRef = useRef<HTMLInputElement>(null);
 	const countRef = useRef<HTMLParagraphElement>(null);
@@ -79,7 +86,7 @@ export function TypecastVoiceList({
 			}));
 
 	function clearAll() {
-		onStateChange({ query: "", filters: EMPTY_FILTERS, showAll: false });
+		onStateChange(EMPTY_TYPECAST);
 		searchRef.current?.focus();
 	}
 	function showUseCase(useCase: string) {
@@ -159,7 +166,7 @@ export function TypecastVoiceList({
 			focusRequested={focusRequested}
 			onFocusHandled={onFocusHandled}
 			chosen={chosen}
-			onChoose={onChoose}
+			{...choice}
 		>
 			{({ selectedKey, select, panelId, refreshing }) =>
 				grid ? (
@@ -170,6 +177,7 @@ export function TypecastVoiceList({
 						select={select}
 						panelId={panelId}
 						refreshing={refreshing}
+						busyKey={choice.busyKey}
 					/>
 				) : (
 					<div className="flex flex-col gap-10">
@@ -197,6 +205,7 @@ export function TypecastVoiceList({
 										select={select}
 										panelId={panelId}
 										refreshing={refreshing}
+										busyKey={choice.busyKey}
 									/>
 								</VoiceShelf>
 							);

@@ -1,7 +1,7 @@
 // apps/web/src/lib/studio-view.ts
 import { ORPCError } from "@orpc/client";
 import type { Preset } from "@tts-pilot-app/api/preset-contract";
-import type { Voice } from "@tts-pilot-app/api/providers/contract";
+import type { ProviderId, Voice } from "@tts-pilot-app/api/providers/contract";
 import {
 	codePoints,
 	comboSignature,
@@ -239,26 +239,30 @@ export function settingsNote(request: TypecastRequest): string | null {
 	return parts.length > 0 ? parts.join(" · ") : null;
 }
 
-// 고를 수 있는 성우: 담은 Typecast 성우를 최근 사용 순 → 즐겨찾기 → 담은 순(서버 목록 순서)으로. 이용 불가도 보인다(흐리게, 못 고름)
-export function pickableVoices(items: readonly SavedVoice[]): SavedVoice[] {
+// 고를 수 있는 성우: 담은 그 공급자(작업실 Typecast, null이면 모든 공급자 — 드라마 화자) 성우를 최근 사용 순 → 즐겨찾기 → 담은 순(서버 목록 순서)으로. 이용 불가도 보인다(흐리게, 못 고름)
+export function pickableVoices(
+	items: readonly SavedVoice[],
+	provider: ProviderId | null = "typecast",
+): SavedVoice[] {
 	const lastUsed = (item: SavedVoice) =>
 		item.lastUsedAt ? Date.parse(item.lastUsedAt) : 0;
 	// sort는 안정 정렬이라 같으면 담은 순이 남는다
 	return items
-		.filter((item) => item.voice.provider === "typecast")
+		.filter((item) => provider === null || item.voice.provider === provider)
 		.sort(
 			(a, b) =>
 				lastUsed(b) - lastUsed(a) || Number(b.favorite) - Number(a.favorite),
 		);
 }
-// 임시 작업의 성우 id를 담은 Typecast 성우에서만 되살린다(스펙 2절 '임시 작업')
+// 임시 작업의 성우 id를 담은 그 공급자 성우에서만 되살린다(스펙 2절 '임시 작업'). 같은 id를 다른 공급자로 담았으면 없다
 export const savedOf = (
 	items: readonly SavedVoice[],
 	voiceId: string | null,
+	provider: ProviderId = "typecast",
 ): SavedVoice | null =>
 	items.find(
 		(item) =>
-			item.voice.provider === "typecast" && item.voice.voiceId === voiceId,
+			item.voice.provider === provider && item.voice.voiceId === voiceId,
 	) ?? null;
 export const usageLine = (item: SavedVoice, now: Date) =>
 	item.lastUsedAt
@@ -283,10 +287,10 @@ export const listLoad = (query: {
 
 // 파일 이름에 못 쓰는 글자(Windows·macOS 공통), 공백(줄바꿈 포함), 제어 문자(C0·C1), 형식 문자(RLO 같은 방향 바꿈, 폭 없는 공백)는 '_'로 바꾼다
 const BAD_NAME = /[\\/:*?"<>|\s\p{Cc}\p{Cf}]/gu;
-const safeName = (text: string) => text.replace(BAD_NAME, "_");
+export const safeName = (text: string) => text.replace(BAD_NAME, "_");
 const two = (value: number) => String(value).padStart(2, "0");
 // 결과를 만든 시각의 한국 시간(일광 절약 없음)
-function kstStamp(iso: string): string {
+export function kstStamp(iso: string): string {
 	const at = new Date(Date.parse(iso) + 9 * 60 * 60 * 1000);
 	return `${at.getUTCFullYear()}${two(at.getUTCMonth() + 1)}${two(at.getUTCDate())}-${two(at.getUTCHours())}${two(at.getUTCMinutes())}`;
 }
@@ -362,7 +366,7 @@ function typecastSettingsOf(raw: unknown): TypecastSettings {
 		volume: inRange(stored.volume, ranges.volume),
 	};
 }
-const VOICE_ID = /^[A-Za-z0-9_-]{1,100}$/;
+export const VOICE_ID = /^[A-Za-z0-9_-]{1,100}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // 깨진 값·모양이 다른 값은 처음 값이다. 성우는 담은 성우 목록과 다시 맞춘다(savedOf), 채널은 채널 목록과 맞춘다(화면)
 export function readSetup(raw: string | null): Setup {
@@ -466,10 +470,12 @@ export function unknownRefetch(
 		: false;
 }
 // 미확인 줄 셋째 줄(critique P1-b): 다시 받는 창 안이면 늦은 도착 안내, 지나면 사용 기록에서 확인하라는 안내(다시 받기가 멈추는 때와 같다)
-export const unknownNoteOf = (createdAt: string, now: Date) =>
-	lateWaiting(createdAt, now.getTime())
-		? STUDIO_TEXT.unknownNote
-		: STUDIO_TEXT.unknownExpired;
+export const unknownNoteOf = (
+	createdAt: string,
+	now: Date,
+	expired: string = STUDIO_TEXT.unknownExpired,
+) =>
+	lateWaiting(createdAt, now.getTime()) ? STUDIO_TEXT.unknownNote : expired;
 
 // 플레이어에 올린 결과의 캡션·접근 이름(디자인 리뷰 D3 초안): {성우} · (처음 값이 아닌 감정) · {대본 첫 줄 앞 20자}(뒤가 더 있으면 …).
 // 감정은 카드 감정 표식과 같은 기준이다(critique P1-a). 캡션은 한 줄 말줄임이라 대본보다 앞에 둔다

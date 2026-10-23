@@ -182,6 +182,27 @@ function wavOf(body: unknown): Uint8Array {
 	throw new GeminiAudioMissingError();
 }
 
+// 드라마 전체 자동 태그(T9.5 Part 2)의 텍스트 모델과 시간 제한. TTS 모델과 다르다
+export const GEMINI_TEXT_MODEL = "gemini-3.8-flash";
+export const AUTO_TAG_TIMEOUT_MS = 60_000;
+const textContentSchema = z.object({
+	type: z.literal("text"),
+	text: z.string(),
+});
+
+// model_output 단계의 글(나뉘어 오면 잇는다). 없으면 null이다.
+// JSON으로 읽지 않는다: 깨진 답이 여기서 던지면 runTrial이 처리 여부 미확인으로 바꾼다(계획 리뷰 L5)
+function textOf(body: unknown): string | null {
+	const texts = (interactionSchema.parse(body).steps ?? [])
+		.filter((step) => step.type === "model_output")
+		.flatMap((step) => step.content ?? [])
+		.flatMap((item) => {
+			const parsed = textContentSchema.safeParse(item);
+			return parsed.success ? [parsed.data.text] : [];
+		});
+	return texts.length > 0 ? texts.join("") : null;
+}
+
 // 스펙 6절: 429에 Retry-After가 없거나 못 읽으면(0, HTTP 날짜) 60초 대기(Google은 본문 RetryInfo로 준다). 기존 대기 기록 경로(runTrial·runList retryAt)가 그대로 쓴다
 async function waitDefault<T>(call: Promise<T>): Promise<T> {
 	try {
@@ -286,6 +307,42 @@ export function createGemini(apiKey: string): ProviderClient {
 				);
 				return wavOf(await response.json());
 			}),
+		// 대본은 input 문자열로 보낸다(문서 텍스트 예시). 2026-10-22 사용자 승인 실호출에서 이 모양이 200으로 받아들여졌다(research drama-acting-tags 3-2)
+		suggestActing: ({ system, input, schema }) =>
+			runTrial(
+				"gemini",
+				async (signal) => {
+					const response = await waitDefault(
+						fetchOk(
+							`${GEMINI_HOST}/v1beta/interactions`,
+							{
+								method: "POST",
+								headers: { ...auth, "Content-Type": "application/json" },
+								// 사고·출력 토큰에 상한을 둔다(사고 토큰 과금 미확인, research 3-2)
+								body: JSON.stringify({
+									model: GEMINI_TEXT_MODEL,
+									system_instruction: system,
+									input,
+									response_format: {
+										type: "text",
+										mime_type: "application/json",
+										schema,
+									},
+									generation_config: {
+										max_output_tokens: 8192,
+										thinking_level: "low",
+									},
+									store: false,
+								}),
+								signal,
+							},
+							geminiCodes,
+						),
+					);
+					return textOf(await response.json());
+				},
+				{ timeoutMs: AUTO_TAG_TIMEOUT_MS },
+			),
 		checkStatus: () =>
 			runCheck("gemini", async (signal) => {
 				// 과금 문구가 없는 목록 조회 1명으로 키를 확인한다. 잔액 조회 API가 없어 quota는 null이다(research 8절)

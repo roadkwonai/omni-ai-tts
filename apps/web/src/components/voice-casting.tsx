@@ -43,7 +43,11 @@ import { SamplePlayerProvider } from "./sample-player";
 import { ServerVoiceList, serverListOptions } from "./server-voice-list";
 import { sourceItem } from "./setting-fields";
 import { TrialProvider } from "./trial-provider";
-import { type TypecastState, TypecastVoiceList } from "./typecast-voice-list";
+import {
+	EMPTY_TYPECAST,
+	type TypecastState,
+	TypecastVoiceList,
+} from "./typecast-voice-list";
 import { LIST_LOOPBACK_TITLE } from "./voice-problem";
 
 type Tab = "all" | ProviderId;
@@ -97,11 +101,7 @@ export function VoiceCasting() {
 		"fish_audio:public": initialList("fish_audio", "public"),
 		"fish_audio:account": initialList("fish_audio", "account"),
 	}));
-	const [typecast, setTypecast] = useState<TypecastState>({
-		query: "",
-		filters: EMPTY_FILTERS,
-		showAll: false,
-	});
+	const [typecast, setTypecast] = useState<TypecastState>(EMPTY_TYPECAST);
 	const [airy, setAiry] = useState<AiryState>(EMPTY_AIRY);
 	const [gemini, setGemini] = useState<GeminiState>(EMPTY_GEMINI);
 	const [chosen, setChosen] = useState<Record<string, string | null>>({});

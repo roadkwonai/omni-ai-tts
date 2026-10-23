@@ -23,6 +23,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 
+import { loadStored, saveBlob, store } from "@/lib/browser";
 import { MESSAGES, saveFailure } from "@/lib/classes-view";
 import {
 	createFailureOf,
@@ -55,31 +56,6 @@ import { useSavedList } from "./saved-voices";
 import { TrialConfirm, type TrialPending } from "./trial-confirm";
 import type { LoadedPreset } from "./trial-provider";
 import { useCooldown } from "./voice-problem";
-
-// 이 브라우저 저장소(임시 작업). 사생활 보호 창·용량 초과·꺼짐이면 던지므로 조용히 넘긴다(client-localstorage-schema)
-function loadStored(key: string): string | null {
-	try {
-		return window.localStorage.getItem(key);
-	} catch {
-		return null;
-	}
-}
-function store(key: string, value: string) {
-	try {
-		window.localStorage.setItem(key, value);
-	} catch {
-		// 저장하지 못해도 화면은 그대로 쓴다(새로 고침하면 처음 값)
-	}
-}
-// 받은 오디오를 파일로 저장한다(생성 API를 부르지 않는다, REQ-10). 다운로드가 시작될 시간을 두고 주소를 푼다
-function saveBlob(blob: Blob, fileName: string) {
-	const url = URL.createObjectURL(blob);
-	const link = document.createElement("a");
-	link.href = url;
-	link.download = fileName;
-	link.click();
-	setTimeout(() => URL.revokeObjectURL(url), 40_000);
-}
 
 // 이전 결과(최근 20, 완료·미확인). 막대의 '저장된 결과 열기' 판정과 이전 결과 목록이 같은 키를 쓴다(TanStack 중복 제거).
 // 늦은 결과가 보고 있는 화면에서도 완료로 바뀌게 만든 지 6분 안의 미확인 줄이 있으면 15초마다 다시 받는다('스펙과 다른 점' 16)

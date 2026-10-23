@@ -4,11 +4,20 @@ import { savedVoice } from "@tts-pilot-app/db/schema/saved-voice";
 import { trialGeneration } from "@tts-pilot-app/db/schema/trial-generation";
 import { and, desc, eq, gt, inArray, lt, ne, sql } from "drizzle-orm";
 
+import type { DramaItemInput } from "./drama-contract";
+import {
+	DRAMA_RESULTS_SHOWN,
+	type DramaRequest,
+	type DramaScript,
+	type LineSpan,
+} from "./drama-script";
 import type { ProviderId } from "./providers/contract";
 import { logFailure, trialError } from "./providers/errors";
 import {
 	type TrialAudio,
+	type TrialErrorData,
 	type TrialFailure,
+	type TrialFound,
 	type TrialItemInput,
 	trialFailureSchema,
 } from "./providers/trial-contract";
@@ -24,7 +33,7 @@ import {
 	usedSettings,
 } from "./providers/trial-options";
 import type { StudioItemInput, StudioResult } from "./studio-contract";
-import { cacheKey, guard, logDbFailure } from "./voice-cache";
+import { cacheKey, guard, logDbFailure, recordCooldown } from "./voice-cache";
 
 // 생성 기록과 결과(ADR 0003 '듣기 결과', T5 스펙 5절, T9 작업실). 모든 읽기·쓰기에 소유자 조건을 넣는다(prokit-api 불변식 3).
 // 정리·옵션·조합 글자가 바뀌어 같은 요청이 다른 소리를 내게 되면 판을 올린다(옛 결과를 찾지 않는다). 작업실 키도 같은 판을 쓴다.
@@ -38,8 +47,8 @@ const KEEP_MS = 30 * 24 * 60 * 60 * 1000;
 const STALE_PENDING_MS = 5 * 60 * 1000;
 const t = trialGeneration;
 
-// 생성 기록의 화면(T9 스펙 3절). 'trial' 내 문장 듣기, 'studio' 음성 작업실
-export type Kind = "trial" | "studio";
+// 생성 기록의 화면(T9 스펙 3절). 'trial' 내 문장 듣기, 'studio' 음성 작업실, 'drama' 드라마 작업실(T9.5)
+export type Kind = "trial" | "studio" | "drama";
 
 // 목록 캐시와 같은 해시 함수를 쓴다(voice-cache cacheKey, 계획 리뷰 ponytail 12).
 // 작업실은 kind를 넣어 같은 요청이라도 시험 생성과 키가 다르다(재사용·목록이 화면별로 나뉜다). 시험 생성 키는 T5 그대로 둔다(저장된 결과가 이어진다)
@@ -169,19 +178,29 @@ export async function replayRequest(
 	return replay(provider, existing);
 }
 
+// 선점할 행의 내용. 드라마 행은 대본(script)을 더 쓴다
+type ClaimFields = {
+	kind: Kind;
+	voiceId: string;
+	model: string;
+	settings: Record<string, unknown>;
+	text: string;
+	script?: DramaScript;
+};
+
 // 공급자 호출 전에 요청 id를 선점한다(tts-provider 중복 과금). 충돌은 조회가 아니라 유니크 제약(요청 id, 소유자별 진행 중 하나)이 막는다
-export async function claim(
+export async function claimRow(
 	db: Database,
 	input: {
 		ownerId: string;
 		requestId: string;
-		request: TrialRequest;
 		key: string;
 		usage: Usage;
-		kind?: Kind;
+		provider: ProviderId;
+		fields: ClaimFields;
 	},
 ): Promise<Claim> {
-	const { ownerId, requestId, request, key, usage } = input;
+	const { ownerId, requestId, key, usage, provider } = input;
 	await db
 		.update(t)
 		.set({ status: "unknown" })
@@ -195,15 +214,11 @@ export async function claim(
 	const [row] = await db
 		.insert(t)
 		.values({
+			...input.fields,
 			ownerId,
 			requestId,
-			kind: input.kind ?? "trial",
 			comboKey: key,
-			provider: request.provider,
-			voiceId: request.voiceId,
-			model: request.settings.model,
-			settings: usedSettings(request),
-			text: normalizeText(request.text),
+			provider,
 			usageAmount: usage.amount,
 			usageUnit: usage.unit,
 			status: "pending",
@@ -220,10 +235,35 @@ export async function claim(
 		};
 	const existing = await requestRow(db, ownerId, requestId);
 	// 같은 요청 id가 없으면 진행 중인 다른 요청에 걸린 것이다
-	if (!existing) throw trialError(request.provider, "in_progress");
-	if (existing.comboKey !== key)
-		throw trialError(request.provider, "request_mismatch");
+	if (!existing) throw trialError(provider, "in_progress");
+	if (existing.comboKey !== key) throw trialError(provider, "request_mismatch");
 	return { kind: "existing", row: existing };
+}
+
+// 성우 하나의 요청(내 문장 듣기·음성 작업실)을 선점한다
+export function claim(
+	db: Database,
+	input: {
+		ownerId: string;
+		requestId: string;
+		request: TrialRequest;
+		key: string;
+		usage: Usage;
+		kind?: Kind;
+	},
+): Promise<Claim> {
+	const { request, kind = "trial", ...rest } = input;
+	return claimRow(db, {
+		...rest,
+		provider: request.provider,
+		fields: {
+			kind,
+			voiceId: request.voiceId,
+			model: request.settings.model,
+			settings: usedSettings(request),
+			text: normalizeText(request.text),
+		},
+	});
 }
 
 // 같은 요청 id의 상태 판정(T5 규칙): 완료면 done(행), 진행 중은 in_progress, 미확인은 unknown_outcome, 실패는 그 사유
@@ -244,13 +284,15 @@ export function replay(provider: ProviderId, row: ExistingRow): TrialAudio {
 	return replayStatus(provider, row, toAudio);
 }
 
-// id는 같은 요청의 선점에서 온 값이지만 소유자 조건을 함께 건다(prokit-api 불변식 3, 계획 리뷰 E12)
+// id는 같은 요청의 선점에서 온 값이지만 소유자 조건을 함께 건다(prokit-api 불변식 3, 계획 리뷰 E12).
+// segments는 드라마 줄 구간이다. 넘기지 않으면 칸을 건드리지 않는다(선점 때 null)
 export async function complete(
 	db: Database,
 	ownerId: string,
 	id: string,
 	audio: Uint8Array,
 	audioType: string,
+	segments?: LineSpan[] | null,
 ) {
 	await db
 		.update(t)
@@ -258,6 +300,7 @@ export async function complete(
 			status: "done",
 			audio: Buffer.from(audio),
 			audioType,
+			segments,
 			expiresAt: later(),
 		})
 		.where(and(eq(t.id, id), eq(t.ownerId, ownerId)));
@@ -276,6 +319,46 @@ export async function settle(
 		.where(and(eq(t.id, id), eq(t.ownerId, ownerId)));
 }
 
+// 생성 실패 기록(E7, 내 문장·작업실·드라마가 함께 쓴다). 미확인 또는 실패를 적고 429면 대기 시각을 적은 뒤 던질 오류를 돌려준다.
+// runTrial이 모든 실패를 사유 있는 ORPCError로 바꾼다. 아닌 예외는 응답을 받았는지 모르므로 처리 여부 미확인으로 기록하고 원래 오류는 던지지 않는다(T5 계획 리뷰 E1).
+// 늦은 결과(saveLate)는 받지 않는다. 부르는 쪽이 이 함수가 끝난 뒤(미확인을 적은 뒤)에 넘긴다
+export async function recordFailure(
+	db: Database,
+	target: { ownerId: string; id: string; provider: ProviderId; prefix: string },
+	error: unknown,
+): Promise<Error> {
+	const { ownerId, id, provider, prefix } = target;
+	if (!(error instanceof ORPCError))
+		logFailure(`${prefix} ${provider} 생성 실패`, error, []);
+	const failure =
+		error instanceof ORPCError
+			? error
+			: trialError(provider, "unknown_outcome");
+	const data = failure.data as Partial<TrialErrorData> | undefined;
+	const reason = data?.reason ?? "provider_error";
+	await guard(
+		"실패 기록",
+		() =>
+			settle(
+				db,
+				ownerId,
+				id,
+				reason === "unknown_outcome" ? "unknown" : "failed",
+				reason,
+			),
+		prefix,
+	);
+	const retryAt = data?.retryAt;
+	if (reason === "rate_limit" && retryAt) {
+		await guard(
+			"대기 쓰기",
+			() => recordCooldown(db, provider, new Date(retryAt)),
+			prefix,
+		);
+	}
+	return failure;
+}
+
 // 만료 행 정리(새 결과를 쓸 때, cron 없음). 진행 중인 행은 남긴다
 export async function sweep(db: Database, ownerId: string) {
 	await db
@@ -289,22 +372,47 @@ export async function sweep(db: Database, ownerId: string) {
 		);
 }
 
-// 저장된 결과(완료, 만료 전) 가운데 가장 최근 것. 오디오와 만료 연장은 audioOf 한 곳이 맡는다(계획 리뷰 ponytail 13)
+// 저장된 결과(내 문장, 완료·만료 전) 가운데 가장 최근 것. 조회 조건은 findMany 한 곳이고(T9.5 리뷰 ponytail 9), 오디오와 만료 연장은 audioOf 한 곳이 맡는다(계획 리뷰 ponytail 13)
 export async function findSaved(db: Database, ownerId: string, key: string) {
-	const [row] = await db
-		.select({ id: t.id })
+	const [hit] = await findMany(db, ownerId, [key]);
+	return hit ? audioOf(db, ownerId, hit.id) : null;
+}
+
+// 여러 키의 저장된 결과(내 문장, 완료·미만료)를 한 번에 찾는다. 키마다 가장 최근 것, 순서 그대로, 없으면 null.
+// 오디오를 읽지 않고 보관 기한도 늘리지 않는다(소리를 받을 때 audioOf가 늘린다)
+export async function findMany(
+	db: Database,
+	ownerId: string,
+	keys: readonly string[],
+): Promise<(TrialFound | null)[]> {
+	const rows = await db
+		.select({
+			id: t.id,
+			createdAt: t.createdAt,
+			usageUnit: t.usageUnit,
+			usageAmount: t.usageAmount,
+			comboKey: t.comboKey,
+		})
 		.from(t)
 		.where(
 			and(
 				eq(t.ownerId, ownerId),
-				eq(t.comboKey, key),
+				eq(t.kind, "trial"),
+				inArray(t.comboKey, keys),
 				eq(t.status, "done"),
 				gt(t.expiresAt, new Date()),
 			),
 		)
-		.orderBy(desc(t.createdAt))
-		.limit(1);
-	return row ? audioOf(db, ownerId, row.id) : null;
+		.orderBy(desc(t.createdAt));
+	const latest = new Map<string, TrialFound>();
+	for (const row of rows)
+		if (!latest.has(row.comboKey))
+			latest.set(row.comboKey, {
+				id: row.id,
+				createdAt: row.createdAt.toISOString(),
+				usage: usageOf(row),
+			});
+	return keys.map((key) => latest.get(key) ?? null);
 }
 
 // 성우 하나의 완료 결과(오디오 없음) 최신순. 설정은 저장한 정리 값이고 출력 스키마가 기본값을 채워 다시 검사한다
@@ -474,18 +582,64 @@ export async function listStudio(
 	}));
 }
 
+// ── 드라마 작업실(T9.5) ──
+// 같은 요청 id 판정 키: 정리한 요청 전체(대본·모델·설정)의 해시. 화면별 기록이라 kind를 넣는다
+export const dramaKey = (request: DramaRequest) =>
+	cacheKey({ v: TRIAL_CONTRACT_VERSION, kind: "drama", request });
+// 부분 인덱스 trial_generation_drama와 같은 조건 글자(studioRow와 같은 이유, 계획 리뷰 P9)
+const dramaRow = sql`${t.kind} = 'drama'`;
+
+// 이전 테이크: 완료와 처리 여부 미확인 최근 20개(오디오 없음). 요청은 저장한 대본 + 모델·설정이고 출력 스키마가 다시 검사한다
+export async function listDrama(
+	db: Database,
+	ownerId: string,
+): Promise<DramaItemInput[]> {
+	const rows = await db
+		.select({
+			...studioColumns,
+			status: t.status,
+			model: t.model,
+			settings: t.settings,
+			script: t.script,
+			segments: t.segments,
+		})
+		.from(t)
+		.where(
+			and(
+				eq(t.ownerId, ownerId),
+				dramaRow,
+				inArray(t.status, ["done", "unknown"]),
+				gt(t.expiresAt, new Date()),
+			),
+		)
+		.orderBy(desc(t.createdAt))
+		.limit(DRAMA_RESULTS_SHOWN);
+	return rows.map((row) => ({
+		...studioOf(row),
+		status: row.status as "done" | "unknown",
+		segments: row.segments,
+		request: {
+			...(row.script as DramaScript),
+			model: row.model,
+			settings: row.settings,
+		} as DramaItemInput["request"],
+	}));
+}
+
 // 결과 오디오의 조각 하나(3MiB). Postgres substring은 1부터 센다. 저장 방식이 EXTERNAL이라 이 조각의 TOAST 덩어리만 읽는다.
-// 0번 조각(열기·내려받기의 시작)만 보관을 30일 뒤로 늘린다(T5 audioOf와 같다). 남의 것·없음·만료·완료 아님·범위 밖은 NOT_FOUND
+// 0번 조각(열기·내려받기의 시작)만 보관을 30일 뒤로 늘린다(T5 audioOf와 같다). 남의 것·없음·만료·완료 아님·범위 밖·다른 화면의 행은 NOT_FOUND.
+// id로 찾으므로 kind는 매개변수다(부분 인덱스와 상관없다)
 export async function audioPart(
 	db: Database,
 	ownerId: string,
 	id: string,
 	part: number,
+	kind: "studio" | "drama" = "studio",
 ): Promise<File> {
 	const where = and(
 		eq(t.id, id),
 		eq(t.ownerId, ownerId),
-		studioRow,
+		eq(t.kind, kind),
 		eq(t.status, "done"),
 		gt(t.expiresAt, new Date()),
 	);
@@ -505,11 +659,40 @@ export async function audioPart(
 	return audioFile(row.chunk, row.audioType ?? "audio/mpeg");
 }
 
-// 사용 이력(GLOSSARY): 작업실 생성이 성공한 때만 그 소유자의 담은 Typecast 성우에 +1(T9 스펙 3절). 보관함에서 빠졌으면 바뀌는 행이 없다
+// 서버 성우 검사(T9 스펙 2절, T9.5 스펙 2절, 로드맵 T8 보안 메모): 보낼 성우가 모두 이 소유자가 그 공급자로 담았고 현재 이용 불가가 아니어야 한다.
+// 부르는 쪽은 선점·공급자 호출 전에 부르고, 거짓이면 voice_unavailable로 거절한다. 클라이언트가 보낸 voice id를 믿지 않는다. 담은 성우는 소유자 조건으로만 찾는다(prokit-api 불변식 3, tts-provider 클론 보이스 절).
+// 담은 성우의 voice id도 원래 클라이언트가 보낸 값(savedVoiceSave)이라 이 검사는 '이 소유자가 담은 성우'라는 앱 수준 일관성 검사이고,
+// 공급자 소유(Typecast uc_ 커스텀, Fish Audio 비공개 모델 등) 검증은 아니다. 소유자가 여럿이 되면(T14) 공급자 확인을 더한다
+export async function usableVoices(
+	db: Database,
+	ownerId: string,
+	provider: ProviderId,
+	voiceIds: readonly string[],
+) {
+	// 보낼 성우가 없으면 0 === 0으로 참이 되므로 거절한다(fail closed)
+	if (voiceIds.length === 0) return false;
+	const rows = await db
+		.select({ id: savedVoice.id })
+		.from(savedVoice)
+		.where(
+			and(
+				eq(savedVoice.ownerId, ownerId),
+				eq(savedVoice.provider, provider),
+				eq(savedVoice.unavailable, false),
+				inArray(savedVoice.voiceId, voiceIds),
+			),
+		);
+	// 두 화자가 같은 성우면 id가 겹친다. 담은 행은 (소유자, 공급자, 성우)마다 하나다(saved_voice_voice)
+	return rows.length === new Set(voiceIds).size;
+}
+
+// 사용 이력(GLOSSARY): 생성이 성공한 때만 그 소유자가 그 공급자로 담은 성우마다 +1(T9 스펙 3절). 같은 id가 여럿이어도 행마다 한 번이다(드라마 화자 둘이 같은 성우).
+// 보관함에서 빠졌으면 바뀌는 행이 없다
 export async function recordUse(
 	db: Database,
 	ownerId: string,
-	voiceId: string,
+	provider: ProviderId,
+	voiceIds: readonly string[],
 ) {
 	await db
 		.update(savedVoice)
@@ -520,24 +703,26 @@ export async function recordUse(
 		.where(
 			and(
 				eq(savedVoice.ownerId, ownerId),
-				eq(savedVoice.provider, "typecast"),
-				eq(savedVoice.voiceId, voiceId),
+				eq(savedVoice.provider, provider),
+				inArray(savedVoice.voiceId, voiceIds),
 			),
 		);
 }
 
-// 작업실의 같은 요청 id 재생(replayRequest와 같은 규칙). 오디오 대신 길이만 읽는다(32MiB를 통째로 읽지 않는다, 계획 리뷰 P4·E3).
-// 이번 작업실은 Typecast만이다(T10이 공급자를 넘긴다)
+// 작업실·드라마의 같은 요청 id 재생(replayRequest와 같은 규칙). 오디오 대신 길이만 읽는다(32MiB를 통째로 읽지 않는다, 계획 리뷰 P4·E3).
+// 사유의 공급자는 넘긴 값이다(음성 작업실은 Typecast, 드라마는 fish_audio). 음성 작업실 출력 스키마가 segments를 걸러 낸다
 export async function replayStudio(
 	db: Database,
 	ownerId: string,
 	requestId: string,
 	key: string,
-): Promise<StudioResult | null> {
+	provider: ProviderId = "typecast",
+): Promise<(StudioResult & { segments: LineSpan[] | null }) | null> {
 	const find = async () => {
 		const [row] = await db
 			.select({
 				...studioColumns,
+				segments: t.segments,
 				comboKey: t.comboKey,
 				status: t.status,
 				failureReason: t.failureReason,
@@ -547,37 +732,55 @@ export async function replayStudio(
 			.limit(1);
 		return row;
 	};
+	const done = (row: NonNullable<Awaited<ReturnType<typeof find>>>) => ({
+		...studioOf(row),
+		segments: row.segments,
+	});
 	const existing = await find();
 	if (!existing) return null;
-	if (existing.comboKey !== key)
-		throw trialError("typecast", "request_mismatch");
-	if (!isStale(existing)) return replayStatus("typecast", existing, studioOf);
+	if (existing.comboKey !== key) throw trialError(provider, "request_mismatch");
+	if (!isStale(existing)) return replayStatus(provider, existing, done);
 	await expireStale(db, ownerId, requestId);
-	return replayStatus("typecast", (await find()) ?? existing, studioOf);
+	return replayStatus(provider, (await find()) ?? existing, done);
 }
 
-// 늦은 결과 저장: 시간 초과로 미확인이 된 그 소유자의 행만 완료로 바꾼다. 그사이 지웠거나 다른 상태면 바뀌는 행이 없다
+// 늦은 결과: 오디오와 그 형식, 드라마는 줄 구간(나누지 못하면 null)
+export type Stored = {
+	audio: Uint8Array;
+	audioType: string;
+	segments?: LineSpan[] | null;
+};
+// 늦은 결과를 받을 행과 사용 이력을 올릴 성우(그 공급자로 담은 성우)
+export type LateTarget = {
+	ownerId: string;
+	id: string;
+	kind: "studio" | "drama";
+	provider: ProviderId;
+	voiceIds: readonly string[];
+};
+
+// 늦은 결과 저장: 시간 초과로 미확인이 된 그 소유자·그 화면의 행만 완료로 바꾼다. 그사이 지웠거나 다른 상태면 바뀌는 행이 없다
 async function completeLate(
 	db: Database,
-	ownerId: string,
-	id: string,
-	audio: Uint8Array,
+	target: LateTarget,
+	stored: Stored,
 ): Promise<boolean> {
 	const rows = await db
 		.update(t)
 		.set({
 			status: "done",
 			failureReason: null,
-			audio: Buffer.from(audio),
-			audioType: "audio/mpeg",
+			audio: Buffer.from(stored.audio),
+			audioType: stored.audioType,
+			segments: stored.segments ?? null,
 			expiresAt: later(),
 		})
-		// 작업실 행만(내 문장 미확인 행은 상한이 4MiB다, 계획 리뷰 E12)
+		// 그 화면의 행만(내 문장 미확인 행은 상한이 4MiB다, 계획 리뷰 E12)
 		.where(
 			and(
-				eq(t.id, id),
-				eq(t.ownerId, ownerId),
-				studioRow,
+				eq(t.id, target.id),
+				eq(t.ownerId, target.ownerId),
+				eq(t.kind, target.kind),
 				eq(t.status, "unknown"),
 			),
 		)
@@ -586,30 +789,75 @@ async function completeLate(
 }
 
 // 늦은 결과(T5-02, T9 스펙 2절). 성공이면 같은 기록을 완료로 바꾸고 사용 이력을 올린다. 실패·32MiB 초과는 미확인 그대로다.
-// 부르는 쪽은 미확인 기록을 쓴 뒤에 부른다(미확인 행만 완료로 바꾸므로, 먼저 부르면 아직 진행 중인 행이라 늦은 결과를 잃는다). 던지지 않는다(로그 한 줄).
+// 부르는 쪽은 미확인 기록(recordFailure)을 쓴 뒤에 부른다(미확인 행만 완료로 바꾸므로, 먼저 부르면 아직 진행 중인 행이라 늦은 결과를 잃는다). 던지지 않는다(로그 한 줄, 접두는 화면).
 // shortcut: 서버 프로세스가 살아 있을 때만 받는다(로컬은 확실). 배포 환경은 응답 뒤 작업 유지(after)와 최대 실행 시간이 필요하다(로드맵 T15 메모)
 export function saveLate(
 	db: Database,
-	ownerId: string,
-	id: string,
-	voiceId: string,
-	late: Promise<Uint8Array>,
+	target: LateTarget,
+	late: Promise<Stored>,
 ): Promise<void> {
+	const prefix = `[${target.kind}]`;
 	return late.then(
-		async (audio) => {
-			if (audio.byteLength > STUDIO_AUDIO_MAX) {
-				console.error("[studio] 늦은 결과 버림: audio_too_large");
+		async (stored) => {
+			if (stored.audio.byteLength > STUDIO_AUDIO_MAX) {
+				console.error(`${prefix} 늦은 결과 버림: audio_too_large`);
 				return;
 			}
 			await guard(
 				"늦은 결과 기록",
 				async () => {
-					if (await completeLate(db, ownerId, id, audio))
-						await recordUse(db, ownerId, voiceId);
+					if (await completeLate(db, target, stored))
+						await recordUse(
+							db,
+							target.ownerId,
+							target.provider,
+							target.voiceIds,
+						);
 				},
-				"[studio]",
+				prefix,
 			);
 		},
-		(error: unknown) => logFailure("[studio] 늦은 결과 실패", error, []),
+		(error: unknown) => logFailure(`${prefix} 늦은 결과 실패`, error, []),
 	);
+}
+
+// 유료 호출이 성공한 뒤(작업실·드라마, recordFailure의 짝): 오디오를 저장하고 사용 이력을 올린 뒤 만료 행을 정리한다. 로그 접두는 saveLate처럼 화면이다.
+// 저장하지 못하면 화면이 조각을 받을 수 없다. 출력에 오디오가 없어 T5처럼 돌려줄 수 없으므로 처리 여부 미확인으로 적고 unknown_outcome을 던진다(T9 '스펙과 다른 점' 4).
+// 결과가 저장되면 사용 이력·정리가 실패해도 던지지 않는다(로그 한 줄). segments가 없으면(음성 작업실) 그 칸을 건드리지 않는다
+export async function recordSuccess(
+	db: Database,
+	target: LateTarget,
+	stored: Stored,
+): Promise<void> {
+	const { ownerId, id, provider } = target;
+	const prefix = `[${target.kind}]`;
+	const saved = await guard(
+		"완료 기록",
+		async () => {
+			await complete(
+				db,
+				ownerId,
+				id,
+				stored.audio,
+				stored.audioType,
+				stored.segments,
+			);
+			return true;
+		},
+		prefix,
+	);
+	if (!saved) {
+		await guard(
+			"미확인 기록",
+			() => settle(db, ownerId, id, "unknown", "unknown_outcome"),
+			prefix,
+		);
+		throw trialError(provider, "unknown_outcome");
+	}
+	await guard(
+		"사용 이력",
+		() => recordUse(db, ownerId, provider, target.voiceIds),
+		prefix,
+	);
+	await guard("정리", () => sweep(db, ownerId), prefix);
 }

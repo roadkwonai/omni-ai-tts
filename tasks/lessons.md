@@ -127,3 +127,7 @@
 ## 2026-10-21 · ego-browser에서 CDP Fetch 가로채기와 `page.evaluate`의 await가 서로 막힘 (T9 QA)
 - **무슨 일:** S20 카나리를 `page.evaluate(async () => await fetch(...))`로 보냈더니, 같은 페이지의 `page.events()`로 `Fetch.requestPaused`를 처리하는 루프와 서로 기다려 15초 시간 초과가 났다(가로채기는 됐고 생성은 0). 한 페이지의 CDP 호출이 차례로 처리되기 때문이다.
 - **규칙:** 가로채기 루프를 돌리는 동안 `page.evaluate` 안에서 네트워크를 기다리지 않는다. 요청은 띄우기만 하고 결과는 `window` 변수에 담아 짧게 다시 읽는다. 멈춘 ego 실행이 있으면 다음 단계(DB 멈춤 등)가 이어지지 않게 명령을 단계별로 나누고 `timeout`을 둔다.
+
+## 2026-10-23 · ego-browser의 `Page.addScriptToEvaluateOnNewDocument` 등록은 스크립트 프로세스가 끝나면 사라짐 (T9.5 Part 5 QA)
+- **무슨 일:** QA 가드(`drama-guard.js`, 유료 생성 차단)와 오류 기록을 한 `ego-browser nodejs` 실행에서 등록한 뒤, 다음 실행에서 등록 없이 페이지를 다시 읽었다. 가드가 빠진 채로 측정·조각 듣기를 했고 `window.__errs`가 없어 오류 수가 0으로 보였다(유료 호출은 없었다). 같은 실행 안에서 rAF가 약 1초 간격이라 메뉴가 늦게 열리는 것도 자동화 창 탓이었다.
+- **규칙:** ego 스크립트마다 처음에 가드를 다시 등록하고 다시 읽은 뒤 `window.__dramaGuard`를 확인한다. 오류 수는 기록 변수가 없으면 0이 아니라 '가드 없음'으로 적는다. 열림 지연 같은 시간 문제는 페이지 안 `performance`·longtask로 앱 탓인지 먼저 가른다.

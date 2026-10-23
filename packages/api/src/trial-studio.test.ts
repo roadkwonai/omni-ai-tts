@@ -1,4 +1,5 @@
 // packages/api/src/trial-studio.test.ts
+import { providerCooldown } from "@tts-pilot-app/db/schema/provider-cache";
 import { savedVoice } from "@tts-pilot-app/db/schema/saved-voice";
 import { trialGeneration } from "@tts-pilot-app/db/schema/trial-generation";
 import { and, eq } from "drizzle-orm";
@@ -12,6 +13,9 @@ import {
 	vi,
 } from "vitest";
 
+import type { DramaScript, LineSpan } from "./drama-script";
+import type { ProviderId } from "./providers/contract";
+import { trialError } from "./providers/errors";
 import { emptyVoice } from "./providers/list";
 import {
 	comboSignature,
@@ -25,21 +29,26 @@ import {
 	audioOf,
 	audioPart,
 	claim,
+	claimRow,
 	comboKey,
 	complete,
 	findSaved,
 	findStudio,
 	type Kind,
+	type LateTarget,
 	listResults,
 	listStudio,
+	recordFailure,
 	recordUse,
 	remove,
 	replayStudio,
+	type Stored,
 	saveLate,
 	settle,
 	TRIAL_CONTRACT_VERSION,
+	usableVoices,
 } from "./trial";
-import { cacheKey } from "./voice-cache";
+import { cacheKey, cooldownOf } from "./voice-cache";
 
 // 작업실 생성 기록(T9 스펙 3·9절). 라우터 없이 trial.ts 함수를 테스트 DB로 본다
 const A = `studio-a-${Date.now()}`;
@@ -78,15 +87,23 @@ async function row(
 		await settle(db, ownerId, claimed.id, "unknown", "unknown_outcome");
 	return claimed.id;
 }
-const keep = (ownerId: string, voiceId = "tc_0001") =>
+const keep = (
+	ownerId: string,
+	voiceId = "tc_0001",
+	provider: ProviderId = "typecast",
+) =>
 	db.insert(savedVoice).values({
 		ownerId,
-		provider: "typecast",
+		provider,
 		voiceId,
 		source: "public",
-		voice: { ...emptyVoice("typecast", "public"), voiceId, name: voiceId },
+		voice: { ...emptyVoice(provider, "public"), voiceId, name: voiceId },
 	});
-const used = async (ownerId: string, voiceId = "tc_0001") => {
+const used = async (
+	ownerId: string,
+	voiceId = "tc_0001",
+	provider: ProviderId = "typecast",
+) => {
 	const [found] = await db
 		.select({
 			useCount: savedVoice.useCount,
@@ -94,7 +111,11 @@ const used = async (ownerId: string, voiceId = "tc_0001") => {
 		})
 		.from(savedVoice)
 		.where(
-			and(eq(savedVoice.ownerId, ownerId), eq(savedVoice.voiceId, voiceId)),
+			and(
+				eq(savedVoice.ownerId, ownerId),
+				eq(savedVoice.provider, provider),
+				eq(savedVoice.voiceId, voiceId),
+			),
 		);
 	return found;
 };
@@ -106,6 +127,65 @@ const statusOf = async (id: string) =>
 			.where(eq(trialGeneration.id, id))
 	)[0]?.status;
 const bytesOf = async (file: Blob) => new Uint8Array(await file.arrayBuffer());
+const rowOf = async (id: string) =>
+	(
+		await db.select().from(trialGeneration).where(eq(trialGeneration.id, id))
+	)[0];
+// 작업실의 늦은 결과 대상과 MP3 결과(라우터가 넘기는 모양)
+const studioLate = (ownerId: string, id: string): LateTarget => ({
+	ownerId,
+	id,
+	kind: "studio",
+	provider: "typecast",
+	voiceIds: ["tc_0001"],
+});
+const mp3 = (audio: Uint8Array = MP3): Promise<Stored> =>
+	Promise.resolve({ audio, audioType: "audio/mpeg" });
+
+// 드라마 행(T9.5): 화자 둘, 성우 둘. claimRow로 선점하고 그 끝 상태로 둔다. 키는 요청 id에서 만든다
+const WAV = new Uint8Array([0x52, 0x49, 0x46, 0x46, 1, 2]);
+const script: DramaScript = {
+	sceneName: "첫 만남",
+	speakers: [
+		{ name: "민수", voiceId: "fa_1" },
+		{ name: "지아", voiceId: "fa_2" },
+	],
+	lines: [
+		{ speaker: 0, direction: "", text: "안녕" },
+		{ speaker: 1, direction: "웃으며", text: "반가워" },
+	],
+};
+const spans: LineSpan[] = [
+	{ start: 0, end: 0.5, cutStart: 0, cutEnd: 0.6 },
+	{ start: 0.7, end: 1.2, cutStart: 0.6, cutEnd: 1.3 },
+];
+async function dramaRow(
+	ownerId: string,
+	end?: "done" | "unknown",
+	requestId: string = crypto.randomUUID(),
+) {
+	const claimed = await claimRow(db, {
+		ownerId,
+		requestId,
+		key: `drama-${requestId}`,
+		usage: { unit: "usd_micro", amount: 4830 },
+		provider: "fish_audio",
+		fields: {
+			kind: "drama",
+			voiceId: "fa_1,fa_2",
+			model: "s2.1-pro",
+			settings: { speed: 1, temperature: 0.7 },
+			text: "<|speaker:0|>안녕<|speaker:1|>[웃으며] 반가워",
+			script,
+		},
+	});
+	if (claimed.kind !== "claimed") throw new Error("선점하지 못했다");
+	if (end === "done")
+		await complete(db, ownerId, claimed.id, WAV, "audio/wav", spans);
+	if (end === "unknown")
+		await settle(db, ownerId, claimed.id, "unknown", "unknown_outcome");
+	return claimed.id;
+}
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -126,10 +206,12 @@ describe.skipIf(!url)("작업실 생성 기록", () => {
 	beforeEach(async () => {
 		await db.delete(trialGeneration);
 		await db.delete(savedVoice);
+		await db.delete(providerCooldown);
 	});
 	afterAll(async () => {
 		await db.delete(trialGeneration);
 		await db.delete(savedVoice);
+		await db.delete(providerCooldown);
 		await db.$client.end();
 	});
 
@@ -234,21 +316,21 @@ describe.skipIf(!url)("작업실 생성 기록", () => {
 		await keep(A);
 		await keep(B);
 		expect(await used(A)).toEqual({ useCount: 0, lastUsedAt: null });
-		await recordUse(db, A, "tc_0001");
-		await recordUse(db, A, "tc_0001");
+		await recordUse(db, A, "typecast", ["tc_0001"]);
+		await recordUse(db, A, "typecast", ["tc_0001"]);
 		expect(await used(A)).toMatchObject({
 			useCount: 2,
 			lastUsedAt: expect.any(Date),
 		});
 		expect(await used(B)).toEqual({ useCount: 0, lastUsedAt: null });
-		await recordUse(db, A, "tc_none");
+		await recordUse(db, A, "typecast", ["tc_none"]);
 		expect(await used(A, "tc_none")).toBeUndefined();
 	});
 
 	it("늦은 성공은 미확인 행을 완료로 바꾸고 사용 이력을 1 올린다(T5-02)", async () => {
 		await keep(A);
 		const id = await row(A, "studio", "unknown");
-		await saveLate(db, A, id, "tc_0001", Promise.resolve(MP3));
+		await saveLate(db, studioLate(A, id), mp3());
 		expect(await statusOf(id)).toBe("done");
 		expect(await bytesOf(await audioPart(db, A, id, 0))).toEqual(MP3);
 		const [stored] = await db
@@ -265,18 +347,14 @@ describe.skipIf(!url)("작업실 생성 기록", () => {
 		const failed = await row(A, "studio", "unknown");
 		await saveLate(
 			db,
-			A,
-			failed,
-			"tc_0001",
+			studioLate(A, failed),
 			Promise.reject(new TypeError("fetch failed")),
 		);
 		const large = await row(A, "studio", "unknown", MP3, req("큰 결과"));
 		await saveLate(
 			db,
-			A,
-			large,
-			"tc_0001",
-			Promise.resolve(new Uint8Array(STUDIO_AUDIO_MAX + 1)),
+			studioLate(A, large),
+			mp3(new Uint8Array(STUDIO_AUDIO_MAX + 1)),
 		);
 		expect([await statusOf(failed), await statusOf(large)]).toEqual([
 			"unknown",
@@ -293,20 +371,14 @@ describe.skipIf(!url)("작업실 생성 기록", () => {
 		await keep(A);
 		await keep(B);
 		const unknown = await row(A, "studio", "unknown");
-		await saveLate(db, B, unknown, "tc_0001", Promise.resolve(MP3));
+		await saveLate(db, studioLate(B, unknown), mp3());
 		expect(await statusOf(unknown)).toBe("unknown");
 		expect(await used(B)).toMatchObject({ useCount: 0 });
 		const done = await row(A, "studio", "done");
-		await saveLate(
-			db,
-			A,
-			done,
-			"tc_0001",
-			Promise.resolve(new Uint8Array([1])),
-		);
+		await saveLate(db, studioLate(A, done), mp3(new Uint8Array([1])));
 		expect(await bytesOf(await audioPart(db, A, done, 0))).toEqual(MP3);
 		await remove(db, A, unknown, "studio");
-		await saveLate(db, A, unknown, "tc_0001", Promise.resolve(MP3));
+		await saveLate(db, studioLate(A, unknown), mp3());
 		expect(await statusOf(unknown)).toBeUndefined();
 		expect(await used(A)).toMatchObject({ useCount: 0 });
 	});
@@ -314,7 +386,7 @@ describe.skipIf(!url)("작업실 생성 기록", () => {
 	it("늦은 결과는 작업실 행에만 쓴다: 내 문장(trial)의 미확인 행은 바뀌지 않는다(계획 리뷰 E12)", async () => {
 		await keep(A);
 		const trial = await row(A, "trial", "unknown");
-		await saveLate(db, A, trial, "tc_0001", Promise.resolve(MP3));
+		await saveLate(db, studioLate(A, trial), mp3());
 		expect(await statusOf(trial)).toBe("unknown");
 		expect(await used(A)).toMatchObject({ useCount: 0 });
 	});
@@ -364,11 +436,194 @@ describe.skipIf(!url)("작업실 생성 기록", () => {
 			createdAt: done.createdAt,
 			usage,
 			bytes: MP3.byteLength,
+			segments: null,
 		});
 		await expect(replayStudio(db, A, doneId, key)).rejects.toMatchObject({
 			code: "BAD_REQUEST",
 			data: { reason: "request_mismatch" },
 		});
 		expect(await replayStudio(db, B, doneId, doneKey)).toBeNull();
+	});
+
+	it("recordUse는 성우마다 1씩, 같은 id 두 번이어도 1. Typecast로 담은 같은 id는 그대로다", async () => {
+		await keep(A, "fa_1", "fish_audio");
+		await keep(A, "fa_2", "fish_audio");
+		await keep(A, "fa_1");
+		await recordUse(db, A, "fish_audio", ["fa_1", "fa_1", "fa_2"]);
+		expect(await used(A, "fa_1", "fish_audio")).toMatchObject({
+			useCount: 1,
+			lastUsedAt: expect.any(Date),
+		});
+		expect(await used(A, "fa_2", "fish_audio")).toMatchObject({
+			useCount: 1,
+		});
+		expect(await used(A, "fa_1")).toEqual({ useCount: 0, lastUsedAt: null });
+	});
+
+	it("usableVoices: 담은 성우면 참이고, 보낼 성우가 없으면(빈 목록) 거짓이다(fail closed)", async () => {
+		await keep(A, "fa_1", "fish_audio");
+		expect(await usableVoices(db, A, "fish_audio", ["fa_1"])).toBe(true);
+		expect(await usableVoices(db, A, "fish_audio", [])).toBe(false);
+	});
+
+	it("recordFailure: 429 → failed·rate_limit, 대기 시각을 적고 받은 ORPCError를 그대로 돌려준다", async () => {
+		const id = await row(A, "studio", "pending");
+		const retryAt = new Date(Date.now() + 120_000);
+		const error = trialError("typecast", "rate_limit", {
+			retryAt: retryAt.toISOString(),
+		});
+		const failure = await recordFailure(
+			db,
+			{ ownerId: A, id, provider: "typecast", prefix: "[studio]" },
+			error,
+		);
+		expect(failure).toBe(error);
+		expect(await rowOf(id)).toMatchObject({
+			status: "failed",
+			failureReason: "rate_limit",
+		});
+		expect((await cooldownOf(db, "typecast", new Date()))?.getTime()).toBe(
+			retryAt.getTime(),
+		);
+	});
+
+	it("recordFailure: ORPCError가 아닌 예외 → unknown·unknown_outcome, 로그 한 줄", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => {});
+		const id = await dramaRow(A);
+		const failure = await recordFailure(
+			db,
+			{ ownerId: A, id, provider: "fish_audio", prefix: "[drama]" },
+			new TypeError("fetch failed"),
+		);
+		expect(failure).toMatchObject({
+			code: "GATEWAY_TIMEOUT",
+			data: { provider: "fish_audio", reason: "unknown_outcome" },
+		});
+		expect(await rowOf(id)).toMatchObject({
+			status: "unknown",
+			failureReason: "unknown_outcome",
+		});
+		expect(log.mock.calls).toEqual([
+			["[drama] fish_audio 생성 실패: TypeError"],
+		]);
+	});
+
+	it("saveLate(drama): 미확인 드라마 행만 완료하고 audio_type·segments를 저장, 화자 성우 둘의 사용 이력이 1씩 오른다", async () => {
+		await keep(A, "fa_1", "fish_audio");
+		await keep(A, "fa_2", "fish_audio");
+		const log = vi.spyOn(console, "error").mockImplementation(() => {});
+		const target = {
+			ownerId: A,
+			kind: "drama",
+			provider: "fish_audio",
+			voiceIds: ["fa_1", "fa_2"],
+		} as const;
+		const late = (audio: Uint8Array = WAV): Promise<Stored> =>
+			Promise.resolve({ audio, audioType: "audio/wav", segments: spans });
+		const studio = await row(A, "studio", "unknown");
+		await saveLate(db, { ...target, id: studio }, late());
+		expect(await statusOf(studio)).toBe("unknown");
+		const large = await dramaRow(A, "unknown");
+		await saveLate(
+			db,
+			{ ...target, id: large },
+			late(new Uint8Array(STUDIO_AUDIO_MAX + 1)),
+		);
+		expect(await statusOf(large)).toBe("unknown");
+		expect(await used(A, "fa_1", "fish_audio")).toMatchObject({ useCount: 0 });
+		const id = await dramaRow(A, "unknown");
+		await saveLate(db, { ...target, id }, late());
+		expect(await rowOf(id)).toMatchObject({
+			status: "done",
+			failureReason: null,
+			audioType: "audio/wav",
+			segments: spans,
+		});
+		expect(await bytesOf(await audioPart(db, A, id, 0, "drama"))).toEqual(WAV);
+		expect(await used(A, "fa_1", "fish_audio")).toMatchObject({ useCount: 1 });
+		expect(await used(A, "fa_2", "fish_audio")).toMatchObject({ useCount: 1 });
+		expect(log.mock.calls).toEqual([
+			["[drama] 늦은 결과 버림: audio_too_large"],
+		]);
+	});
+
+	it("saveLate(studio) 늦은 결과는 audio_type audio/mpeg이고 segments는 null이다(E12)", async () => {
+		const id = await row(A, "studio", "unknown");
+		await saveLate(db, studioLate(A, id), mp3());
+		expect(await rowOf(id)).toMatchObject({
+			status: "done",
+			audioType: "audio/mpeg",
+			segments: null,
+		});
+	});
+
+	it("saveLate(studio)는 드라마 행을 바꾸지 않는다(kind 조건)", async () => {
+		await keep(A);
+		const id = await dramaRow(A, "unknown");
+		await saveLate(db, studioLate(A, id), mp3());
+		expect(await statusOf(id)).toBe("unknown");
+		expect(await used(A)).toMatchObject({ useCount: 0 });
+	});
+
+	it("audioPart(…, 'drama')는 드라마 행만, 기본값은 작업실 행만 읽는다", async () => {
+		const drama = await dramaRow(A, "done");
+		const studio = await row(A, "studio", "done");
+		const wav = await audioPart(db, A, drama, 0, "drama");
+		expect(wav.type).toBe("audio/wav");
+		expect(await bytesOf(wav)).toEqual(WAV);
+		await expect(audioPart(db, A, studio, 0, "drama")).rejects.toMatchObject({
+			code: "NOT_FOUND",
+		});
+		await expect(audioPart(db, B, drama, 0, "drama")).rejects.toMatchObject({
+			code: "NOT_FOUND",
+		});
+		await expect(audioPart(db, A, drama, 0)).rejects.toMatchObject({
+			code: "NOT_FOUND",
+		});
+		expect(await bytesOf(await audioPart(db, A, studio, 0))).toEqual(MP3);
+	});
+
+	it("complete는 넘긴 segments를 저장하고, 넘기지 않으면 null 그대로다", async () => {
+		const drama = await dramaRow(A, "done");
+		const studio = await row(A, "studio", "done");
+		expect((await rowOf(drama))?.segments).toEqual(spans);
+		expect((await rowOf(studio))?.segments).toBeNull();
+	});
+
+	it("claimRow는 kind·script를 쓰고, 다른 기록이 진행 중이면 넘긴 공급자로 in_progress다", async () => {
+		const studio = await row(A, "studio", "pending");
+		await expect(dramaRow(A)).rejects.toMatchObject({
+			code: "TOO_MANY_REQUESTS",
+			data: { provider: "fish_audio", reason: "in_progress" },
+		});
+		await settle(db, A, studio, "failed", "provider_error");
+		const id = await dramaRow(A);
+		expect(await rowOf(id)).toMatchObject({
+			kind: "drama",
+			provider: "fish_audio",
+			voiceId: "fa_1,fa_2",
+			model: "s2.1-pro",
+			settings: { speed: 1, temperature: 0.7 },
+			text: "<|speaker:0|>안녕<|speaker:1|>[웃으며] 반가워",
+			script,
+			segments: null,
+			status: "pending",
+			usageUnit: "usd_micro",
+			usageAmount: 4830,
+		});
+	});
+
+	it("replayStudio(…, 'fish_audio')는 드라마 행의 segments를 돌려주고 사유에 넘긴 공급자를 쓴다", async () => {
+		const requestId = crypto.randomUUID();
+		const id = await dramaRow(A, "done", requestId);
+		expect(
+			await replayStudio(db, A, requestId, `drama-${requestId}`, "fish_audio"),
+		).toMatchObject({ id, bytes: WAV.byteLength, segments: spans });
+		await expect(
+			replayStudio(db, A, requestId, "다른 키", "fish_audio"),
+		).rejects.toMatchObject({
+			code: "BAD_REQUEST",
+			data: { provider: "fish_audio", reason: "request_mismatch" },
+		});
 	});
 });

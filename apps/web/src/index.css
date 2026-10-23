@@ -58,6 +58,90 @@
 		scroll-padding-bottom: calc(var(--studio-bar-height, 0px) + --spacing(4));
 	}
 }
+/* 드라마 작업실 막대 결과 칸(T9.5 브리프 17절 9): 767px 이하에서 입력 칸에 포커스가 있는 동안(소프트 키보드) 숨긴다.
+   [받기][주 버튼] 줄과 한 줄 칸은 남는다. 칸 표식 data-drama-field는 장면 이름·화자 이름·대본 줄·쉼 칸이 단다 */
+@utility drama-bar-result {
+	@media (width < 48rem) {
+		:root:has([data-drama-field]:focus) & {
+			display: none;
+		}
+	}
+}
+/* 드라마 대본 줄(T9.5 브리프 17절 4, drama-lines.tsx). 768px 이상 한 층 [번호][칩][지시][대사][동작]이고 칩·지시 열 폭을 고정해 대사 시작이 줄마다 같다.
+   767px 이하 두 층 [번호][칩][지시][받을 테이크] / [대사][동작]이다. 번호·칩·지시는 차례대로 위 층에 놓이고, 도구줄·실패·가름선은 그 아래 칸이다 */
+@utility drama-line {
+	display: grid;
+	grid-template-columns: --spacing(7) --spacing(28) --spacing(26) minmax(0, 1fr) auto;
+	column-gap: --spacing(2);
+	align-items: start;
+	@media (width >= 64rem) {
+		grid-template-columns: --spacing(7) --spacing(30) --spacing(34) minmax(
+				0,
+				1fr
+			) auto;
+	}
+	@media (width < 48rem) {
+		grid-template-columns: --spacing(6) auto minmax(0, 1fr) auto;
+		grid-template-areas:
+			"num chip dir take"
+			"text text text acts";
+	}
+}
+@utility drama-line-text {
+	@media (width < 48rem) {
+		grid-area: text;
+	}
+}
+/* 동작 칸 래퍼: 768px 이상은 마지막 열의 flex, 767px 이하는 contents라 안의 받을 테이크 칸과 단추 칸이 각자 자리(take·acts)에 놓인다 */
+@utility drama-line-actions {
+	display: flex;
+	align-items: center;
+	@media (width < 48rem) {
+		display: contents;
+	}
+}
+@utility drama-line-take {
+	@media (width < 48rem) {
+		grid-area: take;
+	}
+}
+/* ▶·⋮ 단추 칸 */
+@utility drama-line-buttons {
+	display: flex;
+	align-items: center;
+	@media (width < 48rem) {
+		grid-area: acts;
+	}
+}
+/* 연기 지시 도구줄 칸: 768px 이상 지시 열부터 끝까지, 767px 이하 전체 폭 */
+@utility drama-line-tools {
+	grid-column: 3 / -1;
+	@media (width < 48rem) {
+		grid-column: 1 / -1;
+	}
+}
+/* 가름선(브리프 17절 5): 숫자 칸과 '초'는 13px(눈금에 없다), 767px 이하 16px(입력 확대 막기). 숫자 칸은 Input의 글자 크기 대신 이 크기를 받는다.
+   z-index 1: 숫자 칸 이름표와 ×의 44px 눌림 영역(위아래 8px)이 위 칸·다음 줄(relative)에 덮이지 않게 올린다. 막대(z-5) 아래다 */
+@utility drama-gap {
+	position: relative;
+	z-index: 1;
+	font-size: --spacing(3.25);
+	@media (width < 48rem) {
+		font-size: --spacing(4);
+	}
+	& input {
+		font-size: inherit;
+	}
+}
+/* 쉼 숫자 칸(기본 쉼·가름선): 좁은 칸에서 글을 가리지 않게 브라우저 증감 단추를 숨긴다. ↑/↓와 step은 그대로다 */
+@utility drama-gap-number {
+	appearance: textfield;
+	&::-webkit-inner-spin-button,
+	&::-webkit-outer-spin-button {
+		appearance: none;
+		margin: 0;
+	}
+}
 /* 767px 이하에서 대본 칸에 포커스가 있는 동안(소프트 키보드) 막대의 결과 줄을 숨긴다(DN-3). 대본 칸 name은 studio-card.tsx */
 @utility studio-bar-result {
 	@media (width < 48rem) {

@@ -1,6 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { ZodError } from "zod";
 
+import type { SceneAudio, SceneRequest } from "../drama-script";
 import type {
 	Accent,
 	ConnectionStatus,
@@ -105,10 +106,11 @@ export type CheckOutcome = {
 };
 
 // 생성 한 번의 기다림(T9 스펙 2절). timeoutMs가 지나면 처리 여부 미확인이다. onLate가 있으면 끊긴 요청의 결과 약속을 넘긴다.
-// 취소할 수 없는 Typecast SDK만 실제로 늦게 끝난다. 신호를 받는 공급자는 끊긴 요청이 AbortError로 끝나 늦은 실패가 된다
-export type SynthesizeOptions = {
+// 취소할 수 없는 Typecast SDK만 실제로 늦게 끝난다. 신호를 받는 공급자는 끊긴 요청이 AbortError로 끝나 늦은 실패가 된다.
+// T는 결과 모양이다(runTrial의 제네릭, 드라마 장면 생성은 PCM과 정렬)
+export type SynthesizeOptions<T = Uint8Array> = {
 	timeoutMs?: number;
-	onLate?: (late: Promise<Uint8Array>) => void;
+	onLate?: (late: Promise<T>) => void;
 };
 
 // 공급자 클라이언트. 목록·억양은 메서드 문법이다. 메서드 매개변수는 이변이라 공급자 구현이 자기 입력 모양(ListInputOf<P>)만 받아도 들어간다.
@@ -125,6 +127,18 @@ export type ProviderClient = {
 		request: TrialRequest,
 		options?: SynthesizeOptions,
 	): Promise<Uint8Array>;
+	// Fish Audio만: 드라마 장면 생성 1회(T9.5). 유료다(s2.1-pro-free 제외). PCM과 정렬을 돌려준다. 재시도하지 않는다
+	synthesizeScene?(
+		scene: SceneRequest,
+		options?: SynthesizeOptions<SceneAudio>,
+	): Promise<SceneAudio>;
+	// Gemini만: 드라마 전체 자동 태그 1회(T9.5 Part 2). 유료다(약 $0.01). 텍스트 모델의 답 글(JSON 문자열)을 읽지 않고 돌려준다(없으면 null).
+	// 읽기·검사는 라우터가 한다. 재시도하지 않는다
+	suggestActing?(prompt: {
+		system: string;
+		input: string;
+		schema: Record<string, unknown>;
+	}): Promise<string | null>;
 	// ElevenLabs만: 모델별 크레딧 배율(T5 예상 사용량)
 	listModels?(): Promise<TrialModelRate[]>;
 	// 성우 한 명 다시 조회(T7 보관함 이용 가능 확인). null은 공급자가 '없다'고 답한 것(현재 이용 불가)이고,
@@ -391,6 +405,8 @@ export function trialError(
 export const TRIAL_TIMEOUT_MS = 60_000;
 // 작업실 생성 시간 제한(T9 스펙 2절). Typecast 일반 생성 소요 시간은 문서에 없어 추정이다(사용자 테스트 7번으로 확인한다)
 export const STUDIO_TIMEOUT_MS = 180_000;
+// 드라마 장면 요청의 끝(T9.5 계획 '스펙과 다른 점' 3). 180초에 끊지 않고 늦은 결과를 이 시각까지만 기다린다(T9 6분 다시 받기 창 안)
+export const SCENE_LATE_MAX_MS = 300_000;
 // ElevenLabs 403 가운데 키가 아니라 성우·플랜·모델 문제인 코드(공식 오류 표). 화면이 문구를 고르도록 입력 거절로 보낸다
 const VOICE_DENIED = new Set([
 	"voice_access_denied",
@@ -428,10 +444,7 @@ export function retryAtFrom(retryAfter: string | null): string | undefined {
 export async function runTrial<T>(
 	provider: ProviderId,
 	call: (signal: AbortSignal) => Promise<T>,
-	{
-		timeoutMs = TRIAL_TIMEOUT_MS,
-		onLate,
-	}: { timeoutMs?: number; onLate?: (late: Promise<T>) => void } = {},
+	{ timeoutMs = TRIAL_TIMEOUT_MS, onLate }: SynthesizeOptions<T> = {},
 ): Promise<T> {
 	let started: Promise<T> | undefined;
 	try {

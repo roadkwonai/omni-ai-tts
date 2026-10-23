@@ -52,6 +52,8 @@ describe.skipIf(!url)("시험 생성 소유자 격리(AC15)", () => {
 			request,
 		});
 		expect(await as(B).trialFind(request)).toBeNull();
+		expect(await as(B).trialFindMany([request])).toEqual([null]);
+		expect((await as(A).trialFindMany([request]))[0]?.id).toBe(made.id);
 		expect(
 			await as(B).trialList({ provider: "typecast", voiceId: "tc_0001" }),
 		).toEqual([]);
@@ -108,6 +110,9 @@ describe.skipIf(!url)("시험 생성 소유자 격리(AC15)", () => {
 		await expect(as(null, failingDb).trialFind(request)).rejects.toMatchObject(
 			unauthorized,
 		);
+		await expect(
+			as(null, failingDb).trialFindMany([request]),
+		).rejects.toMatchObject(unauthorized);
 		await expect(
 			as(null, failingDb).trialCreate({ requestId: id, request }),
 		).rejects.toMatchObject(unauthorized);
