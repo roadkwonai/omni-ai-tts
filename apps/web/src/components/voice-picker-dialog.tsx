@@ -51,7 +51,26 @@ import { usePlayer } from "./sample-player";
 // 대상은 기본 성우 또는 문단 N이다. 담은 성우를 고르면 같은 공급자면 지금 설정을 두고, 다르면 그 공급자 처음 값이다. 프리셋은 성우와 설정을 함께 넘긴다.
 // 포커스(T9판 7절): 받는 중이면 '닫기', 아니면 고른 성우, 없으면 '담은 성우' 탭. 고르거나 닫으면 연 버튼(DialogTrigger 기본). 닫히면 창에서 튼 기본 샘플을 멈춘다
 
-export type PickTarget = { kind: "default" } | { kind: "paragraph"; n: number };
+// speaker: 화자 성우(고르면 그 화자의 성우), selection: 고르기에서 고른 문단 count개(고르면 모두 자기 성우로 갖는다)
+export type PickTarget =
+	| { kind: "default" }
+	| { kind: "paragraph"; n: number }
+	| { kind: "speaker"; name: string }
+	| { kind: "selection"; count: number };
+
+// 창 머리 설명(브리프 5.8·16.5)
+function targetText(target: PickTarget) {
+	switch (target.kind) {
+		case "default":
+			return PARAGRAPH_TEXT.pickForDefault;
+		case "paragraph":
+			return PARAGRAPH_TEXT.pickForParagraph(target.n);
+		case "speaker":
+			return PARAGRAPH_TEXT.pickForSpeaker(target.name);
+		case "selection":
+			return PARAGRAPH_TEXT.pickForSelection(target.count);
+	}
+}
 type Tab = "saved" | "preset";
 
 const TAB_PANEL = "overscroll-contain md:h-112 md:overflow-y-auto md:px-1";
@@ -61,8 +80,12 @@ type PickerProps = {
 	// 지금 성우(고른 줄 표시). 없으면 null
 	current: VoiceSetup | null;
 	onPick: (setup: VoiceSetup, presetId?: string) => void;
-	// 문단 대상이고 자기 성우일 때만 준다: 목록 위 '기본 따르기(이름)'
+	// 문단 대상이고 자기 성우일 때만 준다: 목록 위 '기본 따르기(이름)'. 문단이 화자 성우를 따르면 follow·speaker로 '화자 따르기(이름)'.
+	// 화자 대상이고 성우를 정했을 때도 준다(목록 위 '비우기(기본 성우 따름)')
 	onFollowDefault?: () => void;
+	// 문단이 자기 성우를 비우면 따르는 성우와, 그것이 화자 성우이면 그 화자 이름. 안 주면 기본 성우
+	follow?: VoiceSetup | null;
+	speaker?: string | null;
 };
 
 // 바깥은 열림과 트리거만 든다. 목록·프리셋·플레이어 구독과 탭·포커스는 열렸을 때만 붙는 PickerBody가 맡는다
@@ -99,6 +122,8 @@ function PickerBody({
 	current,
 	onPick,
 	onFollowDefault,
+	follow,
+	speaker = null,
 	firstRef,
 	onClose,
 }: PickerProps & {
@@ -134,11 +159,19 @@ function PickerBody({
 	const chosen = current
 		? savedOf(voices, current.voiceId, current.provider)
 		: null;
-	const defaultVoice = work.work.defaultVoice;
-	const defaultName = defaultVoice
-		? (savedOf(voices, defaultVoice.voiceId, defaultVoice.provider)?.voice
-				.name ?? null)
+	// 자기 성우를 비우면 따르는 성우(카드가 알려 준다. 안 주면 기본 성우)의 이름
+	const followVoice = follow === undefined ? work.work.defaultVoice : follow;
+	const followName = followVoice
+		? (savedOf(voices, followVoice.voiceId, followVoice.provider)?.voice.name ??
+			null)
 		: null;
+	// 화자 대상은 '비우기(기본 성우 따름)'(따르는 성우를 덧붙이지 않는다), 문단 대상은 '화자 따르기'·'기본 따르기'
+	const followText =
+		target.kind === "speaker"
+			? PARAGRAPH_TEXT.clearVoice
+			: speaker
+				? PARAGRAPH_TEXT.followSpeaker
+				: PARAGRAPH_TEXT.followDefault;
 
 	// 첫 포커스(T9판 7절): 받는 중이면 '닫기', 아니면 고른 성우, 없으면 '담은 성우' 탭(바깥 initialFocus가 읽는다)
 	useLayoutEffect(() => {
@@ -171,11 +204,7 @@ function PickerBody({
 		<>
 			<DialogHeader className="pr-12">
 				<DialogTitle>{STUDIO_TEXT.pickVoice}</DialogTitle>
-				<DialogDescription>
-					{target.kind === "default"
-						? PARAGRAPH_TEXT.pickForDefault
-						: PARAGRAPH_TEXT.pickForParagraph(target.n)}
-				</DialogDescription>
+				<DialogDescription>{targetText(target)}</DialogDescription>
 			</DialogHeader>
 			{onFollowDefault ? (
 				<Button
@@ -187,9 +216,9 @@ function PickerBody({
 						onClose();
 					}}
 				>
-					{defaultName
-						? `${PARAGRAPH_TEXT.followDefault}(${defaultName})`
-						: PARAGRAPH_TEXT.followDefault}
+					{followName && target.kind !== "speaker"
+						? `${followText}(${followName})`
+						: followText}
 				</Button>
 			) : null}
 			<Tabs

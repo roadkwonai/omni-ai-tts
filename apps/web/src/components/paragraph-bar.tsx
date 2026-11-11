@@ -18,6 +18,8 @@ import {
 	Coins,
 	Download,
 	Play,
+	SkipBack,
+	SkipForward,
 	TriangleAlert,
 } from "lucide-react";
 import Link from "next/link";
@@ -31,23 +33,27 @@ import {
 	useLayoutEffect,
 	useMemo,
 	useRef,
+	useState,
 } from "react";
 import { toast } from "sonner";
 
 import { PROVIDER_LABEL } from "@/lib/connection-view";
 import {
 	fillOf,
+	joinKeyOf,
 	type MakeState,
 	makePlan,
 	receivePlan,
 	usageByProvider,
 } from "@/lib/make-all";
 import { blankFor } from "@/lib/paragraph-script";
+import { seekOf, spanIndexAt } from "@/lib/sound-join";
 import { blockText, makeProblemText, PARAGRAPH_TEXT } from "@/lib/studio-text";
 import { STUDIO_TEXT } from "@/lib/studio-view";
 import { usageText } from "@/lib/trial-view";
 
 import { useBarHeight, useElapsed, WAIT_NOTE_AFTER } from "./bar-height";
+import { LockedIconButton } from "./locked-icon-button";
 import { ParagraphMakeConfirm } from "./paragraph-confirm";
 import { paragraphHeadId, showParagraph } from "./paragraph-focus";
 import {
@@ -146,35 +152,113 @@ function ShowLink({ id, n }: { id: string; n: number }) {
 }
 
 // 결과 플레이어(T9 그대로 <audio controls>, 접근 이름은 캡션). 새로 올린 소리는 바로 튼다(카드 ▶·이어 듣기를 누른 결과다).
-// 한 번에 한 오디오(REQ-03): 기본 샘플이 울리면 멈추고, 이것을 틀면 샘플을 멈춘다. 플레이어를 읽으므로 잎으로 둔다
-function BarPlayer({ shown }: { shown: Shown }) {
+// 한 번에 한 오디오(REQ-03): 기본 샘플이 울리면 멈추고, 이것을 틀면 샘플을 멈춘다. 플레이어를 읽으므로 잎으로 둔다.
+// 이어 듣기이고 낡지 않았으면(fresh, 계획 2.5) 재생 위치의 문단을 따라간다: 문단이 바뀔 때만 onPlaying으로 알리고(스튜디오 본문이 든다, 카드 '듣는 중'),
+// 이전·다음 문단 단추와 캡션 뒤 '문단 N 재생 중' 링크를 둔다. 문단이 바뀌어도 낭독기에 알리지 않는다(링크 글만 바뀐다)
+function BarPlayer({
+	shown,
+	fresh,
+	numberOf,
+	onPlaying: setPlaying,
+}: {
+	shown: Shown;
+	fresh: boolean;
+	numberOf: (id: string) => number;
+	onPlaying: (id: string | null) => void;
+}) {
 	const player = usePlayer();
 	const audioRef = useRef<HTMLAudioElement>(null);
 	const captionId = useId();
+	// 재생 위치의 문단 번호(0부터). 재생 전(0초)에도 첫 문단이다
+	const [index, setIndex] = useState(0);
+	const spans = shown.kind === "join" && fresh ? shown.spans : null;
+	const playingId = shown.kind === "join" && spans ? shown.ids[index] : null;
 	const sampling =
 		player.current !== null && player.current.status !== "failed";
 	useEffect(() => {
 		if (sampling) audioRef.current?.pause();
 	}, [sampling]);
+	useEffect(() => {
+		setPlaying(playingId ?? null);
+		return () => setPlaying(null);
+	}, [playingId, setPlaying]);
+	function sync() {
+		if (spans)
+			setIndex(
+				Math.max(0, spanIndexAt(spans, audioRef.current?.currentTime ?? 0)),
+			);
+	}
+	function seek(dir: -1 | 1) {
+		const audio = audioRef.current;
+		const to = spans ? seekOf(spans, index, dir) : null;
+		if (!audio || to === null) return;
+		// 옮기면 seeked가 와서 onSeeked가 index를 맞춘다
+		audio.currentTime = to;
+	}
 	return (
 		<div className="flex min-w-0 flex-col gap-1">
-			<p id={captionId} className="truncate text-muted-foreground text-sm">
-				{shown.kind === "paragraph"
-					? PARAGRAPH_TEXT.listenCaption(shown.n, shown.voiceName, shown.text)
-					: PARAGRAPH_TEXT.joinCaption(shown.seconds)}
-			</p>
-			{/* biome-ignore lint/a11y/useMediaCaption: 만든 음성의 글은 문단 카드에 있다(생성 오디오에는 자막 트랙이 없다) */}
-			<audio
-				ref={audioRef}
-				key={shown.url}
-				controls
-				autoPlay
-				preload="metadata"
-				src={shown.url}
-				aria-labelledby={captionId}
-				className="w-full min-w-0 lg:max-w-md"
-				onPlay={player.stop}
-			/>
+			<div className="flex min-w-0 items-center gap-1">
+				{spans ? (
+					<>
+						<LockedIconButton
+							label={PARAGRAPH_TEXT.prevParagraph}
+							onClick={() => seek(-1)}
+						>
+							<SkipBack aria-hidden="true" />
+						</LockedIconButton>
+						<LockedIconButton
+							label={PARAGRAPH_TEXT.nextParagraph}
+							reason={
+								seekOf(spans, index, 1) === null
+									? PARAGRAPH_TEXT.lastOne
+									: undefined
+							}
+							onClick={() => seek(1)}
+						>
+							<SkipForward aria-hidden="true" />
+						</LockedIconButton>
+					</>
+				) : null}
+				{/* biome-ignore lint/a11y/useMediaCaption: 만든 음성의 글은 문단 카드에 있다(생성 오디오에는 자막 트랙이 없다) */}
+				<audio
+					ref={audioRef}
+					controls
+					autoPlay
+					preload="metadata"
+					src={shown.url}
+					aria-labelledby={captionId}
+					className="min-w-0 flex-1 lg:max-w-md"
+					onPlay={player.stop}
+					onTimeUpdate={sync}
+					onSeeked={sync}
+				/>
+			</div>
+			{/* 캡션은 플레이어 위(767px 이하에서 이전·다음이 있으면 아래). 접근 이름은 캡션 글만(링크 글은 문단마다 바뀐다) */}
+			<div
+				className={cn(
+					"flex min-w-0 items-center gap-x-1 text-muted-foreground text-sm",
+					spans ? "max-md:order-last md:order-first" : "order-first",
+				)}
+			>
+				<span id={captionId} className="min-w-0 truncate">
+					{shown.kind === "paragraph"
+						? PARAGRAPH_TEXT.listenCaption(shown.n, shown.voiceName, shown.text)
+						: PARAGRAPH_TEXT.joinCaption(shown.seconds)}
+				</span>
+				{playingId && numberOf(playingId) > 0 ? (
+					<>
+						<span aria-hidden="true">·</span>
+						<Button
+							variant="link"
+							size="lg"
+							className="tabular-nums"
+							onClick={() => showParagraph(playingId)}
+						>
+							{PARAGRAPH_TEXT.playingAt(numberOf(playingId))}
+						</Button>
+					</>
+				) : null}
+			</div>
 		</div>
 	);
 }
@@ -319,9 +403,12 @@ function ReceiveMenu({
 
 export function ParagraphBar({
 	madeFrom,
+	onPlaying,
 }: {
 	// 마지막으로 '만들기'를 누른 카드 id(문단 하나 확인 창이 닫힐 때 돌아갈 숨은 제목)
 	madeFrom: RefObject<string | null>;
+	// 이어 듣기 재생 위치의 문단 id(없으면 null). 읽는 쪽은 문단 목록뿐이다
+	onPlaying: (id: string | null) => void;
 }) {
 	const work = useWork();
 	const ps = useShownParagraphs();
@@ -363,6 +450,11 @@ export function ParagraphBar({
 		};
 	}, [ps, meta, voices, found, now]);
 	const numberOf = (id: string) => ps.findIndex((p) => p.id === id) + 1;
+	// 이어 듣기 파일이 낡지 않았다(계획 2.5): 같은 잇기 키로 지금 문단·결과·쉼에서 다시 이을 수 있다. 낡으면 강조·이전·다음·링크를 끄고 소리는 계속 난다
+	const joinFresh =
+		shown?.kind === "join" &&
+		receive.ok &&
+		joinKeyOf(receive.items) === shown.key;
 
 	// 확인 중: 성우 목록을 받는 중이거나 복원 뒤 첫 찾기 전(입력 뒤 배경 찾기는 잠그지 않는다, '스펙과 다른 점' 27)
 	const voicesFailed = voicesLoad === "failed";
@@ -646,7 +738,15 @@ export function ParagraphBar({
 							)}
 						>
 							{progress}
-							{shown ? <BarPlayer shown={shown} /> : null}
+							{shown ? (
+								<BarPlayer
+									key={shown.url}
+									shown={shown}
+									fresh={joinFresh}
+									numberOf={numberOf}
+									onPlaying={onPlaying}
+								/>
+							) : null}
 							{!progress && !shown ? (
 								<p className="text-muted-foreground text-sm">{hint}</p>
 							) : null}

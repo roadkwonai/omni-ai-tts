@@ -89,6 +89,35 @@
 		scroll-padding-bottom: calc(var(--studio-bar-height, 0px) + --spacing(4));
 	}
 }
+/* 앱 위 메뉴(767px 이하 맨 위에 붙는 띠, app-nav.tsx) 높이. 768px 이상은 왼쪽 메뉴라 0이다. 위에 붙는 막대의 sticky top과 scroll-padding이 이 한 곳을 읽는다.
+   shortcut: 값은 app-nav.tsx의 띠 CSS(아이콘 줄 + 아래 선 1px)와 따로 관리한다(실측 53px). 메뉴 높이를 바꾸면 여기도 고친다, 어긋나면 메뉴가 막대나 포커스를 가린다 */
+:root {
+	--app-nav-height: --spacing(13.25);
+	@media (width >= 48rem) {
+		--app-nav-height: 0px;
+	}
+}
+/* 문단 작업실 고르기 막대(T10-b 브리프 16.8): 메뉴 바로 아래에 붙고, 막대가 있는 동안만 페이지 위쪽 scroll-padding을 메뉴 + 막대 높이 + 16px로 둔다
+   (Tab·캐럿으로 간 요소가 붙은 막대 뒤에 숨지 않게). 막대가 자기 높이를 <html>의 --studio-select-height(px)에 둔다(떠나면 지운다) */
+@utility studio-select-sticky {
+	position: sticky;
+	top: var(--app-nav-height);
+	:root:has(&) {
+		scroll-padding-top: calc(
+			var(--app-nav-height) +
+			var(--studio-select-height, 0px) +
+			--spacing(4)
+		);
+	}
+}
+/* 고르기 중 문단 카드 안 입력 칸(대본·설정)의 포커스: 붙은 2px ring 대신 offset 2px 윤곽(고른 카드의 안쪽 링과 모양으로 구분, 브리프 16.8) */
+@utility studio-pick-focus {
+	& :is(input, textarea):focus-visible {
+		outline: 2px solid var(--color-ring);
+		outline-offset: 2px;
+		--tw-ring-shadow: 0 0 #0000;
+	}
+}
 /* 드라마 작업실 막대 결과 칸(T9.5 브리프 17절 9): 767px 이하에서 입력 칸에 포커스가 있는 동안(소프트 키보드) 숨긴다.
    [받기][주 버튼] 줄과 한 줄 칸은 남는다. 칸 표식 data-drama-field는 장면 이름·화자 이름·대본 줄·쉼 칸이 단다 */
 @utility drama-bar-result {

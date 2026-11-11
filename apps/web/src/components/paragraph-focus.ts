@@ -4,6 +4,13 @@
 export const paragraphHeadId = (id: string) => `paragraph-head-${id}`;
 export const paragraphTextId = (id: string) => `paragraph-text-${id}`;
 
+// 보이는 쪽 요소(레일과 1단 작업 띠·두 '고르기' 단추처럼 같은 칸을 둘 그리고 한쪽은 display:none이라 offsetParent가 null이다)
+export function visible(root: ParentNode, selector: string) {
+	for (const element of root.querySelectorAll<HTMLElement>(selector))
+		if (element.offsetParent !== null) return element;
+	return null;
+}
+
 // 그 칸을 화면 가운데로 옮긴다(포커스는 부른 쪽이 한다). 없으면 null
 export function centered(elementId: string): HTMLElement | null {
 	const element = document.getElementById(elementId);

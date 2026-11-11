@@ -19,22 +19,26 @@ export function useElapsed(since: number | null): number {
 }
 
 // 막대 띠 높이를 <html>의 --studio-bar-height(단위 px)로 둔다(providers.tsx Toaster가 calc() 안에서 쓴다). 떠나면 지운다.
-// 음성 작업실·드라마 막대가 같은 변수를 쓴다(열 바닥 여백·scroll-padding·알림 간격·연기 지시 칸 최대 높이)
-export function useBarHeight(ref: RefObject<HTMLElement | null>) {
+// 음성 작업실·드라마 막대가 같은 변수를 쓴다(열 바닥 여백·scroll-padding·알림 간격·연기 지시 칸 최대 높이).
+// 고르기 막대는 위쪽 변수(--studio-select-height)를 이름으로 넘긴다
+export function useBarHeight(
+	ref: RefObject<HTMLElement | null>,
+	variable = "--studio-bar-height",
+) {
 	useEffect(() => {
 		const band = ref.current;
 		if (!band) return;
 		const root = document.documentElement;
 		const observer = new ResizeObserver(() => {
 			root.style.setProperty(
-				"--studio-bar-height",
+				variable,
 				`${band.getBoundingClientRect().height}px`,
 			);
 		});
 		observer.observe(band);
 		return () => {
 			observer.disconnect();
-			root.style.removeProperty("--studio-bar-height");
+			root.style.removeProperty(variable);
 		};
-	}, [ref]);
+	}, [ref, variable]);
 }

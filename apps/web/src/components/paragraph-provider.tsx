@@ -33,6 +33,7 @@ import {
 	type FoundMap,
 	findTargets,
 	forgetFound,
+	joinKeyOf,
 	type LiveMap,
 	type MakeState,
 	madeOf,
@@ -52,11 +53,15 @@ import {
 	PARAGRAPH_GAP_DEFAULT,
 	type Paragraph,
 	paragraphRequest,
+	type Speaker,
+	speakerParagraphCount,
+	speakerRestore,
 	type VoiceSetup,
 	type Work,
 } from "@/lib/paragraph-script";
 import { joinTimeline } from "@/lib/sound-join";
 import {
+	checkedWork,
 	droppedVoices,
 	migrateV1,
 	readWork,
@@ -104,7 +109,14 @@ export type Shown = { url: string } & (
 			voiceName: string;
 			text: string;
 	  }
-	| { kind: "join"; seconds: number }
+	// 이어 듣기: ids·spans는 한 파일에 든 문단(빈 문단은 빠짐)의 id와 구간, key는 잇기 키(joinKeyOf, 낡음 판정에 쓴다)
+	| {
+			kind: "join";
+			seconds: number;
+			ids: string[];
+			spans: { start: number; end: number }[];
+			key: string;
+	  }
 );
 type Receiving = { phase: "fetch" | "join"; done: number; total: number };
 
@@ -116,6 +128,9 @@ type ParagraphsApi = {
 		undo?: { message: string },
 	) => void;
 	setText: (id: string, text: string) => void;
+	// 되돌리기 알림을 띄운다(10초). 열린 알림은 닫는다(알림은 늘 하나, 되돌리기는 한 단계). 화자 지우기가 쓴다:
+	// 이름이 사라진 화자의 문단 되돌리기 알림이 남아 목록에 없는 이름이 문단에 돌아오지 않게 이 알림이 앞 알림을 대신한다(계획 2.2, 브리프 16.8)
+	undoable: (message: string, onUndo: () => void) => void;
 };
 
 type WorkApi = {
@@ -136,6 +151,14 @@ type WorkApi = {
 	resetDefaultSettings: () => void;
 	setGap: (gap: number) => void;
 	setChannelId: (id: string | null) => void;
+	// 화자 목록을 바꾼다(붙여 넣기가 없는 이름을 더한다, 계획 2.2). 되돌리기 알림은 띄우지 않는다(기본 성우 바꾸기와 같다)
+	setSpeakers: (speakers: Speaker[]) => void;
+	// 화자 성우를 정하거나(null이면 비워 기본 성우를 따른다) 화자를 지운다. 둘 다 되돌리기 알림이 없다(changeMeta).
+	// 지우기는 문단이 0개인 화자만 하고 지웠는지를 돌려준다(막힌 단추를 거친 호출도 지금 문단으로 한 번 더 막는다)
+	setSpeakerVoice: (name: string, voice: VoiceSetup | null) => void;
+	removeSpeaker: (name: string) => boolean;
+	// 지운 화자를 이름·성우·자리 그대로 되살린다(화자 지우기 되돌리기)
+	restoreSpeaker: (speaker: Speaker, at: number) => void;
 	// 기본 성우가 대상인 프리셋 메뉴(provider null = 다섯 공급자, Task 9)
 	presetHost: PresetHost;
 	notice: string | null;
@@ -267,6 +290,15 @@ function ParagraphsProvider({
 				document.activeElement.blur();
 			focusText(back.id);
 		}
+		// 되돌리기는 한 단계다. 새로 띄우면 앞 알림을 닫는다(drama-lines useOwnToast와 같다).
+		// 지우기·합치기·나누기·붙여 넣기 모두 10초 남긴다(되돌릴 틈, critique 반영)
+		function undoable(message: string, onUndo: () => void) {
+			if (undoToast.current !== null) toast.dismiss(undoToast.current);
+			undoToast.current = toast(message, {
+				duration: 10_000,
+				action: { label: PARAGRAPH_TEXT.undo, onClick: onUndo },
+			});
+		}
 		function edit(
 			fn: (ps: Paragraph[]) => Paragraph[],
 			undo?: { message: string },
@@ -275,19 +307,13 @@ function ParagraphsProvider({
 			const next = fn(before);
 			if (next === before) return;
 			change(next);
-			if (!undo) return;
-			// 되돌리기는 한 단계다. 새로 띄우면 앞 알림을 닫는다(drama-lines useOwnToast와 같다).
-			// 지우기·합치기·나누기·붙여 넣기 모두 10초 남긴다(되돌릴 틈, critique 반영)
-			if (undoToast.current !== null) toast.dismiss(undoToast.current);
-			undoToast.current = toast(undo.message, {
-				duration: 10_000,
-				action: { label: PARAGRAPH_TEXT.undo, onClick: () => restore(before) },
-			});
+			if (undo) undoable(undo.message, () => restore(before));
 		}
 		return {
 			edit,
 			setText: (id: string, text: string) =>
 				edit((ps) => ps.map((p) => (p.id === id ? { ...p, text } : p))),
+			undoable,
 		};
 	}, [latest]);
 	const api = useMemo(() => ({ paragraphs, ...edits }), [paragraphs, edits]);
@@ -445,11 +471,17 @@ export function WorkProvider({ children }: { children: ReactNode }) {
 	// 되돌리기 알림과 같은 10초(두 문장이다)
 	function tellDropped(raw: string | null, list: readonly SavedVoice[]) {
 		const lost = droppedVoices(raw, list);
-		if (!lost.defaultVoice && lost.paragraphs === 0) return false;
+		if (!lost.defaultVoice && lost.paragraphs === 0 && lost.speakers === 0)
+			return false;
 		if (!droppedTold.current)
-			toast(PARAGRAPH_TEXT.voicesDropped(lost.defaultVoice, lost.paragraphs), {
-				duration: 10_000,
-			});
+			toast(
+				PARAGRAPH_TEXT.voicesDropped(
+					lost.defaultVoice,
+					lost.paragraphs,
+					lost.speakers,
+				),
+				{ duration: 10_000 },
+			);
 		droppedTold.current = true;
 		return true;
 	}
@@ -463,8 +495,8 @@ export function WorkProvider({ children }: { children: ReactNode }) {
 		if (unchecked.current) {
 			unchecked.current = false;
 			const raw = writeWork(asWork(metaRef.current, paragraphsRef.current));
-			const checked = readWork(raw, voices);
-			if (checked && writeWork(checked) !== raw) {
+			const checked = checkedWork(raw, voices);
+			if (checked) {
 				restore(checked);
 				saveSoon();
 			}
@@ -488,7 +520,9 @@ export function WorkProvider({ children }: { children: ReactNode }) {
 		// 비운 작업을 저장한다(늦은 목록 길과 같다). 저장하지 않으면 다시 열 때마다 같은 성우를 비우고 또 알린다
 		if (list && tellDropped(raw, list)) saveSoon();
 		setHasVoice(
-			work.defaultVoice !== null || work.paragraphs.some((p) => p.voice),
+			work.defaultVoice !== null ||
+				work.paragraphs.some((p) => p.voice) ||
+				(work.speakers?.some((s) => s.voice) ?? false),
 		);
 		setRead(true);
 		findSoon(0);
@@ -646,9 +680,7 @@ export function WorkProvider({ children }: { children: ReactNode }) {
 		items: { id: string; found: Found; gap: number }[],
 		blobs: Blob[],
 	) {
-		const key = items
-			.map((item) => `${item.id}:${item.found.id}:${item.gap}`)
-			.join(",");
+		const key = joinKeyOf(items);
 		if (lastJoin.current?.key === key) return lastJoin.current;
 		setReceiving({ phase: "join", done: items.length, total: items.length });
 		try {
@@ -741,6 +773,9 @@ export function WorkProvider({ children }: { children: ReactNode }) {
 					kind: "join",
 					url: URL.createObjectURL(joined.blob),
 					seconds: joined.spans.at(-1)?.end ?? 0,
+					ids: items.map((item) => item.id),
+					spans: joined.spans,
+					key: joined.key,
 				});
 			}
 		} catch (error) {
@@ -833,6 +868,27 @@ export function WorkProvider({ children }: { children: ReactNode }) {
 		},
 		setGap: (gap) => changeMeta({ gap }),
 		setChannelId: (channelId) => changeMeta({ channelId }),
+		setSpeakers: (speakers) => changeMeta({ speakers }),
+		setSpeakerVoice: (name, voice) =>
+			changeMeta({
+				speakers: (metaRef.current.speakers ?? []).map((s) =>
+					s.name === name ? { ...s, voice } : s,
+				),
+			}),
+		removeSpeaker: (name) => {
+			const list = metaRef.current.speakers ?? [];
+			if (
+				!list.some((s) => s.name === name) ||
+				speakerParagraphCount(paragraphsRef.current, name) > 0
+			)
+				return false;
+			changeMeta({ speakers: list.filter((s) => s.name !== name) });
+			return true;
+		},
+		restoreSpeaker: (speaker, at) =>
+			changeMeta({
+				speakers: speakerRestore(metaRef.current.speakers ?? [], speaker, at),
+			}),
 		presetHost,
 		notice,
 		found,

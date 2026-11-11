@@ -617,6 +617,11 @@ export function madeOf(
 
 // 받을 문단(스펙 5.1 '받기'). 누른 때의 값으로 새 배열을 만든다(받는 도중 편집이 파일·자막 시각을 섞지 않게, Review Focus 5).
 // 빈 문단은 빠지고 n은 카드 번호, 마지막 문단 뒤 쉼은 0이다
+// 잇기 키: 이어 붙인 문단 id·결과 id·쉼 줄. 마지막 잇기 캐시(provider joinOf)와 이어 듣기 낡음 판정(막대)이 같은 함수를 쓴다
+export const joinKeyOf = (
+	items: readonly { id: string; found: { id: string }; gap: number }[],
+) => items.map((item) => `${item.id}:${item.found.id}:${item.gap}`).join(",");
+
 export function receivePlan(
 	ps: readonly Paragraph[],
 	work: Work,

@@ -18,9 +18,12 @@ import {
 	ChevronDown,
 	Keyboard,
 	SlidersHorizontal,
+	Trash2,
 	TriangleAlert,
+	Users,
 } from "lucide-react";
-import { useId, useMemo, useRef, useState } from "react";
+import { type ReactNode, useId, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 import { PROVIDER_LABEL } from "@/lib/connection-view";
 import {
@@ -34,6 +37,7 @@ import {
 import {
 	PARAGRAPH_GAP_DEFAULT,
 	type Paragraph,
+	type Speaker,
 	setupRequest,
 } from "@/lib/paragraph-script";
 import { sameSettings } from "@/lib/preset-view";
@@ -45,12 +49,18 @@ import { settingsSummary } from "@/lib/trial-view";
 
 import { fieldClass, isComposingEnter } from "./class-form-dialog";
 import { GapInput } from "./drama-gap";
+import { SpeakerMark } from "./drama-voice-dialog";
 import { EmotionPalette } from "./emotion-palette";
+import { LockedIconButton } from "./locked-icon-button";
 import { AutoTagButton } from "./paragraph-autotag";
-import { VoiceMissingNote, VoiceName } from "./paragraph-card";
-import { showParagraph } from "./paragraph-focus";
+import { VoiceMissingNote, VoiceName, voiceNameOf } from "./paragraph-card";
+import { showParagraph, visible } from "./paragraph-focus";
 import { ParagraphPasteDialog } from "./paragraph-paste-dialog";
-import { useShownParagraphs, useWork } from "./paragraph-provider";
+import {
+	useParagraphs,
+	useShownParagraphs,
+	useWork,
+} from "./paragraph-provider";
 import type { PresetHost } from "./preset-menu";
 import { usePresetList } from "./presets";
 import { Options } from "./setting-fields";
@@ -114,6 +124,7 @@ function DefaultVoicePicker({
 						// 무채색 + 진한 이름(T9 성우 버튼). 성우가 없을 때만 채움이 4절 우선순위를 따른다
 						variant={!setup && filled ? "default" : "neutral"}
 						size="lg"
+						data-default-voice=""
 						aria-describedby={saved?.unavailable ? badgeId : undefined}
 						className={cn(
 							"min-w-0 max-w-full",
@@ -280,6 +291,206 @@ function GapField({ id }: { id: string }) {
 	);
 }
 
+// 화자 한 줄(브리프 16.1): 이름(14px 700)과 문단 수, 아래 성우 버튼, 오른쪽 끝 지우기. 문단이 있는 화자는 지우기가 잠기고 이유를 단다
+function SpeakerRow({
+	speaker,
+	index,
+	count,
+	onRemove,
+}: {
+	speaker: Speaker;
+	// 화자 목록 순서(0부터). 표식의 번호(index + 1)와 4색 순환 색을 정한다
+	index: number;
+	count: number;
+	onRemove: () => void;
+}) {
+	const work = useWork();
+	const hintId = useId();
+	const { name, voice } = speaker;
+	const saved =
+		voice && work.voices
+			? savedOf(work.voices, voice.voiceId, voice.provider)
+			: null;
+	const busy = count > 0;
+	// 성우 목록을 받는 중이면 이름 없이 공급자만(구분점으로 시작하지 않는다, 카드 voiceLabel과 같은 규칙)
+	const current = voice
+		? PARAGRAPH_TEXT.speakerVoiceNow(
+				voiceNameOf(saved, work.voicesLoad),
+				PROVIDER_LABEL[voice.provider],
+			)
+		: PARAGRAPH_TEXT.speakerFollowsDefault;
+	// 성우가 없고 이 화자 문단이 있으면 고르면 함께 따른다는 안내
+	const hint =
+		!voice && count > 0 ? PARAGRAPH_TEXT.speakerPicksFollow(count) : null;
+	return (
+		<li className="flex items-center gap-1">
+			<div className="flex min-w-0 flex-1 flex-col gap-1">
+				<div className="flex items-center gap-2 px-3">
+					<SpeakerMark index={index} />
+					<span title={name} className="min-w-0 truncate font-bold text-sm">
+						{name}
+					</span>
+					<span className="ml-auto shrink-0 text-muted-foreground text-sm tabular-nums">
+						{PARAGRAPH_TEXT.speakerParagraphs(count)}
+					</span>
+				</div>
+				<VoicePickerDialog
+					target={{ kind: "speaker", name }}
+					current={voice}
+					onPick={(next) => work.setSpeakerVoice(name, next)}
+					onFollowDefault={
+						voice ? () => work.setSpeakerVoice(name, null) : undefined
+					}
+					trigger={
+						// 기본 성우 버튼과 같은 변형·크기(neutral lg). 성우가 없으면 '성우 고르기'가 foreground 글자다
+						<Button
+							variant="neutral"
+							size="lg"
+							data-speaker-voice={name}
+							aria-label={PARAGRAPH_TEXT.speakerVoiceOf(name, current)}
+							aria-describedby={hint ? hintId : undefined}
+							className="w-full min-w-0 justify-start"
+						>
+							{voice ? (
+								<>
+									<VoiceName saved={saved} load={work.voicesLoad} />
+									<span
+										className="shrink-0 font-normal text-muted-foreground"
+										translate="no"
+									>
+										· {PROVIDER_LABEL[voice.provider]}
+									</span>
+								</>
+							) : (
+								STUDIO_TEXT.pickVoice
+							)}
+						</Button>
+					}
+				/>
+				{hint ? (
+					<p id={hintId} className="px-3 text-muted-foreground text-sm">
+						{hint}
+					</p>
+				) : null}
+			</div>
+			<LockedIconButton
+				label={PARAGRAPH_TEXT.speakerRemoveOf(name)}
+				tip={PARAGRAPH_TEXT.speakerRemove}
+				reason={busy ? PARAGRAPH_TEXT.speakerBusy(count) : undefined}
+				onClick={onRemove}
+			>
+				<Trash2 aria-hidden="true" />
+			</LockedIconButton>
+		</li>
+	);
+}
+
+// 화자 줄들(레일 '작업 설정'과 1단 시트가 같이 쓴다, 계획 2.2). 화자 목록은 붙여 넣기가 더하고 여기서는 문단 0개인 화자만 지운다.
+// 지우면 "화자를 지웠어요 · 민수" 되돌리기 알림을 띄운다(이름·성우·자리를 되살린다). 알림은 늘 하나라 열린 문단 되돌리기 알림은 이것이 대신한다
+// (지운 이름이 되돌리기로 문단에 돌아오지 않게). 포커스는 다음 줄의 성우 버튼, 없으면 앞 줄, 다 지웠으면 기본 성우 버튼으로 옮긴다
+function SpeakerRows({ onEmptied }: { onEmptied?: () => void }) {
+	const work = useWork();
+	const { undoable } = useParagraphs();
+	const ps = useShownParagraphs();
+	const rootRef = useRef<HTMLUListElement>(null);
+	const list = work.work.speakers ?? [];
+	// 한 번 훑어 화자별 문단 수를 센다(js-index-maps)
+	const counts = useMemo(() => {
+		const table = new Map<string, number>();
+		for (const p of ps)
+			if (p.speaker !== undefined)
+				table.set(p.speaker, (table.get(p.speaker) ?? 0) + 1);
+		return table;
+	}, [ps]);
+	function remove(name: string) {
+		const at = list.findIndex((s) => s.name === name);
+		const gone = list[at];
+		const near = list[at + 1]?.name ?? list[at - 1]?.name;
+		// 마지막 화자를 지우면 이 칸이 사라지므로 포커스 범위(레일·시트)를 먼저 잡아 둔다
+		const scope = rootRef.current?.closest("[data-speaker-scope]") ?? document;
+		let removed = false;
+		flushSync(() => {
+			removed = work.removeSpeaker(name);
+		});
+		if (!removed || !gone) return;
+		undoable(PARAGRAPH_TEXT.speakerRemoved(name), () => {
+			flushSync(() => work.restoreSpeaker(gone, at));
+			// 알림 단추를 누르면 sonner가 알림에 들어오기 전 칸으로 포커스를 되돌린다. 먼저 놓은 뒤 되살린 줄의 성우 버튼으로 간다(문단 되돌리기와 같다)
+			if (document.activeElement instanceof HTMLElement)
+				document.activeElement.blur();
+			visible(
+				document,
+				`[data-speaker-voice="${CSS.escape(gone.name)}"]`,
+			)?.focus();
+		});
+		if (near === undefined) {
+			onEmptied?.();
+			(
+				visible(scope, "[data-default-voice]") ??
+				visible(document, "[data-default-voice]")
+			)?.focus();
+			return;
+		}
+		scope
+			.querySelector<HTMLElement>(`[data-speaker-voice="${CSS.escape(near)}"]`)
+			?.focus();
+	}
+	return (
+		<ul ref={rootRef} className="flex w-full flex-col gap-2">
+			{list.map((speaker, index) => (
+				<SpeakerRow
+					key={speaker.name}
+					speaker={speaker}
+					index={index}
+					count={counts.get(speaker.name) ?? 0}
+					onRemove={() => remove(speaker.name)}
+				/>
+			))}
+		</ul>
+	);
+}
+
+// 1단 작업 띠 '화자 N명'(neutral, Users). 기본 성우 '설정' 뒤에서 같은 줄 칸을 아래 시트로 연다. 마지막 화자를 지우면 시트를 닫고 기본 성우 버튼으로 돌아간다
+function SpeakerSheet({ count }: { count: number }) {
+	const [open, setOpen] = useState(false);
+	// 마지막 화자를 지워 닫을 때만 돌아갈 단추(이 단추도 사라진다)가 기본 성우 버튼이다
+	const emptied = useRef(false);
+	return (
+		<Sheet
+			open={open}
+			onOpenChange={(next) => {
+				if (next) emptied.current = false;
+				setOpen(next);
+			}}
+		>
+			<DialogTrigger render={<Button variant="neutral" size="lg" />}>
+				<Users data-icon="inline-start" aria-hidden="true" />
+				{PARAGRAPH_TEXT.speakersBand(count)}
+			</DialogTrigger>
+			<SheetContent
+				side="bottom"
+				finalFocus={() =>
+					emptied.current
+						? (visible(document, "[data-default-voice]") ?? true)
+						: true
+				}
+			>
+				<SheetHeader>
+					<SheetTitle>{PARAGRAPH_TEXT.speakers}</SheetTitle>
+				</SheetHeader>
+				<div data-speaker-scope="" className="px-4 pb-6">
+					<SpeakerRows
+						onEmptied={() => {
+							emptied.current = true;
+							setOpen(false);
+						}}
+					/>
+				</div>
+			</SheetContent>
+		</Sheet>
+	);
+}
+
 // 레일 '작업 설정'(브리프 5.3, 3단 왼쪽·2단 요약 아래): 기본 성우(버튼 · 설정 요약 · '설정' 펼침) → 문단 뒤 쉼 → 대본 → 단축키
 export function WorkSettings({
 	host,
@@ -295,8 +506,9 @@ export function WorkSettings({
 	const settingsId = useId();
 	const keysId = useId();
 	const gapId = useId();
+	const speakers = useWork().work.speakers ?? [];
 	return (
-		<div className="flex flex-col gap-6">
+		<div data-speaker-scope="" className="flex flex-col gap-6">
 			<div className="flex flex-col items-start gap-2">
 				<h2 className={SUBHEAD}>{PARAGRAPH_TEXT.defaultVoice}</h2>
 				<DefaultVoicePicker
@@ -333,6 +545,19 @@ export function WorkSettings({
 					{open ? <DefaultSettings settingsKey={settingsKey} /> : null}
 				</div>
 			</div>
+			{/* 화자 칸: 기본 성우 바로 아래, 화자가 0명이면 칸이 없다(자리 표시 없음, 브리프 16.1) */}
+			{speakers.length > 0 ? (
+				<div className="flex flex-col items-start gap-2">
+					<h2 className={SUBHEAD}>
+						{PARAGRAPH_TEXT.speakers}
+						<span className="font-normal tabular-nums">
+							{" · "}
+							{PARAGRAPH_TEXT.speakersCount(speakers.length)}
+						</span>
+					</h2>
+					<SpeakerRows />
+				</div>
+			) : null}
 			<div className="flex flex-col items-start gap-2">
 				<h2 className={SUBHEAD}>
 					<label htmlFor={gapId}>{PARAGRAPH_TEXT.gap}</label>
@@ -385,12 +610,16 @@ export function WorkSettings({
 export function WorkBand({
 	host,
 	settingsKey,
+	tail,
 }: {
 	host: PresetHost;
 	settingsKey: number;
+	// 띠 끝에 붙는 단추('고르기', 호스트가 상태를 들고 있어 조각으로 받는다)
+	tail?: ReactNode;
 }) {
 	const fill = useFill();
-	const voiced = useWork().work.defaultVoice !== null;
+	const { defaultVoice, speakers } = useWork().work;
+	const voiced = defaultVoice !== null;
 	const gapId = useId();
 	return (
 		<div className="flex flex-col items-start gap-2 pb-4">
@@ -422,12 +651,16 @@ export function WorkBand({
 						</div>
 					</SheetContent>
 				</Sheet>
+				{speakers && speakers.length > 0 ? (
+					<SpeakerSheet count={speakers.length} />
+				) : null}
 				<span className="flex items-center gap-1.5 text-muted-foreground text-sm">
 					<label htmlFor={gapId}>{PARAGRAPH_TEXT.gap}</label>
 					<GapField id={gapId} />
 				</span>
 				<ParagraphPasteDialog filled={fill === "paste"} />
 				<AutoTagButton />
+				{tail}
 			</div>
 			<VoiceProblems />
 		</div>

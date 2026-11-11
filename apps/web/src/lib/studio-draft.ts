@@ -20,6 +20,8 @@ import type { SavedVoice } from "@tts-pilot-app/api/saved-voice-contract";
 import { PROVIDER_IDS, PROVIDER_LABEL } from "./connection-view";
 import {
 	PARAGRAPH_GAP_DEFAULT,
+	SPEAKERS_MAX,
+	type Speaker,
 	type VoiceSetup,
 	type Work,
 } from "./paragraph-script";
@@ -30,6 +32,7 @@ import {
 	PRESET_TEXT,
 	settingChanges,
 } from "./preset-view";
+import { speakerNameOf } from "./script-speaker";
 import { GAP_MAX, gapOf } from "./sound-join";
 import {
 	inRange,
@@ -134,6 +137,24 @@ function setupOf(
 	} as VoiceSetup;
 }
 
+// 화자 목록. 이름은 붙여 넣기 줄 해석(speakerNameOf)과 같은 규칙으로 정리하고 중복·규칙 밖은 버리며 20명까지다.
+// 성우는 setupOf로 읽는다(목록이 주어지면 보관함에 없는 성우는 null, 이름은 남긴다)
+function speakersOf(
+	raw: unknown,
+	voices: readonly SavedVoice[] | null,
+): Speaker[] {
+	const speakers: Speaker[] = [];
+	for (const item of Array.isArray(raw) ? raw : []) {
+		const s = objectOf(item);
+		const name = typeof s?.name === "string" ? speakerNameOf(s.name) : null;
+		if (name === null || speakers.some((known) => known.name === name))
+			continue;
+		speakers.push({ name, voice: setupOf(s?.voice, voices) });
+		if (speakers.length === SPEAKERS_MAX) break;
+	}
+	return speakers;
+}
+
 // 깨진 JSON·문단 목록이 없거나 빈 값은 null(화면이 v1 옮기기나 처음 상태로 간다). 칸마다 검사해 깨진 칸만 버리거나 처음 값으로 둔다(drama readDraft와 같은 뜻).
 // 상한을 넘는 글은 지우지 않는다(blockOf가 막는다)
 export function readWork(
@@ -148,6 +169,10 @@ export function readWork(
 	}
 	const list = stored?.paragraphs;
 	if (!stored || !Array.isArray(list) || list.length === 0) return null;
+	// 화자 칸은 저장된 값이 배열일 때만 둔다(T10-a 임시 작업은 칸 없이 그대로, 0명 목록은 0명 그대로 읽어 저장 값과 같다)
+	const speakers = Array.isArray(stored.speakers)
+		? speakersOf(stored.speakers, voices)
+		: null;
 	const seen = new Set<string>();
 	const paragraphs = list.slice(0, PARAGRAPHS_MAX).map((item) => {
 		const p = objectOf(item);
@@ -158,11 +183,16 @@ export function readWork(
 		seen.add(id);
 		const gap = gapIn(p?.gap);
 		const voice = setupOf(p?.voice, voices);
+		// 목록에 없는 화자 이름은 화자 없음으로 읽는다
+		const name =
+			typeof p?.speaker === "string" ? speakerNameOf(p.speaker) : null;
+		const speaker = name !== null && speakers?.some((s) => s.name === name);
 		return {
 			id,
 			text: typeof p?.text === "string" ? p.text : "",
 			...(gap === null ? {} : { gap }),
 			...(voice ? { voice } : {}),
+			...(speaker ? { speaker: name } : {}),
 		};
 	});
 	return {
@@ -173,26 +203,44 @@ export function readWork(
 				? stored.channelId
 				: null,
 		paragraphs,
+		...(speakers ? { speakers } : {}),
 	};
 }
 
-// 목록으로 읽을 때 비운 성우(보관함에 없음): 목록 없이 읽은 결과와 견준다. 문단은 같은 자리끼리(readWork가 같은 순서로 읽는다). 깨진 raw는 비운 것이 없다
+// 목록으로 읽을 때 비운 성우(보관함에 없음): 목록 없이 읽은 결과와 견준다. 문단·화자는 같은 자리끼리(readWork가 같은 순서로 읽는다). 깨진 raw는 비운 것이 없다
 export function droppedVoices(
 	raw: string | null,
 	voices: readonly SavedVoice[],
-): { defaultVoice: boolean; paragraphs: number } {
+): { defaultVoice: boolean; paragraphs: number; speakers: number } {
 	const before = readWork(raw, null);
 	const after = readWork(raw, voices);
-	if (!before || !after) return { defaultVoice: false, paragraphs: 0 };
+	if (!before || !after)
+		return { defaultVoice: false, paragraphs: 0, speakers: 0 };
 	return {
 		defaultVoice: before.defaultVoice !== null && after.defaultVoice === null,
 		paragraphs: before.paragraphs.filter(
 			(p, i) => p.voice && !after.paragraphs[i]?.voice,
 		).length,
+		speakers: (before.speakers ?? []).filter(
+			(s, i) => s.voice && !after.speakers?.[i]?.voice,
+		).length,
 	};
 }
 
 export const writeWork = (work: Work) => JSON.stringify(work);
+
+// 목록으로 읽어 보관함에 없는 성우를 비운 작업. 바뀐 것이 없으면 null이다.
+// 화면 상태와 readWork는 키 순서가 달라 저장 글(raw)과 문자열로 견주면 늘 달라 보이므로, 목록 없이 읽은 결과와 견준다
+export function checkedWork(
+	raw: string,
+	voices: readonly SavedVoice[],
+): Work | null {
+	const checked = readWork(raw, voices);
+	const plain = readWork(raw, null);
+	return checked && plain && writeWork(checked) !== writeWork(plain)
+		? checked
+		: null;
+}
 
 // T9 임시 작업(SCRIPT_KEY·SETUP_KEY 값)을 옮긴다. 대본은 나누지 않고 문단 1장이다(나누면 글이 달라져 T9 결과를 찾지 못한다, 스펙 2절)
 export function migrateV1(

@@ -69,13 +69,14 @@ export const SPEAKER_MARK = [
 	"bg-speaker-3 text-speaker-3-on",
 	"bg-speaker-4 text-speaker-4-on",
 ] as const;
+// 색은 4색 순환(index % 4), 번호는 index + 1이다. 드라마는 화자 4명이라 그대로고, 문단 작업실은 화자 20명까지 순환한다
 export function SpeakerMark({ index }: { index: number }) {
 	return (
 		<span
 			aria-hidden="true"
 			className={cn(
 				"flex size-5 shrink-0 items-center justify-center rounded-full font-bold text-xs tabular-nums",
-				SPEAKER_MARK[index],
+				SPEAKER_MARK[index % SPEAKER_MARK.length],
 			)}
 		>
 			{index + 1}

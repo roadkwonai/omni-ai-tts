@@ -19,6 +19,7 @@ import {
 	type Work,
 } from "./paragraph-script";
 import {
+	checkedWork,
 	droppedVoices,
 	migrateV1,
 	readWork,
@@ -256,6 +257,135 @@ describe("readWork(임시 작업 v2)", () => {
 			stability: 0.3,
 		});
 	});
+	it("T10-a 임시 작업(화자 칸 없음)은 화자 없이 읽는다", () => {
+		const read = readWork(raw(work()), null);
+		expect(read).not.toHaveProperty("speakers");
+		expect(read?.paragraphs[0]).not.toHaveProperty("speaker");
+	});
+	it("화자 목록과 문단 화자가 writeWork → readWork 왕복으로 남는다", () => {
+		const own: VoiceSetup = {
+			provider: "elevenlabs",
+			voiceId: "el_1",
+			settings: EL,
+		};
+		const w = work({
+			speakers: [
+				{ name: "민수", voice: own },
+				{ name: "지아", voice: null },
+			],
+			paragraphs: [
+				{ id: "a", text: "안녕", speaker: "민수" },
+				{ id: "b", text: "응", speaker: "지아", gap: 1.2 },
+			],
+		});
+		const voices = [saved(), saved({ id: "s2", voice: rachel })];
+		expect(readWork(writeWork(w), voices)).toEqual(w);
+		expect(readWork(writeWork(w), null)).toEqual(w);
+		// 화자 0명 목록도 그대로(저장·읽기 비교가 달라지지 않게)
+		expect(readWork(writeWork(work({ speakers: [] })), null)?.speakers).toEqual(
+			[],
+		);
+	});
+	it("성우 목록이 늦게 와도 바뀐 것이 없으면 다시 쓴 글이 저장 글과 같다(키 순서 무관)", () => {
+		// 화면 상태(asWork)는 speakers가 paragraphs 앞, 문단은 speaker 뒤에 gap이 붙은 순서다
+		const state = {
+			defaultVoice: work().defaultVoice,
+			gap: PARAGRAPH_GAP_DEFAULT,
+			channelId: CHANNEL,
+			speakers: [{ name: "민수", voice: null }],
+			paragraphs: [{ id: "a", text: "안녕", speaker: "민수", gap: 1.2 }],
+		};
+		expect(checkedWork(writeWork(state), [saved()])).toBeNull();
+		// 성우가 보관함에 없으면 비운 작업을 돌려준다
+		const own = {
+			provider: "elevenlabs" as const,
+			voiceId: "el_9",
+			settings: EL,
+		};
+		const lost = checkedWork(
+			writeWork({ ...state, speakers: [{ name: "민수", voice: own }] }),
+			[saved()],
+		);
+		expect(lost?.speakers).toEqual([{ name: "민수", voice: null }]);
+	});
+	it("화자 이름은 speakerLine과 같은 규칙으로 정리하고 중복·규칙 밖은 버린다", () => {
+		const read = readWork(
+			raw({
+				...work(),
+				speakers: [
+					{ name: "  민수 ", voice: null },
+					{ name: "민수", voice: null },
+					{ name: "12:30", voice: null },
+					{ name: "가".repeat(21), voice: null },
+					{ name: 3, voice: null },
+					{ voice: null },
+					"x",
+					{ name: "가".repeat(20), voice: null },
+				],
+			}),
+			null,
+		);
+		expect(read?.speakers?.map((s) => s.name)).toEqual([
+			"민수",
+			"가".repeat(20),
+		]);
+	});
+	it("화자는 20명까지다", () => {
+		const speakers = Array.from({ length: 25 }, (_, i) => ({
+			name: `화자${i}`,
+			voice: null,
+		}));
+		expect(readWork(raw({ ...work(), speakers }), null)?.speakers).toHaveLength(
+			20,
+		);
+	});
+	it("목록에 없는 문단 화자는 버린다(목록이 없어도)", () => {
+		const read = readWork(
+			raw({
+				...work(),
+				speakers: [{ name: "민수", voice: null }],
+				paragraphs: [
+					{ id: "a", text: "1", speaker: "민수" },
+					{ id: "b", text: "2", speaker: "현우" },
+					{ id: "c", text: "3", speaker: 7 },
+				],
+			}),
+			null,
+		);
+		expect(read?.paragraphs.map((p) => p.speaker)).toEqual([
+			"민수",
+			undefined,
+			undefined,
+		]);
+		expect(read?.paragraphs[1]).not.toHaveProperty("speaker");
+		// 화자 목록이 없으면 문단 화자도 버린다
+		const none = readWork(
+			raw({ ...work(), paragraphs: [{ id: "a", text: "1", speaker: "민수" }] }),
+			null,
+		);
+		expect(none?.paragraphs[0]).not.toHaveProperty("speaker");
+	});
+	it("보관함에 없는 화자 성우는 null이고 화자 이름은 남는다", () => {
+		const gone: VoiceSetup = {
+			provider: "elevenlabs",
+			voiceId: "el_9",
+			settings: EL,
+		};
+		const stored = raw({
+			...work(),
+			speakers: [
+				{ name: "민수", voice: gone },
+				{
+					name: "지아",
+					voice: { provider: "typecast", voiceId: "tc_1", settings: TC },
+				},
+			],
+		});
+		const read = readWork(stored, [saved({ unavailable: true })]);
+		expect(read?.speakers?.[0]).toEqual({ name: "민수", voice: null });
+		expect(read?.speakers?.[1]?.voice?.voiceId).toBe("tc_1");
+		expect(readWork(stored, null)?.speakers?.[0]?.voice?.voiceId).toBe("el_9");
+	});
 	it("채널은 uuid만", () => {
 		expect(readWork(raw(work({ channelId: "c1" })), null)?.channelId).toBe(
 			null,
@@ -282,7 +412,7 @@ describe("droppedVoices(목록으로 읽을 때 비운 성우, F30-2)", () => {
 				raw(work({ defaultVoice: gone, paragraphs: [{ id: "a", text: "1" }] })),
 				voices,
 			),
-		).toEqual({ defaultVoice: true, paragraphs: 0 });
+		).toEqual({ defaultVoice: true, paragraphs: 0, speakers: 0 });
 	});
 	it("문단 둘 빠짐(남은 성우·성우 없는 문단은 세지 않는다)", () => {
 		expect(
@@ -304,7 +434,23 @@ describe("droppedVoices(목록으로 읽을 때 비운 성우, F30-2)", () => {
 				),
 				voices,
 			),
-		).toEqual({ defaultVoice: false, paragraphs: 2 });
+		).toEqual({ defaultVoice: false, paragraphs: 2, speakers: 0 });
+	});
+	it("화자 성우만 빠져도 센다(화자 이름은 남는다)", () => {
+		expect(
+			droppedVoices(
+				raw(
+					work({
+						speakers: [
+							{ name: "민수", voice: gone },
+							{ name: "지아", voice: own },
+							{ name: "현우", voice: null },
+						],
+					}),
+				),
+				voices,
+			),
+		).toEqual({ defaultVoice: false, paragraphs: 0, speakers: 1 });
 	});
 	it("아무것도 안 빠짐(이용 불가여도 담은 성우면 남긴다)", () => {
 		expect(
@@ -312,10 +458,11 @@ describe("droppedVoices(목록으로 읽을 때 비운 성우, F30-2)", () => {
 				raw(work({ paragraphs: [{ id: "a", text: "1", voice: own }] })),
 				[saved({ unavailable: true }), saved({ id: "s2", voice: rachel })],
 			),
-		).toEqual({ defaultVoice: false, paragraphs: 0 });
+		).toEqual({ defaultVoice: false, paragraphs: 0, speakers: 0 });
 		expect(droppedVoices(raw(work({ defaultVoice: null })), [])).toEqual({
 			defaultVoice: false,
 			paragraphs: 0,
+			speakers: 0,
 		});
 	});
 	it("깨진 raw는 빠진 것이 없다", () => {
@@ -323,6 +470,7 @@ describe("droppedVoices(목록으로 읽을 때 비운 성우, F30-2)", () => {
 			expect(droppedVoices(value, voices)).toEqual({
 				defaultVoice: false,
 				paragraphs: 0,
+				speakers: 0,
 			});
 	});
 });

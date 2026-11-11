@@ -58,6 +58,7 @@ import type { SavedVoice } from "@tts-pilot-app/api/saved-voice-contract";
 
 import { PROVIDER_IDS, PROVIDER_LABEL } from "./connection-view";
 import type { ReadProblem } from "./drama-read";
+import { speakerLine } from "./script-speaker";
 import { GAP_DEFAULT, gapOf } from "./sound-join";
 import {
 	kstStamp,
@@ -1207,10 +1208,7 @@ export function splitWarning(
 export const nextSpeaker = (speaker: number, count: number) =>
 	(speaker + 1) % count;
 
-// 붙여 넣기 줄 모양 '이름: 대사'(콜론 : 또는 전각 ：). 이름은 첫 콜론 앞이다(대사 속 콜론은 대사).
-// 줄은 \r·\n으로만 나누므로 대사에 남는 줄 구분 문자(U+2028·U+2029)도 대사다(. 대신 [\s\S], s 플래그는 ES2018 타깃이 필요하다)
-const PASTE_LINE = /^([^:：]*)[:：]([\s\S]*)$/;
-const LETTER = /\p{L}/u;
+// 줄 해석 '이름: 대사'는 문단 작업실과 공용(script-speaker.ts). 대사 정리(normalizeText)는 여기서만 한다
 export type PasteResult =
 	| { speakers: DraftSpeaker[]; lines: DraftLine[]; from: (number | null)[] }
 	| { error: "too_many_speakers" | "too_many_lines" | "empty" };
@@ -1227,13 +1225,11 @@ export function parsePaste(
 	const names: string[] = [];
 	const rows: { name: string | null; text: string }[] = [];
 	for (const row of raw.split(/\r\n|\r|\n/)) {
-		const match = PASTE_LINE.exec(row);
-		const name = normalizeText(match?.[1] ?? "");
-		const named = LETTER.test(name) && codePoints(name) <= DRAMA_NAME_MAX;
-		const text = normalizeText(named ? (match?.[2] ?? "") : row);
+		const line = speakerLine(row);
+		const text = normalizeText(line ? line.text : row);
 		if (text === "") continue;
-		if (named && !names.includes(name)) names.push(name);
-		rows.push({ name: named ? name : null, text });
+		if (line && !names.includes(line.name)) names.push(line.name);
+		rows.push({ name: line?.name ?? null, text });
 	}
 	if (names.length > DRAMA_SPEAKERS_MAX) return { error: "too_many_speakers" };
 	if (rows.length > DRAMA_LINES_MAX) return { error: "too_many_lines" };

@@ -19,6 +19,7 @@ import {
 	findTargets,
 	firstLink,
 	forgetFound,
+	joinKeyOf,
 	type LiveMap,
 	MAKE_IDLE,
 	type MakeEvent,
@@ -137,6 +138,23 @@ describe("makePlan", () => {
 		expect(plan.make).toEqual([itemOf(b, 2)]);
 		expect(plan.reused).toBe(1);
 		expect(plan.firstBlocked).toBeNull();
+	});
+	it("화자 성우의 공급자로 요청과 예상 사용량이 잡힌다(돈 경로, T10-b 2.1)", () => {
+		const w = work({ speakers: [{ name: "민수", voice: fishFree }] });
+		const plan = makePlan(
+			[para("a", "하나", { speaker: "민수" }), para("b", "둘")],
+			w,
+			VOICES,
+			new Map(),
+			NOW,
+		);
+		expect(plan.make.map((item) => item.request.provider)).toEqual([
+			"fish_audio",
+			"typecast",
+		]);
+		expect(
+			usageByProvider(plan.make, () => 1, NOW).map((row) => row.provider),
+		).toEqual(["fish_audio", "typecast"]);
 	});
 	it("막힌 문단이 하나라도 있으면 make가 비고 firstBlocked는 첫 문단", () => {
 		const ps = [
@@ -1259,6 +1277,47 @@ describe("태그만 있는 문단은 빈 문단과 같다(T10 스펙 15.2, blank
 			ok: true,
 			items: [{ id: "a", n: 1, gap: 0 }],
 		});
+	});
+});
+
+describe("잇기 키(joinKeyOf, 이어 듣기 낡음 판정과 잇기 캐시가 같이 쓴다)", () => {
+	const item = (id: string, result: string, gap: number) => ({
+		id,
+		found: { id: result },
+		gap,
+	});
+	it("문단 id·결과 id·쉼 줄을 잇는다(기존 캐시 키 모양 그대로)", () => {
+		expect(joinKeyOf([item("a", "r1", 0.5), item("b", "r2", 0)])).toBe(
+			"a:r1:0.5,b:r2:0",
+		);
+		expect(joinKeyOf([])).toBe("");
+	});
+	it("문단·결과·쉼 중 하나가 바뀌거나 문단이 늘면 키가 바뀐다", () => {
+		const base = [item("a", "r1", 0.5), item("b", "r2", 0)];
+		const key = joinKeyOf(base);
+		expect(joinKeyOf([item("a", "r1", 0.5), item("b", "r2", 0)])).toBe(key);
+		expect(joinKeyOf([item("a", "r9", 0.5), item("b", "r2", 0)])).not.toBe(key);
+		expect(joinKeyOf([item("a", "r1", 0.6), item("b", "r2", 0)])).not.toBe(key);
+		expect(joinKeyOf([item("a", "r1", 0.5)])).not.toBe(key);
+		expect(joinKeyOf([item("b", "r2", 0.5), item("a", "r1", 0)])).not.toBe(key);
+	});
+	it("receivePlan items로 잰 키가 같으면 낡지 않은 것이다", () => {
+		const a = para("a", "하나");
+		const w = work({ paragraphs: [a] });
+		const results = table([[a, found()]], w);
+		const plan = receivePlan([a], w, VOICES, results, NOW);
+		if (!plan.ok) throw new Error("받을 수 있어야 한다");
+		expect(joinKeyOf(plan.items)).toBe("a:r1:0");
+		const edited = receivePlan(
+			[a],
+			work({ paragraphs: [a], gap: 2 }),
+			VOICES,
+			results,
+			NOW,
+		);
+		// 마지막 문단 뒤에는 쉼이 없어 쉼이 바뀌어도 키가 같고, 결과가 바뀌면 달라진다
+		if (!edited.ok) throw new Error("받을 수 있어야 한다");
+		expect(joinKeyOf(edited.items)).toBe(joinKeyOf(plan.items));
 	});
 });
 

@@ -11,9 +11,74 @@ import {
 	monoOf,
 	pcm16,
 	SILENCE,
+	seekOf,
+	spanIndexAt,
 	spansOf,
 	trimSilence,
 } from "./sound-join";
+
+// 문단 셋: 0~2초, (쉼 0.5초) 2.5~4초, (쉼) 4.5~6초
+const SPANS = [
+	{ start: 0, end: 2 },
+	{ start: 2.5, end: 4 },
+	{ start: 4.5, end: 6 },
+];
+describe("spanIndexAt(재생 위치 → 문단, 이어 듣기 강조)", () => {
+	it("구간 안이면 그 문단, 시작·끝 경계는 그 문단이다", () => {
+		expect(spanIndexAt(SPANS, 0)).toBe(0);
+		expect(spanIndexAt(SPANS, 1.9)).toBe(0);
+		expect(spanIndexAt(SPANS, 2.5)).toBe(1);
+		expect(spanIndexAt(SPANS, 4)).toBe(1);
+		expect(spanIndexAt(SPANS, 5)).toBe(2);
+	});
+	it("쉼 구간은 앞 문단을 유지한다", () => {
+		expect(spanIndexAt(SPANS, 2.2)).toBe(0);
+		expect(spanIndexAt(SPANS, 4.2)).toBe(1);
+	});
+	it("끝을 넘으면 마지막 문단, 음수는 첫 문단, 구간이 없으면 -1", () => {
+		expect(spanIndexAt(SPANS, 99)).toBe(2);
+		expect(spanIndexAt(SPANS, -1)).toBe(0);
+		expect(spanIndexAt([], 1)).toBe(-1);
+	});
+});
+
+describe("spanIndexAt(브라우저가 시작에서 1샘플 앞에 착지하는 경우)", () => {
+	const ONE = 1 / DRAMA_SAMPLE_RATE;
+	it("문단 시작보다 1샘플 앞 시각도 그 문단으로 읽는다", () => {
+		expect(spanIndexAt(SPANS, 2.5 - ONE)).toBe(1);
+		expect(spanIndexAt(SPANS, 4.5 - ONE)).toBe(2);
+	});
+	it("seekOf 결과가 1샘플 앞에 착지해도 다음·이전을 연속으로 누르면 한 문단씩 옮긴다", () => {
+		let index = 0;
+		for (const want of [1, 2]) {
+			const to = seekOf(SPANS, index, 1);
+			index = spanIndexAt(SPANS, (to ?? 0) - ONE);
+			expect(index).toBe(want);
+		}
+		for (const want of [1, 0]) {
+			const to = seekOf(SPANS, index, -1);
+			index = spanIndexAt(SPANS, Math.max(0, (to ?? 0) - ONE));
+			expect(index).toBe(want);
+		}
+	});
+	it("쉼 구간 한가운데는 여전히 앞 문단이다", () => {
+		expect(spanIndexAt(SPANS, 2.25)).toBe(0);
+	});
+});
+
+describe("seekOf(이전·다음 문단의 시작 시각)", () => {
+	it("이전은 앞 문단 시작, 다음은 뒤 문단 시작이다", () => {
+		expect(seekOf(SPANS, 1, -1)).toBe(0);
+		expect(seekOf(SPANS, 2, -1)).toBe(2.5);
+		expect(seekOf(SPANS, 0, 1)).toBe(2.5);
+		expect(seekOf(SPANS, 1, 1)).toBe(4.5);
+	});
+	it("첫 문단의 이전은 처음(0), 마지막 문단의 다음은 null(잠긴다)", () => {
+		expect(seekOf(SPANS, 0, -1)).toBe(0);
+		expect(seekOf(SPANS, 2, 1)).toBeNull();
+		expect(seekOf([], 0, 1)).toBeNull();
+	});
+});
 
 describe("gapOf", () => {
 	it.each<[unknown, number | null]>([

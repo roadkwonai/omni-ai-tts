@@ -15,12 +15,18 @@ import {
 import type { SavedVoice } from "@tts-pilot-app/api/saved-voice-contract";
 import { Badge } from "@tts-pilot-app/ui/components/badge";
 import { Button, buttonVariants } from "@tts-pilot-app/ui/components/button";
+import { Checkbox } from "@tts-pilot-app/ui/components/checkbox";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuGroup,
 	DropdownMenuItem,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
 	DropdownMenuSeparator,
+	DropdownMenuSub,
+	DropdownMenuSubContent,
+	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from "@tts-pilot-app/ui/components/dropdown-menu";
 import { Spinner } from "@tts-pilot-app/ui/components/spinner";
@@ -32,6 +38,7 @@ import {
 } from "@tts-pilot-app/ui/components/tooltip";
 import { cn } from "@tts-pilot-app/ui/lib/utils";
 import {
+	AudioLines,
 	Check,
 	CircleHelp,
 	Coins,
@@ -67,6 +74,7 @@ import { emotionShift, type ListLoad, STUDIO_TEXT } from "@/lib/studio-view";
 import { useElapsed } from "./bar-height";
 import { fieldClass } from "./class-form-dialog";
 import { LineGap } from "./drama-gap";
+import { SpeakerMark } from "./drama-voice-dialog";
 import { EmotionPalette } from "./emotion-palette";
 import { paragraphHeadId, paragraphTextId } from "./paragraph-focus";
 import { ParagraphToolbar } from "./paragraph-tags";
@@ -100,6 +108,10 @@ export type CardActions = {
 	) => boolean;
 	voice: (id: string, setup: VoiceSetup) => void;
 	followDefault: (id: string) => void;
+	// 화자를 목록의 이름으로, undefined면 화자 없음으로(⋯ 메뉴 '화자')
+	speaker: (id: string, name: string | undefined) => void;
+	// 고르기 체크(고른 문단 id 집합은 목록이 든다)
+	pick: (id: string, on: boolean) => void;
 	settings: (
 		id: string,
 		patch: Partial<Record<string, string | number | boolean>>,
@@ -136,6 +148,8 @@ const STATE_ICON = "size-4 shrink-0";
 // shortcut: 높이는 field-sizing(Textarea 기본)으로 자란다. 지원하지 않는 브라우저는 칸 안에서 스크롤한다, 그 브라우저를 쓰게 되면 드라마 뒤판(LAYER) 방식으로
 const SCRIPT =
 	"min-h-11 border-transparent bg-transparent px-2.5 py-2 text-base leading-relaxed md:text-base hover:bg-muted focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-ring dark:bg-transparent dark:hover:bg-muted dark:focus-visible:bg-card";
+// 입력 칸(대본·설정)의 포커스 링은 붙은 2px ring이라 고른 카드의 안쪽 링과 닮는다. 고르기 중에는 offset 2px 윤곽(index.css studio-pick-focus)으로 바꾼다
+const PICK_FOCUS = "studio-pick-focus";
 const FOCUSABLE =
 	'button:not([tabindex="-1"]), input:not([tabindex="-1"]), textarea, [role="switch"]';
 
@@ -397,6 +411,7 @@ function CardSettings({
 	id,
 	setup,
 	own,
+	speaker,
 	voice,
 	request,
 	voicesLoad,
@@ -408,6 +423,9 @@ function CardSettings({
 	id: string;
 	setup: VoiceSetup | null;
 	own: boolean;
+	// 따르는 성우가 화자 것이면 그 화자 이름('화자 따르기')
+	speaker: string | null;
+
 	voice: Voice | null;
 	request: TrialRequest | null;
 	voicesLoad: ListLoad;
@@ -484,7 +502,9 @@ function CardSettings({
 							toggleRef.current?.focus();
 						}}
 					>
-						{PARAGRAPH_TEXT.followDefault}
+						{speaker !== null
+							? PARAGRAPH_TEXT.followSpeaker
+							: PARAGRAPH_TEXT.followDefault}
 					</Button>
 				) : null}
 			</div>
@@ -552,6 +572,8 @@ function CardMenu({
 	first,
 	last,
 	full,
+	speakerName,
+	speakerNames,
 	textRef,
 	actions,
 }: {
@@ -560,6 +582,9 @@ function CardMenu({
 	first: boolean;
 	last: boolean;
 	full: boolean;
+	// 이 문단의 화자(목록에 있는 이름)와 작업의 화자 이름들. 목록이 비면 '화자' 항목을 그리지 않는다
+	speakerName: string | null;
+	speakerNames: readonly string[];
 	textRef: RefObject<HTMLTextAreaElement | null>;
 	actions: CardActions;
 }) {
@@ -622,6 +647,46 @@ function CardMenu({
 						reason={lastReason}
 						onClick={() => actions.move(id, 1)}
 					/>
+					{/* 화자가 1명 이상일 때만(브리프 16.1). 고르면 메뉴가 닫히고 포커스는 ⋯ 단추로 돌아간다 */}
+					{speakerNames.length > 0 ? (
+						<DropdownMenuSub>
+							<DropdownMenuSubTrigger className={menuItem}>
+								{PARAGRAPH_TEXT.speaker}
+								{speakerName ? (
+									<span className="max-w-28 truncate font-normal text-muted-foreground">
+										{speakerName}
+									</span>
+								) : null}
+							</DropdownMenuSubTrigger>
+							<DropdownMenuSubContent className="min-w-44 p-1">
+								<DropdownMenuRadioGroup
+									value={speakerName ?? ""}
+									onValueChange={(name) =>
+										actions.speaker(id, name === "" ? undefined : name)
+									}
+								>
+									{speakerNames.map((name, index) => (
+										<DropdownMenuRadioItem
+											key={name}
+											value={name}
+											closeOnClick
+											className={menuItem}
+										>
+											<SpeakerMark index={index} />
+											<span className="truncate">{name}</span>
+										</DropdownMenuRadioItem>
+									))}
+									<DropdownMenuRadioItem
+										value=""
+										closeOnClick
+										className={menuItem}
+									>
+										{PARAGRAPH_TEXT.noSpeaker}
+									</DropdownMenuRadioItem>
+								</DropdownMenuRadioGroup>
+							</DropdownMenuSubContent>
+						</DropdownMenuSub>
+					) : null}
 				</DropdownMenuGroup>
 				<DropdownMenuSeparator className="my-1" />
 				<DropdownMenuGroup>
@@ -671,7 +736,13 @@ export const ParagraphCard = memo(function ParagraphCard({
 	first,
 	last,
 	full,
-	defaultVoice,
+	follow,
+	speaker,
+	speakerName,
+	speakerNames,
+	selecting,
+	selected,
+	playing,
 	defaultGap,
 	saved,
 	voicesLoad,
@@ -697,7 +768,16 @@ export const ParagraphCard = memo(function ParagraphCard({
 	last: boolean;
 	// 문단 200개(추가·나누기가 꺼진다, 브리프 6.1)
 	full: boolean;
-	defaultVoice: VoiceSetup | null;
+	// 자기 성우가 없을 때 따르는 성우(화자 성우 → 기본 성우)와, 그것이 화자 성우이면 그 화자 이름(원시 값이라 카드 memo가 유지된다)
+	follow: VoiceSetup | null;
+	speaker: string | null;
+	// 이 문단의 화자(목록에 있는 이름. 머리줄 표식)와 작업의 화자 이름들(⋯ 메뉴 '화자', 목록이 바뀔 때만 바뀌는 같은 배열)
+	speakerName: string | null;
+	speakerNames: readonly string[];
+	// 고르기 중(머리줄에 체크 상자)과 이 문단을 골랐다(안쪽 2px 청록 링), 이어 듣기가 지금 이 문단을 들려준다('듣는 중' 표식)
+	selecting: boolean;
+	selected: boolean;
+	playing: boolean;
 	defaultGap: number;
 	// 이 문단이 쓰는 성우의 담은 성우 항목(없거나 목록 전이면 null)
 	saved: SavedVoice | null;
@@ -732,9 +812,9 @@ export const ParagraphCard = memo(function ParagraphCard({
 	const countId = useId();
 	const noteId = useId();
 	const toolsId = useId();
-	const setup = p.voice ?? defaultVoice;
+	const setup = p.voice ?? follow;
 	const voiceName = voiceNameOf(saved, voicesLoad);
-	const chips = chipsOf(p.voice, defaultVoice);
+	const chips = chipsOf(p.voice, follow);
 	const shownChips = chips.length > 3 ? chips.slice(0, 3) : chips;
 	// 글자 수는 막는 이유(tooLongOf)와 같은 정리 뒤 코드 포인트. 성우가 없으면 일반 상한
 	const max = setup ? studioTextMax(setup.provider) : STUDIO_TEXT_MAX;
@@ -806,12 +886,25 @@ export const ParagraphCard = memo(function ParagraphCard({
 			<div
 				aria-current={current ? "step" : undefined}
 				className={cn(
-					"paragraph-card flex flex-col gap-2 rounded-2xl px-4 py-3 ring-1 ring-border ring-inset transition-colors",
+					"paragraph-card flex flex-col gap-2 rounded-2xl px-4 py-3 ring-inset transition-colors",
+					// 고른 카드는 안쪽 2px 청록 링이라 만드는 중 바탕(primary-subtle)과 겹쳐도 둘 다 보인다(브리프 16.2)
+					selected ? "ring-2 ring-primary" : "ring-1 ring-border",
+					// 고르기 중 카드 안 칸의 포커스는 띄운 윤곽(offset)이라 붙은 고른 링과 모양으로 구분된다(버튼·체크는 이미 offset 윤곽)
+					selecting && PICK_FOCUS,
 					current ? "bg-primary-subtle" : "bg-card",
 				)}
 			>
 				{/* 머리줄은 위아래로 카드 여백에 6px씩 들어가 대본이 먼저 읽힌다(단추 눌림 영역 44px은 그대로, 브리프 5.4) */}
 				<div className="-my-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+					{/* 고르기 중: 머리줄 맨 앞 체크 상자(눌림 44px, Checkbox의 after 확장을 44px로) */}
+					{selecting ? (
+						<Checkbox
+							checked={selected}
+							onCheckedChange={(on) => actions.pick(p.id, on)}
+							aria-label={PARAGRAPH_TEXT.pickOf(n)}
+							className="after:-inset-3.5"
+						/>
+					) : null}
 					{/* 번호는 회색 숫자, 숨은 제목 '문단 N'은 '문단 N 보기'·이동의 목적지(포커스만 받는다) */}
 					<h2
 						id={paragraphHeadId(p.id)}
@@ -821,9 +914,22 @@ export const ParagraphCard = memo(function ParagraphCard({
 						<span aria-hidden="true">{n}</span>
 						<span className="sr-only">{PARAGRAPH_TEXT.paragraphN(n)}</span>
 					</h2>
+					{/* 화자 표식: 눌리지 않고 Tab 정지가 아니다. 접근 이름 앞에 '화자' */}
+					{speakerName ? (
+						<span
+							title={speakerName}
+							className="flex min-w-0 max-w-28 items-center gap-1.5 text-sm"
+						>
+							<SpeakerMark index={speakerNames.indexOf(speakerName)} />
+							<span className="sr-only">{PARAGRAPH_TEXT.speaker} </span>
+							<span className="truncate">{speakerName}</span>
+						</span>
+					) : null}
 					<VoicePickerDialog
 						target={{ kind: "paragraph", n }}
 						current={setup}
+						follow={follow}
+						speaker={speaker}
 						onPick={(next) => actions.voice(p.id, next)}
 						onFollowDefault={
 							p.voice ? () => actions.followDefault(p.id) : undefined
@@ -839,6 +945,7 @@ export const ParagraphCard = memo(function ParagraphCard({
 												voiceName,
 												setup.provider,
 												!p.voice,
+												speaker,
 											)
 										: PARAGRAPH_TEXT.pickVoiceOf(n)
 								}
@@ -878,6 +985,13 @@ export const ParagraphCard = memo(function ParagraphCard({
 					/>
 					{/* 오른쪽 묶음: 상태 → 주 동작 → '설정' → ⋯. 좁으면 다음 줄로 감긴다 */}
 					<div className="ml-auto flex items-center gap-1">
+						{/* 이어 듣기가 지금 이 문단을 들려준다. 바탕·링은 바꾸지 않고 알리지 않는다(문단이 바뀔 때마다 읽지 않게, 브리프 16.3) */}
+						{playing ? (
+							<span className={cn(STATE, "text-primary")}>
+								<AudioLines aria-hidden="true" className={STATE_ICON} />
+								{PARAGRAPH_TEXT.playing}
+							</span>
+						) : null}
 						<StatusCell
 							status={status}
 							reason={reason}
@@ -947,6 +1061,8 @@ export const ParagraphCard = memo(function ParagraphCard({
 							first={first}
 							last={last}
 							full={full}
+							speakerName={speakerName}
+							speakerNames={speakerNames}
 							textRef={textRef}
 							actions={actions}
 						/>
@@ -997,6 +1113,7 @@ export const ParagraphCard = memo(function ParagraphCard({
 							id={p.id}
 							setup={setup}
 							own={p.voice !== undefined}
+							speaker={speaker}
 							voice={saved?.voice ?? null}
 							request={request}
 							voicesLoad={voicesLoad}

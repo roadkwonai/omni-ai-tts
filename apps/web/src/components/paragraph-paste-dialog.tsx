@@ -25,22 +25,25 @@ import { ClipboardPaste, TriangleAlert } from "lucide-react";
 import { useId, useRef, useState } from "react";
 
 import {
+	idleSpeakerCount,
 	type Paragraph,
-	pasteToTexts,
-	splitBlocks,
-	splitLong,
+	pasteToParts,
+	speakerMax,
+	speakersAdd,
 } from "@/lib/paragraph-script";
 import { PARAGRAPH_TEXT } from "@/lib/studio-text";
 import { STUDIO_TEXT } from "@/lib/studio-view";
 
 import { fieldClass } from "./class-form-dialog";
 import { DialogCloseButton } from "./dialog-close-button";
+import { SpeakerMark } from "./drama-voice-dialog";
 import { centered, paragraphTextId } from "./paragraph-focus";
 import { useParagraphs, useWork } from "./paragraph-provider";
 import { sourceItem } from "./setting-fields";
 import { lockedButton } from "./voice-problem";
 
-// 대본 붙여 넣기 창(T10 브리프 5.8). 빈 줄로 덩어리를 나누고 상한을 넘는 덩어리는 문장 끝에서 더 나눈다(pasteToTexts).
+// 대본 붙여 넣기 창(T10 브리프 5.8). 빈 줄로 덩어리를 나누고 `이름: 대사`는 화자 문단으로 읽으며, 상한(그 화자가 따르는 성우의 상한)을 넘는 덩어리는 문장 끝에서 더 나눈다(pasteToParts).
+// 화자는 목록에 없는 이름만 더하고 지우지 않는다(되돌리기가 문단만 되돌리게, 계획 2.2). 기존 목록 ∪ 새 이름이 20명을 넘으면 넣기를 잠근다.
 // 넣으면 창을 닫고 '되돌리기' 알림(useParagraphs().edit), 포커스는 넣은 첫 문단의 대본 칸(브리프 7절).
 // 대본이 있으면 처음 방식은 '이어 넣기'이고, '전체 바꾸기'를 고르면 미리 보기 위에 지울 문단 수를 경고한다(critique 반영)
 
@@ -73,22 +76,27 @@ function PasteBody({
 	// '전체 바꾸기'로 사라질 문단과 그 가운데 성우나 설정을 따로 바꾼 문단(설정을 바꾸면 ownSettings가 자기 성우를 만든다)
 	const kept = withoutBlankEnd(paragraphs);
 	const own = kept.filter((p) => p.voice !== undefined).length;
-	// 새 문단은 기본 성우를 따른다. 기본 성우가 없으면 일반 상한
-	const voice = work.work.defaultVoice;
+	// 새 문단은 화자가 있으면 그 화자 성우, 없으면 기본 성우를 따른다(조각마다 speakerMax). 안내 글의 상한은 기본 성우 것이고 성우가 없으면 일반 상한
+	const meta = work.work;
+	const voice = meta.defaultVoice;
 	const max = voice ? studioTextMax(voice.provider) : STUDIO_TEXT_MAX;
 	const room = append ? PARAGRAPHS_MAX - kept.length : PARAGRAPHS_MAX;
-	const { texts, extra } = pasteToTexts(raw, max, room);
-	// 미리 보기의 '긴 덩어리' 수는 pasteToTexts가 돌려주지 않아 같은 나누기로 센다(Task 6 리뷰)
-	const long = splitBlocks(raw).filter(
-		(block) => splitLong(block, max).length > 1,
-	).length;
+	const { parts, names, extra, long } = pasteToParts(
+		raw,
+		(speaker) => speakerMax(meta, speaker),
+		room,
+	);
+	// 화자 목록에 더한 결과. null이면 20명을 넘어 넣을 수 없다
+	const list = meta.speakers ?? [];
+	const added = speakersAdd(list, names);
 	const empty = raw.trim() === "";
 
 	function insert() {
-		if (texts.length === 0) return;
-		const fresh: Paragraph[] = texts.map((text) => ({
+		if (parts.length === 0 || !added) return;
+		const fresh: Paragraph[] = parts.map(({ text, speaker }) => ({
 			id: crypto.randomUUID(),
 			text,
+			...(speaker === undefined ? {} : { speaker }),
 		}));
 		edit(
 			(ps) =>
@@ -97,6 +105,7 @@ function PasteBody({
 					: fresh,
 			{ message: PARAGRAPH_TEXT.inserted(fresh.length, extra) },
 		);
+		if (added !== list) work.setSpeakers(added);
 		onInserted(fresh[0].id);
 	}
 
@@ -154,8 +163,40 @@ function PasteBody({
 					<p className="min-h-5 font-bold text-sm tabular-nums">
 						{empty
 							? null
-							: `${PARAGRAPH_TEXT.splitsInto(texts.length + extra)}${long > 0 ? PARAGRAPH_TEXT.splitLonger(long) : ""}`}
+							: `${PARAGRAPH_TEXT.splitsInto(parts.length + extra)}${long > 0 ? PARAGRAPH_TEXT.splitLonger(long) : ""}`}
 					</p>
+					{/* 찾은 화자. `참고:` 같은 줄이 화자로 읽혔는지 넣기 전에 본다 */}
+					{names.length > 0 ? (
+						<p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+							<span className="tabular-nums">
+								{PARAGRAPH_TEXT.pasteSpeakersHead(names.length)}
+							</span>
+							{PARAGRAPH_TEXT.pasteSpeakersShown(names).map((name) => (
+								<span
+									key={name}
+									className="flex min-w-0 max-w-40 items-center gap-1.5"
+								>
+									{/* 표식 번호·색은 넣은 뒤 화자 목록 순서다(넣을 수 없으면 이 글의 순서) */}
+									<SpeakerMark
+										index={Math.max(
+											0,
+											(added ?? names.map((n) => ({ name: n }))).findIndex(
+												(s) => s.name === name,
+											),
+										)}
+									/>
+									<span className="truncate">{name}</span>
+								</span>
+							))}
+							{PARAGRAPH_TEXT.pasteSpeakersMore(names)}
+						</p>
+					) : null}
+					{!added ? (
+						<p className="flex items-center gap-2 text-sm text-warning">
+							<TriangleAlert aria-hidden="true" className="size-4 shrink-0" />
+							{PARAGRAPH_TEXT.speakersMax(idleSpeakerCount(list, paragraphs))}
+						</p>
+					) : null}
 					{extra > 0 ? (
 						<p className="flex items-center gap-2 text-sm text-warning">
 							<TriangleAlert aria-hidden="true" className="size-4 shrink-0" />
@@ -179,10 +220,10 @@ function PasteBody({
 				</DialogClose>
 				{/* 잠기면 무채색 neutral(잠긴 주 버튼은 채움 50%가 아니다, 브리프 3절) */}
 				<Button
-					variant={texts.length === 0 ? "neutral" : "default"}
+					variant={parts.length === 0 || !added ? "neutral" : "default"}
 					size="lg"
 					focusableWhenDisabled
-					disabled={texts.length === 0}
+					disabled={parts.length === 0 || !added}
 					// 잠긴 이유: 빈 글이면 화면 밖 문구, 자리가 없으면 보이는 넘침 줄
 					aria-describedby={empty ? emptyId : previewId}
 					className={cn("flex-1 md:flex-none", lockedButton(true))}

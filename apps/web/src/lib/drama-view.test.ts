@@ -1276,6 +1276,15 @@ describe("대본 붙여 넣기(브리프 5.6 화자 규칙 1~7, Ruling 18)", () 
 			speakers: [{ name: "가".repeat(20) }],
 		});
 	});
+	it("주소 줄(https://…)은 화자가 아니라 이름 없는 줄이다(T10-b 공용 줄 해석)", () => {
+		expect(
+			parsePaste("https://example.com/a:b\n민수: 안녕", named, ids()),
+		).toEqual({
+			speakers: [sp("민수", "v2")],
+			lines: [ln("id1", 0, "https://example.com/a:b"), ln("id2", 0, "안녕")],
+			from: [1],
+		});
+	});
 	it("첫 이름 앞의 이름 없는 줄은 첫 화자(규칙 4)", () => {
 		expect(parsePaste("음…\n민수: 안녕", named, ids())).toEqual({
 			speakers: [sp("민수", "v2")],

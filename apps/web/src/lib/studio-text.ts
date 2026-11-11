@@ -14,7 +14,11 @@ import {
 } from "@tts-pilot-app/api/providers/trial-options";
 
 import { PROVIDER_LABEL } from "./connection-view";
-import type { ParagraphBlock, VoiceSetup } from "./paragraph-script";
+import {
+	type ParagraphBlock,
+	SPEAKERS_MAX,
+	type VoiceSetup,
+} from "./paragraph-script";
 import { TAG_TEXT, type TagGroup } from "./tag-view";
 import {
 	optionText,
@@ -85,6 +89,8 @@ export const PARAGRAPH_TEXT = {
 	free: "무료",
 	listen: (no: number) => `문단 ${n(no)} 듣기`,
 	followDefault: "기본 따르기",
+	// 문단이 화자 성우를 따를 때의 같은 단추(브리프 16.5)
+	followSpeaker: "화자 따르기",
 	reset: "처음 값으로",
 	checking: "확인 중",
 	afterMakeAll: "전체 만들기가 끝난 뒤 만들 수 있어요",
@@ -102,8 +108,10 @@ export const PARAGRAPH_TEXT = {
 		name: string | null,
 		provider: ProviderId,
 		follows: boolean,
+		// 따르는 성우가 화자 것이면 그 화자 이름
+		speaker: string | null = null,
 	) =>
-		`문단 ${n(no)} 성우: ${name ? `${name}, ` : ""}${PROVIDER_LABEL[provider]}${follows ? ", 기본을 따름" : ""}`,
+		`문단 ${n(no)} 성우: ${name ? `${name}, ` : ""}${PROVIDER_LABEL[provider]}${follows ? (speaker ? `, 화자 ${speaker}의 성우를 따름` : ", 기본을 따름") : ""}`,
 	pickVoiceOf: (no: number) => `문단 ${n(no)} 성우 고르기`,
 	notSaved: "보관함에 없는 성우",
 	voicesLoading: "성우 목록을 불러오고 있어요",
@@ -197,10 +205,17 @@ export const PARAGRAPH_TEXT = {
 	pickForDefault: "기본 성우를 골라요",
 	pickForParagraph: (no: number) => `문단 ${n(no)}의 성우를 골라요`,
 	// 임시 작업을 읽으며 보관함에 없는 성우를 비웠다(알림, F30-2). 문단 성우만 비우면 그 문단은 기본 성우를 따른다
-	voicesDropped: (defaultVoice: boolean, paragraphs: number) =>
-		!defaultVoice
+	// 화자 성우(speakers)는 화자 이름은 남고 성우만 비운다. 그 화자의 문단은 기본 성우를 따른다
+	voicesDropped: (defaultVoice: boolean, paragraphs: number, speakers = 0) => {
+		if (!defaultVoice && paragraphs === 0 && speakers > 0)
+			return `보관함에 없는 화자 성우 ${n(speakers)}개를 비웠어요. 그 화자의 문단은 기본 성우를 따라요`;
+		const base = !defaultVoice
 			? `보관함에 없는 성우를 쓰던 문단 ${n(paragraphs)}개는 기본 성우를 따라요`
-			: `${paragraphs > 0 ? `기본 성우와 문단 ${n(paragraphs)}개의 성우가` : "기본 성우가"} 보관함에 없어 비웠어요. 기본 성우를 다시 골라 주세요`,
+			: `${paragraphs > 0 ? `기본 성우와 문단 ${n(paragraphs)}개의 성우가` : "기본 성우가"} 보관함에 없어 비웠어요. 기본 성우를 다시 골라 주세요`;
+		return speakers > 0
+			? `${base}. 화자 성우 ${n(speakers)}개도 보관함에 없어 비웠어요`
+			: base;
+	},
 	// 확인 중·불러오기
 	finding: "저장된 결과를 확인하고 있어요",
 	voicesFailed: "성우 목록을 불러오지 못했어요",
@@ -266,6 +281,72 @@ export const PARAGRAPH_TEXT = {
 	replaceWarning: (count: number, own: number) =>
 		`지금 문단 ${n(count)}개를 모두 바꿔요${own > 0 ? ` · 성우나 설정을 바꾼 문단 ${n(own)}개도 사라져요` : ""}`,
 	splitsInto: (count: number) => `문단 ${n(count)}개로 나뉘어요`,
+	// 미리 보기에서 찾은 화자(`참고:` 같은 줄이 화자로 읽혔는지 넣기 전에 본다). 둘까지 이름을 적고 나머지는 수로
+	// (화면은 이름마다 화자 표식을 붙여 그린다)
+	pasteSpeakersHead: (count: number) => `화자 ${n(count)}명:`,
+	pasteSpeakersShown: (names: readonly string[]) =>
+		names.length > 3 ? names.slice(0, 2) : names,
+	pasteSpeakersMore: (names: readonly string[]) =>
+		names.length > 3 ? `외 ${n(names.length - 2)}명` : null,
+	// 화자 상한(20명)을 넘어 붙여 넣지 않는다. idle은 문단이 없어 지울 수 있는 화자 수(0이면 앞 문장만)
+	speakersMax: (idle: number) =>
+		`화자는 ${n(SPEAKERS_MAX)}명까지예요${idle > 0 ? `. 문단이 없는 화자 ${n(idle)}명을 지우면 넣을 수 있어요` : ""}`,
+	// 화자 칸(레일 '작업 설정'·1단 시트, 브리프 16.1). 소제목 '화자' 옆 회색 'N명', 1단 작업 띠 단추는 '화자 N명'
+	speakers: "화자",
+	speakersCount: (count: number) => `${n(count)}명`,
+	speakersBand: (count: number) => `화자 ${n(count)}명`,
+	speakerParagraphs: (count: number) => `문단 ${n(count)}`,
+	speakerFollowsDefault: "기본 성우 따름",
+	speakerRemove: "화자 지우기",
+	speakerRemoveOf: (name: string) => `화자 지우기, ${name}`,
+	// 화자 칸 성우 버튼 접근 이름. current는 '성우 · 공급자' 또는 '기본 성우 따름'
+	speakerVoiceOf: (name: string, current: string) =>
+		`화자 ${name} 성우: ${current}`,
+	// 성우 목록을 받는 중이라 이름이 없어도 구분점으로 시작하지 않는다
+	speakerVoiceNow: (name: string | null, provider: string) =>
+		name ? `${name} · ${provider}` : provider,
+	speakerBusy: (count: number) => `문단 ${n(count)}개가 이 화자예요`,
+	// 화자 지우기 되돌리기 알림(뒤에 undo)과 성우 없는 화자 줄의 회색 안내
+	speakerRemoved: (name: string) => `화자를 지웠어요 · ${name}`,
+	speakerPicksFollow: (count: number) =>
+		`고르면 이 화자 문단 ${n(count)}개가 함께 따라요`,
+	// 성우 고르기 창 대상과 '비우기'
+	pickForSpeaker: (name: string) => `화자 ${name}의 성우를 골라요`,
+	pickForSelection: (count: number) =>
+		`고른 문단 ${n(count)}개의 성우를 골라요`,
+	clearVoice: "비우기(기본 성우 따름)",
+	// 카드(⋯ 메뉴 하위 항목, 고르기 체크, 이어 듣기 표식)
+	speaker: "화자",
+	noSpeaker: "화자 없음",
+	pickOf: (no: number) => `문단 ${n(no)} 고르기`,
+	playing: "듣는 중",
+	// 고르기 막대(브리프 16.2)
+	select: "고르기",
+	selectAll: "모두 고르기",
+	selectedOf: (count: number, total: number) =>
+		`${n(count)}/${n(total)}개 고름`,
+	selectVoice: "성우",
+	selectGap: "쉼",
+	selectFollow: "따르기",
+	selectNone: "문단을 골라 주세요",
+	selectLocked: "전체 만들기가 끝난 뒤 바꿀 수 있어요",
+	selectEnd: "끝내기",
+	selectBarLabel: "고른 문단 고치기",
+	batchGapTitle: (count: number) => `고른 문단 ${n(count)}개의 문단 뒤 쉼`,
+	apply: "적용",
+	// 되돌리기 알림(브리프 16.5, 뒤에 undo)
+	batchVoiceDone: (count: number) => `문단 ${n(count)}개의 성우를 바꿨어요.`,
+	batchFollowDone: (count: number) =>
+		`문단 ${n(count)}개가 성우를 따르게 했어요.`,
+	batchSpeakerDone: (count: number) => `문단 ${n(count)}개의 화자를 바꿨어요.`,
+	batchGapDone: (count: number) => `문단 ${n(count)}개의 쉼을 바꿨어요.`,
+	batchRemoveDone: (count: number) => `문단 ${n(count)}개를 지웠어요.`,
+	// 이어 듣기 강조(브리프 16.3). '마지막 문단이에요'는 lastOne
+	prevParagraph: "이전 문단",
+	nextParagraph: "다음 문단",
+	playingAt: (no: number) => `문단 ${n(no)} 재생 중`,
+	// 카드에 화자 한 줄을 붙여 넣어 화자만 정했다
+	speakerSet: (name: string) => `화자를 정했어요 · ${name}`,
 	overLimit: (extra: number) =>
 		`${n(PARAGRAPHS_MAX)}개까지만 넣어요. 나머지 ${n(extra)}개는 넣지 않아요`,
 	insert: "넣기",
@@ -394,8 +475,9 @@ export const PARAGRAPH_TEXT = {
 	autoTagMadeNote: "만든 결과가 있어요. 바꾸면 다시 만들어야 해요",
 	autoTagUnknownNote:
 		"처리 여부를 확인하지 못한 문단이에요. 바꾸면 다시 만들어야 해요",
+	// 기본 성우인지 화자 성우인지 가리지 않는다(브리프 16.5)
 	autoTagOwnNote: (count: number) =>
-		`감정·말투를 바꾼 문단 ${n(count)}개는 이제 기본 성우를 따르지 않아요`,
+		`감정·말투를 바꾼 문단 ${n(count)}개는 이제 자기 성우와 설정을 써요`,
 	// 바뀐 칸 이름(AutoTagChange fields의 field)과 전·후의 화면 밖 이름표(줄 긋기는 읽히지 않는다)
 	autoTagFields: {
 		text: "대본",

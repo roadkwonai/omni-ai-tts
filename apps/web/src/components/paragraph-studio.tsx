@@ -9,8 +9,6 @@ import {
 	comboSignature,
 	DEFAULT_SETTINGS,
 	PARAGRAPHS_MAX,
-	STUDIO_TEXT_MAX,
-	studioTextMax,
 } from "@tts-pilot-app/api/providers/trial-options";
 import { DropdownMenuItem } from "@tts-pilot-app/ui/components/dropdown-menu";
 import { Skeleton } from "@tts-pilot-app/ui/components/skeleton";
@@ -19,18 +17,24 @@ import { cn } from "@tts-pilot-app/ui/lib/utils";
 import Link from "next/link";
 import {
 	type RefObject,
+	useCallback,
 	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
 } from "react";
 import { flushSync } from "react-dom";
+import { toast } from "sonner";
 
 import { byName } from "@/lib/classes-view";
 import type { ParagraphStatus } from "@/lib/make-all";
 import {
+	batchSpeaker,
 	blockOf,
 	followDefault,
+	followedSpeaker,
+	followOf,
+	idleSpeakerCount,
 	insertAfter,
 	mergeNext,
 	move,
@@ -78,6 +82,11 @@ import {
 	WorkSettings,
 	WorkSummary,
 } from "./paragraph-rails";
+import {
+	focusSelectToggle,
+	ParagraphSelectBar,
+	SelectToggle,
+} from "./paragraph-select-bar";
 import {
 	LoadDialog,
 	type PresetHost,
@@ -198,6 +207,7 @@ function useCardActions(
 	// 마지막으로 '만들기'를 누른 카드(막대의 문단 하나 확인 창이 닫힐 때 돌아갈 숨은 제목)
 	madeFrom: RefObject<string | null>,
 	setTagTarget: (id: string) => void,
+	pick: CardActions["pick"],
 ): CardActions {
 	const work = useWork();
 	const { paragraphs, edit, setText } = useParagraphs();
@@ -297,29 +307,46 @@ function useCardActions(
 				const i = indexOf(id);
 				const p = ps[i];
 				if (!p) return false;
-				const setup = voiceOf(p, all());
 				const pasted = pasteAt(
 					ps,
 					id,
 					selection,
 					raw,
-					setup ? studioTextMax(setup.provider) : STUDIO_TEXT_MAX,
+					all(),
 					PARAGRAPHS_MAX - ps.length,
 				);
 				if (!pasted) return false;
+				// 문단 200개나 화자 20명을 넘게 되면 글을 넣지 않고 알림만(기본 붙여 넣기도 막는다)
+				if (pasted.blocked) {
+					toast(
+						pasted.blocked === "full"
+							? PARAGRAPH_TEXT.paragraphsMax
+							: PARAGRAPH_TEXT.speakersMax(
+									idleSpeakerCount(all().speakers ?? [], ps),
+								),
+					);
+					return true;
+				}
 				const count = pasted.ps.length - ps.length + 1;
-				// 200개라 나누지 못했으면(지금 문단에 첫 덩어리만) 그 말을 한다
-				const message =
-					count > 1
+				// 화자만 정했으면 그 말을, 200개라 나누지 못했으면(지금 문단에 첫 조각만) 그 말을 한다
+				const message = pasted.named
+					? PARAGRAPH_TEXT.speakerSet(pasted.named)
+					: count > 1
 						? PARAGRAPH_TEXT.splitInto(count, pasted.extra)
 						: PARAGRAPH_TEXT.pasteFull(pasted.extra);
 				if (!change(pasted.ps, message)) return false;
+				// 화자 목록은 없는 이름만 더한다(되돌리기는 문단만 되돌리고 이름은 목록에 남는다, 계획 2.2)
+				if (pasted.speakers) workRef.current.setSpeakers(pasted.speakers);
 				const end = pasted.ps[i + count - 1];
 				focusText(end.id, end.text.length - (p.text.length - selection.end));
 				return true;
 			},
 			voice: (id, setup) => changeOne(id, (p) => ({ ...p, voice: setup })),
 			followDefault: (id) => changeOne(id, followDefault),
+			// ⋯ 메뉴 '화자'(문단 하나). 일괄 작업과 같은 순수 함수다. 성우는 그대로 둔다
+			speaker: (id, name) =>
+				edit((ps) => batchSpeaker(ps, new Set([id]), name)),
+			pick,
 			settings: (id, patch) =>
 				changeOne(id, (p) => ownSettings(p, all(), patch)),
 			// 그 공급자 처음 값(기본을 따르던 문단은 자기 성우가 된다). 불러온 프리셋 표시는 기본 성우 것이라 건드리지 않는다
@@ -372,22 +399,67 @@ function useCardActions(
 				});
 			},
 		};
-	}, [edit, setText, setOpenId, madeFrom, setTagTarget]);
+	}, [edit, setText, setOpenId, madeFrom, setTagTarget, pick]);
 }
 
 // 문단 목록(브리프 5.4·5.5). 카드마다 상태·성우·막는 이유·실패 줄을 셈해 원시 값으로 내린다(카드는 useWork를 구독하지 않는다, E10).
 // 판단은 lib 순수 함수(statusOf·blockOf·blockText·makeProblemText·unknownExpiredOf·needsConfirm)만 부른다. 펼친 설정 카드 id 하나는 여기 둔다
 // (컨텍스트에 두면 펼칠 때마다 모든 소비자가 다시 그려진다). 복원 전에는 카드 자리 뼈대 셋
-function ParagraphList({ madeFrom }: { madeFrom: RefObject<string | null> }) {
+// 고르기 중이 아닐 때와 처음 값(같은 빈 집합이라 카드·막대가 다시 그리지 않는다)
+const NO_PICKED: ReadonlySet<string> = new Set();
+
+function ParagraphList({
+	madeFrom,
+	playingId,
+	selecting,
+	onEndSelecting,
+}: {
+	madeFrom: RefObject<string | null>;
+	// 이어 듣기가 지금 들려주는 문단 id. 값이 바뀔 때만 목록이 다시 그리고 그 카드 둘의 playing 프롭만 바뀐다
+	playingId: string | null;
+	// 고르기 모드(머리·작업 띠의 '고르기'가 켠다). 고른 문단 id 집합은 이 목록이 든다(계획 2.4: 체크마다 다른 소비자가 다시 그려지지 않게)
+	selecting: boolean;
+	onEndSelecting: () => void;
+}) {
 	const work = useWork();
 	const { paragraphs } = useParagraphs();
 	const [openId, setOpenId] = useState<string | null>(null);
 	// 태그 대상(마지막으로 대본 칸에 포커스한 문단, 스펙 15.1). 바뀌면 그 전과 새 대상 두 카드만 다시 그린다
 	const [tagTarget, setTagTarget] = useState<string | null>(null);
-	const actions = useCardActions(setOpenId, madeFrom, setTagTarget);
+	const [picked, setPicked] = useState<ReadonlySet<string>>(NO_PICKED);
+	// 고르기를 끄면 고른 것을 비운다(렌더 중에 맞춘다, rerender-derived-state-no-effect)
+	const [wasSelecting, setWasSelecting] = useState(selecting);
+	if (wasSelecting !== selecting) {
+		setWasSelecting(selecting);
+		if (!selecting) setPicked(NO_PICKED);
+	}
+	const pick = useCallback((id: string, on: boolean) => {
+		setPicked((current) => {
+			if (current.has(id) === on) return current;
+			const next = new Set(current);
+			if (on) next.add(id);
+			else next.delete(id);
+			return next;
+		});
+	}, []);
+	const actions = useCardActions(setOpenId, madeFrom, setTagTarget, pick);
 	const { work: meta, voices, now, make, found, live } = work;
+	// 화자 이름들(목록이 바뀔 때만 바뀌는 같은 배열이라 카드 memo가 유지된다)
+	const speakerNames = useMemo(
+		() => (meta.speakers ?? []).map((s) => s.name),
+		[meta.speakers],
+	);
+	// 고른 문단: 지금 문단 id로 거른다(지운 문단에 고른 표시가 남지 않게)
+	const chosen = useMemo(
+		() =>
+			selecting
+				? new Set(paragraphs.filter((p) => picked.has(p.id)).map((p) => p.id))
+				: NO_PICKED,
+		[selecting, paragraphs, picked],
+	);
 	const open = openId ? paragraphs.find((p) => p.id === openId) : undefined;
-	const openSetup = open ? (open.voice ?? meta.defaultVoice) : null;
+	// 실제 성우(자기 성우 → 화자 성우 → 기본 성우). meta는 문단을 뺀 작업이라 voiceOf가 필요한 칸을 모두 든다
+	const openSetup = open ? voiceOf(open, meta) : null;
 	// 펼친 카드의 설정 칸 요청(그 성우가 받는 값으로 맞춤). 대본을 쳐도 다시 만들지 않는다
 	const openRequest = useMemo(
 		() =>
@@ -445,6 +517,18 @@ function ParagraphList({ madeFrom }: { madeFrom: RefObject<string | null> }) {
 	}
 	return (
 		<>
+			{selecting ? (
+				<ParagraphSelectBar
+					total={paragraphs.length}
+					chosen={chosen}
+					locked={locked}
+					speakers={speakerNames}
+					onAll={(on) =>
+						setPicked(on ? new Set(paragraphs.map((p) => p.id)) : NO_PICKED)
+					}
+					onEnd={onEndSelecting}
+				/>
+			) : null}
 			<ol
 				id="paragraph-list"
 				tabIndex={-1}
@@ -452,7 +536,7 @@ function ParagraphList({ madeFrom }: { madeFrom: RefObject<string | null> }) {
 			>
 				{paragraphs.map((p, i) => {
 					const status = work.statusOf(p);
-					const setup = p.voice ?? meta.defaultVoice;
+					const setup = voiceOf(p, meta);
 					const request =
 						status === "unmade" || status === "failed" || status === "unknown"
 							? work.requestOf(p)
@@ -470,7 +554,17 @@ function ParagraphList({ madeFrom }: { madeFrom: RefObject<string | null> }) {
 							first={i === 0}
 							last={i === paragraphs.length - 1}
 							full={full}
-							defaultVoice={meta.defaultVoice}
+							follow={followOf(p, meta)}
+							speaker={followedSpeaker(p, meta)}
+							speakerName={
+								p.speaker !== undefined && speakerNames.includes(p.speaker)
+									? p.speaker
+									: null
+							}
+							speakerNames={speakerNames}
+							selecting={selecting}
+							selected={chosen.has(p.id)}
+							playing={p.id === playingId}
 							defaultGap={meta.gap}
 							saved={
 								setup && voices
@@ -521,6 +615,21 @@ function StudioBody() {
 	// 프리셋을 불러올 때마다(머리 메뉴·채널·성우 창) 올라 기본 성우 설정 칸을 다시 그린다(같은 프리셋을 다시 불러와도, T9 resetKey)
 	const [loads, setLoads] = useState(0);
 	const madeFrom = useRef<string | null>(null);
+	// 이어 듣기 재생 위치의 문단 id(막대 플레이어가 쓰고 목록이 읽는다). 작업 상태에 넣지 않는다(계획 2.5)
+	const [playingId, setPlayingId] = useState<string | null>(null);
+	// 고르기 모드: 머리·작업 띠의 '고르기'와 목록이 함께 읽는다(고른 문단 집합은 목록이 든다)
+	const [selecting, setSelecting] = useState(false);
+	// 끝내기·Esc: 바로 그려 보이는 '고르기' 단추로 포커스를 돌려준다(브리프 16.4)
+	function endSelecting() {
+		flushSync(() => setSelecting(false));
+		focusSelectToggle();
+	}
+	const toggle = (
+		<SelectToggle
+			selecting={selecting}
+			onToggle={() => (selecting ? endSelecting() : setSelecting(true))}
+		/>
+	);
 	const host: PresetHost = {
 		...work.presetHost,
 		// 불러오지 않았으면(false, 성우 목록 없음) 칸을 다시 그리지 않고 그대로 돌려준다(usePresetLoad가 성공 알림을 띄우지 않게)
@@ -543,7 +652,11 @@ function StudioBody() {
 							<>
 								<ChannelPicker host={host} />
 								<PresetMenu host={host} trigger="condition" />
-								<ParagraphCount />
+								{/* 3단·2단: '고르기'가 머리 오른쪽 끝 회색 문단 수 앞에 온다. 1단은 작업 띠 끝에 있다 */}
+								<div className="ml-auto @4xl:flex hidden items-center gap-3">
+									{work.restored ? toggle : null}
+									<ParagraphCount />
+								</div>
 							</>
 						}
 					/>
@@ -556,7 +669,7 @@ function StudioBody() {
 				</a>
 				<div className="@4xl:hidden">
 					{work.restored ? (
-						<WorkBand host={host} settingsKey={loads} />
+						<WorkBand host={host} settingsKey={loads} tail={toggle} />
 					) : (
 						<Skeleton aria-hidden="true" className="mb-4 h-11 w-full" />
 					)}
@@ -591,8 +704,13 @@ function StudioBody() {
 				</aside>
 				{/* 목록과 막대를 한 래퍼(가운데 열 둘째 행)에 두어 막대의 sticky bottom-0이 이 안에서 움직인다 */}
 				<div className="@4xl:col-start-1 @6xl:col-start-2 @4xl:row-start-2 flex flex-col">
-					<ParagraphList madeFrom={madeFrom} />
-					<ParagraphBar madeFrom={madeFrom} />
+					<ParagraphList
+						madeFrom={madeFrom}
+						playingId={playingId}
+						selecting={selecting}
+						onEndSelecting={endSelecting}
+					/>
+					<ParagraphBar madeFrom={madeFrom} onPlaying={setPlayingId} />
 				</div>
 			</div>
 		</div>

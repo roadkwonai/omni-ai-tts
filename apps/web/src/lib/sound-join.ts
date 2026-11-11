@@ -86,6 +86,32 @@ export function spansOf(
 	});
 }
 
+// 시작 시각으로 옮기면 브라우저가 1샘플 안팎 앞에 착지하므로 그만큼(1ms) 봐준다
+const SEEK_SLACK = 0.001;
+
+// 재생 위치(초)의 문단 번호(0부터). 쉼 구간은 앞 문단, 첫 문단 앞은 0, 구간이 없으면 -1
+export function spanIndexAt(
+	spans: readonly { start: number; end: number }[],
+	time: number,
+): number {
+	let found = spans.length > 0 ? 0 : -1;
+	for (let i = 1; i < spans.length; i++) {
+		if (spans[i].start > time + SEEK_SLACK) break;
+		found = i;
+	}
+	return found;
+}
+
+// 이전(-1)·다음(1) 문단의 시작 시각. 첫 문단의 이전은 처음(0), 마지막 문단의 다음은 null(없음)
+export function seekOf(
+	spans: readonly { start: number; end: number }[],
+	index: number,
+	dir: -1 | 1,
+): number | null {
+	if (dir < 0) return index <= 0 ? 0 : (spans[index - 1]?.start ?? null);
+	return spans[index + 1]?.start ?? null;
+}
+
 // [머리, part0, 무음0, part1, …]. 조각은 16비트 PCM Blob이다. 마지막 part 뒤에는 쉼이 없고, 복사 없이 Blob이 조각을 그대로 담는다
 export function joinWav(
 	parts: readonly Blob[],

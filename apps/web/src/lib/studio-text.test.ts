@@ -367,6 +367,121 @@ describe("PARAGRAPH_TEXT(브리프 9절)", () => {
 		expect(PARAGRAPH_TEXT.notSaved).toBe("보관함에 없는 성우");
 		expect(PARAGRAPH_TEXT.voicesLoading).toBe("성우 목록을 불러오고 있어요");
 	});
+	it("화자 문구(T10-b 브리프 16.5): 화자 따르기·접근 이름·정했어요", () => {
+		expect(PARAGRAPH_TEXT.followSpeaker).toBe("화자 따르기");
+		expect(PARAGRAPH_TEXT.followDefault).toBe("기본 따르기");
+		expect(
+			PARAGRAPH_TEXT.voiceLabel(3, "Rachel", "elevenlabs", true, "민수"),
+		).toBe("문단 3 성우: Rachel, ElevenLabs, 화자 민수의 성우를 따름");
+		// 이름 뒤에 받침 따라 바뀌는 조사를 붙이지 않는다(브리프 9절), 화자를 따르지 않으면 기본을 따름 그대로
+		expect(PARAGRAPH_TEXT.voiceLabel(3, null, "typecast", true, "민준")).toBe(
+			"문단 3 성우: Typecast, 화자 민준의 성우를 따름",
+		);
+		expect(PARAGRAPH_TEXT.voiceLabel(3, null, "typecast", true, null)).toBe(
+			"문단 3 성우: Typecast, 기본을 따름",
+		);
+		// 자기 성우면 따르지 않는다
+		expect(
+			PARAGRAPH_TEXT.voiceLabel(3, "Rachel", "elevenlabs", false, "민수"),
+		).toBe("문단 3 성우: Rachel, ElevenLabs");
+		expect(PARAGRAPH_TEXT.speakerSet("민수")).toBe("화자를 정했어요 · 민수");
+		expect(PARAGRAPH_TEXT.speakerSet("민준")).toBe("화자를 정했어요 · 민준");
+		expect(PARAGRAPH_TEXT.speakerSet("Tom")).toBe("화자를 정했어요 · Tom");
+	});
+	it("T10-b 화자 칸·고르기·이어 듣기 문구(브리프 16.5)", () => {
+		const t = PARAGRAPH_TEXT;
+		expect(t.speakers).toBe("화자");
+		expect(t.speakersCount(4)).toBe("4명");
+		expect(t.speakersBand(2)).toBe("화자 2명");
+		expect(t.speakerParagraphs(12)).toBe("문단 12");
+		expect(t.speakerFollowsDefault).toBe("기본 성우 따름");
+		expect(t.speakerRemove).toBe("화자 지우기");
+		expect(t.speakerRemoveOf("민수")).toBe("화자 지우기, 민수");
+		expect(t.speakerVoiceOf("민수", "Rachel · ElevenLabs")).toBe(
+			"화자 민수 성우: Rachel · ElevenLabs",
+		);
+		expect(t.speakerBusy(12)).toBe("문단 12개가 이 화자예요");
+		expect(t.pickForSpeaker("민수")).toBe("화자 민수의 성우를 골라요");
+		expect(t.pickForSelection(3)).toBe("고른 문단 3개의 성우를 골라요");
+		expect(t.clearVoice).toBe("비우기(기본 성우 따름)");
+		expect(t.speaker).toBe("화자");
+		expect(t.noSpeaker).toBe("화자 없음");
+		expect(t.pickOf(3)).toBe("문단 3 고르기");
+		expect(t.playing).toBe("듣는 중");
+		expect(t.select).toBe("고르기");
+		expect(t.selectAll).toBe("모두 고르기");
+		expect(t.selectedOf(3, 40)).toBe("3/40개 고름");
+		expect([t.selectVoice, t.selectGap, t.selectFollow]).toEqual([
+			"성우",
+			"쉼",
+			"따르기",
+		]);
+		expect(t.selectNone).toBe("문단을 골라 주세요");
+		expect(t.selectLocked).toBe("전체 만들기가 끝난 뒤 바꿀 수 있어요");
+		expect(t.selectEnd).toBe("끝내기");
+		expect(t.selectBarLabel).toBe("고른 문단 고치기");
+		expect(t.batchGapTitle(3)).toBe("고른 문단 3개의 문단 뒤 쉼");
+		expect(t.apply).toBe("적용");
+		expect(t.batchVoiceDone(3)).toBe("문단 3개의 성우를 바꿨어요.");
+		expect(t.batchFollowDone(3)).toBe("문단 3개가 성우를 따르게 했어요.");
+		expect(t.batchSpeakerDone(3)).toBe("문단 3개의 화자를 바꿨어요.");
+		expect(t.batchGapDone(3)).toBe("문단 3개의 쉼을 바꿨어요.");
+		expect(t.batchRemoveDone(3)).toBe("문단 3개를 지웠어요.");
+		expect(t.prevParagraph).toBe("이전 문단");
+		expect(t.nextParagraph).toBe("다음 문단");
+		expect(t.playingAt(12)).toBe("문단 12 재생 중");
+	});
+	it("T10-b 다듬기 문구(브리프 16.8)", () => {
+		const t = PARAGRAPH_TEXT;
+		expect(t.speakerRemoved("민수")).toBe("화자를 지웠어요 · 민수");
+		expect(t.speakerPicksFollow(12)).toBe(
+			"고르면 이 화자 문단 12개가 함께 따라요",
+		);
+		// 성우 목록을 받는 중(이름 없음)에도 구분점으로 시작하지 않는다
+		expect(t.speakerVoiceNow("Rachel", "ElevenLabs")).toBe(
+			"Rachel · ElevenLabs",
+		);
+		expect(t.speakerVoiceNow(null, "ElevenLabs")).toBe("ElevenLabs");
+	});
+	it("붙여 넣기 미리 보기 화자 줄과 상한 문구", () => {
+		const t = PARAGRAPH_TEXT;
+		expect(t.pasteSpeakersHead(2)).toBe("화자 2명:");
+		expect(t.pasteSpeakersShown(["민수", "지아", "도윤"])).toEqual([
+			"민수",
+			"지아",
+			"도윤",
+		]);
+		expect(t.pasteSpeakersMore(["민수", "지아", "도윤"])).toBeNull();
+		expect(t.pasteSpeakersShown(["가", "나", "다", "라"])).toEqual([
+			"가",
+			"나",
+		]);
+		expect(t.pasteSpeakersMore(["가", "나", "다", "라"])).toBe("외 2명");
+		expect(PARAGRAPH_TEXT.speakersMax(0)).toBe("화자는 20명까지예요");
+		expect(PARAGRAPH_TEXT.speakersMax(3)).toBe(
+			"화자는 20명까지예요. 문단이 없는 화자 3명을 지우면 넣을 수 있어요",
+		);
+	});
+	it("화자 성우가 빠진 알림은 화자 갈래를 말한다", () => {
+		expect(PARAGRAPH_TEXT.voicesDropped(false, 0, 2)).toBe(
+			"보관함에 없는 화자 성우 2개를 비웠어요. 그 화자의 문단은 기본 성우를 따라요",
+		);
+		expect(PARAGRAPH_TEXT.voicesDropped(false, 3, 1)).toBe(
+			"보관함에 없는 성우를 쓰던 문단 3개는 기본 성우를 따라요. 화자 성우 1개도 보관함에 없어 비웠어요",
+		);
+		expect(PARAGRAPH_TEXT.voicesDropped(true, 0, 1)).toBe(
+			"기본 성우가 보관함에 없어 비웠어요. 기본 성우를 다시 골라 주세요. 화자 성우 1개도 보관함에 없어 비웠어요",
+		);
+		// 화자가 없으면 T10-a 문구 그대로
+		expect(PARAGRAPH_TEXT.voicesDropped(false, 3, 0)).toBe(
+			PARAGRAPH_TEXT.voicesDropped(false, 3),
+		);
+	});
+	it("자동 태그 알림은 기본 성우인지 화자 성우인지 가리지 않는다", () => {
+		expect(PARAGRAPH_TEXT.autoTagOwnNote(2)).toBe(
+			"감정·말투를 바꾼 문단 2개는 이제 자기 성우와 설정을 써요",
+		);
+	});
 	it("임시 작업을 읽으며 보관함에 없는 성우를 비운 알림(F30-2): 기본만·문단만·둘 다", () => {
 		expect(PARAGRAPH_TEXT.voicesDropped(true, 0)).toBe(
 			"기본 성우가 보관함에 없어 비웠어요. 기본 성우를 다시 골라 주세요",
@@ -479,7 +594,7 @@ describe("PARAGRAPH_TEXT 태그 도구줄·자동 태그(브리프 15.3)", () =>
 			"태그를 받지 않는 문단 4개는 그대로 둬요",
 		);
 		expect(PARAGRAPH_TEXT.autoTagOwnNote(2)).toBe(
-			"감정·말투를 바꾼 문단 2개는 이제 기본 성우를 따르지 않아요",
+			"감정·말투를 바꾼 문단 2개는 이제 자기 성우와 설정을 써요",
 		);
 		expect(PARAGRAPH_TEXT.autoTagChoose(7)).toBe("문단 7 바꾸기");
 		expect(PARAGRAPH_TEXT.autoTagApplyN(3)).toBe("고른 문단 바꾸기 (3)");
