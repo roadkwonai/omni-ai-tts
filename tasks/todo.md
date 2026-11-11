@@ -232,7 +232,8 @@ critique 27/40, audit 18/20(접근성 3/4) 결과 가운데 브리프·스펙을
 - [ ] PK-02 제작 표시 컴포넌트 `prokit-credit.tsx`는 넣지 않았다. 쓰려면 `install.sh --skip-skills`가 다시 복사하고, 화면에 붙이는 B 라운드로 한다.
 
 ### 하네스 (pro-kit v0.3.9 반영에서 미룬 것, 2026-11-11)
-- [ ] PK-03 외부 스킬 16개 업데이트(`pnpm skills:update`). v0.3.9 반영 라운드를 닫은 뒤 별도 H 라운드로 한다. `neon-postgres-branches`·`neon-postgres-egress-optimizer`는 UPSTREAM_GONE이라 지우지 말고 보고만 한다.
+- [ ] PK-06 `neon-postgres-branches`·`neon-postgres-egress-optimizer`는 v0.3.9 매니페스트에서 빠졌고(내용은 `neon-postgres`가 흡수) `skills-lock.json`과 `.agents/skills/`에만 남아 더 갱신되지 않는다. 지우려면 `prokit-skills-manage`(`--drop`)로 한다.
+- [ ] PK-07 `deploy-to-vercel` 새 판이 인증 실패 때 `vercel deploy --temporary -y`(로그인 없는 임시 배포)를 권한다. 이 프로젝트는 `prokit-deploy`로만 배포하므로 따르지 않는다(AGENTS.md 우선). 스킬을 빼려면 PK-06과 같이 한다.
 - [ ] PK-04 `.impeccable/`(리뷰·빌드 스냅샷 약 300개)가 커밋도 ignore도 되지 않은 채 남아 있다. 보관할지 `.gitignore`에 넣을지 정한다.
 - [ ] PK-05 전체 lint 기존 오류 10·경고 2(`.superpowers/sdd/**/*.js`, `docs/prototypes/*.css`). 이전 두뇌 산출물을 정리하거나 biome ignore에 넣을지 정한다.
 

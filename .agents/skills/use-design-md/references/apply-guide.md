@@ -14,7 +14,7 @@ components; with no token layer at all, add a small variable block at the top sc
 ## 2. Map the DESIGN.md sections
 
 **Read `## Known Gaps` before applying any other section.** Most of its bullets are one of
-four kinds, and each is handled differently (a bullet recording a retracted claim only
+five kinds, and each is handled differently (a bullet recording a retracted claim only
 corrects an earlier version of the entry — nothing to apply):
 
 - **Constraints you must follow.** Example: toss's brand typeface (Toss Product Sans) may
@@ -34,6 +34,11 @@ corrects an earlier version of the entry — nothing to apply):
 - **Scope disclosures.** Values the catalog recommends rather than the brand publishing them
   (e.g. breakpoints), or areas the sources didn't cover. Use them, but don't present them
   as the brand's spec.
+- **Package tokens with no map key.** A bullet that starts with a package path and
+  `— 키 미정(패키지 컴포넌트 토큰)` names a component token the brand *did* publish, but
+  the catalog has no rule yet for its `components:` map key. Take its value from the
+  entry's package token table in the body; missing from the map means only that
+  standard tools get no key for it, not that the value is unpublished.
 
 | DESIGN.md section   | Where it lands in the target |
 |---------------------|------------------------------|
@@ -69,25 +74,29 @@ corrects an earlier version of the entry — nothing to apply):
 - A `dark-` prefix marks a dark-theme value. Its light pair is usually the same key
   without the prefix, or with `light-` in its place: `dark-grey-900` ↔ `grey-900`,
   `dark-gray-00` ↔ `light-gray-00`.
-- A `-dark` *suffix* means different things in different entries — a darker shade used in
-  the light theme (`positive-dark`, `primary-dark`) or a dark-theme value (`black-dark`,
-  `bg-canvas-dark` ↔ `bg-canvas-light`). Don't decide from the name alone. Look at its
-  neighbours: a `-dark` / `-middle` / `-light` ladder under one group label (`  ## …` row)
-  is a shade scale, while `-light` / `-dark` twins of the same role are a theme pair. The
-  token's trailing comment, the Colors prose and Known Gaps confirm it.
+- A `-dark` *suffix* is, in the catalogue today, a shade rather than a theme — a darker
+  step used in the light theme (`positive-dark`, `primary-dark`), usually in a `-dark` /
+  `-middle` / `-light` ladder under one group label (`  ## …` row). The catalogue's
+  dark-theme values carry the `dark-` prefix instead (`primary-dark` ↔ `dark-primary-dark`).
+  No check enforces that, so don't decide from the name alone: the token's trailing
+  comment, the Colors prose and Known Gaps confirm which it is.
 - A quoted `"{colors.x}"` value is a reference row: it resolves to key `x` in the same
   map, and `x` may itself be a reference — follow the chain to a literal value. Role rows
-  point at palette steps this way, light and dark alike. Like `fonts:`, reference rows
-  live only in the DESIGN.md frontmatter — the JSON token sidecar carries the palette
-  values without them, so build role and dark-pair wiring from the md.
+  point at palette steps this way, light and dark alike, and a role may point at another
+  role (`primary-bg-normal: "{colors.bg-blue-normal}"`). The JSON token sidecar carries
+  each reference row as well: its `value` is the colour the chain ends at, and `ref`
+  names the key it points at (the first hop, which may be a role rather than a palette
+  step), so role and dark-pair wiring can be read
+  from either. `primary: "{colors.x}"` is a reference row too, but it is the brand-colour
+  alias, not a role — treat it as the palette's brand colour.
 - Wire both values to one token name in the target's dark-mode mechanism (a custom-property
   theme block, `prefers-color-scheme`, Tailwind's `dark:` variant, …), so components switch
   without code changes.
-- A dark pair can carry yet another marker (`primary-dark` ↔ `primary-dark-on-dark`).
-  Or the two values meet only through a role row and its dark twin
-  (`color-background-canvas` → `color-white`, `color-background-canvas-dark` →
-  `dark-canvas`). Before deciding a token has none, check same-stem neighbours, their
-  comments and the role rows that point at it.
+- For a role, read its own `dark-` row; do not derive it from the light step's same-stem
+  dark token. `color-background-overlay-100` → `canvas`, but
+  `dark-color-background-overlay-100` → `dark-gray-100`, not `dark-canvas`.
+- For a palette token, look for its `dark-` same-stem neighbour and read their comments.
+  Before deciding it has no dark pair, also check the role rows that point at it.
 - No dark pair means one of two things. Some tokens are theme-invariant by design (e.g. a
   `static-*` family). Others simply weren't published — Known Gaps may say so, but not
   every entry does. A dark value you fill in for those is your inference (SKILL.md "Scope
