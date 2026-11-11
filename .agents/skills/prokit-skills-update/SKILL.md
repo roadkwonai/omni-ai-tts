@@ -2,11 +2,13 @@
 name: prokit-skills-update
 description: >-
   이 Better-T-Stack 프로젝트가 skills.manifest.json으로 설치한 외부 스킬(Next.js, Vercel,
-  shadcn, Better Auth, DB, superpowers, impeccable 등)을 GitHub 원본과 비교해 새 버전을 확인하고
+  shadcn, Better Auth, DB, 고른 UI 스킬(impeccable, hallmark), 고른 두뇌·과설계 방지 스킬과 추가 스킬 등)을 GitHub 원본과 비교해 새 버전을 확인하고
   한 번에 업데이트한다. `pnpm dev-cycle status`나 `pnpm skills:update --if-due`가 UPDATE_AVAILABLE,
   UPSTREAM_GONE, CHECK_FAILED를 출력했을 때, 그리고 스킬 업데이트해줘, 스킬 최신인지 확인해줘,
   스킬 버전 올려줘, npx skills update 같은 요청에 사용한다. prokit-* 스킬 갱신(템플릿 새 버전),
-  새 스킬 추가, Claude 플러그인과 전역 도구(gstack 등) 업데이트에는 쓰지 않는다.
+  고른 구성 바꾸기(두뇌·과설계 방지·추가 스킬·선택 묶음의 추가·변경·제거는 prokit-skills-manage),
+  공식 스킬을 맡는 에이전트 배치(prokit-skills-assign. 업데이트 뒤 배치 점검은 이 스킬이 넘긴다),
+  Claude 플러그인과 전역 도구(gstack 등) 업데이트에는 쓰지 않는다.
 ---
 
 # 프로킷 스킬 업데이트
@@ -29,7 +31,7 @@ description: >-
 - exit 0은 모두 최신이다. 1은 업데이트할 스킬, 빠진 스킬, 원격에서 없어진 스킬이 남았다는 뜻이다. 2는 설치 실패, 설치 거부, 실행 오류(모르는 옵션 포함), 3은 확인 실패(설치는 끝났을 수 있다)다. 출력을 그대로 보고한다.
 - 확인 결과와 알림 설정은 이 기기의 `node_modules/.cache/skills-update.json`에만 둔다. 커밋하지 않고, `node_modules`를 지우면 기본값으로 돌아간다.
 - 토큰이 없으면 GitHub API는 시간당 60회까지다. `gh auth login`이 되어 있으면 그 토큰을 쓴다.
-- `npx skills update`는 쓰지 않는다. 에이전트를 지정하지 않고 모든 스킬을 다시 설치해서, 이 기기에서 찾은 모든 에이전트 폴더에 스킬을 연결한다. 그러면 Codex 전용인 superpowers 스킬이 Claude 플러그인과 겹치고, 바뀌지 않은 스킬까지 lock과 파일이 흔들린다. `pnpm skills:update`는 바뀐 스킬만 매니페스트의 `agents`대로 설치한다.
+- `npx skills update`는 쓰지 않는다. 에이전트를 지정하지 않고 모든 스킬을 다시 설치해서, 이 기기에서 찾은 모든 에이전트 폴더에 스킬을 연결한다. 그러면 Codex 전용인 스킬(고른 두뇌·ponytail의 Codex용 스킬)이 Claude 플러그인과 겹치고, 바뀌지 않은 스킬까지 lock과 파일이 흔들린다. `pnpm skills:update`는 바뀐 스킬만 매니페스트의 `agents`대로 설치한다.
 
 ## 1. 요청과 알림 처리
 - 사용자가 업데이트를 직접 요청했으면("스킬 업데이트해줘", "최신이면 업데이트해줘") 알림 방식과 상관없이 묻지 않는다. `pnpm skills:update --check` 결과를 보여 주고 바로 2절을 한다. 원격에서 없어진 스킬은 아래 표대로 알린다.
@@ -40,7 +42,7 @@ description: >-
 |---|---|
 | `UPDATE_AVAILABLE mode=ask …` | 스킬 목록을 보여 주고 한 번 묻는다(Claude Code는 AskUserQuestion). 선택지는 아래. 목록 뒤에 `(스크립트 변경: …)`이 붙으면 auto여도 이 줄이 나온다. 그 스킬은 설치 전에 원격 파일을 본다고(2절 2번) 함께 알린다 |
 | `UPDATE_AVAILABLE mode=auto …` | 묻지 않고 2절을 한다 |
-| `UPSTREAM_GONE …` | 원격 저장소에서 그 스킬이 없어졌다(이름이 바뀌었거나 옮겼거나 저장소가 사라졌다). 업데이트로는 고칠 수 없고, 목록이 바뀔 때만 다시 알린다. 원본 저장소 README에 옮긴 곳이 적혀 있는지 본다(`gh api repos/<source>/readme --jq .content \| base64 -d`). 예를 들어 vercel-labs/next-skills는 스킬을 vercel/next.js로 옮겼고 일부는 Next.js 번들 문서로 대신한다고 적어 두었다. 설치본은 그대로 쓸 수 있지만 더 갱신되지 않는다고 알리고, 찾은 대체 후보를 함께 알린다. 지우지 않는다. `skills.manifest.json`을 고치는 일은 사용자가 요청할 때 H 라운드로 한다 |
+| `UPSTREAM_GONE …` | 원격 저장소에서 그 스킬이 없어졌다(이름이 바뀌었거나 옮겼거나 저장소가 사라졌다). 업데이트로는 고칠 수 없고, 목록이 바뀔 때만 다시 알린다. 원본 저장소 README에 옮긴 곳이 적혀 있는지 본다(`gh api repos/<source>/readme --jq .content \| base64 -d`). 예를 들어 vercel-labs/next-skills는 스킬을 vercel/next.js로 옮겼고 일부는 Next.js 번들 문서로 대신한다고 적어 두었다. 설치본은 그대로 쓸 수 있지만 더 갱신되지 않는다고 알리고, 찾은 대체 후보를 함께 알린다. 지우지 않는다. 매니페스트와 배치를 고치는 일은 사용자가 요청하면 `prokit-skills-assign`으로 한다 |
 | `CHECK_FAILED …` | 적힌 저장소만 확인하지 못했다. 한 줄로 알리고 다른 줄을 처리한다. 그 저장소가 최신이라고 말하지 않는다. 한 시간 뒤 다시 확인한다 |
 
 `mode=ask` 선택지:
@@ -52,20 +54,21 @@ description: >-
 ## 2. 업데이트 라운드
 스킬 파일과 `skills-lock.json`이 바뀌므로 케이스 H 라운드 하나로 한다. 진행 중인 라운드가 있으면 그 라운드를 먼저 닫는다. 다른 작업과 diff가 섞이면 audit이 더 무거운 케이스를 요구하고 리뷰 범위도 흐려진다. 확인 결과 바꿀 스킬이 없으면(원격에서 없어진 스킬만 있으면) 라운드를 열지 않는다.
 
-1. `pnpm dev-cycle table H --write --title "외부 스킬 업데이트"`
-2. **설치 전 확인**: `pnpm skills:update --check`를 실행한다. `스크립트 변경` 줄에 나온 파일은 설치하기 전에 원격 내용을 읽는다. impeccable처럼 훅이 스킬 폴더의 스크립트를 바로 실행하는 스킬은 설치되는 즉시 새 스크립트가 돌기 때문이다. 이 실행이 보여 준 판이 검토 고정값으로 기록된다.
+1. `pnpm dev-cycle table H --write --title "외부 스킬 업데이트" --no-task`
+2. **설치 전 확인**: `pnpm skills:update --check`를 실행한다. `스크립트 변경` 줄에 나온 파일은 설치하기 전에 원격 내용을 읽는다. impeccable처럼 훅이 스킬 폴더의 스크립트를 바로 실행하는 스킬과 hallmark처럼 검사 스크립트를 실행하는 스킬은 설치되는 즉시 새 스크립트가 돌기 때문이다. 이 실행이 보여 준 판이 검토 고정값으로 기록된다.
    - `blob <sha>`: `gh api "repos/<저장소>/git/blobs/<sha>" --jq .content | base64 -d | diff .agents/skills/<이름>/<파일> -` (새 파일이면 diff 없이 읽는다)
    - `원격에서 지움`: 로컬 파일이 무엇이었는지만 본다. `링크`: `gh api "repos/<저장소>/contents/<폴더>/<파일>"`로 대상 경로를 보고 그 파일을 읽는다.
    - `VERSION`처럼 설치 뒤 바이너리를 내려받게 하는 파일이 바뀌었거나, 원래 압축된 파일(`*.min.js`, `*.umd.js`)이면 diff로 판단할 수 없다. 출처와 바뀐 버전을 알리고 사용자가 정한다.
    - 의심스러운 변경(네트워크 전송, 비밀값 읽기, 전역 설정 변경, 난독화된 코드)이 있는 스킬은 빼고, 이유를 보고에 적는다.
 3. `pnpm skills:update`로 `.md`만 바뀐 스킬(빠진 스킬 포함)을 설치한다. 스크립트가 바뀐 스킬은 빠진 것이라도 `보류`로 남는다. 2번에서 문제없다고 본 스크립트 변경 스킬은 `pnpm skills:update <이름>...`으로 설치한다. `설치 거부`는 이유를 함께 보여 준다. 검토 기록 없음이나 원격이 바뀜이면 2번부터 다시 하고, 같은 이름의 폴더가 여럿이면 보고한다. 뺀 스킬이 남으면 exit 1이 정상이다. 설치 실패나 설치 거부(exit 2)여도 설치된 스킬이 있으면 4번을 먼저 한 뒤 보고한다. 확인 실패(exit 3)면 확인하지 못한 저장소를 보고에 적는다. 다시 설치했는데도 업데이트로 남은 스킬은 원격 스냅샷이 늦은 것일 수 있다. 보고하고 다음 확인에 맡긴다.
 4. 바뀐 내용을 본다: `git diff --stat -- .agents/skills skills-lock.json`. 외부 스킬의 내용은 곧 에이전트 지시이고 스크립트는 그대로 실행된다.
-   - 바뀐 스킬마다 `SKILL.md` diff를 훑는다. 이 프로젝트 규칙과 부딪히는 지시가 새로 생겼는지 본다(예: `db:push` 권장, 다른 배포 방법, 전역 설치). 부딪혀도 `AGENTS.md`와 `prokit-*`가 우선이고, 부딪히는 곳은 보고에 적는다. frontmatter의 `hooks`·`allowed-tools`와 본문에서 느낌표 바로 뒤에 백틱으로 감싼 명령(동적 컨텍스트)은 스킬을 부를 때 실행되므로 스크립트처럼 본다.
+   - 바뀐 스킬마다 `SKILL.md` diff를 훑는다. 이 프로젝트 규칙과 부딪히는 지시가 새로 생겼는지 본다(예: <!-- edition:pro -->`db:push` 권장, <!-- /edition -->다른 배포 방법, 전역 설치). 부딪혀도 `AGENTS.md`와 `prokit-*`가 우선이고, 부딪히는 곳은 보고에 적는다. frontmatter의 `hooks`·`allowed-tools`와 본문에서 느낌표 바로 뒤에 백틱으로 감싼 명령(동적 컨텍스트)은 스킬을 부를 때 실행되므로 스크립트처럼 본다.
    - `.md`가 아닌 파일은 스크립트가 설치 뒤 원격과 다시 비교한다. `설치본이 검토한 판과 다르다`가 나오거나 문제가 보이면 이번 업데이트를 되돌린다. `git status --short -- .agents/skills .claude/skills skills-lock.json`으로 이번에 생긴 변경만 있는지 보고, `git checkout -- .agents/skills .claude/skills skills-lock.json`과 새로 생긴 스킬 폴더·링크 삭제로 되돌린 뒤 문제없는 스킬만 이름을 지정해 다시 설치한다.
    - 이 프로젝트에서 직접 고쳐 둔 외부 스킬이면 업데이트가 그 수정을 지운다. 지워진 수정이 있으면 보고한다.
-5. 행을 채운다. `pnpm agents:check`, `pnpm skills:check`, `pnpm dev-cycle case`·`status`의 출력을 적는다. skill-creator eval 행은 `N/A: 외부 스킬만 갱신(prokit-* 변경 없음)`, 문서 영향 행은 바뀐 문서가 없으면 `N/A: 외부 스킬 갱신`이다.
-6. `[confirm]` 행: 업데이트한 스킬 목록, 스킬별 바뀐 줄 수, 2번과 4번에서 본 주의점(뺀 스킬 포함)을 보여 주고 확인받는다.
-7. `prokit-dev-cycle` 5절대로 닫고 커밋한다. 커밋 제목 예: `chore: 외부 스킬 업데이트 (next-dev-loop, shadcn)`. 앱 코드는 바뀌지 않았으므로 마무리 질문에서 배포는 필요 없다고 함께 알린다.
+5. **배치 점검**: 새로 생긴 스킬, 원격에서 없어진 스킬, `SKILL.md`의 `description`이나 하는 일이 바뀐 공식 스킬이 있으면 `prokit-skills-assign`의 1\~2절로 맡을 에이전트를 판단해 보여 주고, 바꿀 배치가 있으면 이 라운드에서 그 3절 2번부터 반영한다. 글만 다듬은 업데이트면 `배치 그대로`로 보고에 적는다.
+6. 행을 채운다. 설계 행(`[design]`)은 N/A를 받지 않으니 먼저 채운다. 예: `기존: .agents/skills/<바뀐 스킬>과 그 스킬을 읽는 prokit-*·에이전트; 결정: 외부 스킬만 갱신하고 prokit-*·배치는 그대로(바꿨으면 5번 결과); 설정: 환경 변수·설정 영향 없음; 검증: agents:check·skills:check·dev-cycle case`. 이어서 `pnpm agents:check`, `pnpm skills:check`, `pnpm dev-cycle case`·`status`의 출력을 적는다. 구현 행은 배치를 바꾸지 않았으면 `N/A: 외부 스킬만 갱신`, skill-creator eval 행은 `N/A: 외부 스킬만 갱신(prokit-* 변경 없음)`, 문서 영향 행은 바뀐 문서가 없으면 `N/A: 외부 스킬 갱신`이다.
+7. `[confirm]` 행: 업데이트한 스킬 목록, 스킬별 바뀐 줄 수, 2번과 4번에서 본 주의점(뺀 스킬 포함), 5번의 배치 점검 결과를 보여 주고 확인받는다.
+8. `prokit-dev-cycle` 5절대로 닫고 커밋한다. 커밋 제목 예: `chore: 외부 스킬 업데이트 (next-dev-loop, shadcn)`. 앱 코드는 바뀌지 않았으므로 마무리 질문에서 배포는 필요 없다고 함께 알린다.
 
 ## turbo와 turborepo 스킬
 `turborepo` 스킬은 지침을 설치된 `turbo` 패키지의 번들 문서(`node_modules/turbo/docs/`, turbo 2.11.5부터 들어 있다)로 넘긴다. 그래서 turbo 버전이 스킬 내용을 정하고, 이 문서는 `skills-lock.json`의 비교 대상이 아니다.
@@ -76,6 +79,8 @@ description: >-
 ## 대상이 아닌 것
 - `prokit-*` 스킬: 템플릿 저장소(pro-kit)의 새 버전으로 갱신한다. 그 저장소 `AGENTS.md`의 "기존 프로젝트에 템플릿 갱신 반영" 절차를 따른다.
 - 매니페스트에 없는 스킬(`npx skills add`로 직접 더한 것): 확인하지 않는다. 계속 쓸 스킬이면 `skills.manifest.json`에 더한다(H 라운드).
-- Claude 플러그인(superpowers, skill-creator, oh-my-claudecode, ponytail): `pnpm skills:update`는 올리지 않는다. 네 플러그인 모두 훅이 있어 올리는 즉시 새 코드가 돌고, 이 경로는 설치 전 검토를 거치지 않는다. 사용자가 요청하면 marketplace를 갱신하기 전에 플러그인 저장소의 `hooks/`와 코드를 검토하고, `claude plugin marketplace update <마켓플레이스>`(`skills.manifest.json`의 `claude.marketplaces`) 뒤 `claude plugin update <플러그인> --scope project`로 올린다. 새 프로젝트는 설치할 때 마켓플레이스를 갱신하므로 최신판을 받는다. 올린 플러그인은 세션을 다시 열어야 적용된다. 커밋할 파일이 없으므로 라운드를 열지 않는다.
-- Codex 네이티브 ponytail 플러그인: `pnpm skills:update` 밖의 선택 항목이다. 설치하지 않았거나 사용자가 비활성화했으면 다시 설치·자동 업데이트하지 않는다. 사용자가 요청했을 때만 hooks와 코드를 검토한 뒤 `codex plugin marketplace upgrade ponytail`로 Ponytail 원본 GitHub marketplace snapshot을 새로고침한다. 이 명령만으로 플러그인 갱신 완료를 판정하지 않는다. 실제 설치판 변경은 사용자가 원하고 비활성화 상태가 아닐 때만 `codex plugin add ponytail@ponytail`로 하고, `codex plugin list --json`으로 설치판을 확인한다. 훅 신뢰와 새 세션은 별도다. CLI가 이 명령을 지원하지 않으면 프로젝트의 ponytail 스킬을 계속 쓴다.
-- 전역 도구: gstack은 `/gstack-upgrade`, 그 밖은 `pnpm skills:check`가 보여 주는 설치 안내를 따른다.
+- 공식 스킬을 맡는 에이전트 정하기와 바꾸기, 공식 스킬 더하기·빼기: `prokit-skills-assign`을 따른다.
+- 고른 구성 바꾸기(두뇌·과설계 방지 스킬·추가 스킬·선택 묶음을 더하거나 바꾸거나 지우기): `prokit-skills-manage`를 따른다.
+- Claude 플러그인(skill-creator와 고른 두뇌·과설계 방지 스킬의 플러그인. 예: superpowers, oh-my-claudecode, ponytail): `pnpm skills:update`는 올리지 않는다. 훅이 있는 플러그인은 올리는 즉시 새 코드가 돌고, 이 경로는 설치 전 검토를 거치지 않는다. 사용자가 요청하면 marketplace를 갱신하기 전에 플러그인 저장소의 `hooks/`와 코드를 검토하고, `claude plugin marketplace update <마켓플레이스>`(`skills.manifest.json`의 `claude.marketplaces`, `brains.<이름>.claude.marketplaces`, `simplicity.<이름>.claude.marketplaces`) 뒤 `claude plugin update <플러그인> --scope project`로 올린다. 새 프로젝트는 설치할 때 마켓플레이스를 갱신하므로 최신판을 받는다. 올린 플러그인은 세션을 다시 열어야 적용된다. 커밋할 파일이 없으므로 라운드를 열지 않는다.
+- Codex 네이티브 ponytail 플러그인(과설계 방지 스킬로 ponytail을 골랐을 때): `pnpm skills:update` 밖의 선택 항목이다. 설치하지 않았거나 사용자가 비활성화했으면 다시 설치·자동 업데이트하지 않는다. 사용자가 요청했을 때만 hooks와 코드를 검토한 뒤 `codex plugin marketplace upgrade ponytail`로 Ponytail 원본 GitHub marketplace snapshot을 새로고침한다. 이 명령만으로 플러그인 갱신 완료를 판정하지 않는다. 실제 설치판 변경은 사용자가 원하고 비활성화 상태가 아닐 때만 `codex plugin add ponytail@ponytail`로 하고, `codex plugin list --json`으로 설치판을 확인한다. 훅 신뢰와 새 세션은 별도다. CLI가 이 명령을 지원하지 않으면 프로젝트의 ponytail 스킬을 계속 쓴다.
+- 전역 도구: 두뇌가 gstack이면 `/gstack-upgrade`(`references/brains/gstack.md`), 그 밖은 `pnpm skills:check`가 보여 주는 설치 안내를 따른다.

@@ -45,27 +45,19 @@
 				"better-auth-best-practices",
 				"better-auth-security-best-practices",
 				"email-and-password-best-practices"
-			]
+			],
+			"stack": true
 		},
 		{
 			"agents": ["claude-code", "codex"],
 			"source": "neondatabase/agent-skills",
-			"skills": [
-				"neon",
-				"neon-postgres",
-				"neon-postgres-branches",
-				"neon-postgres-egress-optimizer"
-			]
+			"skills": ["neon", "neon-postgres"],
+			"stack": true
 		},
 		{
 			"agents": ["claude-code", "codex"],
 			"source": "supabase/agent-skills",
 			"skills": ["supabase-postgres-best-practices"]
-		},
-		{
-			"agents": ["claude-code", "codex"],
-			"source": "pbakaus/impeccable",
-			"skills": ["impeccable"]
 		},
 		{
 			"agents": ["claude-code", "codex"],
@@ -80,7 +72,8 @@
 		{
 			"agents": ["claude-code", "codex"],
 			"source": "vercel/turborepo",
-			"skills": ["turborepo"]
+			"skills": ["turborepo"],
+			"stack": true
 		},
 		{
 			"agents": ["claude-code", "codex"],
@@ -89,43 +82,72 @@
 		},
 		{
 			"agents": ["codex"],
-			"source": "obra/superpowers",
-			"skills": [
-				"using-superpowers",
-				"brainstorming",
-				"writing-plans",
-				"executing-plans",
-				"subagent-driven-development",
-				"dispatching-parallel-agents",
-				"test-driven-development",
-				"systematic-debugging",
-				"requesting-code-review",
-				"receiving-code-review",
-				"verification-before-completion",
-				"finishing-a-development-branch",
-				"using-git-worktrees",
-				"writing-skills",
-				"diagnosing-superpowers"
-			]
-		},
-		{
-			"agents": ["codex"],
 			"source": "anthropics/skills",
 			"skills": ["skill-creator"]
-		},
-		{
-			"agents": ["codex"],
-			"source": "DietrichGebert/ponytail",
-			"skills": [
-				"ponytail",
-				"ponytail-review",
-				"ponytail-audit",
-				"ponytail-debt",
-				"ponytail-help",
-				"ponytail-gain"
-			]
 		}
 	],
+	"performers": {
+		"description": "공식 스킬로 일하는 전문 에이전트. agents는 대조표에서 위임받는 에이전트, skills는 공식 스킬마다 그 스킬을 읽고 일하는 에이전트다. 여기에 없는 공식 스킬은 Main이 읽는다. 바꾸는 일은 prokit-skills-assign",
+		"agents": [
+			"prokit-ui-builder",
+			"prokit-api-builder",
+			"prokit-db-builder",
+			"prokit-runtime-checker",
+			"prokit-implementer"
+		],
+		"skills": {
+			"shadcn": ["prokit-ui-builder", "prokit-reviewer"],
+			"vercel-react-best-practices": ["prokit-ui-builder", "prokit-reviewer"],
+			"vercel-composition-patterns": ["prokit-ui-builder", "prokit-reviewer"],
+			"next-cache-components-adoption": ["prokit-ui-builder"],
+			"next-cache-components-optimizer": ["prokit-ui-builder"],
+			"next-partial-prefetching-adoption": ["prokit-ui-builder"],
+			"next-partial-prefetching-optimizer": ["prokit-ui-builder"],
+			"web-design-guidelines": ["prokit-reviewer"],
+			"next-dev-loop": ["prokit-runtime-checker", "prokit-ui-builder"],
+			"agent-browser": ["prokit-runtime-checker"],
+			"better-auth-best-practices": ["prokit-api-builder", "prokit-reviewer"],
+			"better-auth-security-best-practices": [
+				"prokit-api-builder",
+				"prokit-reviewer"
+			],
+			"email-and-password-best-practices": [
+				"prokit-api-builder",
+				"prokit-reviewer"
+			],
+			"turborepo": [
+				"prokit-ui-builder",
+				"prokit-api-builder",
+				"prokit-implementer",
+				"prokit-reviewer"
+			],
+			"supabase-postgres-best-practices": [
+				"prokit-db-builder",
+				"prokit-reviewer"
+			],
+			"neon-postgres": ["prokit-db-builder", "prokit-reviewer"]
+		}
+	},
+	"mattpocock": {
+		"source": "mattpocock/skills",
+		"agents": ["claude-code", "codex"],
+		"pool": [
+			"tdd",
+			"diagnosing-bugs",
+			"codebase-design",
+			"prototype",
+			"research",
+			"improve-codebase-architecture",
+			"wizard",
+			"to-questionnaire",
+			"handoff",
+			"teach",
+			"wait-what",
+			"writing-for-agents",
+			"code-review",
+			"pr"
+		]
+	},
 	"optional": {
 		"ops": {
 			"description": "운영 환경: 배포한 프로젝트의 비용·성능 점검, Neon 함수·파일 저장·LLM 게이트웨이",
@@ -161,6 +183,539 @@
 					"skills": ["vercel-react-native-skills"]
 				}
 			]
+		},
+		"i-have-adhd": {
+			"description": "행동 중심 짧은 응답(/i-have-adhd로 켠다. 대화 응답에만)",
+			"skills": [
+				{
+					"agents": ["claude-code", "codex"],
+					"source": "ayghri/i-have-adhd",
+					"skills": ["i-have-adhd"]
+				}
+			]
+		},
+		"taste": {
+			"description": "화면 디자인 보조 taste-skill(고른 화면에만. 검사에 Chrome 필요)",
+			"skills": [
+				{
+					"agents": ["claude-code", "codex"],
+					"source": "Leonxlnx/taste-skill",
+					"skills": ["design-taste-frontend"]
+				}
+			],
+			"guide": ".agents/skills/prokit-ui/references/taste.md"
+		},
+		"landing": {
+			"description": "화면 디자인 보조(방향): 가입·구매·신청 하나를 이끄는 랜딩의 인테이크·구조·전환 카피·SEO(landing-page-design)",
+			"guide": ".agents/skills/prokit-ui/references/addon-landing.md",
+			"skills": [
+				{
+					"agents": ["claude-code", "codex"],
+					"source": "elayadesign/ai-design-skills",
+					"skills": ["landing-page-design"]
+				}
+			]
+		},
+		"tastemaker": {
+			"description": "화면 디자인 보조(방향): 레퍼런스 이미지에서 색·서체·간격 값을 뽑아 스타일을 고정하고 화면마다 이어 쓴다(python3 필요)",
+			"guide": ".agents/skills/prokit-ui/references/addon-tastemaker.md",
+			"skills": [
+				{
+					"agents": ["claude-code", "codex"],
+					"source": "codeswithroh/tastemaker",
+					"skills": ["tastemaker"]
+				}
+			]
+		},
+		"web-design-engineer": {
+			"description": "화면 디자인 보조(원칙): 스타일 레시피 25종과 방향 셋 제안, 5개 차원 채점(web-design-engineer)",
+			"guide": ".agents/skills/prokit-ui/references/addon-web-design-engineer.md",
+			"skills": [
+				{
+					"agents": ["claude-code", "codex"],
+					"source": "ConardLi/garden-skills",
+					"skills": ["web-design-engineer"]
+				}
+			]
+		},
+		"awwwards": {
+			"description": "화면 디자인 보조(원칙): 스크롤 스토리텔링과 모션이 중심인 브랜드·쇼케이스 페이지 지침(build-awwwards-quality-sites. GSAP와 스크롤 엔진 하나)",
+			"guide": ".agents/skills/prokit-ui/references/addon-awwwards.md",
+			"skills": [
+				{
+					"agents": ["claude-code", "codex"],
+					"source": "MengTo/Skills",
+					"skills": ["build-awwwards-quality-sites"]
+				}
+			]
+		},
+		"animation": {
+			"description": "화면 디자인 보조(모션): 애니메이션을 넣을지부터 곡선·시간·중단까지 정하고, 코드베이스 모션을 감사해 계획을 만든다(Emil Kowalski 스킬 5개)",
+			"guide": ".agents/skills/prokit-ui/references/addon-animation.md",
+			"skills": [
+				{
+					"agents": ["claude-code", "codex"],
+					"source": "emilkowalski/skills",
+					"skills": [
+						"emil-design-eng",
+						"animate",
+						"improve-animations",
+						"apple-design",
+						"animation-vocabulary"
+					]
+				}
+			]
+		},
+		"visual-critique": {
+			"description": "화면 디자인 보조(검수): 화면 하나를 7개 차원(위계, 브랜드, 구성, 타이포, 색, 어포던스, 정보 밀도)으로 비평하고 P1~P3로 묶는다",
+			"guide": ".agents/skills/prokit-ui/references/addon-visual-critique.md",
+			"skills": [
+				{
+					"agents": ["claude-code", "codex"],
+					"source": "Owl-Listener/designer-skills",
+					"skills": [
+						"critique-visual-hierarchy",
+						"critique-brand-consistency",
+						"critique-composition",
+						"critique-typography",
+						"critique-color",
+						"critique-affordance",
+						"critique-information-density"
+					]
+				}
+			]
+		},
+		"ui-design": {
+			"description": "화면 디자인 보조(검수): 게슈탈트·지각 법칙 8개와 간격·타이포·그리드·색·반응형 시스템 11개로 화면을 설계하고 점검한다",
+			"guide": ".agents/skills/prokit-ui/references/addon-ui-design.md",
+			"skills": [
+				{
+					"agents": ["claude-code", "codex"],
+					"source": "Owl-Listener/designer-skills",
+					"skills": [
+						"aesthetic-usability",
+						"color-system",
+						"dark-mode-design",
+						"data-visualization",
+						"illustration-style",
+						"law-of-closure",
+						"law-of-common-region",
+						"law-of-continuity",
+						"law-of-figure-ground",
+						"law-of-proximity",
+						"law-of-similarity",
+						"layout-grid",
+						"platform-conventions",
+						"readable-measure",
+						"responsive-design",
+						"spacing-system",
+						"typography-scale",
+						"visual-hierarchy",
+						"von-restorff-effect"
+					]
+				}
+			]
+		}
+	},
+	"brains": {
+		"superpowers": {
+			"description": "설계 합의·계획·테스트 먼저·작업별 리뷰를 거는 규율형",
+			"hosts": {
+				"claude-code": "full",
+				"codex": "full"
+			},
+			"skills": [
+				{
+					"agents": ["codex"],
+					"source": "obra/superpowers",
+					"skills": [
+						"using-superpowers",
+						"brainstorming",
+						"writing-plans",
+						"executing-plans",
+						"subagent-driven-development",
+						"dispatching-parallel-agents",
+						"test-driven-development",
+						"systematic-debugging",
+						"requesting-code-review",
+						"receiving-code-review",
+						"verification-before-completion",
+						"finishing-a-development-branch",
+						"using-git-worktrees",
+						"writing-skills",
+						"diagnosing-superpowers"
+					]
+				}
+			],
+			"claude": {
+				"marketplaces": {
+					"claude-plugins-official": {
+						"source": "github",
+						"repo": "anthropics/claude-plugins-official"
+					}
+				},
+				"plugins": ["superpowers@claude-plugins-official"]
+			},
+			"userTraces": [
+				{
+					"path": ".agents/skills/using-superpowers"
+				},
+				{
+					"path": ".codex/skills/using-superpowers"
+				}
+			],
+			"forces": true
+		},
+		"agent-skills": {
+			"description": "스펙부터 출시까지 보안·성능·접근성 기준을 단계별 명령으로",
+			"hosts": {
+				"claude-code": "full",
+				"codex": "full"
+			},
+			"skills": [
+				{
+					"agents": ["codex"],
+					"source": "addyosmani/agent-skills",
+					"skills": [
+						"using-agent-skills",
+						"interview-me",
+						"idea-refine",
+						"spec-driven-development",
+						"planning-and-task-breakdown",
+						"incremental-implementation",
+						"test-driven-development",
+						"context-engineering",
+						"source-driven-development",
+						"doubt-driven-development",
+						"constraint-driven-development",
+						"frontend-ui-engineering",
+						"api-and-interface-design",
+						"browser-testing-with-devtools",
+						"debugging-and-error-recovery",
+						"code-review-and-quality",
+						"code-simplification",
+						"security-and-hardening",
+						"performance-optimization",
+						"observability-and-instrumentation",
+						"git-workflow-and-versioning",
+						"ci-cd-and-automation",
+						"deprecation-and-migration",
+						"documentation-and-adrs",
+						"shipping-and-launch"
+					]
+				}
+			],
+			"claude": {
+				"marketplaces": {
+					"addy-agent-skills": {
+						"source": "github",
+						"repo": "addyosmani/agent-skills"
+					}
+				},
+				"plugins": ["agent-skills@addy-agent-skills"]
+			}
+		},
+		"pstack": {
+			"description": "poteto-mode 플레이북으로 적게 쓰고 검증하는 엄격한 엔지니어링. Claude Code만",
+			"hosts": {
+				"claude-code": "full",
+				"codex": "none"
+			},
+			"claude": {
+				"marketplaces": {
+					"cursor-plugins": {
+						"source": "github",
+						"repo": "cursor/plugins"
+					}
+				},
+				"plugins": ["pstack@cursor-plugins"]
+			}
+		},
+		"gstack": {
+			"description": "제품 판단·디자인·실사용 QA. 전역 설치(Bun)",
+			"hosts": {
+				"claude-code": "full",
+				"codex": "full"
+			},
+			"global": [
+				{
+					"name": "gstack(Claude)",
+					"check": "test -d \"$HOME/.claude/skills/gstack/bin\"",
+					"install": "command -v bun >/dev/null || { echo 'gstack 설치에는 bun이 필요하다: https://bun.sh'; exit 1; }; git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git \"$HOME/.claude/skills/gstack\" && cd \"$HOME/.claude/skills/gstack\" && ./setup",
+					"hint": "pnpm skills:setup --brain gstack (bun 필요) 또는 https://github.com/garrytan/gstack",
+					"tool": "claude"
+				},
+				{
+					"name": "gstack(Codex)",
+					"check": "test -d \"$HOME/.codex/skills/gstack\"",
+					"install": "test -x \"$HOME/.claude/skills/gstack/setup\" && cd \"$HOME/.claude/skills/gstack\" && ./setup --host codex",
+					"hint": "pnpm skills:setup --brain gstack (gstack(Claude) 설치 뒤)",
+					"tool": "codex"
+				}
+			],
+			"userSkills": ".claude/skills/gstack",
+			"userTraces": [
+				{
+					"path": ".codex/skills/gstack"
+				}
+			],
+			"forces": true
+		},
+		"oh-my": {
+			"description": "큰 작업을 자동·병렬 모드로(Claude는 OMC, Codex는 OMX)",
+			"hosts": {
+				"claude-code": "full",
+				"codex": "full"
+			},
+			"claude": {
+				"marketplaces": {
+					"omc": {
+						"source": "git",
+						"url": "https://github.com/Yeachan-Heo/oh-my-claudecode.git"
+					}
+				},
+				"plugins": ["oh-my-claudecode@omc"]
+			},
+			"omx": ["setup", "--scope", "project", "--no-merge-agents"],
+			"global": [
+				{
+					"name": "OMX CLI",
+					"check": "command -v omx",
+					"install": "npm install -g oh-my-codex",
+					"tool": "codex"
+				}
+			],
+			"userTraces": [
+				{
+					"path": ".claude/CLAUDE.md",
+					"contains": "<!-- OMC:START -->"
+				}
+			],
+			"forces": true
+		},
+		"mattpocock": {
+			"description": "필수 3개에 고른 mattpocock 추가 스킬로 단계마다 기법을 골라 진행",
+			"hosts": {
+				"claude-code": "full",
+				"codex": "full"
+			}
+		},
+		"openspec": {
+			"description": "변경마다 제안·설계·작업 목록을 먼저 합의하는 가벼운 스펙 주도형. 전역 CLI(npm)",
+			"hosts": {
+				"claude-code": "full",
+				"codex": "full"
+			},
+			"global": [
+				{
+					"name": "OpenSpec CLI",
+					"check": "command -v openspec >/dev/null",
+					"install": "npm install -g @fission-ai/openspec@latest",
+					"hint": "pnpm skills:setup --brain openspec (npm 전역 설치) 또는 https://github.com/Fission-AI/OpenSpec"
+				}
+			],
+			"init": {
+				"run": "openspec init --tools claude,codex,antigravity --force --profile core --no-animation",
+				"env": {
+					"OPENSPEC_TELEMETRY": "0"
+				},
+				"marker": [
+					".claude/skills/openspec-propose/SKILL.md",
+					".agents/skills/openspec-propose/SKILL.md"
+				],
+				"remove": "rm -rf .claude/skills/openspec-* .agents/skills/openspec-* .agents/skills/.openspec-target .claude/commands/opsx .agents/workflows/opsx-*.md",
+				"keep": ["openspec"]
+			}
+		},
+		"spec-kit": {
+			"description": "헌법·스펙·계획·작업 목록을 차례로 쓰는 GitHub의 꼼꼼한 스펙 주도형. 설치에 uv 필요",
+			"hosts": {
+				"claude-code": "full",
+				"codex": "full"
+			},
+			"init": {
+				"run": "command -v uvx >/dev/null || { echo 'spec-kit 설치에는 uv가 필요하다: https://docs.astral.sh/uv/getting-started/installation/'; exit 1; }; uvx --from specify-cli specify init --here --force --non-interactive --integration claude --integration-options='--events false' --script sh --ignore-agent-tools && uvx --from specify-cli specify integration install codex --integration-options='--events false'",
+				"marker": [
+					".claude/skills/speckit-specify/SKILL.md",
+					".agents/skills/speckit-specify/SKILL.md"
+				],
+				"remove": "rm -rf .claude/skills/speckit-* .agents/skills/speckit-* .specify/scripts .specify/templates .specify/workflows .specify/integrations .specify/integration.json .specify/init-options.json .specify/feature.json .specify/.gitignore",
+				"keep": ["specs", ".specify/memory"]
+			}
+		},
+		"compound-engineering": {
+			"description": "계획·리뷰에 힘을 싣고 배운 것을 docs/solutions에 쌓아 다음 작업을 쉽게 만드는 복리형",
+			"hosts": {
+				"claude-code": "full",
+				"codex": "full"
+			},
+			"claude": {
+				"marketplaces": {
+					"compound-engineering-plugin": {
+						"source": "github",
+						"repo": "EveryInc/compound-engineering-plugin"
+					}
+				},
+				"plugins": ["compound-engineering@compound-engineering-plugin"]
+			},
+			"skills": [
+				{
+					"agents": ["codex"],
+					"source": "EveryInc/compound-engineering-plugin",
+					"skills": [
+						"ce-brainstorm",
+						"ce-plan",
+						"ce-work",
+						"ce-simplify-code",
+						"ce-code-review",
+						"ce-compound",
+						"ce-compound-refresh",
+						"ce-debug",
+						"ce-ideate",
+						"ce-doc-review",
+						"ce-explain",
+						"ce-prototype",
+						"ce-optimize",
+						"ce-handoff"
+					]
+				}
+			]
+		}
+	},
+	"simplicity": {
+		"ponytail": {
+			"description": "늘 켜지는 미니멀 모드와 구현 diff 간결성 검토(추천)",
+			"skills": [
+				{
+					"agents": ["codex"],
+					"source": "DietrichGebert/ponytail",
+					"skills": [
+						"ponytail",
+						"ponytail-review",
+						"ponytail-audit",
+						"ponytail-debt",
+						"ponytail-help",
+						"ponytail-gain"
+					]
+				}
+			],
+			"claude": {
+				"marketplaces": {
+					"ponytail": {
+						"source": "github",
+						"repo": "DietrichGebert/ponytail"
+					}
+				},
+				"plugins": ["ponytail@ponytail"]
+			},
+			"codex": {
+				"marketplace": {
+					"name": "ponytail",
+					"source": "DietrichGebert/ponytail"
+				},
+				"plugins": ["ponytail@ponytail"]
+			},
+			"userTraces": [
+				{
+					"path": ".codex/config.toml",
+					"contains": "[plugins.\"ponytail@ponytail\"]"
+				}
+			]
+		},
+		"caveman": {
+			"description": "작업별 간결 패턴(새 기능·버그·리팩터), 한 줄 리뷰, /caveman 응답 압축",
+			"skills": [
+				{
+					"agents": ["claude-code", "codex"],
+					"source": "JuliusBrussee/caveman",
+					"skills": [
+						"lean-build",
+						"surgical-patch",
+						"safe-refactor",
+						"caveman-review",
+						"caveman"
+					]
+				}
+			]
+		},
+		"karpathy": {
+			"description": "카파시 네 원칙 지침 하나(andrej-karpathy-skills)",
+			"skills": [
+				{
+					"agents": ["claude-code", "codex"],
+					"source": "multica-ai/andrej-karpathy-skills",
+					"skills": ["karpathy-guidelines"]
+				}
+			]
+		}
+	},
+	"uiSkills": {
+		"impeccable": {
+			"description": "기획(PRODUCT.md)·브리프·점수를 매기는 리뷰와 감사·다듬기·DESIGN.md 기록까지 화면 작업 전체. 다듬기와 개선 요구가 많은 서비스",
+			"skills": [
+				{
+					"agents": ["claude-code", "codex"],
+					"source": "pbakaus/impeccable",
+					"skills": ["impeccable"]
+				}
+			],
+			"userSkills": ".claude/skills/impeccable",
+			"userTraces": [
+				{
+					"path": ".agents/skills/impeccable"
+				},
+				{
+					"path": ".codex/skills/impeccable"
+				}
+			],
+			"next": [
+				"개발자마다 한 번 프로젝트 루트에서 .agents/skills/impeccable/scripts/impeccable hooks on (스킬 호출로 켜지 않는다. Codex는 /hooks에서 신뢰 확인. Antigravity에서는 돌지 않고 Grok Build에서 도는지는 확인하지 않았다. impeccable을 빼면 pnpm skills:setup이 이 훅도 뺀다)"
+			]
+		},
+		"hallmark": {
+			"description": "MVP를 만들고 기능을 하나씩 늘리는 서비스: 테마 배정과 바닥 규칙으로 새 화면을 AI가 만든 티 없이 만들고, 정한 디자인을 지키며 화면을 더한다. sloplint 검사(브라우저 검사에 Chrome)",
+			"skills": [
+				{
+					"agents": ["claude-code", "codex"],
+					"source": "Nutlope/hallmark",
+					"skills": ["hallmark"]
+				}
+			],
+			"userSkills": ".claude/skills/hallmark",
+			"userTraces": [
+				{
+					"path": ".agents/skills/hallmark"
+				},
+				{
+					"path": ".codex/skills/hallmark"
+				}
+			],
+			"global": [
+				{
+					"name": "puppeteer-core(hallmark 브라우저 검사)",
+					"check": "npm ls -g puppeteer-core --depth=0 >/dev/null 2>&1 || test -d \"$HALLMARK_PUPPETEER/node_modules/puppeteer-core\"",
+					"hint": "npm install -g puppeteer-core, 또는 프로젝트 밖 폴더에 npm install --prefix <폴더> puppeteer-core 뒤 셸에 HALLMARK_PUPPETEER=<폴더> (없으면 sloplint가 정적 검사만 하고 화면을 찍지 않는다. Chrome도 필요하다)"
+				}
+			]
+		},
+		"none": {
+			"description": "외부 UI 스킬 없이 기본 AI: frontend-design(Anthropic)과 게슈탈트 지침(prokit-ui references/gestalt.md)으로 디자인하고 web-design-guidelines로 검사",
+			"skills": [
+				{
+					"agents": ["claude-code", "codex"],
+					"source": "anthropics/skills",
+					"skills": ["frontend-design"]
+				}
+			],
+			"userSkills": ".claude/skills/frontend-design",
+			"userTraces": [
+				{
+					"path": ".agents/skills/frontend-design"
+				},
+				{
+					"path": ".codex/skills/frontend-design"
+				}
+			]
 		}
 	},
 	"claude": {
@@ -168,49 +723,15 @@
 			"claude-plugins-official": {
 				"source": "github",
 				"repo": "anthropics/claude-plugins-official"
-			},
-			"omc": {
-				"source": "git",
-				"url": "https://github.com/Yeachan-Heo/oh-my-claudecode.git"
-			},
-			"ponytail": {
-				"source": "github",
-				"repo": "DietrichGebert/ponytail"
 			}
 		},
-		"plugins": [
-			"superpowers@claude-plugins-official",
-			"skill-creator@claude-plugins-official",
-			"oh-my-claudecode@omc",
-			"ponytail@ponytail"
-		]
+		"plugins": ["skill-creator@claude-plugins-official"],
+		"conflicts": {
+			"frontend-design@claude-plugins-official": "UI 스킬과 같은 일(impeccable이 이 스킬에서 출발했다). UI 스킬이 없으면(none) skills CLI로 받은 frontend-design을 쓴다",
+			"hallmark@hallmark": "UI 스킬 hallmark의 Claude 플러그인판(이 프로젝트는 고른 UI 스킬을 skills CLI 설치본으로만 쓴다)"
+		}
 	},
-	"codex": {
-		"marketplace": {
-			"name": "ponytail",
-			"source": "DietrichGebert/ponytail"
-		},
-		"plugins": ["ponytail@ponytail"]
-	},
-	"omx": ["setup", "--scope", "project", "--no-merge-agents"],
 	"global": [
-		{
-			"name": "OMX CLI",
-			"check": "command -v omx",
-			"install": "npm install -g oh-my-codex"
-		},
-		{
-			"name": "gstack(Claude)",
-			"check": "test -d \"$HOME/.claude/skills/gstack/bin\"",
-			"install": "command -v bun >/dev/null || { echo 'gstack 설치에는 bun이 필요하다: https://bun.sh'; exit 1; }; git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git \"$HOME/.claude/skills/gstack\" && cd \"$HOME/.claude/skills/gstack\" && ./setup",
-			"hint": "pnpm skills:setup --with-global (bun 필요) 또는 https://github.com/garrytan/gstack"
-		},
-		{
-			"name": "gstack(Codex)",
-			"check": "test -d \"$HOME/.codex/skills/gstack\"",
-			"install": "test -x \"$HOME/.claude/skills/gstack/setup\" && cd \"$HOME/.claude/skills/gstack\" && ./setup --host codex",
-			"hint": "pnpm skills:setup --with-global (gstack(Claude) 설치 뒤)"
-		},
 		{
 			"name": "agent-browser CLI(npm 최신판)",
 			"check": "v=$(agent-browser --version 2>/dev/null | awk '{print $2}'); want=$(npm view agent-browser version --fetch-timeout=5000 --fetch-retries=0 2>/dev/null); want=${want:-0.31.1}; [ -n \"$v\" ] && [ \"$(printf '%s\\n' \"$want\" \"$v\" | sort -V | head -n1)\" = \"$want\" ]",

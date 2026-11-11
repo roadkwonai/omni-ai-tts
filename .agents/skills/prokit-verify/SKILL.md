@@ -27,16 +27,19 @@ description: >-
 |---|---|
 | 모든 코드 | `commands.typecheck`, `commands.lint` |
 | 화면과 라우트 | 모든 코드 검사 + `commands.build`, 런타임 확인, desktop과 mobile 스크린샷 |
-| 프로시저와 인증 | 모든 코드 검사 + `commands.test`, **2계정 격리 테스트** |
-| 스키마 | 모든 코드 검사 + 로컬 개발 DB에 `commands.dbMigrate` 적용 출력, 병합 전 대상(Neon 개발 브랜치 또는 Supabase 스테이징)에도 적용한 출력. Supabase는 `supabase db advisors` 보안 검사(`No issues found`)도. 대상과 명령은 `prokit-db`의 `references/migration-flow.md`. 사용자 소유 테이블이면 그 테이블을 쓰는 프로시저의 2계정 격리 테스트도(D 행) |
+| 프로시저와 인증 | 모든 코드 검사 + `commands.test`, **2계정 격리 테스트** | <!-- edition:pro -->
+| 스키마 | 모든 코드 검사 + 로컬 개발 DB에 `commands.dbMigrate` 적용 출력, 병합 전 대상(Neon 개발 브랜치 또는 Supabase 스테이징)에도 적용한 출력. Supabase는 `supabase db advisors` 보안 검사(`No issues found`)도. 대상과 명령은 `prokit-db`의 `references/migration-flow.md`. 사용자 소유 테이블이면 그 테이블을 쓰는 프로시저의 2계정 격리 테스트도(D 행) | <!-- edition:pro -->
 | 스킬, 에이전트, dev-cycle | `pnpm agents:check`, `pnpm skills:check`, `pnpm dev-cycle case`, `pnpm dev-cycle status`. 스킬 본문을 바꿨으면 skill-creator eval 재실행 |
 
 여러 행에 해당하면 해당하는 행의 검사를 모두 한다.
 
-`commands.lint`는 파일을 고치지 않는 검사(`pnpm exec biome check .`)다. `pnpm check`는 `--write`로 파일을 고치므로 검증 증거로 쓰지 않는다. 설치 절차에서 Better-T-Stack이 만든 코드를 한 번 정리하고, 다시 생성되는 파일(마이그레이션, `schema/auth.ts`, varlock의 `src/env.ts`)은 `biome.json`에서 빼므로 전체 lint는 exit 0에서 시작한다. 전체 lint가 실패하면 이번 변경이 만든 지적으로 보고 고친다. 설치 뒤 정리를 하지 않아 기존 지적이 남은 프로젝트라면 이번에 바꾼 파일만 `pnpm exec biome check <파일들>`로 다시 검사해 그 결과를 증거로 적고, 전체 결과는 기준과 비교해 `전체 exit 1: 기존 지적 N건(기준과 같음)`처럼 함께 적는다. 기준 수는 라운드를 열 때 전체 lint를 한 번 돌려 블록 메모에 적어 둔다. 비교하려고 작업 트리를 `git stash`로 되돌리지 않는다. 이번 변경이 만든 지적은 고친다. 바꾼 파일에 원래 있던 지적(Better-T-Stack이 만든 JSON 포맷 등)은 그대로 두고 기준과 같은 수인지만 적는다. 한꺼번에 고치면 변경과 무관한 diff가 섞인다.
+`commands.lint`는 파일을 고치지 않는 검사(`pnpm exec biome check .`)다. `pnpm check`는 `--write`로 파일을 고치므로 검증 증거로 쓰지 않는다. 설치 절차에서 Better-T-Stack이 만든 코드를 한 번 정리하고, 다시 생성되는 파일(<!-- edition:pro -->마이그레이션, `schema/auth.ts`, <!-- /edition -->varlock의 `src/env.ts`)은 `biome.json`에서 빼므로 전체 lint는 exit 0에서 시작한다. 전체 lint가 실패하면 이번 변경이 만든 지적으로 보고 고친다. 설치 뒤 정리를 하지 않아 기존 지적이 남은 프로젝트라면 이번에 바꾼 파일만 `pnpm exec biome check <파일들>`로 다시 검사해 그 결과를 증거로 적고, 전체 결과는 기준과 비교해 `전체 exit 1: 기존 지적 N건(기준과 같음)`처럼 함께 적는다. 기준 수는 라운드를 열 때 전체 lint를 한 번 돌려 블록 메모에 적어 둔다. 비교하려고 작업 트리를 `git stash`로 되돌리지 않는다. 이번 변경이 만든 지적은 고친다. 바꾼 파일에 원래 있던 지적(Better-T-Stack이 만든 JSON 포맷 등)은 그대로 두고 기준과 같은 수인지만 적는다. 한꺼번에 고치면 변경과 무관한 diff가 섞인다.
+
+외부 서비스의 API(OAuth 제공자의 토큰 취소·연결 끊기, 결제, 메일 등)를 부르는 코드는 응답을 흉내 낸 테스트만으로는 실제 동작을 증명하지 못한다. 공식 문서의 요청·응답 꼴과 대조하고, 실제 응답을 한 번 본다(사용자가 동의한 테스트 계정으로 부르거나, `[confirm]` 시나리오에 사용자가 직접 해 볼 순서로 넣는다). 보지 못했으면 증거와 `[confirm]` 보고에 `실제 응답 미확인: <API>`로 적는다. 예: 로그인 권한만 받은 Google 액세스 토큰은 취소 API가 400 `Token is not revocable`로 거부한다. 흉내 테스트는 통과했지만 실제로는 연결이 끊기지 않았다.
 
 ## 런타임과 브라우저
-- `pnpm dev`(web은 포트 3001)를 띄우고, `next-dev-loop` 스킬의 `/_next/mcp` 절차로 Next 진단을 본다. ego-browser를 쓸 때는 next-dev-loop의 agent-browser 요구 사항, preflight 1단계(agent-browser 열기), 종료 절차를 건너뛰고 `/_next/mcp` 확인과 도구만 쓴다. `get_errors`·`get_page_metadata`에 필요한 브라우저 세션은 ego-browser로 연 페이지가 채운다. 이 경우 agent-browser가 없는 것은 blocked 사유가 아니다. Next.js 16.3 이상(Turbopack)이 필요하다. 못 맞추면 `blocked: next-dev-loop 요구 미달(Next 16.2)`처럼 적는다. 업그레이드는 사용자가 요청할 때만 한다.
+- 런타임 확인과 브라우저 확인은 `prokit-runtime-checker`에 맡긴다. 위임 지시에 확인할 경로·시나리오, 읽을 공식 스킬(`next-dev-loop`, ego-browser가 없거나 깨끗한 프로필이 필요하면 `agent-browser`)과 경로(`.agents/skills/<이름>/SKILL.md`), 이 절의 기준을 넣는다. Main은 보고의 오류 예산, `결함:` 줄, 스크린샷 경로를 검수하고 대조표 증거에 `위임: prokit-runtime-checker(사용: next-dev-loop)`로 적는다. 아래는 그 에이전트가 따르는 기준이다.
+- `pnpm dev`(web은 포트 3001. 띄우기 전 포트 확인은 [references/browser.md](references/browser.md)의 준비)를 띄우고, `next-dev-loop` 스킬의 `/_next/mcp` 절차로 Next 진단을 본다. ego-browser를 쓸 때는 next-dev-loop의 agent-browser 요구 사항, preflight 1단계(agent-browser 열기), 종료 절차를 건너뛰고 `/_next/mcp` 확인과 도구만 쓴다. `get_errors`·`get_page_metadata`에 필요한 브라우저 세션은 ego-browser로 연 페이지가 채운다. 이 경우 agent-browser가 없는 것은 blocked 사유가 아니다. Next.js 16.3 이상(Turbopack)이 필요하다. 못 맞추면 `blocked: next-dev-loop 요구 미달(Next 16.2)`처럼 적는다. 업그레이드는 사용자가 요청할 때만 한다.
 - 실제 화면은 **ego-browser**로 확인한다. 절차는 [references/browser.md](references/browser.md).
 - `ego-browser` 명령이 없거나(macOS 외, CI, Codex 샌드박스) 창을 띄울 수 없으면 `agent-browser`와 `next-dev-loop`의 브라우저 절차로 바꾸고, 증거에 `대안: agent-browser (ego-browser 없음)` 또는 `대안: agent-browser (ego-browser 창 표시 불가)`를 적는다. 기록 없이 도구를 바꾸지 않는다. 둘 다 쓸 수 없으면 `blocked: 브라우저 도구 없음(ego-browser·agent-browser)` 또는 `blocked: ego-browser 창 표시 불가, agent-browser 없음`. Linux·WSL에서 agent-browser의 Chrome이 `error while loading shared libraries`로 뜨지 않으면 사용자에게 `agent-browser install --with-deps`(sudo)를 요청하고, 그 전까지는 `blocked: agent-browser Chrome 시스템 라이브러리 없음`으로 적는다.
 - 스크린샷은 `tasks/evidence/<라운드 제목>/`에 저장하고 경로를 증거로 적는다. desktop(1440px)과 mobile(390px)을 함께 찍는다.
@@ -47,15 +50,15 @@ description: >-
 팩을 복원하거나 개인화·실전 기능을 연결한 작업은 [references/pack-baseline.md](references/pack-baseline.md)를 읽는다. 비교 대상은 완성 프리셋이며 원본 URL 연구·COPY 판정은 `pro-kit-preset-skills`의 `prokit-preset-verify`가 맡는다. 파일 무결성·기능·접근성·시각 보존을 각각 보고한다.
 
 ## 테스트 러너
-- 테스트 러너가 없으면 첫 D·E 라운드나 서버·DB 코드를 고치는 C 라운드에서 vitest를 도입한다. 대조표에 `vitest 도입(최초 1회)` 행을 추가하고, 루트 `test` 스크립트와 `.dev-cycle.json`의 `commands.test`를 함께 등록한다. 절차는 `.agents/skills/prokit-api/references/ownership-test.md`에 있다.
-- 격리 테스트는 개발·운영 DB가 아닌 전용 테스트 DB(`TEST_DATABASE_URL`: 로컬 DB의 `<이름>_test`. 만드는 법은 `prokit-api`의 `references/ownership-test.md`)에서 돈다. `skipped`로 끝난 테스트는 통과가 아니다. 프로시저를 거치지 않고 SQL로 같은 조건을 흉내 낸 수동 확인도 격리 테스트를 대신하지 못한다. 격리 테스트는 프로시저를 두 계정의 세션으로 호출한다.
+- 테스트 러너가 없으면 첫 D·E 라운드나 서버·DB 코드를 고치는 C 라운드에서 vitest를 도입한다. 대조표의 `vitest 도입(최초 1회)` 행(D·E·F 표는 `table`이 넣는다)에서 루트 `test` 스크립트와 `.dev-cycle.json`의 `commands.test`를 함께 등록한다. <!-- edition:pro -->절차는 `.agents/skills/prokit-api/references/ownership-test.md`에 있다. <!-- /edition -->루트 `package.json`·`turbo.json`·`.dev-cycle.json`은 H 경로라 이 라운드에는 H 행이 붙는다(`case`의 `(+H)`). 첫 D·E 라운드가 E만 고치면 `packages/db`에만 도입한다(`pnpm --filter @<프로젝트>/db add -D vitest`, 그 패키지의 `test` 스크립트). 루트는 건드리지 않아 케이스가 E로 남고, 루트 등록과 `packages/api` 설정은 첫 D 라운드에서 한다.
+- 격리 테스트는 개발·운영 DB가 아닌 전용 테스트 DB(`TEST_DATABASE_URL`: 로컬 DB의 `<이름>_test`. 만드는 법은 `prokit-api`의 `references/ownership-test.md`)에서 돈다. `skipped`로 끝난 테스트는 통과가 아니다. 프로시저를 거치지 않고 SQL로 같은 조건을 흉내 낸 수동 확인도 격리 테스트를 대신하지 못한다. 격리 테스트는 프로시저를 두 계정의 세션으로 호출한다. <!-- edition:pro -->
 
 ## 증거 적는 법
 형식은 [references/evidence.md](references/evidence.md). 요약하면 다음과 같다.
 - 명령: `pnpm check-types → exit 0`. 실패면 첫 오류 한 줄을 적는다.
 - 테스트: `vitest todo.isolation → 3 passed`.
 - 리뷰: `prokit-reviewer(code): approve, max=low, 지적 2 (반영 1, 기각 1: 재현 안 됨)`.
-- 스킬 사용: `writing-plans → docs/superpowers/plans/…`. 대안을 썼으면 `대안: OMC plan (superpowers 없음)`. 외부 스킬을 읽었으면 적용한 규칙과 함께 적는다(`사용: supabase-postgres-best-practices(schema-data-types)`).
+- 스킬 사용: 기본 AI면 `사용: 내장(계획) → docs/plans/…`, 두뇌를 썼으면 `사용: superpowers:writing-plans → docs/superpowers/plans/…`처럼 실제 스킬과 산출물을 적는다. 대안을 썼으면 `대안: <대안> (<1순위> 없음)`. 외부 스킬을 읽었으면 적용한 규칙과 함께 적는다(`사용: supabase-postgres-best-practices(schema-data-types)`).
 - 같은 명령을 여러 행이 요구하면(F의 타입·린트 행 등) 한 번 실행하고 뒤 행에는 `6행과 같음: pnpm check-types → exit 0`처럼 적는다. 그사이 검사 입력이나 공유 소비자가 바뀌면 다시 실행하고, 관련성을 알 수 없으면 다시 실행한다.
 - `✓`, `ok`, `done`, `완료`만 적거나 공백을 뺀 4자 미만으로 적는 것은 증거가 아니다. 해당 없으면 `N/A: 사유`.
 - 비밀값, 토큰, 연결 문자열, 실사용자 데이터는 증거에 복사하지 않는다.
@@ -63,4 +66,4 @@ description: >-
 ## 완료 보고
 완료 처리를 요청받으면 먼저 `pnpm dev-cycle audit`으로 남은 빈 칸을 확인해 사용자에게 보고한다. 이번 세션에서 실제로 실행한 검사 칸과, 원칙에 맞는 `blocked`·`N/A` 칸만 채운다. 하지 않은 작업(스펙, 구현, 리뷰 등)을 `blocked:`·`미실행:`으로 적어 audit을 넘기지 않는다. 사용자가 그 단계를 범위에서 빼겠다고 명시하면 `미실행: 사용자 요청으로 범위 제외(<날짜>)`로 적는다. 표 끝의 `[confirm]` 행은 예외다. 사용자가 확인한 내용과 날짜만 적고 N/A·blocked·미실행으로 채우지 않는다(`prokit-dev-cycle` 5절).
 
-`pnpm dev-cycle audit`이 통과한 뒤에만 완료라고 말한다. audit은 `blocked:`·`미실행:` 칸도 채운 것으로 보므로, 그런 행이 있으면 "부분 완료(blocked N건, 미실행 M건)"로 보고한다. 보고에는 실행한 검사와 결과, 실행하지 못한 검사와 이유를 넣는다. superpowers `verification-before-completion`이 있으면 함께 따른다.
+`pnpm dev-cycle audit`이 통과한 뒤에만 완료라고 말한다. audit은 `blocked:`·`미실행:` 칸도 채운 것으로 보므로, 그런 행이 있으면 "부분 완료(blocked N건, 미실행 M건)"로 보고한다. 보고에는 실행한 검사와 결과, 실행하지 못한 검사와 이유를 넣는다. 고른 두뇌에 검증 스킬(superpowers `verification-before-completion` 등)이 있으면 함께 따른다.

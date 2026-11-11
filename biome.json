@@ -40,7 +40,12 @@
 			"!packages/db/src/env.ts",
 			"!html",
 			"!**/.prokit",
-			"!tasks/evidence"
+			"!tasks/evidence",
+			"!.agents/agents",
+			"!**/.hallmark",
+			"!**/.tastemaker",
+			"!**/.well-known/workflow",
+			"!**/*.md"
 		]
 	},
 	"formatter": {

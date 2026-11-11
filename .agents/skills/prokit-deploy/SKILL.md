@@ -36,7 +36,7 @@ Vercel CLI의 일반 사용법(설치, 로그인, 토큰, `vercel env`·`domains
 - `vercel-deploy-claimable`은 `node_modules`와 `.git`만 빼고 프로젝트를 로그인 없이 외부 서비스에 올린다. `.env`도 함께 나간다. 쓰지 않는다.
 - `deploy-to-vercel`의 흐름 중 확인 없는 `vercel link`, `git add . && git commit && git push` 배포, 로그인 없는 배포(`resources/deploy.sh`, claim URL), "배포 URL을 확인하지 않는다"는 따르지 않는다. 연결은 사용자가 요청할 때, 커밋은 요청할 때와 라운드 끝(`prokit-dev-cycle` 5절)에 하고, 배포는 확인까지 한다.
 - `vercel-cli-with-tokens`의 토큰 찾기 중 토큰 값을 출력하는 명령(`grep '^VERCEL_TOKEN=' .env`, `printenv VERCEL_TOKEN`, `echo $VERCEL_TOKEN`)은 쓰지 않는다. 있는지만 `grep -q`나 `test -n "$VERCEL_TOKEN"`의 exit로 본다.
-- gstack `ship`, `land-and-deploy`, `setup-deploy`는 커밋, push, PR 병합을 하거나 `CLAUDE.md`를 고치므로 배포에 쓰지 않는다.
+- 두뇌가 gstack이어도 `ship`, `land-and-deploy`, `setup-deploy`는 커밋, push, PR 병합을 하거나 `CLAUDE.md`를 고치므로 배포에 쓰지 않는다.
 
 ## 준비 (프로젝트마다 한 번, 사용자가 요청할 때)
 1. **CLI와 로그인**: `vercel --version`, `vercel whoami`. 없거나 실패하면 `deploy-to-vercel`의 설치·로그인 안내를 사용자에게 전한다. 인증 실패 때는 재로그인을 묻기 전에 현재 프로젝트와 사용자 명시로 신뢰한 dotenv/envrc의 키 존재·로딩 우선순위·세션과의 차이만 `scripts/load-keys.mjs`와 `vercel-cli-with-tokens` 설정 경로로 확인한다. 무관한 홈 탐색·전체 환경 덤프·값 출력은 하지 않고, 적용 뒤에도 권한 확인 전 성공으로 가정하거나 스킬 선택 권한과 실제 인증 권한을 섞지 않는다. 전역 설치와 `vercel login`은 사용자가 한다. 토큰만 쓰는 환경(CI, Codex 샌드박스)은 `vercel-cli-with-tokens`를 따른다. 이때는 `VERCEL_ORG_ID`와 `VERCEL_PROJECT_ID`를 함께 두면 스크립트가 연결된 것으로 본다.
@@ -84,7 +84,7 @@ production은 릴리스한 커밋만 배포한다. 배포 스크립트가 `origi
 ## 배포 순서
 1. `pnpm vercel:deploy <대상> --check`를 실행한다. "준비 안 됨"이면 그 항목부터 해결한다. production의 릴리스 항목은 다른 항목을 모두 해결한 뒤 "릴리스" 절로 해결하고 다시 `--check`한다. 커밋하지 않은 변경은 사용자가 커밋을 요청할 때만 커밋한다(라운드 끝은 `prokit-dev-cycle` 5절에서 이미 커밋했다).
 2. **DB 먼저**: 출력에 새 마이그레이션이 1개 이상이거나 "지난 배포 기록 없음"이 나오면, 배포 전에 대상 DB에 `commands.dbMigrate`를 적용한다(migration-flow "배포 환경" 절). develop DB에는 바로 적용한다. 운영 DB는 적용할 마이그레이션 목록을 보여 주고 사용자가 동의한 뒤 적용한다. 새 코드는 새 컬럼을 쓰므로 순서가 바뀌면 배포 직후 오류가 난다. 예외로, 열·테이블을 지우는 contract 마이그레이션은 새 코드를 먼저 배포하고 그다음 적용한다(migration-flow의 expand → contract).
-3. `pnpm vercel:deploy <대상>`을 실행한다. 빌드 로그는 stderr로 나온다. exit 2면 `vercel inspect <배포 URL> --logs`로 원인을 본다. 흔한 원인은 환경변수 형식(varlock 검사), 타입 오류(`commands.typecheck`로 로컬에서 재현), 2026-10-01 이후 Vercel 프로젝트의 Node.js 20.x(Project Settings에서 24.x로 바꾼다)다.
+3. `pnpm vercel:deploy <대상>`을 실행한다. 빌드 로그는 stderr로 나온다. Vercel 배포 검사(Neon 통합의 브랜치 만들기 등)만 실패하면 CLI가 `checks_failed`로 끝나도 develop은 빌드 완료(READY)를 기다려 경고하고 이어 가고, production은 exit 2로 멈춘다. 이때 production 배포는 이미 만들어졌으니 출력대로 운영 주소가 그 배포로 옮겨졌는지 보고, 옮겨졌으면 출력의 `vercel rollback`으로 되돌린 뒤 출력의 `vercel api`로 어느 검사인지 보고 고친다. exit 2면 `vercel inspect <배포 URL> --logs`로 원인을 본다. 흔한 원인은 환경변수 형식(varlock 검사), 타입 오류(`commands.typecheck`로 로컬에서 재현), 2026-10-01 이후 Vercel 프로젝트의 Node.js 20.x(Project Settings에서 24.x로 바꾼다)다.
 4. **확인**: 고정 주소에서 `/api/auth/get-session`이 200인지 본다.
    - develop: Preview에는 Vercel 배포 보호가 걸려 있어 일반 `curl`은 Vercel 로그인으로 보내는 302를 받는다. `access-protected-vercel-deployment`에 따라 `vercel curl https://<고정 주소>/api/auth/get-session -- -s -o /dev/null -w '%{http_code}'`로 확인한다. 전체 URL을 넘겨야 한다(`--deployment <고정 주소>`로 주면 보호를 넘지 못한다). 화면은 Vercel에 로그인한 브라우저로 본다.
    - production: `curl -s -o /dev/null -w '%{http_code}' https://<도메인>/api/auth/get-session`. 가입이나 글쓰기처럼 운영 데이터를 만드는 확인은 하지 않는다.
@@ -99,10 +99,12 @@ production은 릴리스한 커밋만 배포한다. 배포 스크립트가 `origi
 - git 연결(push마다 자동 배포)은 사용자가 요청할 때만 한다. 연결하면 기본 브랜치 push(릴리스의 `--publish` 포함)가 곧 production 배포가 되어, 이 스크립트의 검사(릴리스, 환경변수)와 "DB 먼저" 순서를 거치지 않는다. 연결하기 전에 이것을 알리고, 연결하면 push 배포를 끌지(Vercel 프로젝트의 Git 설정. API의 `gitProviderOptions.createDeployments`가 `disabled`) 사용자와 정한다. 연결과 자동 배포 결정은 `docs/adr/`에 남긴다. push 배포가 켜져 있으면 `production --check`가 `Git 자동 배포`로 보고하고, 라운드 끝(`prokit-dev-cycle` 5절)과 릴리스 발행은 push하지 않는다. 스크립트가 인정하는 끄는 방법은 Vercel 프로젝트의 Git 설정뿐이다. `vercel.json`의 `git.deploymentEnabled`나 Ignored Build Step으로 끈 프로젝트도 준비 안 됨으로 나오므로 연결을 끊는다. push마다 production에 배포하는 방식은 이 템플릿의 릴리스·배포 절차와 함께 쓰지 않는다.
 
 ## 공식 스킬 연결
-| 상황 | 읽을 스킬 |
-|---|---|
-| CLI 설치, 로그인, 팀 고르기 | `deploy-to-vercel` (위에서 따르지 않는다고 한 부분은 빼고) |
-| 토큰 인증, 환경변수·도메인·로그 명령 | `vercel-cli-with-tokens` |
-| 배포 보호가 걸린 Preview 확인 | `access-protected-vercel-deployment` |
-| 배포한 프로젝트의 비용·성능 점검(Vercel 지표 기반) | `vercel-optimize` (선택 묶음 `ops`. 경로별 권고에는 유료 Observability Plus가 필요하다) |
-| 서버리스 연결과 prepared statement | `prokit-db` (그 안의 Neon·Supabase·Postgres 스킬 연결) |
+배포, 릴리스, 배포 환경변수는 외부 서비스에 적용하고 중간에 사용자 동의가 필요하므로 서브에이전트에 맡기지 않는다(`AGENTS.md` "에이전트"). 그래서 아래 배포 스킬은 Main이 직접 읽고 따른다(`skills.manifest.json`의 `performers.skills`에 넣지 않는다). 배포한 화면을 브라우저로 확인하는 일은 `prokit-runtime-checker`에 맡길 수 있다.
+
+| 상황 | 공식 스킬 | 맡는 쪽 |
+|---|---|---|
+| CLI 설치, 로그인, 팀 고르기 | `deploy-to-vercel` (위에서 따르지 않는다고 한 부분은 빼고) | Main |
+| 토큰 인증, 환경변수·도메인·로그 명령 | `vercel-cli-with-tokens` | Main |
+| 배포 보호가 걸린 Preview 확인 | `access-protected-vercel-deployment` | Main. 우회 주소를 받은 뒤 화면 확인은 `prokit-runtime-checker` |
+| 배포한 프로젝트의 비용·성능 점검(Vercel 지표 기반) | `vercel-optimize` (선택 묶음 `ops`. 경로별 권고에는 유료 Observability Plus가 필요하다) | 지표 읽기는 Main, 코드 개선은 그 계층 수행자(`prokit-skills-assign`으로 배치) |
+| 서버리스 연결과 prepared statement | `prokit-db` (그 안의 Neon·Supabase·Postgres 스킬 연결) | `prokit-db`의 표 |

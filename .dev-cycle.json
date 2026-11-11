@@ -1,4 +1,6 @@
 {
+	"brain": "agent-skills",
+	"simplicity": "ponytail",
 	"todoPath": "tasks/todo.md",
 	"archiveDir": "tasks/archive",
 	"workflowDoc": "docs/dev-workflow.md",
@@ -11,18 +13,28 @@
 		},
 		{
 			"case": "D",
-			"match": "^(packages/api/|apps/web/src/app/api/)",
-			"why": "서버·API"
+			"match": "^(packages/api/|apps/web/src/app/api/|apps/web/src/app/(.+/)?(route|sitemap|robots|manifest)\\.[jt]sx?$|apps/web/src/(.+/)?actions?\\.[jt]s$|apps/web/src/instrumentation\\.[jt]s$)",
+			"why": "서버·API(앱 폴더의 route 핸들러·메타데이터 라우트, 서버 액션 파일 actions.ts, instrumentation 포함)"
 		},
 		{
 			"case": "B",
-			"match": "^(apps/web/src/(app|components)/|packages/ui/)",
+			"match": "^(apps/web/src/|packages/ui/)",
 			"why": "화면·UI"
 		},
 		{
 			"case": "H",
-			"match": "^(\\.agents/(skills|agents)/|\\.claude/(agents|skills)/|\\.claude/settings\\.json$|\\.codex/(agents|skills|prompts)/|skills-lock\\.json$|skills\\.manifest\\.json$|scripts/(dev-cycle|sync-agents|skills-setup|vercel-deploy|resource-guard|delegation|export-html)\\.mjs$|\\.dev-cycle\\.json$|\\.vercelignore$|docs/dev-workflow\\.md$)",
+			"match": "^(AGENTS\\.md$|CLAUDE\\.md$|\\.agents/(skills|agents)/|\\.claude/(agents|skills)/|\\.claude/settings\\.json$|\\.(agents|codex)/hooks\\.json$|\\.codex/(agents|skills|prompts)/|skills-lock\\.json$|skills\\.manifest\\.json$|scripts/(dev-cycle|sync-agents|skills-setup|vercel-deploy|release|resource-guard|delegation|export-html|load-keys)\\.mjs$|\\.dev-cycle\\.json$|\\.vercelignore$|docs/dev-workflow\\.md$)",
 			"why": "하네스"
+		},
+		{
+			"case": "H",
+			"match": "^((apps/web/)?next\\.config\\.(ts|mts|js|mjs|cjs)$|(apps/web/)?vercel\\.(json|ts)$|\\.github/(workflows|actions)/|(apps/web/)?turbo\\.json$)",
+			"why": "빌드·배포 설정"
+		},
+		{
+			"case": "H",
+			"match": "^(package\\.json|pnpm-workspace\\.yaml|biome\\.jsonc?|tsconfig\\.json|packages/config/)",
+			"why": "작업공간 설정"
 		}
 	],
 	"authPaths": "^(packages/auth/|packages/api/src/providers/|apps/web/src/app/api/|apps/web/src/lib/auth-client\\.ts$|apps/web/src/(proxy|middleware|services|context|env\\.server)\\.ts$|packages/api/src/(index|context|owner)\\.ts$|packages/db/src/schema/auth\\.ts$|(.*/)?\\.env\\.schema$)",

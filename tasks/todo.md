@@ -231,6 +231,11 @@ critique 27/40, audit 18/20(접근성 3/4) 결과 가운데 브리프·스펙을
 - [ ] PK-01 코드 주석의 옛 스킬 이름 `bts-api`를 `prokit-api`로 고친다: `packages/api/src/test-db.ts`, `trial.ts`, `voice-cache.ts`. (T9에서 `trial.ts`는 고침. `test-db.ts`·`voice-cache.ts`가 남음.) 다음에 이 파일을 고치는 코드 라운드에서 함께 한다(주석만 바꾸면 케이스가 F로 올라가 H 라운드에서 뺐다).
 - [ ] PK-02 제작 표시 컴포넌트 `prokit-credit.tsx`는 넣지 않았다. 쓰려면 `install.sh --skip-skills`가 다시 복사하고, 화면에 붙이는 B 라운드로 한다.
 
+### 하네스 (pro-kit v0.3.9 반영에서 미룬 것, 2026-11-11)
+- [ ] PK-03 외부 스킬 16개 업데이트(`pnpm skills:update`). v0.3.9 반영 라운드를 닫은 뒤 별도 H 라운드로 한다. `neon-postgres-branches`·`neon-postgres-egress-optimizer`는 UPSTREAM_GONE이라 지우지 말고 보고만 한다.
+- [ ] PK-04 `.impeccable/`(리뷰·빌드 스냅샷 약 300개)가 커밋도 ignore도 되지 않은 채 남아 있다. 보관할지 `.gitignore`에 넣을지 정한다.
+- [ ] PK-05 전체 lint 기존 오류 10·경고 2(`.superpowers/sdd/**/*.js`, `docs/prototypes/*.css`). 이전 두뇌 산출물을 정리하거나 biome ignore에 넣을지 정한다.
+
 ### P0 — UI/UX 우선, 초기 필수 기능 전체
 
 - [ ] P0-03 UI 브리프 확정: 작업실 중심 구조·화면 목록·반응형·상태 정의 → 사용자 요청과 수용 기준 대조. 2026-09-26 [HTML 기준 실서비스 설계안](../docs/briefs/tts-app-design.md) 작성, 사용자 검토 전. 2026-09-29 로드맵: 한 번에 확정하지 않고 TASK마다 그 화면의 shape 브리프를 사용자 확인으로 확정한다.

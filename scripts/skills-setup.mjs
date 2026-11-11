@@ -1,11 +1,21 @@
 #!/usr/bin/env node
 // skills.manifest.json대로 에이전트 스킬·플러그인을 이 프로젝트 scope에 설치한다. install.sh와 `pnpm skills:setup`이 부른다.
-// 사용법: node scripts/skills-setup.mjs [--check] [--with-global] [--optional <묶음>[,<묶음>]]
-//   --check        설치하지 않고 상태만 본다. 프로젝트 scope 항목이 빠졌으면 exit 1.
-//   --with-global  check가 실패한 전역 도구(manifest.global)를 먼저 설치한다.
+// 사용법: node scripts/skills-setup.mjs [--check] [--with-global] [--brain <이름|none>] [--simplicity <이름|none>]
+//                                       [--ui-skill <이름|none>] [--matt <스킬>[,<스킬>]] [--optional <묶음>[,<묶음>]]
+//   --check        설치하지 않고 상태만 본다. 파일을 쓰지 않는다. 프로젝트 scope 항목이 빠졌거나
+//                  고르지 않은 두뇌·과설계 방지 스킬이 남아 있으면 exit 1.
+//   --with-global  check가 실패한 전역 도구(manifest.global, 고른 두뇌의 global)를 먼저 설치한다.
 //                  auto: true인 전역 도구는 이 플래그 없이도 없으면 설치한다(실패는 경고로만 알린다).
+//   --brain, --simplicity, --ui-skill  고르는 항목(manifest.brains, manifest.simplicity, manifest.uiSkills)을 .dev-cycle.json에 기록하고,
+//                  그 항목에서 고르지 않은 설치본을 skills-lock.json 출처·플러그인 ID·OMX 기록·init marker로 찾아 지운 뒤 고른 것을 설치한다.
+//                  두뇌와 UI 스킬은 여럿을 쉼표로 받는다(--brain openspec,superpowers. 첫 값이 주 두뇌). 하나면 문자열, 여럿이면 배열로 기록한다.
+//                  인자가 없으면 기록된 값(없으면 none. UI 스킬은 impeccable)을 설치하고 다른 것은 알리기만 한다. 고른 두뇌의 전역 도구는 --brain을 줄 때 설치한다.
+//   --matt         mattpocock 추가 스킬(manifest.mattpocock.pool)을 설치한다. 기록하지 않는다(설치본이 선택이다).
 //   --optional     기본으로 설치하지 않는 선택 스킬 묶음(manifest.optional)도 설치한다. --check와 쓰면 그 묶음도 검사한다.
-// exit: 0 정상, 1 --check 누락, 2 설치 실패나 모르는 묶음
+//   --drop         mattpocock 추가 스킬이나 선택 묶음을 지운다(--drop tdd,taste). skills-lock.json 출처가 맞는 설치본만 지운다.
+//                  --drop all은 설치한 추가 스킬과 선택 묶음을 모두 지운다(--brain none --simplicity none --drop all이면 순수 AI).
+//   이 기기 전역에 켜진 고르지 않은 플러그인과 gstack 개인 스킬은 .claude/settings.local.json으로 이 프로젝트에서만 끈다.
+// exit: 0 정상, 1 --check 누락이나 충돌, 2 설치 실패나 모르는 이름
 //
 // 사용법: node scripts/skills-setup.mjs --update [<이름>...] [--check | --if-due | --snooze | --mode ask|auto|off]
 //   설치한 외부 스킬을 GitHub 원본 폴더와 파일 단위로 비교해 바뀐 스킬과 빠진 스킬만 다시 설치한다(`pnpm skills:update`).
@@ -23,10 +33,13 @@ import {
 	readdirSync,
 	readFileSync,
 	realpathSync,
+	rmSync,
 	writeFileSync,
 } from "node:fs";
-import { dirname, join, relative, sep } from "node:path";
+import { homedir } from "node:os";
+import { basename, dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadConfig, noteSkillsChange } from "./dev-cycle.mjs";
 
 const run = (cmd, args, opts = {}) =>
 	spawnSync(cmd, args, { encoding: "utf8", ...opts });
@@ -37,6 +50,393 @@ const firstLine = (r) =>
 	(r.error ? r.error.message : `exit ${r.status}`);
 // OMX 프로젝트 설정은 기기마다 한다(.codex/config.toml·hooks.json은 git이 무시). 이 파일이 그 흔적이다.
 const OMX_MARK = ".omx/setup-scope.json";
+// omx uninstall은 --scope도 기록도 없으면 user 범위(전역 ~/.codex)를 지운다. 범위를 늘 명시한다.
+// --purge는 .omx/ 전체(plans, notepad, 기억)를 지워 쓰지 않는다. 없으면 기록(setup-scope.json)만 지운다.
+const OMX_REMOVE = ["uninstall", "--scope", "project"];
+// 고르는 항목. 고르지 않으면 none(기본 AI)이다. 카탈로그 항목은 같은 모양이라 같은 코드로 다룬다.
+// multi: 여럿을 고를 수 있다(두뇌, UI 스킬). 과설계 방지 스킬은 규칙이 엇갈려 하나만 쓴다.
+// unset: 기록이 없을 때의 값. UI 스킬은 이 항목이 생기기 전에 impeccable을 늘 설치했으므로 그 프로젝트가 그대로 돈다.
+const SLOTS = [
+	{
+		catalog: "brains",
+		key: "brain",
+		flag: "--brain",
+		label: "두뇌",
+		multi: true,
+	},
+	{
+		catalog: "simplicity",
+		key: "simplicity",
+		flag: "--simplicity",
+		label: "과설계 방지",
+	},
+	{
+		catalog: "uiSkills",
+		key: "uiSkill",
+		flag: "--ui-skill",
+		label: "UI 스킬",
+		multi: true,
+		unset: "impeccable",
+	},
+];
+const GUIDE = ".agents/skills/prokit-dev-cycle/references/brains/README.md";
+const SETUP_FLAGS = ["--check", "--with-global"];
+const SETUP_VALUE_FLAGS = [
+	"--brain",
+	"--simplicity",
+	"--ui-skill",
+	"--matt",
+	"--optional",
+	"--drop",
+];
+const SETUP_USAGE = `사용법: pnpm skills:setup [--check] [--with-global] [--brain <이름>[,<이름>]|none] [--simplicity <이름|none>] [--ui-skill <이름>[,<이름>]|none] [--matt <스킬>[,…]] [--optional <묶음>[,…]] [--drop <스킬|묶음>[,…]]
+       pnpm skills:update [<이름>...] [--check | --if-due | --snooze | --mode ask|auto|off]
+고르는 기준: ${GUIDE}`;
+
+const argValue = (argv, flag) => {
+	const at = argv.indexOf(flag);
+	return at < 0 ? undefined : (argv[at + 1] ?? "");
+};
+const readJson = (p, fallback) => {
+	if (!existsSync(p)) return fallback;
+	try {
+		return JSON.parse(readFileSync(p, "utf8"));
+	} catch (e) {
+		throw new Error(`${p}: ${e.message}`);
+	}
+};
+const hasSkill = (root, s) =>
+	existsSync(join(root, ".agents/skills", s, "SKILL.md"));
+// skills-lock.json의 source는 owner/repo다(2026-10-20 skills 1.7.4 실측).
+const sameSource = (a, b) =>
+	typeof a === "string" && a.toLowerCase() === b.toLowerCase();
+const described = (entries) =>
+	entries.map(([k, v]) => `${k}(${v.description})`).join(", ");
+
+// --brain·--simplicity·--ui-skill·--matt·--optional·--drop 값을 읽는다. 잘못된 값이면 error에 사용법을 담는다.
+export function readChoices(argv, manifest) {
+	const picked = { matt: [], optional: [], drop: [] };
+	// --brain=x는 아래에서 보지 못해 조용히 무시된다.
+	const eq = argv.find((a) =>
+		/^--(brain|simplicity|ui-skill|matt|optional|drop)=/.test(a),
+	);
+	if (eq)
+		return { error: `사용법: ${eq.replace("=", " ")}처럼 = 없이 띄어 쓴다` };
+	// 두 번 주면 첫 값만 읽혀 나머지가 조용히 빠진다.
+	const twice = [
+		"--brain",
+		"--simplicity",
+		"--ui-skill",
+		"--matt",
+		"--optional",
+		"--drop",
+	].find((f) => argv.filter((a) => a === f).length > 1);
+	if (twice)
+		return { error: `사용법: ${twice}는 한 번만 쓰고 여러 값은 쉼표로 잇는다` };
+	for (const s of SLOTS) {
+		const v = argValue(argv, s.flag);
+		if (v === undefined) continue;
+		const catalog = manifest[s.catalog] ?? {};
+		const names = [...new Set(s.multi ? v.split(",") : [v])];
+		const ok = (n) => n === "none" || Object.hasOwn(catalog, n);
+		// none은 혼자만 쓴다. 빈 이름(쉼표만)도 받지 않는다.
+		if (!names.every(ok) || (names.length > 1 && names.includes("none")))
+			return {
+				error: `사용법: ${s.flag} <이름>${s.multi ? "[,<이름>]" : ""}. ${s.label}: ${described([["none", { description: "기본 AI" }], ...Object.entries(catalog).filter(([n]) => n !== "none")])} (설명: ${GUIDE})`,
+			};
+		picked[s.key] = names.length === 1 ? names[0] : names;
+	}
+	const pool = manifest.mattpocock?.pool ?? [];
+	const optional = manifest.optional ?? {};
+	for (const [flag, key, ok, usage] of [
+		[
+			"--matt",
+			"matt",
+			(x) => pool.includes(x),
+			`사용법: --matt <스킬>[,<스킬>]. 추가 스킬: ${pool.join(", ") || "없음"} (제외한 스킬과 이유: ${GUIDE})`,
+		],
+		[
+			"--optional",
+			"optional",
+			(x) => Object.hasOwn(optional, x),
+			`사용법: --optional <묶음>[,<묶음>]. 묶음: ${described(Object.entries(optional)) || "없음"}`,
+		],
+		[
+			"--drop",
+			"drop",
+			(x) => pool.includes(x) || Object.hasOwn(optional, x),
+			`사용법: --drop <추가 스킬|선택 묶음>[,…] 또는 --drop all. 추가 스킬: ${pool.join(", ") || "없음"}. 묶음: ${Object.keys(optional).join(", ") || "없음"}. 필수 스킬과 공식 스킬은 지우지 않는다`,
+		],
+	]) {
+		const v = argValue(argv, flag);
+		if (v === undefined) continue;
+		// --drop all: 설치한 추가 스킬과 선택 묶음을 모두 지운다(--brain none --simplicity none과 함께 쓰면 순수 AI).
+		const all = key === "drop" && v === "all";
+		const list = all
+			? [...pool, ...Object.keys(optional)]
+			: v.split(",").filter(Boolean);
+		if (!list.length || !list.every(ok)) return { error: usage };
+		picked[key] = list;
+		if (all) picked.dropAll = true;
+	}
+	const both = picked.drop.filter(
+		(x) => picked.matt.includes(x) || picked.optional.includes(x),
+	);
+	if (both.length)
+		return { error: `사용법: ${both.join(", ")}를 더하면서 지울 수 없다` };
+	return picked;
+}
+
+// 선택값을 .dev-cycle.json에 쓴다. 키 값만 바꾸거나 맨 앞에 더해 설치기가 맞춘 Biome 형식을 지킨다.
+export function recordChoices(root, picked) {
+	const p = join(root, ".dev-cycle.json");
+	let text = readFileSync(p, "utf8");
+	// 맨 앞에 더하므로 거꾸로 돌아야 brain이 먼저 온다.
+	for (const { key } of [...SLOTS].reverse()) {
+		const v = picked[key];
+		if (v === undefined) continue;
+		const before = JSON.parse(text);
+		// 두뇌를 여럿 고르면 배열이다. 한 줄로 쓴다(Biome 형식).
+		const value = Array.isArray(v)
+			? `[${v.map((x) => `"${x}"`).join(", ")}]`
+			: `"${v}"`;
+		const re = new RegExp(`"${key}":\\s*(?:"[^"]*"|\\[[^\\]]*\\])`);
+		text = re.test(text)
+			? text.replace(re, `"${key}": ${value}`)
+			: text.replace(/^\{\n/, `{\n\t"${key}": ${value},\n`);
+		// 그 키 말고 다른 값(같은 이름의 하위 키 등)이 바뀌었으면 쓰지 않는다.
+		const want =
+			key in before ? { ...before, [key]: v } : { [key]: v, ...before };
+		if (JSON.stringify(JSON.parse(text)) !== JSON.stringify(want))
+			throw new Error(`.dev-cycle.json에 ${key}를 쓰지 못했다`);
+	}
+	writeFileSync(p, text);
+}
+
+// init 설치본(openspec, spec-kit)은 그 도구가 만든 파일(marker)로 판정한다.
+const initDone = (root, init, every = true) =>
+	init.marker[every ? "every" : "some"]((p) => existsSync(join(root, p)));
+
+// 항목에서 고르지 않은 후보가 이 프로젝트에 남긴 설치본. 스킬은 이름이 아니라 skills-lock.json 출처로 판정한다.
+function leftovers(root, slot, lock, enabled) {
+	return Object.entries(slot.catalog)
+		.filter(([name]) => !slot.names.includes(name))
+		.map(([name, item]) => ({
+			name,
+			item,
+			plugins: (item.claude?.plugins ?? []).filter((p) => enabled[p] === true),
+			skills: (item.skills ?? [])
+				.map((e) => ({
+					e,
+					names: e.skills.filter(
+						(s) => hasSkill(root, s) && sameSource(lock[s]?.source, e.source),
+					),
+				}))
+				.filter((x) => x.names.length),
+			omx: Boolean(item.omx) && existsSync(join(root, OMX_MARK)),
+			init: Boolean(item.init) && initDone(root, item.init, false),
+		}))
+		.filter((f) => f.plugins.length || f.skills.length || f.omx || f.init);
+}
+const describe = (f) =>
+	`${f.name}(${[
+		...(f.plugins.length ? [`플러그인 ${f.plugins.join(", ")}`] : []),
+		...(f.skills.length
+			? [`스킬 ${f.skills.flatMap((x) => x.names).join(", ")}`]
+			: []),
+		...(f.omx ? ["OMX 설정"] : []),
+		...(f.init ? ["도구 파일"] : []),
+	].join(", ")})`;
+
+// 스킬이 스스로 등록한 훅(impeccable hooks on이 쓰는 두 파일)은 스킬을 지워도 남아 없는 스크립트를 부른다.
+// 지운 스킬 폴더(skills/<이름>/)를 부르는 훅만 뺀다. 그 스킬이 남긴 기록(.impeccable/ 등)은 지우지 않는다.
+const HOOK_FILES = [".claude/settings.local.json", ".codex/hooks.json"];
+function dropHooks(root, names, failures, out) {
+	if (!names.length) return;
+	const hit = (h) =>
+		names.some((n) => String(h.command).includes(`skills/${n}/`));
+	for (const rel of HOOK_FILES) {
+		const p = join(root, rel);
+		let j;
+		try {
+			j = readJson(p, null);
+		} catch (e) {
+			failures.push(`훅 정리: ${e.message}`);
+			continue;
+		}
+		if (!j?.hooks) continue;
+		let n = 0;
+		for (const [ev, groups] of Object.entries(j.hooks)) {
+			const kept = groups.flatMap((g) => {
+				const hooks = (g.hooks ?? []).filter((h) => !hit(h));
+				if (hooks.length === (g.hooks?.length ?? 0)) return [g];
+				n += g.hooks.length - hooks.length;
+				return hooks.length ? [{ ...g, hooks }] : [];
+			});
+			if (kept.length) j.hooks[ev] = kept;
+			else delete j.hooks[ev];
+		}
+		if (!n) continue;
+		if (!Object.keys(j.hooks).length) delete j.hooks;
+		writeFileSync(p, `${JSON.stringify(j, null, 2)}\n`);
+		out.push(
+			`훅 정리: ${rel}에서 지운 스킬(${names.join(", ")})의 훅 ${n}개를 뺐다`,
+		);
+	}
+}
+
+// 두뇌가 만든 문서(openspec/, specs/ 등)는 지우지 않는다. 다른 두뇌로 넘길 때 인계 자료다.
+function cleanup(root, cli, found, failures, out) {
+	for (const f of found) {
+		if (f.init) {
+			const r = sh(f.item.init.remove, { cwd: root });
+			const still = f.item.init.marker.filter((p) => existsSync(join(root, p)));
+			if (r.status !== 0 || still.length)
+				failures.push(
+					`정리 ${f.name}${still.length ? ` (남음: ${still.join(", ")})` : `: ${firstLine(r)}`}`,
+				);
+			const kept = (f.item.init.keep ?? []).filter((p) =>
+				existsSync(join(root, p)),
+			);
+			if (kept.length)
+				out.push(`남김: ${f.name}의 문서 ${kept.join(", ")} (인계 자료)`);
+		}
+		for (const { e, names } of f.skills) {
+			const r = run("npx", ["-y", cli, "remove", "--skill", ...names, "-y"], {
+				cwd: root,
+				stdio: "inherit",
+				env: { ...process.env, CI: "true" },
+			});
+			// skills CLI는 없는 이름을 조용히 넘긴다. 폴더로 다시 확인한다.
+			const still = names.filter((s) => hasSkill(root, s));
+			if (r.status !== 0 || still.length)
+				failures.push(
+					`정리 ${e.source}${still.length ? ` (남음: ${still.join(", ")})` : ""}`,
+				);
+			dropHooks(
+				root,
+				names.filter((s) => !still.includes(s)),
+				failures,
+				out,
+			);
+		}
+		if (onPath("claude"))
+			for (const p of f.plugins)
+				run("claude", ["plugin", "uninstall", p, "--scope", "project"], {
+					cwd: root,
+				});
+		if (!f.omx) continue;
+		if (!onPath("omx")) {
+			failures.push(
+				"OMX 정리: omx 없음 → npm install -g oh-my-codex 뒤 다시 실행한다",
+			);
+			continue;
+		}
+		const r = run("omx", OMX_REMOVE, { cwd: root });
+		if (r.status !== 0) failures.push(`OMX 정리: ${firstLine(r)}`);
+		// uninstall이 남기는 OMX 장부. .codex/config.toml의 model 줄과 .gitignore 줄은 남는다(git 무시 파일, 보고서 참고).
+		else rmSync(join(root, ".codex/.omx"), { recursive: true, force: true });
+	}
+}
+
+// dir(예: ~/.claude/skills/gstack)이 설치한 개인 스킬: 그 폴더, 이름에 폴더 이름이 든 것, SKILL.md가 그 안을 가리키는 것.
+function userSkills(home, rel) {
+	const dir = join(home, rel);
+	if (!existsSync(dir)) return [];
+	const real = realpathSync(dir);
+	return readdirSync(dirname(dir))
+		.filter((n) => {
+			const md = join(dirname(dir), n, "SKILL.md");
+			if (!existsSync(md)) return false;
+			return (
+				n.includes(basename(dir)) ||
+				realpathSync(md).startsWith(`${real}${sep}`)
+			);
+		})
+		.sort();
+}
+
+// 이 기기 전역에 켜져 있지만 이 프로젝트에서 고르지 않은 것을 개인 설정(.claude/settings.local.json)으로 끈다.
+// 고른 것을 끄는 항목은 지운다. local이 project보다 우선이라 남기면 고른 것이 꺼진 채로 남는다.
+// 사용자가 local에 직접 켠 값은 그대로 둔다. 전역 파일은 쓰지 않는다.
+function personalOff(root, manifest, chosen, home, write) {
+	const user =
+		readJson(join(home, ".claude/settings.json"), {}).enabledPlugins ?? {};
+	const others = chosen.flatMap((c) =>
+		Object.entries(c.catalog)
+			.filter(([n]) => !c.names.includes(n))
+			.map(([, i]) => i),
+	);
+	const mine = chosen.flatMap((c) => c.items);
+	const pluginsOf = (items) => items.flatMap((i) => i.claude?.plugins ?? []);
+	const skillsOf = (items) =>
+		items.flatMap((i) => (i.userSkills ? userSkills(home, i.userSkills) : []));
+	const keep = new Set(pluginsOf(mine));
+	const p = join(root, ".claude/settings.local.json");
+	const local = readJson(p, {});
+	local.enabledPlugins ??= {};
+	local.skillOverrides ??= {};
+	const plugins = local.enabledPlugins;
+	const skills = local.skillOverrides;
+	const off = [
+		...new Set([
+			...pluginsOf(others),
+			...Object.keys(manifest.claude.conflicts ?? {}),
+		]),
+	].filter((x) => user[x] === true && !keep.has(x) && !(x in plugins));
+	const offSkills = skillsOf(others).filter((x) => !(x in skills));
+	let changed = off.length + offSkills.length;
+	for (const x of off) plugins[x] = false;
+	for (const x of offSkills) skills[x] = "off";
+	for (const x of keep)
+		if (plugins[x] === false) {
+			delete plugins[x];
+			changed++;
+		}
+	for (const x of skillsOf(mine))
+		if (skills[x] === "off") {
+			delete skills[x];
+			changed++;
+		}
+	for (const k of ["enabledPlugins", "skillOverrides"])
+		if (!Object.keys(local[k]).length) delete local[k];
+	if (write && changed) {
+		mkdirSync(dirname(p), { recursive: true });
+		writeFileSync(p, `${JSON.stringify(local, null, 2)}\n`);
+	}
+	const names = [
+		...off,
+		...(offSkills.length ? [`개인 스킬 ${offSkills.join(", ")}`] : []),
+	].join(", ");
+	const lines = names
+		? [
+				write
+					? `전역: 이 프로젝트에서 끔 ${names} (.claude/settings.local.json)`
+					: `전역: 이 프로젝트에서 끌 것 ${names} → pnpm skills:setup`,
+			]
+		: [];
+	// 프로젝트 설정으로 끌 수 없는 전역 흔적(전역 CLAUDE.md 블록, Codex 전역 스킬)은 알리기만 한다.
+	const traces = chosen.flatMap((c) =>
+		Object.entries(c.catalog)
+			.filter(([n]) => !c.names.includes(n))
+			.flatMap(([n, i]) =>
+				(i.userTraces ?? [])
+					.filter((t) => {
+						const f = join(home, t.path);
+						return (
+							existsSync(f) &&
+							(!t.contains || readFileSync(f, "utf8").includes(t.contains))
+						);
+					})
+					.map((t) => `${n}(~/${t.path})`),
+			),
+	);
+	if (traces.length)
+		lines.push(
+			`전역 경고: ${traces.join(", ")} → 프로젝트 설정으로 끌 수 없다. AGENTS.md 규칙대로 쓰지 않는다`,
+		);
+	return lines;
+}
 
 const addSkills = (root, cli, e, names) =>
 	run(
@@ -66,11 +466,60 @@ export function missingSkills(root, entry) {
 
 // 없는 선언만 더한다. 사용자가 false로 끈 플러그인과 다른 키는 그대로 둔다. 추가한 항목과 병합 결과를 돌려준다.
 // marketplaces 값은 settings의 source 객체 그대로다({source:"github",repo} 또는 {source:"git",url}).
-export function mergeClaudeSettings(root, claude, { write = true } = {}) {
+// on: 고른 두뇌·과설계 방지 스킬의 플러그인(false였어도 켠다). off: 정리한 플러그인(false로 남겨 user scope 설치도
+// 이 프로젝트에서 끈다). drop: 고르지 않은 후보만 쓰던 마켓플레이스 선언.
+// env.X 꼴로 읽는다: process.env.X 꼴은 Biome turbo 규칙(noUndeclaredEnvVars)이 turbo 작업 변수로 보고 경고한다
+const claudeConfigDir = (env = process.env) =>
+	env.CLAUDE_CONFIG_DIR ?? join(homedir(), ".claude");
+// ~/.claude/plugins/installed_plugins.json에서 이 폴더(또는 user scope)에 설치 기록이 없는 플러그인. 파일이 없으면 보지 않는다.
+export function unregisteredPlugins(
+	root,
+	plugins,
+	configDir = claudeConfigDir(),
+) {
+	let installed;
+	try {
+		installed = readJson(
+			join(configDir, "plugins/installed_plugins.json"),
+			{},
+		).plugins;
+	} catch {
+		return [];
+	}
+	if (!installed) return [];
+	const here = realpathSync(root);
+	const same = (p) => {
+		try {
+			return realpathSync(p) === here;
+		} catch {
+			return false;
+		}
+	};
+	return plugins.filter(
+		(id) =>
+			![]
+				.concat(installed[id] ?? [])
+				.some(
+					(i) => i.scope === "user" || (i.projectPath && same(i.projectPath)),
+				),
+	);
+}
+
+export function mergeClaudeSettings(
+	root,
+	claude,
+	{ write = true, on = [], off = [], drop = [] } = {},
+) {
 	const p = join(root, ".claude/settings.json");
 	const cur = existsSync(p) ? JSON.parse(readFileSync(p, "utf8")) : {};
 	const added = [];
+	let changed = false;
 	cur.extraKnownMarketplaces ??= {};
+	for (const name of drop)
+		if (name in cur.extraKnownMarketplaces) {
+			delete cur.extraKnownMarketplaces[name];
+			changed = true;
+		}
 	for (const [name, source] of Object.entries(claude.marketplaces)) {
 		if (cur.extraKnownMarketplaces[name]) continue;
 		cur.extraKnownMarketplaces[name] = { source };
@@ -82,11 +531,69 @@ export function mergeClaudeSettings(root, claude, { write = true } = {}) {
 		cur.enabledPlugins[plugin] = true;
 		added.push(plugin);
 	}
-	if (write && added.length) {
+	for (const plugin of on) {
+		if (cur.enabledPlugins[plugin] === true) continue;
+		cur.enabledPlugins[plugin] = true;
+		added.push(plugin);
+	}
+	for (const plugin of off) {
+		if (cur.enabledPlugins[plugin] === false) continue;
+		cur.enabledPlugins[plugin] = false;
+		changed = true;
+	}
+	if (write && (added.length || changed)) {
 		mkdirSync(dirname(p), { recursive: true });
 		writeFileSync(p, `${JSON.stringify(cur, null, 2)}\n`);
 	}
 	return { added, settings: cur };
+}
+
+// Codex 프로젝트 훅(.codex/hooks.json): 라운드 없는 편집(apply_patch)과 이름·포트로 골라 프로세스를 끄는 셸 명령(Bash)을 막고,
+// 셸로 읽은 SKILL.md를 기록한다(Bash).
+// OMX도 이 파일에 쓰므로 다른 항목은 그대로 두고 없는 것만 더한다. Codex는 훅을 세션 cwd에서 셸로
+// 실행하므로, 하위 폴더에서 시작해도 저장소 루트의 스크립트를 부르게 한다.
+const CODEX_HOOKS = [
+	{
+		event: "PreToolUse",
+		matcher: "apply_patch",
+		command:
+			'node "$(git rev-parse --show-toplevel)/scripts/dev-cycle.mjs" edit-guard',
+	},
+	{
+		event: "PreToolUse",
+		matcher: "Bash",
+		command:
+			'node "$(git rev-parse --show-toplevel)/scripts/dev-cycle.mjs" shell-guard',
+	},
+	{
+		event: "PostToolUse",
+		matcher: "Bash",
+		command:
+			'node "$(git rev-parse --show-toplevel)/scripts/dev-cycle.mjs" skill-log',
+	},
+];
+export function mergeCodexHooks(root, { write = true } = {}) {
+	const p = join(root, ".codex/hooks.json");
+	const cur = existsSync(p) ? JSON.parse(readFileSync(p, "utf8")) : {};
+	cur.hooks ??= {};
+	const added = [];
+	for (const { event, matcher, command } of CODEX_HOOKS) {
+		cur.hooks[event] ??= [];
+		if (
+			cur.hooks[event].some((g) => g.hooks?.some((h) => h.command === command))
+		)
+			continue;
+		cur.hooks[event].push({
+			matcher,
+			hooks: [{ type: "command", command, timeout: 10 }],
+		});
+		added.push(command.split(" ").at(-1));
+	}
+	if (write && added.length) {
+		mkdirSync(dirname(p), { recursive: true });
+		writeFileSync(p, `${JSON.stringify(cur, null, 2)}\n`);
+	}
+	return added;
 }
 
 const codexSourceMatches = (source, expected) => {
@@ -210,9 +717,15 @@ function codexPluginStatus(root, codex, withGlobal, failures) {
 }
 
 // mode: "check"는 설치하지 않는다. "auto"는 auto: true인 도구만, "all"(--with-global)은 install이 있는 도구를 모두 설치한다.
-function installGlobal(manifest, mode, failures, warnings) {
+// 끝내 없는 도구는 absent에 담는다.
+function installGlobal(list, mode, failures, warnings, absent = []) {
 	const lines = [];
-	for (const g of manifest.global) {
+	for (const g of list) {
+		// 그 도구(codex 등)가 없는 기기에는 그 도구용 항목을 설치하지도 누락으로 세지도 않는다.
+		if (g.tool && !onPath(g.tool)) {
+			lines.push(`${g.name} 건너뜀(${g.tool} 없음)`);
+			continue;
+		}
 		let ok = sh(g.check).status === 0;
 		if (!ok && g.install && (mode === "all" || (mode === "auto" && g.auto))) {
 			console.log(`전역 설치: ${g.name} → ${g.install}`);
@@ -221,6 +734,7 @@ function installGlobal(manifest, mode, failures, warnings) {
 			// 기본 실행의 자동 설치는 없어도 dev-cycle이 진행되는 도구라, 실패해도 설치 전체를 멈추지 않는다.
 			if (!ok) (mode === "all" ? failures : warnings).push(`전역 ${g.name}`);
 		}
+		if (!ok) absent.push(g);
 		lines.push(
 			ok ? `${g.name} 있음` : `${g.name} 없음 → ${g.hint ?? g.install}`,
 		);
@@ -234,39 +748,162 @@ export function main(argv, root = process.cwd(), platform = process.platform) {
 		console.error("Windows에서는 WSL2(Ubuntu) 안에서 실행한다");
 		return 2;
 	}
+	if (argv.includes("--help") || argv.includes("-h")) {
+		console.log(SETUP_USAGE);
+		return 0;
+	}
 	const check = argv.includes("--check");
 	const withGlobal = argv.includes("--with-global");
 	const manifest = JSON.parse(
 		readFileSync(join(root, "skills.manifest.json"), "utf8"),
 	);
-	const optional = manifest.optional ?? {};
-	const at = argv.indexOf("--optional");
-	const picked = at < 0 ? [] : (argv[at + 1] ?? "").split(",").filter(Boolean);
-	if (at >= 0 && (!picked.length || picked.some((g) => !(g in optional)))) {
-		const groups = Object.entries(optional).map(
-			([k, v]) => `${k}(${v.description})`,
-		);
+	const picked = readChoices(argv, manifest);
+	if (picked.error) {
+		console.error(picked.error);
+		return 2;
+	}
+	// 모르는 인자(오타, 값 없는 이름)를 버리면 고른 것 없이 기본 설치가 그대로 돈다.
+	const unknown = argv.filter(
+		(a, i) =>
+			a !== "--" &&
+			!SETUP_FLAGS.includes(a) &&
+			!SETUP_VALUE_FLAGS.includes(a) &&
+			!SETUP_VALUE_FLAGS.includes(argv[i - 1]),
+	);
+	if (unknown.length) {
+		console.error(`모르는 인자: ${unknown.join(" ")}\n${SETUP_USAGE}`);
+		return 2;
+	}
+	if (check && picked.drop.length) {
+		console.error("사용법: --drop은 --check와 함께 쓰지 않는다");
+		return 2;
+	}
+	const cfgPath = join(root, ".dev-cycle.json");
+	let cfg;
+	try {
+		cfg = readJson(cfgPath, {});
+	} catch (e) {
+		console.error(`.dev-cycle.json을 읽을 수 없다: ${e.message}`);
+		return 2;
+	}
+	const record = SLOTS.some((s) => s.key in picked);
+	if (record && !check && !existsSync(cfgPath)) {
 		console.error(
-			`사용법: --optional <묶음>[,<묶음>]. 묶음: ${groups.join(", ") || "없음"}`,
+			"선택을 기록할 .dev-cycle.json이 없다 → install.sh로 템플릿을 먼저 설치한다",
 		);
 		return 2;
 	}
+	// 기록이 없는 기존 프로젝트는 none(UI 스킬은 unset 값)으로 읽는다. 인자로 준 항목만 정리한다(clean).
+	// 기록은 하나면 문자열, 여럿(두뇌)이면 배열이다. names는 고른 순서(첫 값이 주 두뇌)다.
+	const chosen = SLOTS.map((s) => {
+		const catalog = manifest[s.catalog] ?? {};
+		// 손으로 고친 기록의 중복은 한 번만 센다. 빈 배열은 none이다.
+		// unset 값은 카탈로그에 있을 때만 쓴다(그 항목이 없는 옛 매니페스트는 none이다)
+		const unset = Object.hasOwn(catalog, s.unset ?? "") ? s.unset : "none";
+		const names = [...new Set([].concat(picked[s.key] ?? cfg[s.key] ?? unset))];
+		if (!names.length) names.push("none");
+		const items = names
+			.filter((n) => Object.hasOwn(catalog, n))
+			.map((n) => catalog[n]);
+		return { ...s, catalog, names, items, clean: s.key in picked };
+	});
+	const optional = manifest.optional ?? {};
+	const matt = manifest.mattpocock;
+	// adopt(하네스만 설치한 기존 Next.js 프로젝트)는 Better-T-Stack 전용 스킬(stack)을 받지 않는다.
 	const entries = [
-		...manifest.skills,
-		...picked.flatMap((g) => optional[g].skills),
+		...manifest.skills.filter((e) => !(cfg.adopt === true && e.stack)),
+		...picked.optional.flatMap((g) => optional[g].skills),
+		...(picked.matt.length
+			? [{ source: matt.source, agents: matt.agents, skills: picked.matt }]
+			: []),
+		...chosen.flatMap((c) => c.items.flatMap((i) => i.skills ?? [])),
 	];
 	const failures = [];
 	const warnings = [];
 	const missing = [];
 	const out = [];
 
+	let lock = {};
+	let enabled = {};
+	try {
+		lock = readJson(join(root, "skills-lock.json"), {}).skills ?? {};
+	} catch (e) {
+		// 출처를 모르면 정리할 설치본을 찾지 못한다. 조용히 넘기지 않는다.
+		(check ? missing : failures).push(`skills-lock.json 읽기: ${e.message}`);
+	}
+	try {
+		enabled =
+			readJson(join(root, ".claude/settings.json"), {}).enabledPlugins ?? {};
+	} catch {} // 깨진 파일은 아래 Claude 단계가 실패로 보고한다.
+	for (const c of chosen) c.found = leftovers(root, c, lock, enabled);
+	const cleaning = chosen.filter((c) => c.clean && c.found.length);
+	if (!check) {
+		if (record) recordChoices(root, picked);
+		if (cleaning.length)
+			out.push(
+				`정리: ${cleaning.flatMap((c) => c.found.map(describe)).join(", ")}`,
+			);
+		cleanup(
+			root,
+			manifest.skillsCli,
+			cleaning.flatMap((c) => c.found),
+			failures,
+			out,
+		);
+		// --drop: 추가 스킬과 선택 묶음. 같은 이름이라도 다른 출처에서 받은 스킬은 지우지 않는다.
+		const dropEntries = picked.drop.map((name) => ({
+			name,
+			entries: manifest.mattpocock?.pool?.includes(name)
+				? [{ ...manifest.mattpocock, skills: [name] }]
+				: optional[name].skills,
+		}));
+		const dropping = dropEntries
+			.map(({ name, entries: es }) => ({
+				name,
+				plugins: [],
+				skills: es
+					.map((e) => ({
+						e,
+						names: e.skills.filter(
+							(x) => hasSkill(root, x) && sameSource(lock[x]?.source, e.source),
+						),
+					}))
+					.filter((x) => x.names.length),
+			}))
+			.filter((d) => d.skills.length);
+		const absentDrop = picked.drop.filter(
+			(n) => !dropping.some((d) => d.name === n),
+		);
+		if (dropping.length) {
+			out.push(`제거: ${dropping.map(describe).join(", ")}`);
+			cleanup(root, manifest.skillsCli, dropping, failures, out);
+		}
+		if (absentDrop.length && !picked.dropAll)
+			out.push(
+				`제거할 것 없음: ${absentDrop.join(", ")} (설치되지 않았거나 다른 출처)`,
+			);
+	}
+
 	const globals = installGlobal(
-		manifest,
+		manifest.global,
 		check ? "check" : withGlobal ? "all" : "auto",
 		failures,
 		warnings,
 	);
-
+	// 고른 두뇌의 전역 도구(gstack, OMX CLI)는 --brain을 줬거나 --with-global일 때만 설치한다.
+	const slotGlobal = chosen.flatMap((c) =>
+		c.items.flatMap((i) =>
+			(i.global ?? []).map((g) => ({ ...g, clean: c.clean })),
+		),
+	);
+	const absent = [];
+	const slotGlobals = installGlobal(
+		slotGlobal,
+		!check && (withGlobal || slotGlobal.some((g) => g.clean)) ? "all" : "check",
+		failures,
+		warnings,
+		absent,
+	);
 	let installed = 0;
 	for (const e of entries) {
 		const miss = missingSkills(root, e);
@@ -283,7 +920,40 @@ export function main(argv, root = process.cwd(), platform = process.platform) {
 				`${e.source}${still.length ? ` (없음: ${still.join(", ")})` : ""}`,
 			);
 	}
+	// 프로젝트를 init하는 두뇌(openspec, spec-kit). 그 두뇌의 전역 도구가 없으면 실행하지 않고 안내한다.
+	const initLines = [];
+	for (const c of chosen)
+		for (const [i, item] of c.items.entries()) {
+			const init = item.init;
+			if (!init || initDone(root, init)) continue;
+			const name = c.names.filter((n) => Object.hasOwn(c.catalog, n))[i];
+			if (check) {
+				missing.push(
+					`${c.label} ${name} 프로젝트 파일(${init.marker.join(", ")})`,
+				);
+				continue;
+			}
+			const need = (item.global ?? []).filter((g) =>
+				absent.some((a) => a.name === g.name),
+			);
+			if (need.length) {
+				initLines.push(
+					`${name} 프로젝트 설정: ${need.map((g) => g.name).join(", ")} 없음 → ${need[0].hint ?? need[0].install}`,
+				);
+				continue;
+			}
+			console.log(`프로젝트 설정: ${name} → ${init.run}`);
+			const r = sh(init.run, {
+				cwd: root,
+				stdio: "inherit",
+				env: { ...process.env, ...init.env },
+			});
+			const ok = r.status === 0 && initDone(root, init);
+			if (!ok) failures.push(`${name} 프로젝트 설정`);
+			initLines.push(`${name} 프로젝트 설정: ${ok ? "완료" : "실패"}`);
+		}
 	const total = entries.reduce((n, e) => n + e.skills.length, 0);
+	out.push(...initLines);
 	out.push(
 		check
 			? `스킬(프로젝트): ${total}개 중 ${missing.length ? `누락 — ${missing.join("; ")}` : "모두 있음"}`
@@ -300,14 +970,59 @@ export function main(argv, root = process.cwd(), platform = process.platform) {
 		out.push(
 			`선택 스킬: ${states.join(", ")} (설치: pnpm skills:setup --optional <묶음>)`,
 		);
+	// 고른 항목의 전역 도구가 없으면 누락이다. 그 도구(codex 등)가 없는 기기의 항목은 installGlobal이 건너뛴다.
+	// 설치 명령이 없는 준비물(hallmark의 puppeteer-core)은 알리기만 하고 누락으로 세지 않는다.
+	if (check)
+		for (const g of absent) if (g.install) missing.push(`전역 ${g.name}`);
+	if (matt)
+		out.push(
+			`mattpocock 추가: ${matt.pool.filter((s) => hasSkill(root, s)).join(", ") || "없음"} (설치: pnpm skills:setup --matt <스킬>)`,
+		);
 
+	// 기본 플러그인에 고른 항목의 마켓플레이스를 더한다. 고르지 않은 후보만 쓰던 마켓플레이스는 정리할 때 뺀다.
+	const mine = chosen.flatMap((c) => c.items);
+	const claude = {
+		marketplaces: Object.assign(
+			{},
+			manifest.claude.marketplaces,
+			...mine.map((i) => i.claude?.marketplaces ?? {}),
+		),
+		plugins: manifest.claude.plugins,
+	};
+	const on = mine.flatMap((i) => i.claude?.plugins ?? []);
+	const drop = chosen
+		.filter((c) => c.clean)
+		.flatMap((c) =>
+			Object.entries(c.catalog)
+				.filter(([n]) => !c.names.includes(n))
+				.flatMap(([, i]) => Object.keys(i.claude?.marketplaces ?? {})),
+		)
+		.filter((m) => !(m in claude.marketplaces));
+	const off = cleaning.flatMap((c) => c.found.flatMap((f) => f.plugins));
 	try {
-		const { added, settings } = mergeClaudeSettings(root, manifest.claude, {
+		const { added, settings } = mergeClaudeSettings(root, claude, {
 			write: !check,
+			on,
+			off,
+			drop,
 		});
 		if (check && added.length)
 			missing.push(`.claude/settings.json: ${added.join(", ")}`);
-		let line = `Claude 플러그인(project): .claude/settings.json ${check ? (added.length ? `선언 누락 ${added.join(", ")}` : "선언 있음") : added.length ? `선언 추가 ${added.join(", ")}` : "선언 변화 없음"}`;
+		// 선언만으로는 켜지지 않는다. Claude Code는 project scope 설치를 폴더 경로별로 기록하므로
+		// 폴더를 옮기거나 복사했거나 다른 기기에서 받으면 선언이 있어도 세션에 플러그인이 없다.
+		const unregistered = check
+			? unregisteredPlugins(
+					root,
+					[...claude.plugins, ...on].filter(
+						(p) => settings.enabledPlugins[p] !== false,
+					),
+				)
+			: [];
+		if (unregistered.length)
+			missing.push(
+				`Claude 플러그인 미등록: ${unregistered.join(", ")} (이 폴더에 설치 기록이 없어 세션에 켜지지 않는다 → pnpm skills:setup)`,
+			);
+		let line = `Claude 플러그인(project): .claude/settings.json ${check ? (added.length ? `선언 누락 ${added.join(", ")}` : "선언 있음") : added.length ? `선언 추가 ${added.join(", ")}` : off.length ? "" : "선언 변화 없음"}${!check && off.length ? `${added.length ? ", " : ""}끔 ${off.join(", ")}` : ""}${unregistered.length ? `, 이 폴더에 미등록 ${unregistered.join(", ")}` : ""}`;
 		if (!check) {
 			if (onPath("claude")) {
 				const bad = [];
@@ -320,7 +1035,7 @@ export function main(argv, root = process.cwd(), platform = process.platform) {
 						}).stdout,
 					).map((m) => m.name);
 				} catch {}
-				for (const name of Object.keys(manifest.claude.marketplaces)) {
+				for (const name of Object.keys(claude.marketplaces)) {
 					// 등록된 마켓플레이스는 받아 둔 목록이 오래됐을 수 있다. 최신으로 받은 뒤 설치해야 플러그인도 최신판이 된다.
 					if (known.includes(name)) {
 						const r = run("claude", ["plugin", "marketplace", "update", name], {
@@ -340,7 +1055,7 @@ export function main(argv, root = process.cwd(), platform = process.platform) {
 					);
 					if (r.status !== 0) bad.push(`marketplace ${arg}: ${firstLine(r)}`);
 				}
-				for (const plugin of manifest.claude.plugins) {
+				for (const plugin of [...claude.plugins, ...on]) {
 					// 사용자가 false로 끈 플러그인은 설치하지 않는다. install이 enabledPlugins를 true로 되돌린다.
 					if (settings.enabledPlugins[plugin] === false) continue;
 					const r = run(
@@ -363,12 +1078,14 @@ export function main(argv, root = process.cwd(), platform = process.platform) {
 		(check ? missing : failures).push(msg);
 		out.push(`Claude 플러그인(project): ${msg}`);
 	}
-	if (manifest.codex)
-		out.push(
-			codexPluginStatus(root, manifest.codex, withGlobal && !check, failures),
-		);
+	for (const i of mine)
+		if (i.codex)
+			out.push(
+				codexPluginStatus(root, i.codex, withGlobal && !check, failures),
+			);
 
-	if (manifest.omx) {
+	const omxArgs = mine.find((i) => i.omx)?.omx;
+	if (omxArgs) {
 		const done = () => existsSync(join(root, OMX_MARK));
 		if (check) {
 			// omx가 없는 기기(Claude만 쓰는 개발자)는 누락으로 세지 않는다.
@@ -382,23 +1099,144 @@ export function main(argv, root = process.cwd(), platform = process.platform) {
 				);
 			}
 		} else if (onPath("omx")) {
-			const r = run("omx", manifest.omx, { cwd: root });
+			const r = run("omx", omxArgs, { cwd: root });
 			if (r.status !== 0 || !done()) failures.push(`OMX: ${firstLine(r)}`);
 			out.push(
-				`OMX(project): omx ${manifest.omx.join(" ")} → ${r.status === 0 ? "완료" : "실패"}`,
+				`OMX(project): omx ${omxArgs.join(" ")} → ${r.status === 0 ? "완료" : "실패"}`,
 			);
 		} else {
 			out.push(
-				"OMX(project): omx 없음 → npm install -g oh-my-codex 뒤 pnpm skills:setup (또는 --with-global)",
+				"OMX(project): omx 없음 → npm install -g oh-my-codex 뒤 pnpm skills:setup --brain oh-my (또는 --with-global)",
 			);
 		}
 	}
 
+	// OMX 설정 뒤에 더해야 OMX가 다시 쓴 파일에도 남는다. Codex를 쓰지 않는 기기도 있어 --check는 알리기만 한다.
+	try {
+		const added = mergeCodexHooks(root, { write: !check });
+		out.push(
+			`Codex 훅(project): .codex/hooks.json ${added.length ? (check ? `없음 ${added.join(", ")} → Codex를 쓰면 pnpm skills:setup` : `추가 ${added.join(", ")} → Codex에서 /hooks로 신뢰해야 돈다(바뀌면 다시)`) : "있음"}`,
+		);
+	} catch (e) {
+		const msg = `.codex/hooks.json을 읽을 수 없다: ${e.message}`;
+		if (!check) failures.push(msg);
+		out.push(`Codex 훅(project): ${msg}`);
+	}
+
+	// 두 항목의 상태. 고르지 않은 설치본은 --check에서 충돌(누락)이고, 인자 없는 설치에서는 알리기만 한다.
+	let now = {};
+	try {
+		now =
+			readJson(join(root, ".claude/settings.json"), {}).enabledPlugins ?? {};
+	} catch {}
+	const state = (item) => {
+		const parts = [
+			...(item.skills ?? []).flatMap((e) =>
+				e.skills.map((s) => !missingSkills(root, { ...e, skills: [s] }).length),
+			),
+			...(item.claude?.plugins ?? []).map((p) => now[p] === true),
+			...(item.omx && onPath("omx") ? [existsSync(join(root, OMX_MARK))] : []),
+			// 설치 명령이 없는 항목(hallmark의 puppeteer-core처럼 알리기만 하는 준비물)은 설치 상태에 넣지 않는다
+			...(item.global ?? [])
+				.filter((g) => g.install && (!g.tool || onPath(g.tool)))
+				.map((g) => !absent.some((a) => a.name === g.name)),
+			...(item.init ? [initDone(root, item.init)] : []),
+		];
+		const have = parts.filter(Boolean).length;
+		const none = Object.entries(item.hosts ?? {})
+			.filter(([, v]) => v === "none")
+			.map(([h]) => h);
+		return `${have === parts.length ? "설치됨" : have ? "일부" : "없음"}${none.length ? `, ${none.join("·")}는 기본 AI` : ""}`;
+	};
+	for (const c of chosen) {
+		const unknown = c.names.filter(
+			(n) => n !== "none" && !Object.hasOwn(c.catalog, n),
+		);
+		// 카탈로그의 none 항목은 기본 AI가 참고하는 스킬이다(UI 스킬 none의 frontend-design)
+		const base = c.names[0] === "none" ? c.catalog.none : undefined;
+		let line = `${c.label}: 없음(기본 AI${base ? `, ${base.skills.flatMap((e) => e.skills).join(", ")} ${state(base)}` : ""})`;
+		if (unknown.length) {
+			line = `${c.label}: ${unknown.join(", ")}(매니페스트에 없음) → pnpm skills:setup ${c.flag} <이름>`;
+			(check ? missing : failures).push(`${c.label} ${unknown.join(", ")}`);
+		} else if (c.items.length && !base) {
+			const main = c.names.length > 1 ? "주, " : "";
+			line = `${c.label}: ${c.names.map((n, i) => `${n}(${i ? "" : main}${state(c.catalog[n])})`).join(", ")}`;
+		}
+		const left = c.clean && !check ? [] : c.found;
+		if (left.length) {
+			line += `, 고르지 않은 설치본: ${left.map(describe).join(", ")} → pnpm skills:setup ${c.flag} <이름|none>으로 고르면 정리된다(기록: ${c.names.join(",")})`;
+			if (check) missing.push(`${c.label} 충돌`);
+		}
+		out.push(line);
+		// 세션 시작 훅이나 전역 지시로 진행 순서를 강제하는 두뇌가 둘 이상이면 지시가 서로 덮어쓴다.
+		const forcing = c.names.filter((n) => c.catalog[n]?.forces);
+		if (forcing.length > 1)
+			out.push(
+				`경고: 진행 순서를 강제하는 두뇌 ${forcing.join(", ")}를 함께 골랐다. 지시가 서로 덮어쓸 수 있어 주 두뇌(${c.names[0]})를 따르고 나머지 두뇌의 강제 지시는 따르지 않는다 (${GUIDE})`,
+			);
+	}
+	// 개인 설정 파일이 깨졌으면 쓰지 않고 알리기만 한다(설치 결과 요약은 그대로 보인다).
+	try {
+		out.push(...personalOff(root, manifest, chosen, homedir(), !check));
+	} catch (e) {
+		out.push(`전역 경고: 개인 설정을 읽지 못해 건너뜀: ${e.message}`);
+	}
+
 	out.push(`전역 도구: ${globals.join(", ") || "없음"}`);
+	if (slotGlobals.length)
+		out.push(`고른 항목 전역 도구: ${slotGlobals.join(", ")}`);
 	if (warnings.length)
 		out.push(
 			`경고: ${warnings.join("; ")} 설치 실패 → 위 출력을 보고 직접 설치한다 (없어도 dev-cycle은 진행된다)`,
 		);
+	// 구성을 바꿨으면 지금 세션에 다시 불러오는 법을 알리고, 열린 라운드가 있으면 그 라운드에 적는다(라운드를 닫지 않고 이어 간다)
+	if (
+		!check &&
+		(record ||
+			picked.optional.length ||
+			picked.matt.length ||
+			picked.drop.length)
+	) {
+		out.push(
+			"세션: Claude Code는 /reload-plugins로 바뀐 플러그인·스킬·훅을 지금 세션에 불러온다(새 세션도 된다). 다시 불러오기 전에는 세션의 스킬 목록·훅 안내가 아니라 .dev-cycle.json과 pnpm skills:check를 따른다",
+		);
+		const todo = join(root, cfg.todoPath ?? "tasks/todo.md");
+		const label = (v) => [v ?? "none"].flat().join(",");
+		const changed =
+			label(picked.brain ?? cfg.brain) !== label(cfg.brain) ||
+			(picked.simplicity ?? cfg.simplicity ?? "none") !==
+				(cfg.simplicity ?? "none") ||
+			label(picked.uiSkill ?? cfg.uiSkill ?? "impeccable") !==
+				label(cfg.uiSkill ?? "impeccable") ||
+			picked.optional.length ||
+			picked.matt.length ||
+			picked.drop.length;
+		// 실패한 설치는 라운드에 적지 않는다(구성이 반쯤 바뀐 채라 exit 2를 보고 다시 실행한다)
+		if (
+			changed &&
+			!failures.length &&
+			existsSync(todo) &&
+			readFileSync(todo, "utf8").includes("<!-- dev-cycle:start ")
+		)
+			try {
+				const before = {
+					brain: cfg.brain,
+					simplicity: cfg.simplicity,
+					uiSkill: cfg.uiSkill,
+				};
+				const after = {
+					brain: picked.brain ?? cfg.brain,
+					simplicity: picked.simplicity ?? cfg.simplicity,
+					uiSkill: picked.uiSkill ?? cfg.uiSkill,
+				};
+				if (noteSkillsChange(root, loadConfig(root), { before, after }))
+					out.push(
+						"라운드: 열린 라운드에 스킬 구성 변경을 적었다 → 닫지 않고 이어 간다. 설치기가 바꾼 파일은 케이스 판정에서 빠지고, 남은 단계 행은 새 구성으로 한다",
+					);
+			} catch (e) {
+				out.push(`경고: 열린 라운드에 구성 변경을 적지 못했다: ${e.message}`);
+			}
+	}
 	if (failures.length) out.push(`실패: ${failures.join("; ")}`);
 	if (check && missing.length) out.push(`누락: ${missing.join("; ")}`);
 	console.log(out.join("\n"));
@@ -432,9 +1270,21 @@ function localFiles(dir, base = dir, out = new Map()) {
 		const p = join(dir, e.name);
 		if (e.isDirectory()) localFiles(p, base, out);
 		else if (e.isFile())
-			out.set(relative(base, p).split(sep).join("/"), gitBlob(readFileSync(p)));
+			out.set(
+				relative(base, p).split(sep).join("/"),
+				localBlobs(readFileSync(p)),
+			);
 	}
 	return out;
+}
+
+// 설치 CLI는 원본의 .gitattributes(eol=crlf 등)대로 줄 끝을 바꿔 쓴다. git이 저장하는 blob은 LF로
+// 정규화한 내용이므로 CRLF를 LF로 바꾼 blob도 같은 판으로 본다.
+export function localBlobs(buf) {
+	const raw = gitBlob(buf);
+	const text = buf.toString("latin1");
+	if (!text.includes("\r\n")) return [raw];
+	return [raw, gitBlob(Buffer.from(text.replaceAll("\r\n", "\n"), "latin1"))];
 }
 
 // tree: GitHub git/trees 응답의 tree. skillPath: lock에 적힌 SKILL.md 경로.
@@ -474,10 +1324,10 @@ export function remoteSkill(tree, skillPath, name) {
 	return { folder, files, links, pin };
 }
 
-// local: 설치본의 {상대 경로 → git blob sha}. 돌려주는 값: 원격과 다른 파일의 상대 경로 목록(같으면 빈 목록).
+// local: 설치본의 {상대 경로 → git blob sha 목록(localBlobs)}. 돌려주는 값: 원격과 다른 파일의 상대 경로 목록(같으면 빈 목록).
 export function changedFiles(remote, local) {
 	const changed = [...remote.files]
-		.filter(([rel, sha]) => local.get(rel) !== sha)
+		.filter(([rel, sha]) => !local.get(rel)?.includes(sha))
 		.map(([rel]) => rel);
 	for (const rel of local.keys()) {
 		if (remote.files.has(rel) || notCopied(rel)) continue;
@@ -527,24 +1377,41 @@ async function fetchTree(source, fetch, token) {
 	return body.tree;
 }
 
-// 매니페스트 기본 스킬 전부와, 선택 묶음 중 설치한 스킬을 원격과 비교한다.
+// 기본으로 설치하지 않는 것: 선택 묶음, mattpocock 추가 스킬, 두뇌·과설계 방지 후보.
+const extraEntries = (manifest) => [
+	...Object.values(manifest.optional ?? {}).flatMap((o) => o.skills),
+	...(manifest.mattpocock
+		? [
+				{
+					source: manifest.mattpocock.source,
+					agents: manifest.mattpocock.agents,
+					skills: manifest.mattpocock.pool,
+				},
+			]
+		: []),
+	...SLOTS.flatMap((s) =>
+		Object.values(manifest[s.catalog] ?? {}).flatMap((i) => i.skills ?? []),
+	),
+];
+
+// 매니페스트 기본 스킬 전부와, 기본 밖 항목 중 설치한 스킬을 원격과 비교한다.
+// 기본 밖 항목은 같은 이름을 다른 출처에서 받았을 수 있어 lock 출처가 맞을 때만 본다.
 // 확인하지 못한 저장소는 failed에 담고, 나머지 저장소 결과는 그대로 돌려준다.
 export async function findUpdates(root, manifest, { fetch, token }) {
-	const optional = Object.values(manifest.optional ?? {})
-		.flatMap((o) => o.skills)
-		.map((e) => ({
-			...e,
-			skills: e.skills.filter((s) =>
-				existsSync(join(root, ".agents/skills", s, "SKILL.md")),
-			),
-		}));
-	const entries = [...manifest.skills, ...optional].filter(
-		(e) => e.skills.length,
-	);
 	const lockPath = join(root, "skills-lock.json");
 	const lock = existsSync(lockPath)
 		? (JSON.parse(readFileSync(lockPath, "utf8")).skills ?? {})
 		: {};
+	const extra = extraEntries(manifest).map((e) => ({
+		...e,
+		skills: e.skills.filter(
+			(s) => hasSkill(root, s) && sameSource(lock[s]?.source, e.source),
+		),
+	}));
+	// adopt 프로젝트는 Better-T-Stack 전용 스킬(stack)을 설치하지 않으므로 빠짐으로 알리지 않는다.
+	const adopt = readJson(join(root, ".dev-cycle.json"), {}).adopt === true;
+	const base = manifest.skills.filter((e) => !(adopt && e.stack));
+	const entries = [...base, ...extra].filter((e) => e.skills.length);
 	const trees = new Map();
 	for (const e of entries)
 		if (!trees.has(e.source))
@@ -657,10 +1524,7 @@ export async function update(args, root = process.cwd(), deps = {}) {
 	const record = (manifest, items, failed, reinstalled = []) => {
 		const checked = new Set(items.map((i) => i.name));
 		const known = new Set(
-			[
-				...manifest.skills,
-				...Object.values(manifest.optional ?? {}).flatMap((o) => o.skills),
-			].flatMap((e) => e.skills),
+			[...manifest.skills, ...extraEntries(manifest)].flatMap((e) => e.skills),
 		);
 		const keep = (list) =>
 			failed.length

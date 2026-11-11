@@ -7,6 +7,8 @@
 - 체크, 상태 바꾸기, 추가 같은 동작은 화면 상태나 브라우저 저장소(`localStorage`)로 흉내 내서 버튼이 실제로 반응하게 한다.
 - 서버나 DB를 부르는 Better-T-Stack 기본 부품을 화면에 쓰지 않는다: 헤더의 사용자 메뉴(`components/user-menu.tsx`)와 `/dashboard` 링크, 로그인·가입 폼의 `authClient`, `orpc` 호출. 첫 화면을 만들 때 Better-T-Stack 기본 헤더와 로그인 화면을 제품 화면으로 바꾼다. `/dashboard`와 `/api` 파일은 지우지 않아도 된다(내보내기가 뺀다).
 - `.dev-cycle.json`의 `authPaths` 파일(`auth-client.ts`, `services.ts`, `env.server.ts`, `packages/auth/` 등)은 고치지 않는다. 실제 서비스로 바꿀 때 그대로 쓴다.
+- 쓰거나 바꾸는 Next API(`page`/`layout`, `Link`, `params`, `generateStaticParams`, `loading`/`error` 파일, `next/image` 등)는 `apps/web/node_modules/next/dist/docs/`에서 문서를 찾아 먼저 읽는다. 에이전트가 아는 Next와 설치된 판이 다를 수 있다. 읽은 문서 경로는 대조표 증거에 적는다.
+- Server Component가 기본이다. `"use client"`는 상태, 이벤트, 브라우저 API(`localStorage` 등)가 필요한 가장 작은 컴포넌트에만 붙인다.
 - HTML로 내보낼 수 있게 짓는다.
   - 동적 경로(`[slug]`)는 `generateStaticParams`로 값을 모두 낸다.
   - 쿼리 값(`?tab=`)은 클라이언트 컴포넌트에서 `useSearchParams`로 읽고 `<Suspense>`로 감싼다.
@@ -24,7 +26,7 @@
 - GitHub Pages처럼 하위 경로에 올릴 때는 `pnpm export:html --base /<저장소>`.
 
 ## 배포 (GitHub Pages, Vercel)
-사용자가 요청할 때만 한다("GitHub Pages에 배포해줘", "Vercel에 배포해줘", `docs/first-request.md` 끝의 같은 말). 이 요청은 원격 저장소나 Vercel 프로젝트를 만들어도 된다는 뜻이다. 화면 라운드가 닫힌 뒤(`[confirm]` 뒤) 메인 세션에서 한다. 풀스택 배포(`prokit-deploy`, `pnpm vercel:deploy`)는 쓰지 않는다.
+사용자가 요청할 때만 한다("GitHub Pages에 배포해줘", "Vercel에 배포해줘", `docs/first-request.md` 끝의 같은 말). 이 요청은 원격 저장소나 Vercel 프로젝트를 만들어도 된다는 뜻이다. 화면 라운드가 닫힌 뒤(`[confirm]` 뒤) 메인 세션에서 한다. 풀스택 배포(<!-- edition:pro -->`prokit-deploy`, <!-- /edition -->`pnpm vercel:deploy`)는 쓰지 않는다.
 
 준비
 - 토큰: GitHub Pages는 `GH_TOKEN`(GitHub classic 토큰, `repo` 권한), Vercel은 `VERCEL_TOKEN`. 프로젝트 `.env`나 작업 폴더 `.env`에 있는 토큰을 세션 환경에 넣지 않고, 아래의 `gh`, `git push`, `vercel` 명령마다 앞에 `node scripts/load-keys.mjs -- `를 붙여 그 명령에만 넣는다(여러 명령이면 `-- bash -c '…'`). `gh`와 `vercel`은 이 변수를 스스로 읽는다. 있는지는 `node scripts/load-keys.mjs -- sh -c 'test -n "$GH_TOKEN"'`의 exit로 본다. 없으면 멈추고, 토큰을 만들어 작업 폴더 `.env`에 넣은 뒤 다시 요청하라고 안내한다([배포하기](https://github.com/roadkwon-ai/pro-kit/blob/main/tutorials/reference/deploy.md)). 토큰을 대화창에 붙여 넣으라고 하지 않고, 값을 출력(`printenv`, `echo`, `cat .env` 포함)하거나 다른 파일에 쓰지 않는다.
@@ -51,9 +53,12 @@ Vercel
 - Vercel: `vercel project rm <프로젝트 이름>`.
 
 ## 실제 서비스로 바꾸기
-"실제 서비스로 바꿀 거야"처럼 요청하면 이 순서로 한다.
+"실제 서비스로 바꿀 거야"처럼 요청하면 먼저 이 프로젝트 `.agents/skills/`에 서버 스킬(API, DB, 배포)이 있는지 본다. 없으면(UI 스킬셋으로 만든 프로젝트) 바꾸지 않고, Pro 스킬셋(`pro-kit`)이 필요하다고 알린 뒤 멈춘다.
+<!-- edition:pro -->
+서버 스킬이 있으면 이 순서로 한다.
 1. 컨테이너 엔진(Podman 또는 Docker)이 있는지 본다. 없으면 설치를 안내하고 멈춘다.
 2. `prokit-db`를 따라 로컬 DB를 띄우고, 인증 테이블의 첫 마이그레이션을 만들어 적용한다.
 3. 루트 `AGENTS.md` 맨 위의 "화면만 프로젝트" 표시를 지운다.
 4. 기본 브랜치에 커밋한다. 첫 마이그레이션이 다음 라운드 diff에 섞이면 audit이 더 무거운 케이스를 요구한다.
 5. 로그인, 저장 같은 기능과 예시 데이터를 DB에서 읽게 바꾸는 일은 dev-cycle 라운드로 하고 `prokit-web`, `prokit-api`, `prokit-db`를 따른다.
+<!-- /edition -->

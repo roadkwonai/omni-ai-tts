@@ -67,6 +67,8 @@ T1~T13은 로그인 없이 로컬 관리자 한 명으로 동작한다. 로그�
 
 **T14 메모:** T9.5 `dramaAutoTag`(유료 OpenAI(보조 Gemini) 텍스트)는 서버 쪽 소유자별 동시·횟수 제한이 없다(화면 확인 창뿐). 허용 소유자가 둘 이상이 되거나 배포하면 DB나 공용 저장소로 제한을 둔다(백로그 T95-13). T10 `studioAutoTag`(유료 OpenAI(보조 Gemini) 텍스트, 묶음마다 최대 4회)도 같다. 로그인 전 현재 T5의 단일 `context.ownerId` 예외는 허용 목록에 둘 이상의 소유자를 넣거나 T14 세션 권한을 추가할 때 끝난다. 그때는 시험 생성의 공급자 voice id도 앱 클론 매핑 또는 공급자 공개 성우 조회로 검사한다.
 
+**T10 메모:** 2026-11-11부터 두뇌가 agent-skills다(`.dev-cycle.json`의 `brain`). T10 계획 문서의 superpowers 지시(`subagent-driven-development`·`executing-plans`)는 쓰지 않고, T10-b는 `.agents/skills/prokit-dev-cycle/references/brains/agent-skills.md`의 단계(계획 `planning-and-task-breakdown`, 구현 `incremental-implementation`+`test-driven-development`)로 한다. `.superpowers/sdd/T10-paragraph-studio/tools/`의 도구 파일은 그대로 쓸 수 있다.
+
 **번호 대응(2026-10-04 재편):** 옛 T4(ElevenLabs)·T5(Fish Audio)를 T4 하나로 합쳤다. 세 공급자 화면을 한 번에 설계하기 위해서다. 내 문장으로 샘플 듣기를 T5로 새로 넣었다. 프리셋은 옛 T12에서 T8로 당겼다. 그래서 옛 T8~T11은 T9~T12가 되었다. T1~T3의 스펙·계획, `tasks/archive/`, 그 전 기획 문서(`docs/briefs/tts-*.md`)에 적힌 TASK 번호는 옛 번호다.
 
 **순서를 이렇게 정한 이유**

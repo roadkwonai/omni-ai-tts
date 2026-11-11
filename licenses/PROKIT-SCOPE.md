@@ -6,21 +6,26 @@
 
 아래 경로 중 프로킷이 제공한 원본 부분은 MIT다. 수정·결합하여 재배포할 때에는 원본 부분의 저작권 표시·허가문을 유지한다. 사용자 독자 작성분이나 수정분 전체의 라이선스를 MIT로 강제하지 않는다. 파일 안의 제3자 원본·인용 부분은 원래 조건을 따른다.
 
-- `.agents/skills/prokit-api/SKILL.md`
-- `.agents/skills/prokit-api/references/ownership-test.md`
-- `.agents/skills/prokit-db/SKILL.md`
-- `.agents/skills/prokit-db/references/migration-flow.md`
-- `.agents/skills/prokit-deploy/SKILL.md`
+- `.agents/skills/prokit-api/SKILL.md` <!-- edition:pro -->
+- `.agents/skills/prokit-api/references/ownership-test.md` <!-- edition:pro -->
+- `.agents/skills/prokit-db/SKILL.md` <!-- edition:pro -->
+- `.agents/skills/prokit-db/references/migration-flow.md` <!-- edition:pro -->
+- `.agents/skills/prokit-deploy/SKILL.md` <!-- edition:pro -->
 - `.agents/skills/prokit-dev-cycle/SKILL.md`
+- `.agents/skills/prokit-dev-cycle/references/brains/`
 - `.agents/skills/prokit-dev-cycle/references/process-routing.md`
 - `.agents/skills/prokit-skills-update/SKILL.md`
 - `.agents/skills/prokit-ui/SKILL.md`
 - `.agents/skills/prokit-ui/references/impeccable-map.md`
+- `.agents/skills/prokit-ui/references/hallmark-map.md`
+- `.agents/skills/prokit-ui/references/none-map.md`
+- `.agents/skills/prokit-ui/references/gestalt.md`
+- `.agents/skills/prokit-ui/references/design-flow.md`
 - `.agents/skills/prokit-ui/references/screen-only.md`
 - `.agents/skills/prokit-verify/SKILL.md`
 - `.agents/skills/prokit-verify/references/browser.md`
 - `.agents/skills/prokit-verify/references/evidence.md`
-- `.agents/skills/prokit-web/SKILL.md`
+- `.agents/skills/prokit-web/SKILL.md` <!-- edition:pro -->
 - `.claude/agents/prokit-implementer.md`
 - `.claude/agents/prokit-reviewer.md`
 - `.dev-cycle.json`

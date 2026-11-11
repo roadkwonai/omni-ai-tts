@@ -16,15 +16,19 @@ description: >-
 - `packages/api/src/routers/`: 라우터. `routers/index.ts`의 `appRouter`에 등록한다.
 - `packages/auth/src/index.ts`: `createAuth` (Better Auth 설정)
 - `apps/web/src/app/api/rpc/[[...rest]]/route.ts`, `apps/web/src/app/api/auth/[...all]/route.ts`: HTTP 진입점
+- 앱 폴더의 다른 `route.ts`(route 핸들러), `sitemap.ts`·`robots.ts`·`manifest.ts`(메타데이터 라우트), 서버 액션 파일 `actions.ts`, `apps/web/src/instrumentation.ts`: 서버에서 도는 파일이라 이 계층(D)으로 판정한다. 다른 이름의 서버 액션 파일(`"use server"`)은 경로로 가릴 수 없으니 `.dev-cycle.json`의 서버 규칙에 그 경로를 더한다. 정적 생성(`force-static`) 메타데이터 라우트도 경로로 D가 되므로, 화면 작업에서 `sitemap.ts`를 함께 고치면 계층이 둘이라 F가 되고 그 파일은 `prokit-api-builder`가 맡는다. 공개 쪽 페이지를 자주 더해 이런 일이 잦은 프로젝트는 H 라운드에서 D 규칙의 `sitemap|robots|manifest`를 빼 화면(B)으로 둘 수 있다. 그 파일이 DB·비밀값·서버 전용 모듈을 읽지 않을 때만 그렇게 하고 결정은 `docs/adr/`에 남긴다.
 - `apps/web/src/context.ts`: 요청마다 세션을 읽어 context를 만든다.
 
 ## 공식 스킬 연결
-| 상황 | 읽을 스킬 |
-|---|---|
-| Better Auth 설정, 세션, 플러그인 | `better-auth-best-practices` |
-| 비밀값, 쿠키, CSRF, trusted origins, rate limit | `better-auth-security-best-practices` |
-| 이메일과 비밀번호 가입, 검증, 재설정 | `email-and-password-best-practices` |
-| 쿼리 성능과 인덱스 | `prokit-db` |
+이 스킬은 Main이 서버·API 계층(oRPC 프로시저, Better Auth, 권한과 소유권) 일을 나누고 맡기고 검수할 때 쓴다. 표의 공식 스킬은 Main이 읽지 않는다. 위임 지시(packet)에 스킬 이름과 경로(`.agents/skills/<이름>/SKILL.md`)를 넣어 맡는 에이전트가 읽고 따르게 하고, 보고의 "읽은 스킬"과 스킬 기록으로 실제로 읽었는지 본 뒤 "Main 검수" 칸을 확인한다. 배치의 정본은 `skills.manifest.json`의 `performers`이고 바꾸는 일은 `prokit-skills-assign`이 맡는다(절차는 `prokit-dev-cycle`의 [위임과 전문 스킬 프로토콜](../prokit-dev-cycle/references/delegation.md) "공식 스킬 위임").
+
+| 상황 | 공식 스킬 | 맡는 에이전트 | Main 검수 |
+|---|---|---|---|
+| Better Auth 설정, 세션, 플러그인 | `better-auth-best-practices` | `prokit-api-builder`. 리뷰는 `prokit-reviewer`(security) | 설정이 아래 불변식과 보고의 규칙 이름에 맞는지 |
+| 비밀값, 쿠키, CSRF, trusted origins, rate limit | `better-auth-security-best-practices` | `prokit-api-builder`. 리뷰는 `prokit-reviewer`(security) | 비밀값이 클라이언트로 가지 않는지, trusted origins가 배포 주소와 맞는지 |
+| 이메일과 비밀번호 가입, 검증, 재설정 | `email-and-password-best-practices` | `prokit-api-builder`. 리뷰는 `prokit-reviewer`(security) | 2계정 격리 테스트와 재설정 흐름 테스트가 있는지 |
+| turbo 태스크·환경 변수 캐시 입력 | `turborepo` | `prokit-api-builder` | 새 서버 환경 변수가 캐시 입력에 들어갔는지 |
+| 쿼리 성능과 인덱스 | `prokit-db`의 공식 스킬 | `prokit-db-builder` | `prokit-db`의 검수 칸 |
 
 ## 위임
 외부 전문 스킬이나 수행자에게 API 작업을 넘길 때만 [위임과 전문 스킬 프로토콜](../prokit-dev-cycle/references/delegation.md)을 읽는다. 사용자 명시 출처도 실제 계약과 scope를 확인하며, `prokit-api`의 세션·소유권 계약을 대신하거나 실행 권한을 늘리지 않는다.
