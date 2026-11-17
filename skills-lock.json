@@ -3,15 +3,17 @@
   "skills": {
     "access-protected-vercel-deployment": {
       "source": "vercel/vercel-plugin",
+      "commit": "90cc6817f3d5ead335d4f0f50f210557f55e43f5",
       "sourceType": "github",
       "skillPath": "skills/access-protected-vercel-deployment/SKILL.md",
-      "computedHash": "5b77027da974b095d2ffa4e8428ed15a4c1af9bf7b09f3d7d9a791780840a898"
+      "computedHash": "64d13ec924f401a57f616ff767adaf011e84385f77801066583f3c1a540776e0"
     },
     "agent-browser": {
       "source": "vercel-labs/agent-browser",
+      "commit": "b06e2533ba9b3823b8a96c859d455cb55f4d7893",
       "sourceType": "github",
       "skillPath": "skills/agent-browser/SKILL.md",
-      "computedHash": "c3d8b82b1b229c3697cf5f21b5202375a7e6aea21c7059ab30f0bc6972664a98"
+      "computedHash": "a0dfac7503f69bcf529b2660fc79964064c4f179eb65695904ddc45fc0d99d20"
     },
     "api-and-interface-design": {
       "source": "addyosmani/agent-skills",
@@ -45,9 +47,10 @@
     },
     "code-review-and-quality": {
       "source": "addyosmani/agent-skills",
+      "commit": "39b723ceebf81474d0557c1fecd01eddab585563",
       "sourceType": "github",
       "skillPath": "skills/code-review-and-quality/SKILL.md",
-      "computedHash": "e03fe4f99d65c959547e3e5d65229fe56a8cdf19144b747d78ebebcfffb76346"
+      "computedHash": "55dfc44b9cce8f74673005d566a1af57e9c95694f1c89b964a9d12b7ae76930c"
     },
     "code-simplification": {
       "source": "addyosmani/agent-skills",
@@ -57,9 +60,10 @@
     },
     "constraint-driven-development": {
       "source": "addyosmani/agent-skills",
+      "commit": "39b723ceebf81474d0557c1fecd01eddab585563",
       "sourceType": "github",
       "skillPath": "skills/constraint-driven-development/SKILL.md",
-      "computedHash": "6cbbb88bcec7893403d794ea0411a34ea3e913517a86fa86d2d0a1707a7095ba"
+      "computedHash": "f8175e0c95e406c04bd0ffd6303d8495ff95a5aee0a46eb3cf5674ace87a6298"
     },
     "context-engineering": {
       "source": "addyosmani/agent-skills",
@@ -69,9 +73,10 @@
     },
     "debugging-and-error-recovery": {
       "source": "addyosmani/agent-skills",
+      "commit": "39b723ceebf81474d0557c1fecd01eddab585563",
       "sourceType": "github",
       "skillPath": "skills/debugging-and-error-recovery/SKILL.md",
-      "computedHash": "f7390b705fa186b54fceae6faa77be7cb0ba1cf24c1dc4508c7c84ec149615f5"
+      "computedHash": "aa26ffd65f2e2759c66806c4a3111c6fbaad612c5f39799bd3bc6cd942abd0fc"
     },
     "deploy-to-vercel": {
       "source": "vercel-labs/agent-skills",
@@ -87,9 +92,10 @@
     },
     "documentation-and-adrs": {
       "source": "addyosmani/agent-skills",
+      "commit": "39b723ceebf81474d0557c1fecd01eddab585563",
       "sourceType": "github",
       "skillPath": "skills/documentation-and-adrs/SKILL.md",
-      "computedHash": "a7fa200df9d2a41ac7cac858c4a78a26e220308488fbe25e376b7e755ffbc612"
+      "computedHash": "deb39d7c8157563bc14a48f0d22003c82f4d8370b69c96efde476fe12318d188"
     },
     "domain-modeling": {
       "source": "mattpocock/skills",
@@ -111,9 +117,10 @@
     },
     "frontend-ui-engineering": {
       "source": "addyosmani/agent-skills",
+      "commit": "39b723ceebf81474d0557c1fecd01eddab585563",
       "sourceType": "github",
       "skillPath": "skills/frontend-ui-engineering/SKILL.md",
-      "computedHash": "73a13aa14acf407518dccde3d021becac59e42e0a90a6a52a86dc53c3a279d12"
+      "computedHash": "1bea3daa371bfb466445f5a33ee063f2aadf27469b2308a340e803398bcb4251"
     },
     "git-workflow-and-versioning": {
       "source": "addyosmani/agent-skills",
@@ -147,9 +154,10 @@
     },
     "impeccable": {
       "source": "pbakaus/impeccable",
+      "commit": "d41d9860b0094dcb68030657da63461212835aaa",
       "sourceType": "github",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "computedHash": "86e265bf3df79c65215f7244d71892ca278370d56dec47a8cc15e8373db3f714"
+      "computedHash": "077889e9782761360c17acbc2522af320d0dd0f928b09cd90884fa304f443a34"
     },
     "incremental-implementation": {
       "source": "addyosmani/agent-skills",
@@ -165,15 +173,17 @@
     },
     "neon": {
       "source": "neondatabase/agent-skills",
+      "commit": "067f9fb2df21953b216867d60ec500ddaf3e5647",
       "sourceType": "github",
       "skillPath": "skills/neon/SKILL.md",
-      "computedHash": "c2cc99203a8569b068e7503e956138600a61bbbb772d43c795ab1382cc61723d"
+      "computedHash": "18f5e4de54d88f84d2e36b5e4f1888211940abbd0ae794ff597556340787da77"
     },
     "neon-postgres": {
       "source": "neondatabase/agent-skills",
+      "commit": "067f9fb2df21953b216867d60ec500ddaf3e5647",
       "sourceType": "github",
       "skillPath": "skills/neon-postgres/SKILL.md",
-      "computedHash": "692a5436b9f23caae7887cedc93f0e3eb099e5da72794b9c0c902030e180b687"
+      "computedHash": "0e1db49f25e9208cb24fa2084a542d52d60a85c09271b915acc3dad6901de6a0"
     },
     "neon-postgres-branches": {
       "source": "neondatabase/agent-skills",
@@ -189,15 +199,17 @@
     },
     "next-cache-components-adoption": {
       "source": "vercel/next.js",
+      "commit": "a286687b08882bc62d8995b42204ee4d9d0eba00",
       "sourceType": "github",
       "skillPath": "skills/next-cache-components-adoption/SKILL.md",
-      "computedHash": "2bf109a8693bb67ba45e05a531021bda876fafe048e764ffffe1bb1c460ec286"
+      "computedHash": "b333bc19058f17f2b05a338b229dba76c6fe2432e4943c6995ca8777f7074daf"
     },
     "next-cache-components-optimizer": {
       "source": "vercel/next.js",
+      "commit": "a286687b08882bc62d8995b42204ee4d9d0eba00",
       "sourceType": "github",
       "skillPath": "skills/next-cache-components-optimizer/SKILL.md",
-      "computedHash": "88f1a9480dbb67bca44060e50fc45559d1bd70c2e7e766a44d015568634a9868"
+      "computedHash": "670308a86f302a19ad68eb1da02d8bd033d9824e0e5020c582383b4ebd41107a"
     },
     "next-dev-loop": {
       "source": "vercel/next.js",
@@ -207,15 +219,17 @@
     },
     "next-partial-prefetching-adoption": {
       "source": "vercel/next.js",
+      "commit": "a286687b08882bc62d8995b42204ee4d9d0eba00",
       "sourceType": "github",
       "skillPath": "skills/next-partial-prefetching-adoption/SKILL.md",
-      "computedHash": "a9ac6534a71de4bc7a43b84fbaa42e1ddeb091fe8db71c9c97038d949df22e0f"
+      "computedHash": "846465406dbe131257bfeba359e9966973a63c19b732cc5551f630851a9435cc"
     },
     "next-partial-prefetching-optimizer": {
       "source": "vercel/next.js",
+      "commit": "a286687b08882bc62d8995b42204ee4d9d0eba00",
       "sourceType": "github",
       "skillPath": "skills/next-partial-prefetching-optimizer/SKILL.md",
-      "computedHash": "6f8bc71150496e962da7bd0615640e8c866e50a913d0c801294dc46e38f5fae1"
+      "computedHash": "c14905fe96b7cae2af2d359edbfa6f07cc1fae5ff94709ed58092834677dc24d"
     },
     "observability-and-instrumentation": {
       "source": "addyosmani/agent-skills",
@@ -231,9 +245,10 @@
     },
     "planning-and-task-breakdown": {
       "source": "addyosmani/agent-skills",
+      "commit": "39b723ceebf81474d0557c1fecd01eddab585563",
       "sourceType": "github",
       "skillPath": "skills/planning-and-task-breakdown/SKILL.md",
-      "computedHash": "11b51e8874c451ef4d0d18f4a56f9210310f5364cc1b176a7df1ff36014cef41"
+      "computedHash": "e4ef8d478d672103693af0cab5a97a1914f776099ef0756c2a093d9ae061f024"
     },
     "ponytail": {
       "source": "DietrichGebert/ponytail",
@@ -273,9 +288,10 @@
     },
     "security-and-hardening": {
       "source": "addyosmani/agent-skills",
+      "commit": "39b723ceebf81474d0557c1fecd01eddab585563",
       "sourceType": "github",
       "skillPath": "skills/security-and-hardening/SKILL.md",
-      "computedHash": "4970681073e6138c4cec8eca31546187f47723a61a7f1204710ae86d9f704517"
+      "computedHash": "9bfc78e1ee2e23f3d226f610d8ed8e0cf6fb4f7e90a44db0a41b636735a24767"
     },
     "shadcn": {
       "source": "shadcn/ui",
@@ -303,9 +319,10 @@
     },
     "spec-driven-development": {
       "source": "addyosmani/agent-skills",
+      "commit": "39b723ceebf81474d0557c1fecd01eddab585563",
       "sourceType": "github",
       "skillPath": "skills/spec-driven-development/SKILL.md",
-      "computedHash": "e1ac9b69a18c946b903623ea9a07953e783758c60274bf63bea713b54504bed4"
+      "computedHash": "504a76654a492c1ec1fa0e1c59387b8b2969fe2319191cd298c4e3482cf2582a"
     },
     "supabase-postgres-best-practices": {
       "source": "supabase/agent-skills",
@@ -315,9 +332,10 @@
     },
     "test-driven-development": {
       "source": "addyosmani/agent-skills",
+      "commit": "39b723ceebf81474d0557c1fecd01eddab585563",
       "sourceType": "github",
       "skillPath": "skills/test-driven-development/SKILL.md",
-      "computedHash": "60f294cc1ededf0d006811f4be199a415493fc048b6058c5b66193fba114a173"
+      "computedHash": "37cc05dea2a455d5d3ff252f14a7323ef378536603cce8cd2c758dc8fac790e6"
     },
     "turborepo": {
       "source": "vercel/turborepo",
