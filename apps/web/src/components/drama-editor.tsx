@@ -30,7 +30,7 @@ import { DramaStage } from "./drama-stage";
 import { TakeAudioProvider } from "./drama-take";
 import { DramaTakes } from "./drama-takes";
 import { showScriptUndo } from "./drama-undo";
-import { LoopbackNotice } from "./notice";
+import { SignInNotice } from "./notice";
 import { PageHeader } from "./page-header";
 import { SamplePlayerProvider } from "./sample-player";
 import { useSavedList } from "./saved-voices";
@@ -129,7 +129,7 @@ export function DramaEditor() {
 					description={DRAMA_TEXT.description}
 				/>
 				<div className="px-4 pb-10 md:px-11">
-					<LoopbackNotice title={DRAMA_TEXT.loopback} />
+					<SignInNotice />
 				</div>
 			</>
 		);

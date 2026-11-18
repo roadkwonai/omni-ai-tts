@@ -9,6 +9,7 @@
 		"start": "next start --hostname 127.0.0.1",
 		"test": "vitest run --dir src",
 		"env:generate": "varlock codegen",
+		"owner:create": "varlock run -- jiti scripts/owner-create.ts",
 		"auth:generate": "varlock run -- pnpm dlx auth@latest generate --config src/services.ts --output ../../packages/db/src/schema/auth.ts --yes"
 	},
 	"dependencies": {
@@ -39,6 +40,7 @@
 		"@types/node": "catalog:",
 		"@types/react": "catalog:",
 		"@types/react-dom": "catalog:",
+		"jiti": "2.7.0",
 		"tailwindcss": "catalog:",
 		"typescript": "catalog:",
 		"vitest": "^5.0.2"

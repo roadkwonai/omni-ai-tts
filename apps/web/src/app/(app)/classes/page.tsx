@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page-header";
 
 export const metadata: Metadata = { title: "채널·분류" };
 
-// Server Component. db 모듈을 부르지 않는다. 조회·변경은 ClassesBoard가 브라우저에서 /api/rpc로 한다(로컬 관리자 모드)
+// Server Component. db 모듈을 부르지 않는다. 조회·변경은 ClassesBoard가 브라우저에서 /api/rpc로 한다(보호는 (app)/layout과 protectedProcedure)
 export default function ClassesPage() {
 	return (
 		<>

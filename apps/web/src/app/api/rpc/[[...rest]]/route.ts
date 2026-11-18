@@ -8,7 +8,7 @@ import type { NextRequest } from "next/server";
 
 import { createContext } from "../../../../context";
 
-// 로컬 관리자 모드에는 로그인 쿠키가 없다. 다른 사이트가 이 API를 부르지 못하게 JS가 붙이는 헤더를 요구한다.
+// 세션 쿠키가 있어도 SimpleCsrf 헤더가 다른 사이트 요청을 막는다(JS가 붙이는 헤더를 요구한다).
 const rpcHandler = new RPCHandler(appRouter, {
 	plugins: [new SimpleCsrfProtectionHandlerPlugin()],
 	interceptors: [
@@ -41,7 +41,7 @@ const rpcHandler = new RPCHandler(appRouter, {
 async function handleRequest(req: NextRequest) {
 	const { response } = await rpcHandler.handle(req, {
 		prefix: "/api/rpc",
-		context: createContext(req),
+		context: await createContext(req),
 	});
 	return response ?? new Response("Not found", { status: 404 });
 }

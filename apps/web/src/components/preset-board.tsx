@@ -30,7 +30,7 @@ import { OWNED_LIST, orpc } from "@/utils/orpc";
 
 import { boxClass, RowAction } from "./class-group";
 import { ConfirmDialog } from "./confirm-dialog";
-import { LoopbackNotice, Notice } from "./notice";
+import { Notice, SignInNotice } from "./notice";
 import { PresetFormDialog } from "./preset-form-dialog";
 import {
 	useDuplicatePreset,
@@ -61,8 +61,7 @@ export function PresetBoard() {
 	const nextRef = useRef<string | null>(null);
 	const [editing, setEditing] = useState<Preset | null>(null);
 	const [removing, setRemoving] = useState<Preset | null>(null);
-	if (failureOf(presets.error) === "unauthorized")
-		return <LoopbackNotice title={PRESET_TEXT.loopback} />;
+	if (failureOf(presets.error) === "unauthorized") return <SignInNotice />;
 	const sorted = presets.data ? byName(presets.data) : undefined;
 	const channelName = (id: string | null) =>
 		id === null

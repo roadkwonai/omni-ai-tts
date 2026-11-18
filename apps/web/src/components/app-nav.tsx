@@ -15,6 +15,7 @@ import {
 	FileText,
 	Folder,
 	Link2,
+	LogOut,
 	type LucideIcon,
 	Mic,
 	SlidersHorizontal,
@@ -32,7 +33,11 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { toast } from "sonner";
 
+import { signOutToLogin } from "@/lib/auth-client";
+
+import { LockedIconButton } from "./locked-icon-button";
 import { ModeToggle } from "./mode-toggle";
 
 // 열린 화면. 767px 이하 위 막대는 4칸 그대로다(bar 셋 + 더보기, T6 스펙 2절 '휴대폰 위 막대'). bar가 아닌 화면은 더보기 안 '열린 화면' 줄에 둔다.
@@ -92,7 +97,52 @@ function NavTip({
 	);
 }
 
-export function AppNav() {
+// 메뉴 아래 줄: 이메일, 로그아웃, 테마. 로그아웃은 오른쪽 끝 테마 버튼 앞에 둔다(2026-10-04 사용자 요청: 테마가 맨 오른쪽). 보이는 순서와 Tab 순서가 같게 DOM에서도 이 순서다.
+// 로그아웃 상태는 이 줄만 알면 돼서 AppNav 밖에 둔다(메뉴 상태가 바뀌어도 다시 그리지 않는다)
+function AccountRow({ email }: { email: string }) {
+	const [signingOut, setSigningOut] = useState(false);
+
+	async function signOut() {
+		setSigningOut(true);
+		try {
+			// 성공하면 전체 이동이라 잠긴 채로 둔다
+			await signOutToLogin();
+		} catch {
+			toast.error("로그아웃하지 못했어요. 다시 시도해 주세요.");
+			setSigningOut(false);
+		}
+	}
+
+	return (
+		<div className="border-t pt-2 md:mt-auto md:border-t-0 md:pt-0">
+			<div className="flex items-center justify-between gap-2 pl-3 md:flex-col md:px-0 xl:flex-row xl:pl-3">
+				{/* sr-only 처리(바깥)와 말줄임(안)을 나눈다. not-sr-only가 같은 요소의 truncate(overflow·white-space)를 되돌린다 */}
+				<span
+					className={cn(
+						"min-w-0 flex-1 text-muted-foreground text-sm",
+						srOnlyAtIconNav,
+					)}
+				>
+					<span title={email} className="block truncate">
+						{email}
+					</span>
+				</span>
+				<div className="flex shrink-0 items-center gap-2 md:flex-col xl:flex-row">
+					<LockedIconButton
+						label="로그아웃"
+						reason={signingOut ? "로그아웃 중…" : undefined}
+						onClick={signOut}
+					>
+						<LogOut aria-hidden="true" />
+					</LockedIconButton>
+					<ModeToggle />
+				</div>
+			</div>
+		</div>
+	);
+}
+
+export function AppNav({ email }: { email: string }) {
 	const pathname = usePathname();
 	const [moreOpen, setMoreOpen] = useState(false);
 	// 더보기 안 화면에 있으면 더보기 버튼이 활성 메뉴와 같은 표현이고 접근 이름에 현재 화면을 담는다(provider-status 브리프 96행, 계획 리뷰 D3)
@@ -107,6 +157,10 @@ export function AppNav() {
 		setLastPathname(pathname);
 		setMoreOpen(false);
 	}
+	// 세션이 끊겨 proxy가 소프트 이동을 /login으로 돌리면 이 앱 틀은 다시 그려지지 않으니, 전체 불러오기로 루트 layout이 새로 판정하게 한다.
+	useEffect(() => {
+		if (pathname === "/login") window.location.reload();
+	}, [pathname]);
 	const navRef = useRef<HTMLElement>(null);
 	const moreButtonRef = useRef<HTMLButtonElement>(null);
 	const morePanelRef = useRef<HTMLDivElement>(null);
@@ -339,19 +393,7 @@ export function AppNav() {
 							})}
 						</ul>
 					</div>
-					{/* 테마 버튼은 줄 오른쪽 끝(2026-10-04 사용자 요청). 보이는 순서와 Tab 순서가 같게 DOM에서도 뒤에 둔다 */}
-					<div className="flex items-center justify-between gap-2 border-t pt-2 pl-3 md:mt-auto md:flex-col md:border-t-0 md:px-0 md:pt-0 xl:flex-row xl:pl-3">
-						<span
-							title="로그인 없이 이 컴퓨터에서만 쓰는 모드예요"
-							className={cn(
-								"text-muted-foreground text-sm xl:text-base",
-								srOnlyAtIconNav,
-							)}
-						>
-							로컬 관리자
-						</span>
-						<ModeToggle />
-					</div>
+					<AccountRow email={email} />
 				</div>
 			</nav>
 		</TooltipProvider>

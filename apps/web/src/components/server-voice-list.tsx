@@ -42,7 +42,7 @@ import {
 import { orpc } from "@/utils/orpc";
 
 import { CastingWorkspace } from "./casting-workspace";
-import { LoopbackNotice, Notice } from "./notice";
+import { Notice, SignInNotice } from "./notice";
 import { type AxisView, SortMenu, VoiceConditions } from "./voice-conditions";
 import {
 	LIST_QUERY,
@@ -53,7 +53,6 @@ import {
 } from "./voice-list-parts";
 import {
 	EmptyList,
-	LIST_LOOPBACK_TITLE,
 	lockedButton,
 	NoMatches,
 	Problem,
@@ -205,8 +204,8 @@ export function ServerVoiceList({
 			?.focus();
 	}, [pageCount]);
 
-	// 소유자 없음(루프백이 아닌 주소). 탭과 조건 줄 대신 주소 안내 하나다(Task 12a가 페이지 전체를 바꾼다)
-	if (unauthorized) return <LoopbackNotice title={LIST_LOOPBACK_TITLE} />;
+	// 세션 만료. 탭과 조건 줄 대신 로그인 안내 하나다(Task 12a가 페이지 전체를 바꾼다)
+	if (unauthorized) return <SignInNotice />;
 
 	// 억양 목록을 받지 못하면 억양 드롭다운 안에 사유를 보인다(계획 리뷰 D23)
 	const accentFailure = accents.isError ? failureOf(accents.error) : null;

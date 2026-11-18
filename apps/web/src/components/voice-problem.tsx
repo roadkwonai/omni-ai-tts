@@ -22,9 +22,6 @@ import { latestTime, retryTime } from "@/lib/voice-view";
 
 import { Notice } from "./notice";
 
-// 소유자 없음(루프백이 아닌 주소) 안내 제목. 페이지(탭 대신)와 목록·묶음이 같은 문구다
-export const LIST_LOOPBACK_TITLE = "이 주소에서는 성우 목록을 불러올 수 없어요";
-
 // 429 Retry-After로 정한 대기 시각(브리프 8절)
 export const cooldownText = (retryAt: string) =>
 	`요청이 많아 ${retryTime(retryAt)} 이후 다시 불러올 수 있어요.`;

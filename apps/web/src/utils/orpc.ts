@@ -44,7 +44,7 @@ export const client: AppRouterClient = createORPCClient(link);
 
 export const orpc = createTanstackQueryUtils(client);
 
-// 화면이 오류를 직접 보이는 조회: 전역 알림을 끄고, 재시도하지 않으며, 루프백으로만 붙으니 브라우저 offline 판단으로 멈추지 않는다
+// 화면이 오류를 직접 보이는 조회: 전역 알림을 끄고, 재시도하지 않으며, 같은 출처(로컬 서버)로만 붙으니 브라우저 offline 판단으로 멈추지 않는다
 export const QUIET = {
 	retry: false,
 	networkMode: "always",

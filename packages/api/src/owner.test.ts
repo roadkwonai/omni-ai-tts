@@ -3,26 +3,57 @@ import { describe, expect, it } from "vitest";
 
 import type { Context } from "./context";
 import { protectedProcedure } from "./index";
-import { LOCAL_OWNER_ID, localOwnerId } from "./owner";
+import { ownerEmailFrom, ownerIdOf } from "./owner";
 
-describe("localOwnerId", () => {
-	it("development와 test의 루프백 요청은 로컬 관리자다", () => {
-		expect(localOwnerId("development", "127.0.0.1:3001")).toBe(LOCAL_OWNER_ID);
-		expect(localOwnerId("development", "localhost:3001")).toBe(LOCAL_OWNER_ID);
-		expect(localOwnerId("development", "[::1]:3001")).toBe(LOCAL_OWNER_ID);
-		expect(localOwnerId("test", "localhost")).toBe(LOCAL_OWNER_ID);
+describe("ownerEmailFrom", () => {
+	it.each([
+		[undefined, null],
+		["", null],
+		["  ,  , ", null],
+		["me@example.com", "me@example.com"],
+		["  Me@Example.COM  ", "me@example.com"],
+		["  Me@Example.com , me@example.com ", "me@example.com"],
+		["me@example.com,", "me@example.com"],
+	])("%j → %j", (raw, email) => {
+		expect(ownerEmailFrom(raw)).toEqual({ email, tooMany: false });
 	});
 
-	it("production과 모르는 NODE_ENV에서는 소유자가 없다", () => {
-		expect(localOwnerId("production", "127.0.0.1:3001")).toBeNull();
-		expect(localOwnerId("staging", "127.0.0.1:3001")).toBeNull();
-		expect(localOwnerId("", "127.0.0.1:3001")).toBeNull();
+	it("서로 다른 이메일이 둘 이상이면 소유자 없음(tooMany)", () => {
+		expect(ownerEmailFrom("a@example.com, b@example.com")).toEqual({
+			email: null,
+			tooMany: true,
+		});
+		expect(ownerEmailFrom("a@example.com,A@example.com,b@example.com")).toEqual(
+			{ email: null, tooMany: true },
+		);
 	});
+});
 
-	it("다른 이름으로 들어온 요청(DNS 리바인딩)이나 Host가 없으면 소유자가 없다", () => {
-		expect(localOwnerId("development", "evil.example:3001")).toBeNull();
-		expect(localOwnerId("development", "127.0.0.1.evil.example")).toBeNull();
-		expect(localOwnerId("development", null)).toBeNull();
+describe("ownerIdOf", () => {
+	const owner = { id: "u1", email: "me@example.com" };
+
+	it.each([
+		["세션 없음", null, "me@example.com", null],
+		["세션 undefined", undefined, "me@example.com", null],
+		["소유자", owner, "me@example.com", "u1"],
+		["목록 대소문자·공백", owner, "  ME@example.com ", "u1"],
+		[
+			"세션 이메일 대소문자",
+			{ id: "u1", email: "Me@Example.COM" },
+			"me@example.com",
+			"u1",
+		],
+		[
+			"다른 이메일",
+			{ id: "u2", email: "other@example.com" },
+			"me@example.com",
+			null,
+		],
+		["목록 빔", owner, "", null],
+		["목록 없음", owner, undefined, null],
+		["목록 둘 이상", owner, "me@example.com,other@example.com", null],
+	])("%s", (_name, user, raw, id) => {
+		expect(ownerIdOf(user, raw)).toBe(id);
 	});
 });
 
@@ -43,6 +74,6 @@ describe("protectedProcedure", () => {
 	});
 
 	it("소유자가 있으면 핸들러가 그 값을 받는다", async () => {
-		await expect(as(LOCAL_OWNER_ID).whoami()).resolves.toBe(LOCAL_OWNER_ID);
+		await expect(as("u1").whoami()).resolves.toBe("u1");
 	});
 });

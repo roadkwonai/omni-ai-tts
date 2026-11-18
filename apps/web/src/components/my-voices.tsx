@@ -54,7 +54,7 @@ import { boxClass } from "./class-group";
 import { ConfirmDialog } from "./confirm-dialog";
 import { CREATE_ID, MyVoiceCreate, ProviderText } from "./my-voice-create";
 import { MyVoiceListen } from "./my-voice-listen";
-import { LoopbackNotice, Notice } from "./notice";
+import { Notice, SignInNotice } from "./notice";
 import { SamplePlayerProvider } from "./sample-player";
 import { savedListKey } from "./saved-voices";
 import { menuItem } from "./voice-conditions";
@@ -153,8 +153,7 @@ function MyVoicesList() {
 		);
 	}, [list.data, queryClient]);
 
-	if (failureOf(list.error) === "unauthorized")
-		return <LoopbackNotice title={T.loopback} />;
+	if (failureOf(list.error) === "unauthorized") return <SignInNotice />;
 
 	const items = list.data?.items ?? [];
 	// 렌더 중 new Date()는 React Compiler가 캐시한다(교훈 2026-10-21). 올해는 목록을 받은 시각에서 구한다

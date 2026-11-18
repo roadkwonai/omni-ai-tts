@@ -94,7 +94,7 @@ export function useMakeAll({
 	const create = useMutation({
 		...orpc.studioCreate.mutationOptions(),
 		retry: false,
-		// 루프백으로만 붙으니 브라우저 offline 판단으로 멈추지 않게 한다(utils/orpc.ts QUIET와 같다)
+		// 같은 출처로만 붙으니 브라우저 offline 판단으로 멈추지 않게 한다(utils/orpc.ts QUIET와 같다)
 		networkMode: "always",
 	});
 	const [make, setMake] = useState<MakeState>(MAKE_IDLE);

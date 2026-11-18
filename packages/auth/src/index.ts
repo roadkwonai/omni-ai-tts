@@ -16,10 +16,19 @@ export function createAuth(env: AuthConfig, database: Database) {
 			schema,
 		}),
 		trustedOrigins: [env.BETTER_AUTH_URL],
-		emailAndPassword: { enabled: true },
+		// 공개 가입은 서버에서 막는다(T14). 계정은 로컬 스크립트로만 만든다.
+		emailAndPassword: { enabled: true, disableSignUp: true },
 		secret: env.BETTER_AUTH_SECRET,
 		baseURL: env.BETTER_AUTH_URL,
 		plugins: [nextCookies()],
+		// 원시 오류 객체(Drizzle 'Failed query … params'에 세션 토큰이 들어감)는 찍지 않는다. 문자열 메시지만 남긴다.
+		logger: {
+			log: (level, message) =>
+				console[level === "error" ? "error" : "warn"](
+					`[better-auth] ${level}`,
+					typeof message === "string" ? message : "(오류 객체 생략)",
+				),
+		},
 	});
 }
 

@@ -144,7 +144,6 @@ export function sameName<T extends { name: string }>(
 
 // 문구는 브리프(17행 B5)가 정본이다. 한 줄 상태는 마침표 없이, 문장 알림은 마침표로(T6 규칙)
 export const LIBRARY_TEXT = {
-	loopback: "이 주소에서는 성우 보관함을 쓸 수 없어요",
 	loading: "성우 보관함을 불러오고 있어요",
 	empty: "아직 담은 성우가 없어요",
 	toCasting: "성우 캐스팅에서 찾기",

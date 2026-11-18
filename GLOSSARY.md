@@ -8,6 +8,10 @@ Typecast·ElevenLabs·Fish Audio·Airy·Gemini 성우를 탐색하고 개인 분
 자신의 성우 분류·대본·음성 제작 기록을 소유하는 사람. 초기 서비스의 사용자는 개인 작업실의 소유자 한 명이다.
 _Avoid_: 회원, 유저, account
 
+**소유자(Owner)**:
+작업실의 데이터와 공급자 계정을 쓸 수 있는 유일한 사용자. 허용 목록에 적힌 이메일 한 개와 같은 계정으로 로그인한 사람이다.
+_Avoid_: 관리자, 로컬 관리자, admin
+
 **공급자(Provider)**:
 합성 성우와 음성 생성 기능을 제공하는 서비스. 이 작업실의 공급자는 Typecast, ElevenLabs, Fish Audio, Airy, Gemini다(Airy는 T7.5, Gemini는 T7.6에서 더함).
 _Avoid_: 엔진, 모델

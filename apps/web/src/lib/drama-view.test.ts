@@ -1963,11 +1963,17 @@ describe("오류 문구(브리프 8절)", () => {
 });
 
 describe("드라마 문구(브리프 8절 정본)", () => {
+	it("세션 만료 안내는 공용 SignInNotice라 화면별 '이 주소' 제목이 없다", () => {
+		const addressTitles = Object.values(DRAMA_TEXT).filter(
+			(value) => typeof value === "string" && value.includes("이 주소"),
+		);
+		expect(addressTitles).toEqual([]);
+	});
+
 	it("글 키는 8절 표 그대로", () => {
 		expect(DRAMA_TEXT).toMatchObject({
 			title: "드라마 작업실",
 			description: "화자마다 성우를 붙이고 대본을 연기시켜요.",
-			loopback: "이 주소에서는 드라마 작업실을 쓸 수 없어요",
 			sceneName: "장면 이름",
 			scenePlaceholder: "장면",
 			model: "모델",

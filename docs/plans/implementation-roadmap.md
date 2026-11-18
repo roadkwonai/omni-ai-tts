@@ -12,17 +12,18 @@
 - **이유:** 층별 순서로 하면 공급자 연결 위험(유료 호출 중복, 오디오 4.5MB 한도, 계정 권한)을 맨 끝에야 알게 된다. 사용자가 실제로 써 볼 수 있는 기능도 끝까지 없다.
 - **TASK 하나 = dev-cycle F 라운드 하나.** 라운드는 한 번에 하나만 열리므로(`pnpm dev-cycle status`) 순서가 도구로도 지켜진다.
 
-## 2. 로그인 전 운영: 로컬 관리자 모드
+## 2. 소유자와 로그인
 
-T1~T13은 로그인 없이 로컬 관리자 한 명으로 동작한다. 로그인은 T14에서 붙인다. 그동안의 보호는 아래와 같다.
+T1~T13은 로그인 없이 로컬 관리자 한 명(development·test의 루프백 Host 요청에 `local-admin`)으로 동작했다. T14부터는 로그인으로 바뀌었다([T14 스펙](tasks/T14-owner-login.md), [ADR 0012](../adr/0012-session-owner-single-allowlist.md)).
 
 | 항목 | 방식 |
 |---|---|
-| 소유자 | 서버가 정한 로컬 관리자 id 하나. 보호 프로시저(`protectedProcedure`)는 context의 `ownerId`만 쓰고, 클라이언트 입력으로 소유자를 받지 않는다 |
-| 배포 차단 | `NODE_ENV=production`이면 `ownerId`가 없어 보호 프로시저가 모두 `UNAUTHORIZED`다. T14 전에는 배포하지 않고, 배포 환경에 공급자 키를 넣지 않는다 |
-| 네트워크 | 개발 서버는 `127.0.0.1`에만 연다. 같은 네트워크의 다른 기기가 공급자 키를 쓰지 못하게 한다 |
-| 다른 사이트 | oRPC CSRF 방어(`SimpleCsrfProtection` 플러그인)로 브라우저에 열린 다른 사이트가 로컬 API를 부르지 못하게 한다. 다른 도메인 이름을 127.0.0.1로 풀리게 하는 DNS 리바인딩은 Host 검사로 막는다(루프백 Host에만 소유자를 준다) |
-| 로그인 도입(T14) | 바꿀 곳은 `apps/web/src/context.ts`의 소유자 결정과 로그인 화면이다. 데이터 테이블은 처음(T4 목록 캐시, [ADR 0003](../adr/0003-postgres-cache.md))부터 소유자 컬럼을 두고, 2계정 격리 테스트도 T4부터 한다 |
+| 소유자 | 세션 이메일이 서버 환경 변수 `OWNER_EMAILS`의 이메일 정확히 하나와 같을 때만 `context.ownerId = user.id`. 보호 프로시저(`protectedProcedure`)는 `ownerId`만 쓰고 클라이언트 입력으로 소유자를 받지 않는다 |
+| 가입·계정 | 공개 가입은 서버에서 막는다. 계정은 로컬 DB에서만 `pnpm owner:create`로 만들고, 그때 `local-admin` 데이터를 옮긴다 |
+| 페이지 | proxy가 세션 쿠키 없는 요청을 `/login?next=…`로 보내고, `(app)/layout`이 서버에서 소유자를 다시 판정한다 |
+| 네트워크 | 개발 서버는 `127.0.0.1`에만 연다. 개발 주소는 `BETTER_AUTH_URL`과 같은 출처 하나다(로그인 출처 검사) |
+| 다른 사이트 | oRPC CSRF 방어(`SimpleCsrfProtection`)와 Better Auth 출처 검사 |
+| 단일 소유 예외 | 소유자가 한 명이라 공급자 voice id 소유권·'내 계정' 출처·자동 태그 횟수 같은 다중 소유 검사는 미룬 채 유지한다. 두 번째 소유자가 필요해지면 별도 TASK로 연다 |
 
 ## 3. TASK 게이트 (모든 TASK에 같은 절차)
 
@@ -63,10 +64,10 @@ T1~T13은 로그인 없이 로컬 관리자 한 명으로 동작한다. 로그�
 | T12 | 대본 보관함 | 대본을 저장·검색·복제하고 작업실에 삽입·교체한다 | REQ-06, P0-10, Q-02 | 완료(2026-11-18: 문단 작업실 대본 저장·최근 대본 20개·검색·이어 넣기·바꾸기·판 조건 충돌, 드라마는 백로그 T12-01) |
 | T13 | 내 보이스(클론) | 녹음이나 파일로 내 목소리 클론을 만들고 작업에 쓰고 지운다(Fish Audio·Gemini) | REQ-13, P0-21~24, Q-03 | 완료(2026-11-18) |
 | T13-b | 내 보이스 Typecast·ElevenLabs | T13 구조에 Typecast·ElevenLabs 클론(ElevenLabs 검증 필요 상태 포함)을 더한다. 두 계정이 클론을 허용하는 요금제가 된 뒤 연다 | REQ-13 | 대기(계정) |
-| T14 | 로그인(소유자 전용) | 본인 계정으로만 로그인한다. 가입은 막힌다 | REQ-01(접근) | 대기 |
+| T14 | 로그인(소유자 전용) | 본인 계정으로만 로그인한다. 가입은 막힌다 | REQ-01(접근) | 완료(2026-11-18, [스펙](tasks/T14-owner-login.md). 비밀번호 바꾸기·여러 소유자 제외, 백로그 T14-01~06) |
 | T15 | P0 통합 검수와 첫 배포 | 배포된 주소에서 P0 전체 흐름을 쓴다 | REQ-01~13 전체, P0-07·20 | 대기 |
 
-**T14 메모:** T9.5 `dramaAutoTag`(유료 OpenAI(보조 Gemini) 텍스트)는 서버 쪽 소유자별 동시·횟수 제한이 없다(화면 확인 창뿐). 허용 소유자가 둘 이상이 되거나 배포하면 DB나 공용 저장소로 제한을 둔다(백로그 T95-13). T10 `studioAutoTag`(유료 OpenAI(보조 Gemini) 텍스트, 묶음마다 최대 4회)도 같다. 로그인 전 현재 T5의 단일 `context.ownerId` 예외는 허용 목록에 둘 이상의 소유자를 넣거나 T14 세션 권한을 추가할 때 끝난다. 그때는 시험 생성의 공급자 voice id도 앱 클론 매핑 또는 공급자 공개 성우 조회로 검사한다.
+**T14 메모:** T9.5 `dramaAutoTag`(유료 OpenAI(보조 Gemini) 텍스트)는 서버 쪽 소유자별 동시·횟수 제한이 없다(화면 확인 창뿐). 허용 소유자가 둘 이상이 되거나 배포하면 DB나 공용 저장소로 제한을 둔다(백로그 T95-13). T10 `studioAutoTag`(유료 OpenAI(보조 Gemini) 텍스트, 묶음마다 최대 4회)도 같다. T5의 단일 `context.ownerId` 예외는 T14(소유자 한 명만, 결정 5)에서도 유지된다. 허용 소유자가 둘 이상이 될 때 끝나고, 그때는 시험 생성의 공급자 voice id도 앱 클론 매핑 또는 공급자 공개 성우 조회로 검사한다.
 
 **T10 메모:** 2026-11-11부터 두뇌가 agent-skills다(`.dev-cycle.json`의 `brain`). T10 계획 문서의 superpowers 지시(`subagent-driven-development`·`executing-plans`)는 쓰지 않고, T10-b는 `.agents/skills/prokit-dev-cycle/references/brains/agent-skills.md`의 단계(계획 `planning-and-task-breakdown`, 구현 `incremental-implementation`+`test-driven-development`)로 한다. `.superpowers/sdd/T10-paragraph-studio/tools/`의 도구 파일은 그대로 쓸 수 있다.
 
@@ -287,6 +288,8 @@ T1~T13은 로그인 없이 로컬 관리자 한 명으로 동작한다. 로그�
   - 공개 가입은 서버에서 막고(`disableSignUp`), 가입 화면을 두지 않는다. 로그인하지 않으면 `/login`으로 보내고, 소유자가 아니면 "접근 권한 없음"과 로그아웃을 보인다.
   - 계정은 로컬 DB에서만 동작하는 스크립트로 만든다. 원격 DB 주소와 production을 거부한다. 비밀번호를 명령 인자, 환경변수, 출력, 로그에 남기지 않는다. 같은 이메일이 있으면 바꾸지 않는다.
 - **사용자 테스트:** 본인 로그인, 가입 거부, 허용 목록 밖 계정 거부, 로그아웃 뒤 보호 화면 차단.
+- **설계 결정(2026-11-18 사용자, [스펙](tasks/T14-owner-login.md) 2절·[ADR 0012](../adr/0012-session-owner-single-allowlist.md)):** 로컬 관리자 모드를 없애고 개발에서도 로그인한다. 소유자는 한 명만(목록에 이메일이 둘 이상이면 모두 거부). `local-admin` 데이터는 계정 만들기 스크립트가 같은 실행에서 옮긴다. `owner_id` 외래 키는 걸지 않는다. 세션은 기본 7일. 이메일·로그아웃은 메뉴 아래 줄. 비밀번호 바꾸기·되찾기는 넣지 않는다. 로그인 뒤 열려던 화면으로.
+- **소유자가 한 명이라 그대로 미루는 것:** 아래 'T4·T7·T7.6·T8·T9·T9.5·T10에서 넘어온 것'의 다중 소유 보강(공급자 voice id 소유권, '내 계정' 출처, 담기 upsert 덮어쓰기, 프리셋 기본값 교착 잠금, 목록 캐시 상한)과 T14 메모의 자동 태그 횟수 제한. 두 번째 소유자가 필요해지면 별도 TASK로 연다(배포 관련 항목은 T15에서 다시 본다).
 - **T6에서 넘어온 것:** `channel`·`classification`·`trial_generation`·`saved_voice`(T7)의 `owner_id = 'local-admin'` 행을 실제 사용자 id로 옮기고, 그때 `user` 외래 키를 걸지 정한다([ADR 0004](../adr/0004-channel-classification-storage.md)).
 - **T8에서 넘어온 것:** `voice_preset.owner_id`도 실제 사용자 id로 옮긴다(`channel_default_preset`에는 소유자 컬럼이 없다). 같은 채널의 기본 프리셋을 동시에 맞바꾸면 교착(40P01)이 나서 한쪽 요청이 500이 된다(데이터는 그대로). 다중 사용자가 되면 `setDefault`(`routers/preset.ts`의 `shortcut:` 주석) 첫 줄에 `pg_advisory_xact_lock(hashtext(ownerId))`를 둬 소유자별로 줄 세운다. 프리셋의 저장된 성우로 생성할 때(T9)는 저장된 공급자 voice id를 믿지 말고 서버에서 다시 검사한다(보안 리뷰). 방법은 위 T7.6 항목과 같다.
 - **T9에서 넘어온 것:** `trial_generation`의 작업실 행(`kind = 'studio'`)도 소유자 이전 대상이다. 작업실의 성우 검사(`usableVoice`)는 '이 소유자가 담은 성우'라는 앱 수준 일관성 검사일 뿐 공급자 소유 검증이 아니다. 담은 성우의 voice id도 원래 클라이언트가 보낸 값(`savedVoiceSave`)이라, Typecast `uc_` 커스텀 성우처럼 공급자가 소유한 보이스인지는 확인하지 않는다. 소유자가 여럿이 되면 저장 때나 합성 전에 Typecast `getVoiceV3`의 `voice_type=original`이거나 앱 클론 매핑에 있는 성우만 허용한다.
@@ -302,6 +305,7 @@ T1~T13은 로그인 없이 로컬 관리자 한 명으로 동작한다. 로그�
 - **T4에서 넘어온 것(T4 보안 리뷰):** 목록 캐시는 검색어·커서마다 행이 생기고 상한이 없다(만료 뒤 7일 보관). 소유자가 둘 이상이 되면 소유자별 호출 빈도 제한이나 공급자·종류별 행 수 상한을 둔다.
 
 ### T15 P0 통합 검수와 첫 배포
+- **T14에서 넘어온 것:** 운영 DB의 소유자 계정 만들기(로컬 스크립트는 원격 DB를 거부한다), 배포 환경의 `OWNER_EMAILS`·`BETTER_AUTH_URL`(배포 주소와 같아야 로그인 출처 검사가 통과), 속도 제한 저장소(기본 메모리는 함수 인스턴스마다 따로), `OWNER_EMAILS` 응답 누출 감지 해제의 재검토(백로그 T14-04).
 - **포함:** REQ-01~13 전체 시나리오, 접근성 전체 점검(P0-07), 독립 리뷰. GitHub origin과 Vercel 연결, 운영 소유자 계정과 환경변수, 릴리스와 production 배포(`prokit-deploy`).
 - **T12에서 넘어온 것:** 배포 전에 Neon 개발 브랜치에 direct URL로 마이그레이션을 적용하면서 `CREATE EXTENSION pg_trgm` 권한과 한글 trigram(`show_trgm`)·대본 검색이 로컬과 같은지 확인한다([ADR 0010](../adr/0010-script-library-trigram-search.md)). 실패해도 검색은 순차 검색으로 동작한다.
 - **T9에서 넘어온 것(스펙 13절, 계획 리뷰):**

@@ -80,7 +80,7 @@ import { client, orpc, QUIET } from "@/utils/orpc";
 import { DialogButtons, isComposingEnter } from "./class-form-dialog";
 import { boxClass } from "./class-group";
 import { ConfirmDialog } from "./confirm-dialog";
-import { LoopbackNotice, Notice } from "./notice";
+import { Notice, SignInNotice } from "./notice";
 import { useClassLists } from "./saved-voices";
 import { ScriptFields } from "./script-save-dialog";
 import { type AxisView, menuItem, VoiceConditions } from "./voice-conditions";
@@ -226,8 +226,7 @@ export function ScriptLibrary() {
 		searchRef.current?.focus();
 	}
 
-	if (failureOf(list.query.error) === "unauthorized")
-		return <LoopbackNotice title={SCRIPT_TEXT.loopback} />;
+	if (failureOf(list.query.error) === "unauthorized") return <SignInNotice />;
 
 	const lists = groupLists(channels, classes);
 	const axes: AxisView[] = [

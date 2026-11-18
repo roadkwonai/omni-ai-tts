@@ -60,7 +60,6 @@ export const SCRIPT_TEXT = {
 	loadingList: "대본 목록을 받고 있어요",
 	classesFailed: "채널·분류 목록을 받지 못했어요",
 	reload: "다시 불러오기",
-	loopback: "이 주소에서는 대본 보관함을 쓸 수 없어요",
 	editTitle: "대본 고치기",
 	editNote: "대본 글은 음성 작업실에서 열어 고쳐요.",
 	saveToLibraryTitle: "보관함에 저장",

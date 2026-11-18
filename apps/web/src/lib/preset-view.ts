@@ -50,7 +50,6 @@ export const PRESET_TEXT = {
 	changed: "바뀐 값 있음",
 	// T6 이름 중복 문구와 같은 꼴(duplicateMessage)
 	duplicate: "같은 이름의 프리셋이 이미 있어요.",
-	loopback: "이 주소에서는 프리셋을 쓸 수 없어요",
 	empty: "아직 프리셋이 없어요",
 	emptyDetail:
 		"성우 캐스팅의 '내 문장 듣기'에서 지금 설정을 프리셋으로 저장할 수 있어요.",

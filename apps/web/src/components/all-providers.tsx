@@ -30,7 +30,7 @@ import {
 import { bundleOf } from "@/lib/voice-view";
 
 import { CastingWorkspace } from "./casting-workspace";
-import { LoopbackNotice } from "./notice";
+import { SignInNotice } from "./notice";
 import { ONE_LIST_OPTIONS } from "./one-list";
 import { serverListOptions } from "./server-voice-list";
 import { VoiceConditions } from "./voice-conditions";
@@ -40,7 +40,7 @@ import {
 	useSearchCommit,
 	VoiceShelf,
 } from "./voice-list-parts";
-import { LIST_LOOPBACK_TITLE, Problem, useListRecovery } from "./voice-problem";
+import { Problem, useListRecovery } from "./voice-problem";
 import { RowList, type Select } from "./voice-row";
 
 // 묶음 하나(브리프 5·8절 '전체' 탭)
@@ -157,9 +157,8 @@ function ProviderBundle({
 			{body}
 		</VoiceShelf>
 	);
-	// 소유자 없음은 페이지가 탭 대신 주소 안내로 바꾼다(Typecast 쿼리). 그 전에 이 묶음이 먼저 받으면 같은 안내를 본문에 보인다
-	if (unauthorized)
-		return shelf(<LoopbackNotice title={LIST_LOOPBACK_TITLE} />);
+	// 세션 만료는 페이지가 탭 대신 로그인 안내로 바꾼다(Typecast 쿼리). 그 전에 이 묶음이 먼저 받으면 같은 안내를 본문에 보인다
+	if (unauthorized) return shelf(<SignInNotice />);
 
 	return (
 		<div className="flex flex-col gap-3">

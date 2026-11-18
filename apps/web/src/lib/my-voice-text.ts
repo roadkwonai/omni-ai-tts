@@ -53,7 +53,6 @@ export const MY_VOICE_TEXT = {
 		"내 목소리를 10초 넘게 녹음하면 클론 성우를 만들 수 있어요.",
 	listError: "내 보이스 목록을 받지 못했어요",
 	reload: "다시 불러오기",
-	loopback: "이 주소에서는 내 보이스를 쓸 수 없어요",
 	noProviderTitle: "클론을 만들 수 있는 공급자가 연결되어 있지 않아요",
 	viewConnections: "연결 상태 보기",
 

@@ -69,7 +69,7 @@ import { failureOf } from "@/lib/voice-failure";
 import { OWNED_LIST, orpc } from "@/utils/orpc";
 
 import { GAP_HELP_ID } from "./drama-gap";
-import { LoopbackNotice } from "./notice";
+import { SignInNotice } from "./notice";
 import { NumberReview } from "./number-review";
 import { PageHeader } from "./page-header";
 import { ParagraphAutoTag } from "./paragraph-autotag";
@@ -737,7 +737,7 @@ export function ParagraphStudio() {
 					description={PARAGRAPH_TEXT.description}
 				/>
 				<div className="px-4 pb-10 md:px-11">
-					<LoopbackNotice title={PARAGRAPH_TEXT.loopback} />
+					<SignInNotice />
 				</div>
 			</>
 		);

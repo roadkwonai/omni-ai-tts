@@ -20,6 +20,7 @@
 		"db:watch": "turbo run db:watch -F @tts-pilot-app/db --",
 		"db:stop": "turbo run db:stop -F @tts-pilot-app/db --",
 		"db:down": "turbo run db:down -F @tts-pilot-app/db --",
+		"owner:create": "pnpm --filter web owner:create",
 		"env:generate": "varlock codegen --path ./apps/web/ && varlock codegen --path ./packages/db/",
 		"postinstall": "varlock codegen --path ./apps/web/ && varlock codegen --path ./packages/db/",
 		"auth:generate": "cd apps/web && pnpm run auth:generate",

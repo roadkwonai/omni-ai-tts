@@ -26,7 +26,7 @@ import { client, OWNED_LIST } from "@/utils/orpc";
 
 import { CastingWorkspace } from "./casting-workspace";
 import { LibraryFilters as FiltersBar } from "./library-filters";
-import { LoopbackNotice, Notice } from "./notice";
+import { Notice, SignInNotice } from "./notice";
 import { usePresetList } from "./presets";
 import { SamplePlayerProvider } from "./sample-player";
 import { savedListKey, useClassLists, useSavedList } from "./saved-voices";
@@ -144,8 +144,7 @@ function Library() {
 		[raw.q],
 	);
 
-	if (failureOf(list.error) === "unauthorized")
-		return <LoopbackNotice title={LIBRARY_TEXT.loopback} />;
+	if (failureOf(list.error) === "unauthorized") return <SignInNotice />;
 
 	// 주소에 쓰고, 바뀐 결과 인원을 검색과 같은 문구로 화면 밖 status에 알린다(audit P1-2). 목록을 받기 전·실패면 알리지 않는다('0명'이 아니다)
 	function commit(next: LibraryFilters) {

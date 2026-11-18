@@ -12,7 +12,7 @@ import { Fragment, useState } from "react";
 import { PROVIDER_IDS, PROVIDER_LABEL, toView } from "@/lib/connection-view";
 import { orpc, QUIET } from "@/utils/orpc";
 
-import { LoopbackNotice } from "./notice";
+import { SignInNotice } from "./notice";
 import { ProviderStatusCard, STATUS_LABEL } from "./provider-status-card";
 
 const isUnauthorized = (error: unknown) =>
@@ -78,9 +78,7 @@ export function ConnectionStatus() {
 	const [announcement, setAnnouncement] = useState("");
 
 	if (queries.some((query) => isUnauthorized(query.error))) {
-		return (
-			<LoopbackNotice title="이 주소에서는 공급자 연결을 확인할 수 없어요" />
-		);
+		return <SignInNotice />;
 	}
 
 	const views = PROVIDER_IDS.map((provider, index) => ({

@@ -15,5 +15,5 @@
 ## 결과
 - T7 성우 연결은 `channel`·`classification` 각각에 연결 표(`saved_voice_channel`·`saved_voice_classification`)를 두고, 양쪽 외래 키(성우 쪽과 채널·분류 쪽)에 `on delete cascade`, 채널·분류 쪽 id 인덱스를 건다. 채널이나 분류를 지우면 연결만 풀리고 성우는 남는다. 성우 쪽 `saved_voice.owner_id`에도 `user` 외래 키를 걸지 않는다. 연결 표에는 소유자 컬럼이 없어, 연결할 때 `savedVoiceLinks`가 그 채널·분류가 같은 소유자 것인지 검사한다(남의 id나 없는 id면 `NOT_FOUND`, 담기까지 되돌린다). 연결 수는 `channelList`·`classificationList`의 `voiceCount`다. 그 검사가 연결이 생기는 유일한 길이라 연결 행 수가 곧 내 성우 수다.
 - T8 프리셋·T12 대본은 `channel`을 일반 외래 키(`on delete set null`)로 가리킨다.
-- T14는 `channel`·`classification`·`trial_generation`·`saved_voice`의 `owner_id`를 실제 사용자 id로 옮기고, 그때 외래 키를 걸지 정한다.
+- T14는 `channel`·`classification`·`trial_generation`·`saved_voice`의 `owner_id`를 실제 사용자 id로 옮기고, 그때 외래 키를 걸지 정한다. → 정함: [ADR 0012](0012-session-owner-single-allowlist.md)(외래 키 없음, 계정 만들 때 뒤에 생긴 표까지 7개 표 이전).
 - 버린 안: 한 표(채널 참조마다 앱 검사 또는 `(id, kind)` 복합 외래 키), 세 표(같은 CRUD와 연결 표가 세 벌).

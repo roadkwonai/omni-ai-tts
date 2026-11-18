@@ -375,7 +375,6 @@ export const PARAGRAPH_TEXT = {
 	// 합치기 메뉴 둘째 줄
 	mergeNote: "앞 문단의 성우와 설정을 써요",
 	// 화면 상태(브리프 6.1)
-	loopback: "이 주소에서는 음성 작업실을 쓸 수 없어요",
 	noVoices: "담은 성우가 없어요",
 	toCasting: "성우 캐스팅에서 담기",
 	paragraphsMax: `문단은 ${n(PARAGRAPHS_MAX)}개까지예요`,

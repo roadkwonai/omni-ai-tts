@@ -27,13 +27,13 @@ description: >-
 - 공급자 공통 계약(성우, 생성 요청과 결과, 오류)은 zod로 한 번 정의해 화면까지 쓴다. 계약은 SDK나 서버 모듈을 import하지 않는 파일(`providers/contract.ts`)에 두어 클라이언트 번들에 공급자 모듈이 딸려 가지 않게 한다.
 - Typecast와 ElevenLabs는 공식 SDK(`@neosapience/typecast-js`, `@elevenlabs/elevenlabs-js`)를 쓴다. Fish Audio·Airy·Gemini는 REST를 `fetch`로 직접 부른다(ADR 0002). Airy 호스트는 `https://api.airy.so` 고정, 키는 `Authorization: Bearer`. Gemini 호스트는 `https://generativelanguage.googleapis.com` 고정, 키는 `x-goog-api-key` 헤더다. SDK `@google/genai`는 쓰지 않는다(기본 5회 시도·연결 오류 재시도·`GOOGLE_API_KEY`/`GEMINI_API_KEY` 환경변수 대체). OpenAI는 자동 태그 텍스트에만 쓴다(TTS 공급자가 아니다). 호스트는 `https://api.openai.com` 고정, 키는 `Authorization: Bearer`, `POST /v1/responses`를 `fetch`로 직접 부른다. SDK `openai`는 쓰지 않는다(ADR 0008).
 - 단, ElevenLabs 성우 목록·억양 조회는 REST로 부른다. SDK가 응답 전체를 한 번에 검사해(`parseOrThrow`) 성우 하나의 빠진 필드가 목록 전체를 막기 때문이다(T4). 키는 `xi-api-key` 헤더, 호스트는 `https://api.elevenlabs.io`로 고정한다.
-- 키는 `apps/web/.env.schema`에 `@sensitive`로 선언된 값을 varlock `ENV`로 읽는다. 공급자 클라이언트는 소유자가 있는 요청마다 `apps/web/src/context.ts`가 `createProviders(키)`(`packages/api/src/providers/index.ts`)로 만들어 context의 `providers`로 넘긴다. 요청마다 만들어 `.env`의 키 교체가 반영된다. 소유자가 없는 요청에는 만들지 않는다. 루프백 요청이면 `publicProcedure`의 context에도 `providers`가 들어 있으므로 `publicProcedure`에서 `context.providers`를 쓰지 않는다. `packages/api`에서 `process.env`를 읽지 않는다.
+- 키는 `apps/web/.env.schema`에 `@sensitive`로 선언된 값을 varlock `ENV`로 읽는다. 공급자 클라이언트는 소유자가 있는 요청마다 `apps/web/src/context.ts`가 `createProviders(키)`(`packages/api/src/providers/index.ts`)로 만들어 context의 `providers`로 넘긴다. 요청마다 만들어 `.env`의 키 교체가 반영된다. 소유자가 없는 요청에는 만들지 않는다. `providers`는 `ownerId`가 있을 때만 들어 있으므로 `publicProcedure`에서는 `context.providers`를 쓰지 않는다. `packages/api`에서 `process.env`를 읽지 않는다.
 - SDK 생성자에는 키와 공식 호스트를 명시적으로 넘긴다. 두 SDK는 인자가 없으면 `process.env`(`TYPECAST_API_KEY`·`TYPECAST_API_HOST`·`ELEVENLABS_API_KEY`)로 조용히 대체한다. 키가 없으면 클라이언트를 만들지 않고 그 공급자를 "연결 안 됨"으로 처리한다.
 - 테스트는 `vi.stubGlobal("fetch", …)`로 HTTP 응답만 흉내 내어 SDK의 오류 처리까지 지나게 한다(두 SDK 모두 호출 시점의 전역 `fetch`를 쓴다). context의 `providers`에는 `createProviders({ … })`로 만든 클라이언트를 넣는다. `prokit-api`의 `references/ownership-test.md`가 `db`를 넣는 방식과 같다.
 - 코드 이름도 `GLOSSARY.md`를 따른다. Fish Audio API가 `model`이라 부르는 성우 개체는 코드에서 voice로 부르고, `s1`·`s2.1-pro` 같은 합성 엔진만 model로 부른다.
 
 ## 유료·상태 변경 호출: 생성, 시험 생성, 클론, 클론 삭제
-- 누가 부를 수 있는지부터 막는다. 모든 사용자가 서버 키 하나를 같이 쓴다. 이 호출들을 여는 프로시저는 `protectedProcedure`로만 만들고, 소유자는 `context.ownerId`에서만 얻는다(REQ-01). 과금되지 않는 호출(연결 확인, 성우 목록, 사용량)도 서버 키를 쓰고 계정의 클론 목록을 돌려줄 수 있으므로 `protectedProcedure`로만 연다. 로그인(T14) 전에는 로컬 관리자 모드라서 보호가 네 겹이다. `protectedProcedure`가 production에서 모두 거절하고, 개발 서버는 `127.0.0.1`에서만 열리고, oRPC CSRF 플러그인이 다른 사이트의 호출을 막고, 루프백이 아닌 Host(DNS 리바인딩)에는 소유자를 주지 않는다. Better Auth 가입은 현재 열려 있어도 세션은 공급자 권한에 쓰지 않으며 서버가 만든 단일 `context.ownerId`만 권한을 준다. 그래서 T14 전에는 배포하지 않고 배포 환경에 공급자 키를 넣지 않는다. T14부터는 공통 미들웨어가 세션 사용자를 서버 환경변수의 허용 목록과 비교해 `FORBIDDEN`을 던지고, 목록이 비면 모두 거부한다. 가입 차단(`disableSignUp`)은 추가 방어일 뿐이다. 가입이 열려 있던 동안 만든 계정은 막지 못하기 때문이다.
+- 누가 부를 수 있는지부터 막는다. 모든 사용자가 서버 키 하나를 같이 쓴다. 이 호출들을 여는 프로시저는 `protectedProcedure`로만 만들고, 소유자는 `context.ownerId`에서만 얻는다(REQ-01). 과금되지 않는 호출(연결 확인, 성우 목록, 사용량)도 서버 키를 쓰고 계정의 클론 목록을 돌려줄 수 있으므로 `protectedProcedure`로만 연다. 소유자는 Better Auth 세션 이메일이 서버 환경변수 `OWNER_EMAILS`(정리한 값 정확히 하나)와 같을 때만 `context.ownerId`가 되고(ADR 0012), 목록 밖이거나 비었거나 둘 이상이면 `ownerId`가 null이라 `protectedProcedure`가 `UNAUTHORIZED`를 던진다. 공개 가입은 `disableSignUp`으로 막고, oRPC CSRF 플러그인이 다른 사이트의 호출을 막는다. production 배포와 배포 환경의 공급자 키·`OWNER_EMAILS`는 T15에서 한다.
 - 자동 테스트, 타입 검사, 빌드, 브라우저 QA에서는 실제 공급자를 부르지 않는다. 브라우저 QA에서 생성·시험 생성·클론·삭제 버튼은 누르지 않고 그 앞 상태까지만 확인한다.
 - "실제 한국어 생성·청취" 같은 실제 호출 확인은 사용자가 그 호출을 승인한 뒤에만 한다. 승인 요청에는 공급자, 모델, 대본 길이, 호출 횟수를 적는다. 대본 길이는 Fish Audio면 UTF-8 바이트로 적는다. 짧은 대본으로 한 번만 부른다.
 - 증거에는 공급자, 모델, 사용량, 결과 파일 경로를 적는다. 키, 요청 헤더, 전체 응답은 적지 않는다. 청취 결과는 `[confirm]` 행에 사용자가 들은 내용으로 적는다.
@@ -98,8 +98,8 @@ description: >-
 - 시험 생성·생성의 voice id 허용 검사("클론 보이스" 절)도 이 호출을 쓸 수 있다. Typecast 단건 조회는 `voice_type`을 거르지 않고, Fish Audio는 공개 출처에서만 `visibility`를 거른다.
 
 ## 클론 보이스와 공급자 리소스 소유권 (REQ-01, REQ-13)
-- 모든 사용자가 공급자 계정 하나(서버 키)를 같이 쓴다. 그래서 계정 단위 목록에는 모든 사용자의 클론이 섞인다. ElevenLabs 계정 성우, Fish Audio 내 모델, Typecast custom voice 목록이 그렇고, Typecast 기본 목록 `GET /v3/voices`도 완료된 커스텀 성우를 함께 돌려준다. Airy는 미확인(T14에서 확인). 이 목록을 그대로 보여 주거나 허용 목록으로 쓰지 않는다.
-- 예외(T4 목록, T5 듣기): 앱의 공급자 권한은 development·test의 루프백 Host에서 서버가 정한 단일 `context.ownerId`에서 온다. 가입은 열려 있어도 Better Auth 세션은 공급자 권한에 쓰지 않는다. 현재 이 한 명 소유 예외에서는 `ownerId`가 있는 요청의 계정 성우를 보여 주며, 내 문장 듣기는 성우 소유권을 조회하지 않고 공급자의 거절(과금 없는 오류)에 맡긴다. 목록 캐시의 계정 행은 소유자별이다. 아래의 일반적인 모든 voice id 서버 조회 규칙은 이 단일 소유 예외가 끝난 뒤, 허용 소유자가 둘 이상이 되거나 T14 세션 권한을 도입할 때 적용한다. 그때는 클론 voice id를 앱 소유 매핑 또는 공급자 공개 성우 기준으로 검사한다(로드맵 T14 메모).
+- 모든 사용자가 공급자 계정 하나(서버 키)를 같이 쓴다. 그래서 계정 단위 목록에는 모든 사용자의 클론이 섞인다. ElevenLabs 계정 성우, Fish Audio 내 모델, Typecast custom voice 목록이 그렇고, Typecast 기본 목록 `GET /v3/voices`도 완료된 커스텀 성우를 함께 돌려준다. Airy는 미확인(T15 또는 소유자가 둘 이상이 될 때 확인). 이 목록을 그대로 보여 주거나 허용 목록으로 쓰지 않는다.
+- 예외(T4 목록, T5 듣기): 앱의 공급자 권한은 세션 이메일이 `OWNER_EMAILS` 한 개와 같을 때 서버가 정한 단일 `context.ownerId`에서 온다. 현재 이 한 명 소유 예외에서는 `ownerId`가 있는 요청의 계정 성우를 보여 주며, 내 문장 듣기는 성우 소유권을 조회하지 않고 공급자의 거절(과금 없는 오류)에 맡긴다. 목록 캐시의 계정 행은 소유자별이다. 아래의 일반적인 모든 voice id 서버 조회 규칙은 이 단일 소유 예외가 끝난 뒤, 허용 소유자가 둘 이상이 될 때 적용한다. 그때는 클론 voice id를 앱 소유 매핑 또는 공급자 공개 성우 기준으로 검사한다(로드맵 T14 메모).
 - 클론은 앱 DB의 소유 매핑(`userId`, 공급자, 공급자 voice id)으로 관리한다. 매핑의 voice id는 앱이 부른 클론 생성의 응답에서만 기록한다. voice id를 입력받아 기존 클론을 내 것으로 등록하는 기능은 만들지 않는다. 공용 계정에서는 id를 아는 사람이 남의 클론을 먼저 가져갈 수 있다. 앱 밖(공급자 웹)에서 만든 클론을 가져와야 하면 구현 전에 사용자에게 묻는다(REQ-13 7번: 자동 소유자 배정 금지).
 - 합성과 시험 생성: 요청에 들어가는 모든 voice id(Fish Audio `reference_id` 배열 포함)를 검사한다. 판정에는 서버가 그 id로 직접 조회한 결과만 쓴다. 클라이언트가 보낸 유형 값이나 목록은 믿지 않는다. 허용하는 경우는 둘이고, 둘 다 아니면 공급자를 부르지 않고 `NOT_FOUND`다.
   - 세션 사용자의 매핑에 있고 상태가 "사용 가능"인 클론. 처리 중, 실패, 삭제 대기면 거절한다(REQ-13 9번: 삭제 요청 뒤 신규 합성 차단).
@@ -113,7 +113,7 @@ description: >-
 ## 오디오 입출력 (Vercel 제한, ADR 0002)
 - Vercel 함수의 요청·응답 본문은 4.5MB까지다. 오디오를 base64 JSON으로 돌려주지 않는다(크기가 약 1.33배가 된다). oRPC RPC 프로토콜은 `File`·`Blob`을 바이너리 그대로 주고받으므로 프로시저가 `File`을 돌려주면 된다(`@orpc/client` 1.15.4 직렬화기에서 확인). 결과 크기는 대략 길이 × 비트레이트다. 128kbps MP3는 1분에 약 1MB이므로 2,000자 한국어 대본은 한도에 가까워질 수 있다. 넘을 수 있으면 전송 방식(Blob 저장 뒤 서명 URL, 스트리밍)을 사용자와 정하고 ADR로 남긴다. 저장소는 P1-02에서 미정이다.
 - 클론 원본은 공급자 권장 길이(Fish Audio 1~2분)의 WAV면 4.5MB를 넘기 쉽다. 브라우저 녹음은 `MediaRecorder`의 압축 형식을 쓰되 공급자가 받는 형식인지 research 문서로 확인한다.
-- 서버를 거치지 않는 업로드가 필요하면 ADR로 정한다. 업로드 토큰을 주는 라우트는 세션과 소유자 제한을 검사하고 크기·형식 상한을 건다. 원본은 비공개 접근, 사용자별 경로에 둔다. 서버는 자신이 기록한 경로로만 원본을 읽고, 클라이언트가 준 URL을 가져오지 않는다. `apps/web/src/app/api/` 아래에 두면 `authPaths`가 security 리뷰 행을 붙이고, 그 밖에 두면 대조표에 직접 추가한다. 로그인(T14) 전에 만든다면 `AGENTS.md`의 로컬 관리자 모드 'Route Handler 금지' 예외를 그 ADR에 적는다.
+- 서버를 거치지 않는 업로드가 필요하면 ADR로 정한다. 업로드 토큰을 주는 라우트는 세션과 소유자 제한을 검사하고 크기·형식 상한을 건다. 원본은 비공개 접근, 사용자별 경로에 둔다. 서버는 자신이 기록한 경로로만 원본을 읽고, 클라이언트가 준 URL을 가져오지 않는다. `apps/web/src/app/api/` 아래에 두면 `authPaths`가 security 리뷰 행을 붙이고, 그 밖에 두면 대조표에 직접 추가한다. `AGENTS.md`의 'Server Action과 새 Route Handler 금지' 규칙의 예외가 되므로 그 ADR에 적는다.
 - 업로드는 서버에서 크기, 형식(파일 앞 바이트), 길이를 다시 검사한다(REQ-13).
 - Gemini 출력은 WAV뿐이다(24kHz 모노 16비트, 1분 약 2.88MB라 4 MiB 상한이 약 87초). 생성 기록의 `audio_type`(`audio/wav`·`audio/mpeg`)으로 파일 형식을 정한다(`audioTypeOf`, 저장본과 `trialAudio`의 `File`). 요청 본문은 `store: false`로 공급자가 요청·응답을 저장하지 않게 하고 말투 지시는 대본이 아니라 `annotations`의 `speech_metadata.style`로 보낸다.
 - SDK의 오디오 인자에는 바이트(`Uint8Array`, `Blob`, `File`)만 넘긴다. Typecast SDK의 `cloneVoice`는 문자열을 서버 파일 경로로 읽어 업로드하므로 입력 문자열이 닿으면 서버 파일이 공급자에게 나간다.
@@ -148,6 +148,6 @@ description: >-
   ② 공급자 401·429·타임아웃이 위 표의 코드로 바뀐다.
   ③ B가 A의 클론 voice id로 생성하면 `NOT_FOUND`이고 공급자 호출은 0회다. 공급자 목록에 섞여 나온 A의 클론 id, 다른 사용자의 비공개 Fish Audio 모델 id, 삭제를 요청한 자기 클론으로 시도해도 같다.
   ④ B가 A의 매핑 행 id나 공개 성우 id로 삭제하면 `NOT_FOUND`이고 공급자 호출은 0회다.
-  ⑤ 소유자가 없는 context(`ownerId: null`, production의 로컬 관리자 모드)는 유료 호출 프로시저에서 `UNAUTHORIZED`이고 공급자 호출은 0회다. T14부터는 허용 목록에 없는 세 번째 계정 C가 `FORBIDDEN`이고 공급자 호출은 0회다. ③·④의 A와 B는 context의 `ownerId`로 넣는다(T14 뒤에는 허용 목록에도 넣는다). 그래야 거절보다 소유권 검사까지 도달한다.
+  ⑤ 소유자가 없는 context(`ownerId: null`: 세션 없음, 목록 밖 계정, `OWNER_EMAILS`가 비었거나 둘 이상)는 유료 호출 프로시저에서 `UNAUTHORIZED`(`FORBIDDEN`이 아니다)이고 공급자 호출은 0회다. ③·④의 A와 B는 context의 `ownerId`로 넣는다. 그래야 거절보다 소유권 검사까지 도달한다.
 - `packages/api/src/providers/`는 `.dev-cycle.json`의 `authPaths`에 있어 security 리뷰 행이 자동으로 붙는다.
 - 실제 호출은 "유료 호출" 절대로 사용자가 승인할 때만 한다.

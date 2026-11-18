@@ -27,7 +27,7 @@ import { EMPTY_FILTERS } from "@/lib/voice-filter";
 import { plain } from "@/lib/voice-view";
 
 import { AllProviders } from "./all-providers";
-import { LoopbackNotice } from "./notice";
+import { SignInNotice } from "./notice";
 import {
 	type AiryState,
 	AiryVoiceList,
@@ -48,7 +48,6 @@ import {
 	type TypecastState,
 	TypecastVoiceList,
 } from "./typecast-voice-list";
-import { LIST_LOOPBACK_TITLE } from "./voice-problem";
 
 type Tab = "all" | ProviderId;
 type ListKey = `${ServerProvider}:${VoiceSource}`;
@@ -178,9 +177,9 @@ export function VoiceCasting() {
 		setPendingFocus(listKey);
 	}
 
-	// 소유자 없음(루프백이 아닌 주소): 탭과 조건 줄 대신 주소 안내 하나다(T3). 처음 열리는 '전체' 탭이 늘 받는 Typecast 목록(같은 키)으로 판정한다
+	// 세션 만료: 탭과 조건 줄 대신 로그인 안내 하나다(T3). 처음 열리는 '전체' 탭이 늘 받는 Typecast 목록(같은 키)으로 판정한다
 	if (failureOf(typecastList.error) === "unauthorized") {
-		return <LoopbackNotice title={LIST_LOOPBACK_TITLE} />;
+		return <SignInNotice />;
 	}
 
 	const typecastCount = typecastList.data?.voices.length;

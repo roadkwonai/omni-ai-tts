@@ -95,7 +95,7 @@ export function ParagraphAutoTag({ children }: { children: ReactNode }) {
 	const mutation = useMutation({
 		...orpc.studioAutoTag.mutationOptions(),
 		retry: false,
-		// 루프백으로만 붙으니 브라우저 offline 판단으로 멈추지 않게 한다(paragraph-make와 같다)
+		// 같은 출처로만 붙으니 브라우저 offline 판단으로 멈추지 않게 한다(paragraph-make와 같다)
 		networkMode: "always",
 	});
 	const [phase, setPhase] = useState<"closed" | "confirm" | "preview">(

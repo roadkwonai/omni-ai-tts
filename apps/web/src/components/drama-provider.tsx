@@ -418,7 +418,7 @@ export function DramaProvider({ children }: { children: ReactNode }) {
 	const create = useMutation({
 		...orpc.dramaCreate.mutationOptions(),
 		retry: false,
-		// 루프백으로만 붙으니 브라우저 offline 판단으로 멈추지 않게 한다(utils/orpc.ts QUIET와 같다)
+		// 같은 출처로만 붙으니 브라우저 offline 판단으로 멈추지 않게 한다(utils/orpc.ts QUIET와 같다)
 		networkMode: "always",
 	});
 	// 초안의 줄 밖 칸. null이면 아직 읽지 않았다. metaRef·linesRef는 이벤트가 읽고 쓰는 최신 값이다(렌더는 state를 읽는다)

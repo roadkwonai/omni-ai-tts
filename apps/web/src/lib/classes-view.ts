@@ -93,7 +93,6 @@ export const MESSAGES = {
 	notFound: "이미 지워졌거나 찾을 수 없어요.",
 	saveFailed: "저장하지 못했어요. 잠시 뒤 다시 해 주세요.",
 	deleteFailed: "지우지 못했어요. 잠시 뒤 다시 해 주세요.",
-	loopback: "이 주소에서는 채널·분류를 쓸 수 없어요",
 } as const;
 
 export function duplicateMessage(group: Group): string {

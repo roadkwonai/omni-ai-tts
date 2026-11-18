@@ -99,7 +99,6 @@ export const DRAMA_TEXT = {
 	// 머리·화자·성우 창
 	title: "드라마 작업실",
 	description: "화자마다 성우를 붙이고 대본을 연기시켜요.",
-	loopback: "이 주소에서는 드라마 작업실을 쓸 수 없어요",
 	sceneName: "장면 이름",
 	// 자리 표시이자 장면 이름이 비었을 때의 이름(스펙 2절 기본값 '장면')
 	scenePlaceholder: "장면",

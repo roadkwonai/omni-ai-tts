@@ -7,7 +7,7 @@ import { VoiceLibrary } from "@/components/voice-library";
 
 export const metadata: Metadata = { title: "성우 보관함" };
 
-// Server Component. db·공급자 모듈을 부르지 않는다. 조회·변경은 VoiceLibrary가 브라우저에서 /api/rpc로 한다(로컬 관리자 모드).
+// Server Component. db·공급자 모듈을 부르지 않는다. 조회·변경은 VoiceLibrary가 브라우저에서 /api/rpc로 한다(보호는 (app)/layout과 protectedProcedure).
 // 필터가 주소 쿼리라 VoiceLibrary는 useSearchParams를 쓴다 → Suspense 경계(번들 문서 use-search-params 'Prerendering')
 export default function VoicesPage() {
 	return (
