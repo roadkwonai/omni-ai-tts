@@ -287,6 +287,18 @@ export function replay(provider: ProviderId, row: ExistingRow): TrialAudio {
 	return replayStatus(provider, row, toAudio);
 }
 
+// 오디오를 쓰는 완료 질의만 시간 제한 20초(운영 Neon 싱가포르 32MiB 한 행 쓰기 6.8~10.7초, T15-a Task 0). 다른 질의는 풀 기본 3초(T4) 그대로다
+export const AUDIO_WRITE_TIMEOUT_MS = 20_000;
+// drizzle은 질의마다 pg 설정을 넘기지 않아 만든 SQL을 풀에 직접 보낸다. pg 8.23 client.query가 config.query_timeout을 읽는다(@types/pg QueryConfig에는 없어 변수로 넘긴다)
+function writeAudio(
+	db: Database,
+	query: { toSQL(): { sql: string; params: unknown[] } },
+) {
+	const { sql: text, params: values } = query.toSQL();
+	const config = { text, values, query_timeout: AUDIO_WRITE_TIMEOUT_MS };
+	return db.$client.query(config);
+}
+
 // id는 같은 요청의 선점에서 온 값이지만 소유자 조건을 함께 건다(prokit-api 불변식 3, 계획 리뷰 E12).
 // segments는 드라마 줄 구간이다. 넘기지 않으면 칸을 건드리지 않는다(선점 때 null)
 export async function complete(
@@ -297,16 +309,19 @@ export async function complete(
 	audioType: string,
 	segments?: LineSpan[] | null,
 ) {
-	await db
-		.update(t)
-		.set({
-			status: "done",
-			audio: Buffer.from(audio),
-			audioType,
-			segments,
-			expiresAt: later(),
-		})
-		.where(and(eq(t.id, id), eq(t.ownerId, ownerId)));
+	await writeAudio(
+		db,
+		db
+			.update(t)
+			.set({
+				status: "done",
+				audio: Buffer.from(audio),
+				audioType,
+				segments,
+				expiresAt: later(),
+			})
+			.where(and(eq(t.id, id), eq(t.ownerId, ownerId))),
+	);
 }
 
 export async function settle(
@@ -787,32 +802,35 @@ async function completeLate(
 	target: LateTarget,
 	stored: Stored,
 ): Promise<boolean> {
-	const rows = await db
-		.update(t)
-		.set({
-			status: "done",
-			failureReason: null,
-			audio: Buffer.from(stored.audio),
-			audioType: stored.audioType,
-			segments: stored.segments ?? null,
-			expiresAt: later(),
-		})
-		// 그 화면의 행만(내 문장 미확인 행은 상한이 4MiB다, 계획 리뷰 E12)
-		.where(
-			and(
-				eq(t.id, target.id),
-				eq(t.ownerId, target.ownerId),
-				eq(t.kind, target.kind),
-				eq(t.status, "unknown"),
+	const { rowCount } = await writeAudio(
+		db,
+		db
+			.update(t)
+			.set({
+				status: "done",
+				failureReason: null,
+				audio: Buffer.from(stored.audio),
+				audioType: stored.audioType,
+				segments: stored.segments ?? null,
+				expiresAt: later(),
+			})
+			// 그 화면의 행만(내 문장 미확인 행은 상한이 4MiB다, 계획 리뷰 E12)
+			.where(
+				and(
+					eq(t.id, target.id),
+					eq(t.ownerId, target.ownerId),
+					eq(t.kind, target.kind),
+					eq(t.status, "unknown"),
+				),
 			),
-		)
-		.returning({ id: t.id });
-	return rows.length > 0;
+	);
+	return (rowCount ?? 0) > 0;
 }
 
 // 늦은 결과(T5-02, T9 스펙 2절). 성공이면 같은 기록을 완료로 바꾸고 사용 이력을 올린다. 실패·32MiB 초과는 미확인 그대로다.
 // 부르는 쪽은 미확인 기록(recordFailure)을 쓴 뒤에 부른다(미확인 행만 완료로 바꾸므로, 먼저 부르면 아직 진행 중인 행이라 늦은 결과를 잃는다). 던지지 않는다(로그 한 줄, 접두는 화면).
-// shortcut: 서버 프로세스가 살아 있을 때만 받는다(로컬은 확실). 배포 환경은 응답 뒤 작업 유지(after)와 최대 실행 시간이 필요하다(로드맵 T15 메모)
+// 부르는 쪽은 돌려준 약속을 응답 뒤 작업(context.defer, 배포는 Next after)으로 넘긴다.
+// shortcut: 함수 수명(Vercel Hobby 300초, /api/rpc maxDuration) 안에 온 결과만 받는다. 장면은 270초 상한(SCENE_LATE_MAX_MS)이고 300초를 넘는 Typecast 응답은 잃는다(ADR 0013). 그런 응답이 실제로 생기면 플랜을 다시 본다
 export function saveLate(
 	db: Database,
 	target: LateTarget,

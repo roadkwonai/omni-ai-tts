@@ -177,14 +177,16 @@ export const dramaRouter = {
 					{ ownerId, id: claimed.id, provider: PROVIDER, prefix: PREFIX },
 					error,
 				);
-				// 미확인을 적은 뒤에 늦은 결과를 받는다(saveLate는 미확인 행만 완료로 바꾼다). 기다리지 않는다.
+				// 미확인을 적은 뒤에 늦은 결과를 받는다(saveLate는 미확인 행만 완료로 바꾼다). 기다리지 않고 응답 뒤 작업(context.defer)으로 넘긴다(studio.ts와 같다).
 				// 늦은 결과는 던지지 않는 변환만 거친다. 32MiB 초과는 saveLate가 버리고 '늦은 결과 버림'을 남긴다(Ruling 7)
-				if (late.result)
-					void saveLate(
+				if (late.result) {
+					const saving = saveLate(
 						db,
 						target,
 						late.result.then((scene) => toStored(scene, lines)),
 					);
+					context.defer?.(saving);
+				}
 				throw failure;
 			}
 			// 저장하지 못하면 미확인으로 적고 unknown_outcome을 던진다. 저장되면 사용 이력·정리(작업실과 같은 recordSuccess)

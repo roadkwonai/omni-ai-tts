@@ -13,6 +13,8 @@ import { describe, expect, it } from "vitest";
 import {
 	afterFailure,
 	afterUnknownConfirmed,
+	CHUNK_MAX_BYTES,
+	chunkTargets,
 	type Found,
 	type FoundMap,
 	fillOf,
@@ -569,6 +571,54 @@ describe("findTargets·pruneFound·mergeFound", () => {
 		expect(again.get(sigOf(b))).toEqual(found());
 		// 둘째 합치기의 늦은 null에도 완료로 남는다
 		expect(again.get(sigOf(a))).toBe(done);
+	});
+});
+
+describe("chunkTargets(studioFindMany 요청을 개수와 본문 크기로 나눈다, T10-03)", () => {
+	const bytesOf = (chunk: readonly StudioRequest[]) =>
+		new TextEncoder().encode(JSON.stringify(chunk)).length;
+	const requests = (n: number, chars: number) =>
+		Array.from({ length: n }, (_, i) => {
+			// 실제 findTargets 항목 모양, 서명이 서로 다르도록 앞에 번호를 둔다
+			const text = `${i}`.padEnd(chars, "가");
+			return paragraphRequest(
+				para(`p${i}`, text),
+				work(),
+				VOICES,
+				NOW,
+			) as StudioRequest;
+		});
+
+	it("최악 입력(200개 × 8,000자 한글)이 묶음마다 한도 이하로 나뉘고 순서·합이 같다", () => {
+		const all = requests(200, 8_000);
+		const chunks = chunkTargets(all, 200, CHUNK_MAX_BYTES);
+		expect(chunks.length).toBeGreaterThan(1);
+		for (const chunk of chunks) {
+			expect(chunk.length).toBeLessThanOrEqual(200);
+			expect(bytesOf(chunk)).toBeLessThanOrEqual(CHUNK_MAX_BYTES);
+		}
+		expect(chunks.flat()).toEqual(all);
+	});
+
+	it("작은 입력은 200개씩 나뉜다", () => {
+		const all = requests(450, 10);
+		expect(
+			chunkTargets(all, 200, CHUNK_MAX_BYTES).map((chunk) => chunk.length),
+		).toEqual([200, 200, 50]);
+	});
+
+	it("빈 입력은 묶음이 없다", () => {
+		expect(chunkTargets([], 200, CHUNK_MAX_BYTES)).toEqual([]);
+	});
+
+	it("혼자 한도를 넘는 항목은 단독 묶음이 된다(무한 반복 없음)", () => {
+		const [small, big, tail] = [
+			...requests(1, 10),
+			...requests(1, 8_000),
+			...requests(1, 10),
+		];
+		const chunks = chunkTargets([small, big, tail], 200, 1_000);
+		expect(chunks).toEqual([[small], [big], [tail]]);
 	});
 });
 

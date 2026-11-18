@@ -151,11 +151,12 @@ export const studioRouter = {
 					{ ownerId, id: claimed.id, provider, prefix: PREFIX },
 					error,
 				);
-				// 미확인을 적은 뒤에 늦은 결과를 받는다. 늦은 결과 저장은 미확인 행만 완료로 바꾸므로, 미확인을 적기 전에 부르면 아직 진행 중인 행이라 늦은 결과를 잃는다. 기다리지 않는다.
-				// shortcut: 끊긴 Typecast 요청은 응답까지(최대 300초) 뒤에서 돌지만 기록이 미확인이라 동시 1건에 들지 않는다.
-				// 그동안 새 생성을 받으면 공급자 요청이 둘 겹칠 수 있다(계획 리뷰 P8). 다중 사용자·배포(T10·T15 메모) 때 미확인 뒤 막을 시간을 정한다
-				if (late.result)
-					void saveLate(
+				// 미확인을 적은 뒤에 늦은 결과를 받는다. 늦은 결과 저장은 미확인 행만 완료로 바꾸므로, 미확인을 적기 전에 부르면 아직 진행 중인 행이라 늦은 결과를 잃는다.
+				// 기다리지 않고 응답 뒤 작업(context.defer, 배포는 Next after)으로 넘긴다. defer가 없으면(로컬·테스트) 프로세스가 살아 있어 그대로 끝난다.
+				// shortcut: 끊긴 Typecast 요청은 응답까지(최대 300초) 뒤에서 돌지만 기록이 미확인이라 동시 1건에 들지 않는다. 그동안 새 생성을 받으면 공급자 요청이 둘 겹칠 수 있다(계획 리뷰 P8).
+				// 배포(Vercel Hobby)에서는 함수가 300초에 끝나면 그 뒤에 온 늦은 응답을 잃는다(ADR 0013). 다중 사용자 때 미확인 뒤 막을 시간을 정하고, 300초 넘는 응답이 실제로 생기면 플랜을 다시 본다
+				if (late.result) {
+					const saving = saveLate(
 						db,
 						target,
 						late.result.then((audio) => ({
@@ -163,6 +164,8 @@ export const studioRouter = {
 							audioType: audioTypeOf(provider),
 						})),
 					);
+					context.defer?.(saving);
+				}
 				throw failure;
 			}
 			// 저장하지 못하면 미확인으로 적고 unknown_outcome을 던진다('스펙과 다른 점' 4). 저장되면 사용 이력·정리(드라마와 같은 recordSuccess)

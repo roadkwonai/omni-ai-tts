@@ -4,9 +4,12 @@ import { SimpleCsrfProtectionHandlerPlugin } from "@orpc/server/plugins";
 import type { ProviderErrorData } from "@tts-pilot-app/api/providers/contract";
 import { pathToString } from "@tts-pilot-app/api/providers/errors";
 import { appRouter } from "@tts-pilot-app/api/routers/index";
-import type { NextRequest } from "next/server";
+import { after, type NextRequest } from "next/server";
 
 import { createContext } from "../../../../context";
+
+// Vercel Hobby 함수 최대 300초. 응답 뒤 작업(after, 늦은 결과 저장)도 이 시간 안에서만 돈다(ADR 0013)
+export const maxDuration = 300;
 
 // 세션 쿠키가 있어도 SimpleCsrf 헤더가 다른 사이트 요청을 막는다(JS가 붙이는 헤더를 요구한다).
 const rpcHandler = new RPCHandler(appRouter, {
@@ -41,7 +44,10 @@ const rpcHandler = new RPCHandler(appRouter, {
 async function handleRequest(req: NextRequest) {
 	const { response } = await rpcHandler.handle(req, {
 		prefix: "/api/rpc",
-		context: await createContext(req),
+		context: {
+			...(await createContext(req)),
+			defer: (task) => after(() => task),
+		},
 	});
 	return response ?? new Response("Not found", { status: 404 });
 }

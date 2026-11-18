@@ -18,6 +18,12 @@ export function createAuth(env: AuthConfig, database: Database) {
 		trustedOrigins: [env.BETTER_AUTH_URL],
 		// 공개 가입은 서버에서 막는다(T14). 계정은 로컬 스크립트로만 만든다.
 		emailAndPassword: { enabled: true, disableSignUp: true },
+		// 로그인 60초 5회(사용자 결정 2026-11-18). DB에 두어 인스턴스가 여럿이어도 같은 횟수다. 키는 basePath를 뗀 경로이고, 나머지는 라이브러리 기본
+		rateLimit: {
+			enabled: true,
+			storage: "database",
+			customRules: { "/sign-in/email": { window: 60, max: 5 } },
+		},
 		secret: env.BETTER_AUTH_SECRET,
 		baseURL: env.BETTER_AUTH_URL,
 		plugins: [nextCookies()],

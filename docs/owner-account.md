@@ -49,4 +49,19 @@
 
 ## 운영(배포) 계정
 
-운영 DB의 계정은 T15(첫 배포)에서 정한다. 이 스크립트는 로컬 DB에서만 동작한다.
+`pnpm owner:create`는 로컬 DB에서만 동작한다(원격 거부). 운영 DB의 계정은 로컬에서 만든 계정을 앱 데이터와 함께 한 번 복사해 만든다(T15-a, [ADR 0013](adr/0013-first-deploy-vercel-neon-singapore.md)). 그래서 운영 로그인 이메일·비밀번호는 로컬과 같다. 복사 뒤 두 DB는 따로 바뀐다.
+
+1. 로컬에서 위 '처음 만들기'로 계정을 만든다(`local-admin` 데이터가 그 계정으로 옮겨진다).
+2. 운영 DB에 마이그레이션을 direct 주소로 적용한다. 주소는 Neon CLI로 셸 변수에만 받는다(파일·출력에 남기지 않는다).
+3. 옮기는 표(12개): `user`, `account`, `channel`, `channel_default_preset`, `classification`, `my_voice`, `saved_voice`, `saved_voice_channel`, `saved_voice_classification`, `script`, `script_classification`, `voice_preset`. 옮기지 않는 표: `session`, `verification`, `rate_limit`, `provider_cooldown`, `provider_list_cache`, `trial_generation`, `drizzle.__drizzle_migrations`.
+4. 복사(덤프 파일을 만들지 않고 파이프로, 실패하면 전부 되돌린다). 주소는 작은따옴표 안 컨테이너 셸에서만 펼친다.
+
+```bash
+export PROD_URL="$(neon cs --project-id <운영 Neon 프로젝트 id>)"
+podman exec -e PROD_URL tts-pilot-app-postgres sh -c 'test -n "$PROD_URL" && printf %s "$PROD_URL" | grep -q sslmode=require || exit 1; pg_dump -U postgres -d tts-pilot-app --data-only -t '"'"'public."user"'"'"' -t public.account -t public.channel -t public.channel_default_preset -t public.classification -t public.my_voice -t public.saved_voice -t public.saved_voice_channel -t public.saved_voice_classification -t public.script -t public.script_classification -t public.voice_preset | psql "$PROD_URL" -v ON_ERROR_STOP=1 --single-transaction'
+unset PROD_URL
+```
+
+5. 표마다 행 수를 로컬과 운영에서 비교한다.
+
+운영에서 비밀번호를 잊었을 때는 위 '비밀번호를 잊었을 때'의 절차를 운영 direct 주소로 한다(Neon CLI로 셸 변수에만 받는다).

@@ -430,7 +430,8 @@ export const TRIAL_TIMEOUT_MS = 60_000;
 // 작업실 생성 시간 제한(T9 스펙 2절). Typecast 일반 생성 소요 시간은 문서에 없어 추정이다(사용자 테스트 7번으로 확인한다)
 export const STUDIO_TIMEOUT_MS = 180_000;
 // 드라마 장면 요청의 끝(T9.5 계획 '스펙과 다른 점' 3). 180초에 끊지 않고 늦은 결과를 이 시각까지만 기다린다(T9 6분 다시 받기 창 안)
-export const SCENE_LATE_MAX_MS = 300_000;
+// Vercel Hobby 함수 300초 − 저장 여유 30초(ADR 0013)
+export const SCENE_LATE_MAX_MS = 270_000;
 // ElevenLabs 403 가운데 키가 아니라 성우·플랜·모델 문제인 코드(공식 오류 표). 화면이 문구를 고르도록 입력 거절로 보낸다
 const VOICE_DENIED = new Set([
 	"voice_access_denied",

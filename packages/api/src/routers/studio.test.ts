@@ -907,6 +907,46 @@ describe.skipIf(!url)("음성 작업실 프로시저(T9 스펙 3·9절)", () => 
 		expect((await me.studioFind(request()))?.id).toBe(item?.id);
 	});
 
+	it("늦은 결과 저장은 context.defer로 한 번 넘기고, 넘긴 작업이 끝나면 행은 완료·사용 이력 1회(T15-a, ADR 0013)", async () => {
+		let deliver: (audio: Uint8Array) => void = () => {};
+		synthesize.mockImplementationOnce(async (_request, options) => {
+			options?.onLate?.(
+				new Promise<Uint8Array>((resolve) => {
+					deliver = resolve;
+				}),
+			);
+			throw trialError("typecast", "unknown_outcome");
+		});
+		const tasks: Promise<unknown>[] = [];
+		const defer = vi.fn((task: Promise<unknown>) => {
+			tasks.push(task);
+		});
+		await expect(
+			as(OWNER, { defer }).studioCreate({
+				requestId: crypto.randomUUID(),
+				request: request(),
+			}),
+		).rejects.toMatchObject({ code: "GATEWAY_TIMEOUT" });
+		expect(defer).toHaveBeenCalledTimes(1);
+		deliver(MP3);
+		// 넘긴 작업 하나가 저장 전체(완료 쓰기와 사용 이력)를 덮는다. 기다린 뒤 바로 본다
+		await Promise.all(tasks);
+		expect((await me.studioFindMany([request()]))[0]).toMatchObject({
+			status: "done",
+			bytes: MP3.byteLength,
+		});
+		expect(await used()).toMatchObject({ useCount: 1 });
+	});
+
+	it("늦은 결과가 없으면 context.defer를 부르지 않는다", async () => {
+		const defer = vi.fn();
+		await as(OWNER, { defer }).studioCreate({
+			requestId: crypto.randomUUID(),
+			request: request(),
+		});
+		expect(defer).not.toHaveBeenCalled();
+	});
+
 	it("뒤늦은 실패는 미확인 그대로이고 사용 이력도 그대로다", async () => {
 		const log = vi.spyOn(console, "error").mockImplementation(() => {});
 		let refuse: (error: unknown) => void = () => {};

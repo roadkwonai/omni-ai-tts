@@ -106,3 +106,7 @@ tasks/evidence/
 # hallmark 작업 파일(UI 스킬 hallmark: 검사 화면, 사전 점검 캐시)
 **/.hallmark/shots/
 **/.hallmark/preflight.json
+
+# 디자인 작업 기록(.impeccable/)과 로컬 토큰 파일(.envrc). 커밋하지 않는다
+.impeccable/
+.envrc

@@ -129,6 +129,38 @@ export function findTargets(
 	return targets;
 }
 
+// Vercel 함수 요청 본문 한도 4.5MB에서 oRPC 봉투 몫을 남긴 값. 실제 문단은 STUDIO_TEXT_MAX(2,000자)라 200개도 이 안에 들고, 서버 스키마 상한(8,000 UTF-16 × 200개)에 대한 안전망이다
+export const CHUNK_MAX_BYTES = 3_500_000;
+
+// studioFindMany 요청을 개수(maxCount)와 JSON 본문 크기(maxBytes)로 나눈다(순서 유지).
+// 혼자 maxBytes를 넘는 항목은 단독 묶음이다(서버 입력 상한이 막지만 무한 반복을 막는다)
+export function chunkTargets(
+	targets: readonly StudioRequest[],
+	maxCount: number,
+	maxBytes: number,
+): StudioRequest[][] {
+	const encoder = new TextEncoder();
+	const chunks: StudioRequest[][] = [];
+	let chunk: StudioRequest[] = [];
+	// 배열 대괄호 2바이트 + 항목 사이 쉼표
+	let bytes = 2;
+	for (const target of targets) {
+		const size = encoder.encode(JSON.stringify(target)).length + 1;
+		if (
+			chunk.length > 0 &&
+			(chunk.length >= maxCount || bytes + size > maxBytes)
+		) {
+			chunks.push(chunk);
+			chunk = [];
+			bytes = 2;
+		}
+		chunk.push(target);
+		bytes += size;
+	}
+	if (chunk.length > 0) chunks.push(chunk);
+	return chunks;
+}
+
 // 지금 문단에 없는 서명의 null 항목을 버린다(되돌리기에는 완료 항목만 필요, 15). 버릴 것이 없으면 같은 표
 export function pruneFound(
 	found: FoundMap,

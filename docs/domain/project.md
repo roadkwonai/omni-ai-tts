@@ -11,6 +11,7 @@
 | 역할 | 할 수 있는 일 | 확인 위치 |
 |---|---|---|
 | 소유자 | 이메일·비밀번호로 로그인한 세션의 이메일이 서버 환경 변수 `OWNER_EMAILS`를 정리한 값 정확히 하나와 같을 때만 `context.ownerId = user.id`다(T14, [ADR 0012](../adr/0012-session-owner-single-allowlist.md)). 목록이 비거나 둘 이상이면 아무도 소유자가 아니다. 공개 가입은 서버에서 막히고(`disableSignUp`), 계정은 로컬 DB에서만 `pnpm owner:create`로 만든다([계정 안내](../owner-account.md)). 로그인하지 않으면 페이지는 `/login`으로 간다(proxy 쿠키 확인 + `(app)/layout`의 서버 판정) | `packages/api/src/owner.ts`, `apps/web/src/context.ts`(`readOwner`·`getOwnerSession`), `apps/web/src/proxy.ts`, `protectedProcedure` |
+| 배포 | 운영 주소 `https://omni-ai-tts.vercel.app`(T15-a, [ADR 0013](../adr/0013-first-deploy-vercel-neon-singapore.md)). Vercel Hobby 함수 `sin1`, 운영 DB는 Vercel Storage로 만든 Neon(싱가포르). 로그인은 IP당 1분 5회까지(그 뒤 429). `/api/rpc` 함수는 최대 300초이고 늦은 공급자 결과는 응답 뒤 작업(`after`)으로 저장한다 | `apps/web/src/app/api/rpc/[[...rest]]/route.ts`, `apps/web/vercel.json`, `packages/auth/src/index.ts` |
 | 소유자가 아닌 로그인 사용자 | '접근 권한 없음'과 로그아웃만 본다. 보호 프로시저는 모두 `UNAUTHORIZED` | `apps/web/src/app/login/page.tsx` |
 
 ## 주요 흐름
@@ -196,6 +197,7 @@ flowchart LR
 |---|---|---|---|---|
 | `user` | 사용자 | `packages/db/src/schema/auth.ts` | 해당 없음 | Better Auth 생성물 (`pnpm auth:generate`) |
 | `session`, `account`, `verification` | 해당 없음 | `packages/db/src/schema/auth.ts` | 해당 없음 | Better Auth 내부 테이블 |
+| `rate_limit` | 해당 없음 | `packages/db/src/schema/auth.ts`(`rateLimit`) | 해당 없음 | Better Auth 시도 제한(T15-a, `rateLimit.storage: "database"`). 키는 `<IP>|<경로>`, 로그인(`/sign-in/email`)은 60초 5회, 나머지 인증 경로는 라이브러리 기본. 함수 인스턴스가 여럿이어도 같은 횟수를 센다. 오래된 행은 라이브러리가 창이 다시 시작될 때 지운다 |
 | `provider_list_cache` | 목록 캐시(코드 `providerListCache`) | `packages/db/src/schema/provider-cache.ts` | `owner_id`(null 허용, `user` 외래 키 없음) | 공급자 성우 목록 한 페이지를 조건별로 24시간 보관한다([ADR 0003](../adr/0003-postgres-cache.md)). 키는 소유자·공급자·목록 종류(`public`·`account`·`accents`)·정규화한 조건의 해시·계약 판(`CONTRACT_VERSION`)이고 `NULLS NOT DISTINCT` 유니크다. 계정 목록 행만 소유자 id가 있고 공개·억양 행은 null(소유자끼리 함께 씀). 지워도 되는 데이터라 `user` 외래 키를 걸지 않는다. 만료 뒤 7일이 지난 행은 쓰기 때 지운다 |
 | `provider_cooldown` | 공급자 대기 시각(코드 `providerCooldown`) | `packages/db/src/schema/provider-cache.ts` | 해당 없음(공급자별 한 행) | 공급자 429 `Retry-After`로 정한 다음 호출 가능 시각(1시간 상한). 그 전에는 그 공급자를 부르지 않는다. 서버 인스턴스끼리 메모리를 나누지 않으므로 DB에 둔다. T4 목록과 T5 시험 생성이 이 표를 쓴다 |
 | `channel` | 채널 | `packages/db/src/schema/classification.ts` | `owner_id`(서버가 정한 소유자, `user` 외래 키 없음, [ADR 0004](../adr/0004-channel-classification-storage.md)) | 채널 이름·메모(null 허용)·채널 주소(`url`, null 허용). 같은 소유자 안에서 `lower(name)` 유니크 인덱스 `channel_name`으로 대소문자만 다른 중복을 막는다. 프리셋(`voice_preset.channel_id`, `on delete set null`)이 하나만 가리키고, 채널 기본은 `channel_default_preset`이 따로 가리킨다([ADR 0005](../adr/0005-channel-default-preset.md)). 저장 대본(`script.channel_id`, `on delete set null`)도 하나만 가리킨다 |

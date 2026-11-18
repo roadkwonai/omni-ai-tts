@@ -1105,6 +1105,30 @@ describe.skipIf(!url)("드라마 프로시저(T9.5 스펙 3·8절)", () => {
 		expect((await rows())[0]?.audioType).toBe("audio/wav");
 	});
 
+	it("늦은 결과 저장은 context.defer로 한 번 넘기고, 넘긴 작업이 끝나면 done·사용 이력 1(T15-a, ADR 0013)", async () => {
+		const late = lateOnce();
+		const tasks: Promise<unknown>[] = [];
+		const defer = vi.fn((task: Promise<unknown>) => {
+			tasks.push(task);
+		});
+		await expect(
+			as(OWNER, { defer }).dramaCreate({
+				requestId: crypto.randomUUID(),
+				request: drama(),
+			}),
+		).rejects.toMatchObject({ code: "GATEWAY_TIMEOUT" });
+		expect(defer).toHaveBeenCalledTimes(1);
+		late.deliver(scene());
+		// 넘긴 작업 하나가 저장 전체(완료 쓰기와 사용 이력)를 덮는다. 기다린 뒤 바로 본다
+		await Promise.all(tasks);
+		expect((await me.dramaList())[0]).toMatchObject({
+			status: "done",
+			bytes: WAV_BYTES,
+		});
+		expect(await used(JIYEON)).toBe(1);
+		expect(await used(MINSU)).toBe(1);
+	});
+
 	it("늦은 실패 → unknown 그대로, 로그는 오류 이름만", async () => {
 		const log = vi.spyOn(console, "error").mockImplementation(() => {});
 		const late = lateOnce();

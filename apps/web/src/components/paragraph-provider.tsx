@@ -33,6 +33,8 @@ import { loadStored, saveBlob, store } from "@/lib/browser";
 import { MESSAGES, saveFailure } from "@/lib/classes-view";
 import { soundExt } from "@/lib/drama-read";
 import {
+	CHUNK_MAX_BYTES,
+	chunkTargets,
 	type Found,
 	type FoundMap,
 	findTargets,
@@ -478,7 +480,7 @@ export function WorkProvider({ children }: { children: ReactNode }) {
 		if (saveTimer.current) clearTimeout(saveTimer.current);
 		saveTimer.current = setTimeout(persist, SAVE_DELAY);
 	}
-	// 그 문단들의 요청 가운데 표에 없는 것(all이면 모두)을 200개씩 찾아 합친다. 공급자는 부르지 않는다(studioFindMany)
+	// 그 문단들의 요청 가운데 표에 없는 것(all이면 모두)을 개수(PARAGRAPHS_MAX)와 본문 크기 한도로 나눠 찾아 합친다. 공급자는 부르지 않는다(studioFindMany)
 	async function fetchFound(
 		ps: Paragraph[],
 		work: Work,
@@ -487,8 +489,11 @@ export function WorkProvider({ children }: { children: ReactNode }) {
 		all: boolean,
 	) {
 		const targets = findTargets(ps, work, list, foundRef.current, all, at);
-		for (let i = 0; i < targets.length; i += PARAGRAPHS_MAX) {
-			const chunk = targets.slice(i, i + PARAGRAPHS_MAX);
+		for (const chunk of chunkTargets(
+			targets,
+			PARAGRAPHS_MAX,
+			CHUNK_MAX_BYTES,
+		)) {
 			const results = await client.studioFindMany(chunk);
 			changeFound((table) => mergeFound(table, chunk, results));
 		}

@@ -26,6 +26,7 @@ import {
 } from "./providers/trial-options";
 import { testDb as db, testDatabaseUrl as url } from "./test-db";
 import {
+	AUDIO_WRITE_TIMEOUT_MS,
 	audioOf,
 	audioPart,
 	claim,
@@ -644,6 +645,26 @@ describe.skipIf(!url)("작업실 생성 기록", () => {
 			code: "NOT_FOUND",
 		});
 		expect(await bytesOf(await audioPart(db, A, studio, 0))).toEqual(MP3);
+	});
+
+	it("오디오를 쓰는 완료 질의(complete·늦은 결과)만 시간 제한 20초로 보내고 다른 질의는 풀 기본(3초)이다(T15-a Task 0)", async () => {
+		expect(AUDIO_WRITE_TIMEOUT_MS).toBe(20_000);
+		const unknown = await row(A, "studio", "unknown");
+		const query = vi.spyOn(db.$client, "query");
+		const done = await row(A, "studio", "done");
+		await saveLate(db, studioLate(A, unknown), mp3());
+		const timeouts = query.mock.calls.map(
+			([config]) => (config as { query_timeout?: number }).query_timeout,
+		);
+		// 선점(갱신·insert)·사용 이력 같은 다른 질의는 질의별 값이 없다
+		expect(timeouts.filter((ms) => ms !== undefined)).toEqual([
+			AUDIO_WRITE_TIMEOUT_MS,
+			AUDIO_WRITE_TIMEOUT_MS,
+		]);
+		expect(timeouts.length).toBeGreaterThan(2);
+		expect(await statusOf(done)).toBe("done");
+		expect(await statusOf(unknown)).toBe("done");
+		expect(await bytesOf(await audioPart(db, A, unknown, 0))).toEqual(MP3);
 	});
 
 	it("complete는 넘긴 segments를 저장하고, 넘기지 않으면 null 그대로다", async () => {

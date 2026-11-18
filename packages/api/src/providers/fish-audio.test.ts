@@ -1022,7 +1022,7 @@ describe("Fish Audio 장면 생성 (T9.5)", () => {
 			(_url, init) =>
 				new Promise<Response>((resolve, reject) => {
 					abortable(init, reject);
-					// 180초 뒤, 300초 전에 답한다
+					// 180초 뒤, 늦은 상한(270초) 전에 답한다
 					setTimeout(() => resolve(sseOf(SMALL)), STUDIO_TIMEOUT_MS + 20_000);
 				}),
 		);
@@ -1041,13 +1041,15 @@ describe("Fish Audio 장면 생성 (T9.5)", () => {
 		const late = await onLate.mock.calls[0]?.[0];
 		expect(Array.from(late?.pcm ?? [])).toEqual([1, 2, 3, 4]);
 		expect(late?.segments).toEqual([{ text: "안녕", start: 0, end: 0 }]);
-		// 끝난 요청의 300초 상한 타이머는 지웠다
+		// 끝난 요청의 늦은 상한 타이머는 지웠다
 		expect(vi.getTimerCount()).toBe(0);
 		await vi.advanceTimersByTimeAsync(SCENE_LATE_MAX_MS);
 		expect(signal?.aborted).toBe(false);
 	});
 
-	it("300초까지 답이 없으면 fetch 신호를 끊고 늦은 약속은 거절된다(E2)", async () => {
+	it("270초까지 답이 없으면 fetch 신호를 끊고 늦은 약속은 거절된다(E2, ADR 0013)", async () => {
+		// Vercel Hobby 함수 300초 − 저장 여유 30초
+		expect(SCENE_LATE_MAX_MS).toBe(270_000);
 		vi.useFakeTimers();
 		fetchMock.mockImplementation(
 			(_url, init) =>
@@ -1092,7 +1094,7 @@ describe("Fish Audio 장면 생성 (T9.5)", () => {
 		});
 		await vi.advanceTimersByTimeAsync(1);
 		await failed;
-		// 끊긴 요청은 300초 상한까지 그대로 둔다(아래 정리용으로 끝까지 돌린다)
+		// 끊긴 요청은 늦은 상한(SCENE_LATE_MAX_MS)까지 그대로 둔다(아래 정리용으로 끝까지 돌린다)
 		expect(fetchMock.mock.calls[0]?.[1]?.signal?.aborted).toBe(false);
 		await vi.advanceTimersByTimeAsync(SCENE_LATE_MAX_MS);
 	});

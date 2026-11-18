@@ -325,7 +325,8 @@ export function createFishAudio(apiKey: string): ProviderClient {
 			runTrial(
 				"fish_audio",
 				async () => {
-					// shortcut: 끊긴 요청은 최대 300초 뒤에서 돌고 그동안 동시 1건에 들지 않는다(T9 P8과 같다). 배포·긴 장면은 T15에서 정한다
+					// shortcut: 끊긴 요청은 늦은 상한(SCENE_LATE_MAX_MS 270초)까지 뒤에서 돌고 그동안 동시 1건에 들지 않는다(T9 P8과 같다).
+					// 270초를 넘는 장면 결과는 잃는다(Vercel Hobby 함수 300초, ADR 0013). 그런 장면이 실제로 생기면 플랜을 다시 본다
 					const cap = new AbortController();
 					// AbortSignal.timeout()은 가짜 타이머로 진행되지 않는다(withTimeout과 같다)
 					const timer = setTimeout(() => cap.abort(), SCENE_LATE_MAX_MS);
