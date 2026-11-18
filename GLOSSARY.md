@@ -1,4 +1,4 @@
-# TTS Pilot — 개인 음성 제작 작업실
+# Omni AI TTS — 개인 음성 제작 작업실
 
 Typecast·ElevenLabs·Fish Audio·Airy·Gemini 성우를 탐색하고 개인 분류와 대본을 재사용하여 음성을 제작하는 작업실이다. 이 문서는 제품 용어의 정본이며 기능 요구사항과 구현 결정은 별도 문서에 둔다.
 

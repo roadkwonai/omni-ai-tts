@@ -24,6 +24,7 @@ import {
 	WandSparkles,
 } from "lucide-react";
 import type { Route } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -228,9 +229,16 @@ export function AppNav({ email }: { email: string }) {
 				<Link
 					href="/studio"
 					translate="no"
-					className="mb-3 hidden min-h-11 items-center rounded-md px-3 font-bold text-2xl tracking-tight outline-offset-2 focus-visible:outline-2 focus-visible:outline-ring xl:flex"
+					className="mb-3 hidden min-h-11 items-center justify-center gap-3 rounded-md font-bold text-2xl tracking-tight outline-offset-2 focus-visible:outline-2 focus-visible:outline-ring md:flex xl:justify-start xl:px-3"
 				>
-					TTS Pilot
+					<Image
+						src="/brand/logo-symbol.png"
+						alt=""
+						width={32}
+						height={32}
+						className="size-8 shrink-0 rounded-md dark:bg-foreground"
+					/>
+					<span className={srOnlyAtIconNav}>Omni AI TTS</span>
 				</Link>
 				<ul className="grid grid-cols-4 gap-0.5 px-2 py-1 md:flex md:flex-col md:gap-1 md:p-0">
 					{OPEN_ITEMS.map((item) => {

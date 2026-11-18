@@ -1,4 +1,5 @@
 @import "@tts-pilot-app/ui/globals.css";
+@import "./components/landing/landing.css";
 
 /* 화면 밖 성우 행은 그리기를 미룬다(T4, rendering-content-visibility). 행 높이 약 69px(min-h-17 + divide-y 1px, 실측)이라 auto 4.3125rem. */
 .voice-row {

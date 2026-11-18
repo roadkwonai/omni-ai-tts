@@ -1,6 +1,8 @@
-# TTS Pilot
+# Omni AI TTS
 
 <!-- impeccable:product-schema 1 -->
+
+표시 이름은 Omni AI TTS다(2026-11-18 사용자, 이전 이름 TTS Pilot. 코드 식별자 `tts-pilot-app`은 그대로). 공개 첫 화면 `/`는 포트폴리오 방문자에게 서비스를 소개하는 랜딩이고 주 행동은 '기능 둘러보기'다(가입·데모 없음, 데모는 T16). 로고는 물결 링 안 막대 다섯(공급자 다섯), 마스코트는 헤드폰을 쓴 마이크 캐릭터다([랜딩 브리프](docs/briefs/landing.md)).
 
 ## Platform
 
@@ -29,7 +31,7 @@ Typecast·ElevenLabs·Fish Audio·Airy·Gemini의 성우를 미리 듣고 용도
 
 ## Brand Commitments
 
-`DESIGN.md`의 시각 언어(2026-10-03 리디자인: getdesign.kr 채널톡 항목, 대표 색 청록 `oklch(0.51 0.085 200)`)와 Pretendard를 사용한다. 제목과 본문 모두 기존 로컬 Pretendard Variable 자산을 쓴다. 화면의 주인공은 대본 텍스트와 그 낭독이고, 돈이 드는 동작에는 앱 전체에서 같은 표식 하나를 쓴다. UI 작업은 bts-ui → impeccable 절차를 따른다. 제품명은 저장소 이름에서 온 TTS Pilot 작업명이다.
+`DESIGN.md`의 시각 언어(2026-10-03 리디자인: getdesign.kr 채널톡 항목, 대표 색 청록 `oklch(0.51 0.085 200)`)와 Pretendard를 사용한다. 제목과 본문 모두 기존 로컬 Pretendard Variable 자산을 쓴다. 화면의 주인공은 대본 텍스트와 그 낭독이고, 돈이 드는 동작에는 앱 전체에서 같은 표식 하나를 쓴다. UI 작업은 bts-ui → impeccable 절차를 따른다. 제품의 표시 이름은 Omni AI TTS다(이전 작업명 TTS Pilot은 저장소 이름 `tts-pilot-app`에 남는다).
 
 ## Evidence on Hand
 

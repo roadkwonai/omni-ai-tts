@@ -1,0 +1,250 @@
+/* 공개 랜딩 모션(docs/briefs/landing.md 6절). 곡선·시간 토큰은 packages/ui의 globals.css(--ease-*, --landing-*).
+   transition: all, scale(0), ease-in, 무한 반복은 쓰지 않는다. 움직임 줄이기 설정은 globals.css가 시간을 0.01ms로 줄여 바로 끝 상태가 되고,
+   처음부터 숨기는 상태(아래 @media)만 따로 푼다. hover 모션은 (hover: hover) and (pointer: fine) 안에서만 둔다. */
+
+@keyframes landing-in {
+	from {
+		opacity: 0;
+		transform: translateY(--spacing(4));
+	}
+}
+@keyframes landing-scale-in {
+	from {
+		opacity: 0;
+		transform: scale(0.96);
+	}
+}
+@keyframes landing-rise {
+	from {
+		opacity: 0;
+		transform: translateY(--spacing(8));
+	}
+}
+
+/* 히어로: 마운트 때 한 번, 비등간격 0·60·130·210ms(Orchestration: 간격이 점점 벌어져 앞이 빨리 읽힌다), 마스코트는 마지막(290ms).
+   단계는 data-step이 정하고, 증거 한 줄(3)은 주 버튼(2)과 같이 올라온다 */
+.landing-hero-in {
+	animation: landing-in var(--landing-duration-hero) var(--ease-out) both;
+}
+.landing-hero-in[data-step="1"] {
+	animation-delay: 60ms;
+}
+.landing-hero-in[data-step="2"],
+.landing-hero-in[data-step="3"] {
+	animation-delay: 130ms;
+}
+.landing-hero-in[data-step="4"] {
+	animation-delay: 210ms;
+}
+.landing-mascot-in {
+	animation: landing-scale-in var(--landing-duration-hero) var(--ease-out) both;
+	animation-delay: 290ms;
+}
+
+/* 스크롤 reveal(Reveal 컴포넌트가 data-reveal을 붙인다): 기본은 보이고, 화면 아래 섹션만 hidden → shown(한 번)이다.
+   landing-stagger 래퍼는 자기 대신 안의 landing-item을 60ms 간격으로 올린다 */
+[data-reveal="hidden"]:not(.landing-stagger),
+.landing-stagger[data-reveal="hidden"] .landing-item {
+	opacity: 0;
+}
+[data-reveal="shown"]:not(.landing-stagger),
+.landing-stagger[data-reveal="shown"] .landing-item {
+	animation: landing-rise var(--landing-duration-reveal) var(--ease-out) both;
+}
+.landing-item:nth-child(2) {
+	animation-delay: calc(var(--landing-stagger) * 1);
+}
+.landing-item:nth-child(3) {
+	animation-delay: calc(var(--landing-stagger) * 2);
+}
+.landing-item:nth-child(4) {
+	animation-delay: calc(var(--landing-stagger) * 3);
+}
+.landing-item:nth-child(5) {
+	animation-delay: calc(var(--landing-stagger) * 4);
+}
+.landing-item:nth-child(6) {
+	animation-delay: calc(var(--landing-stagger) * 5);
+}
+/* 움직임 줄이기: 시간은 globals.css가 0.01ms로 줄이지만 지연은 남아 첫 화면이 비어 보이므로 지연을 없애고, 숨김 상태도 풀어 둔다.
+   선택자 구체성을 위 지연 규칙과 같게 맞춰 뒤에 두어 !important 없이 이긴다 */
+@media (prefers-reduced-motion: reduce) {
+	[data-reveal="hidden"]:not(.landing-stagger),
+	.landing-stagger[data-reveal="hidden"] .landing-item {
+		opacity: 1;
+	}
+	.landing-hero-in[data-step],
+	.landing-mascot-in,
+	.landing-item:nth-child(n) {
+		animation-delay: 0s;
+	}
+}
+
+/* 태그라인: 어절마다 30% → 100%. Tagline 컴포넌트가 화면 아래일 때만 data-armed를 붙인다(JS가 없으면 처음부터 진하다) */
+.landing-tagline[data-armed] .landing-word {
+	opacity: 0.3;
+	transition: opacity 300ms var(--ease-out);
+}
+.landing-tagline[data-armed] .landing-word[data-on] {
+	opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+	.landing-tagline[data-armed] .landing-word {
+		opacity: 1;
+	}
+}
+
+/* 누름 피드백: scale 0.97. 색 전환은 앱 기본(150ms)을 그대로 두고 scale만 120ms다 */
+.landing-press {
+	transition-property: color, background-color, border-color, scale;
+	transition-duration: 150ms, 150ms, 150ms, var(--landing-duration-press);
+	transition-timing-function:
+		var(--default-transition-timing-function),
+		var(--default-transition-timing-function),
+		var(--default-transition-timing-function), var(--ease-out);
+}
+.landing-press:active {
+	scale: 0.97;
+}
+@media (prefers-reduced-motion: reduce) {
+	.landing-press:active {
+		scale: none;
+	}
+}
+
+/* 기능 투어: 탭 밑줄은 선택한 탭 위치로 미끄러지고(첫 자리는 움직이지 않는다), 스크린샷은 크로스페이드 */
+.landing-tour-indicator {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	height: 2px;
+	width: var(--active-tab-width);
+	background: var(--primary);
+	transform: translateX(var(--active-tab-left));
+	transition: transform 200ms var(--ease-in-out);
+}
+/* width 전환 대신 transform만: 1px 폭 막대를 scaleX(탭 폭 / 1px)로 늘린다. 길이를 숫자로 나누는 calc가 되는 브라우저에서만 켜고,
+   안 되는 곳은 위처럼 폭은 바로 바뀌고 위치만 미끄러진다. shortcut: 폭이 순간 이동하는 폴백, 모든 대상 브라우저가 길이 나눗셈을 지원하면 위 폭 줄을 지운다 */
+@supports (scale: calc(10px / 1px)) {
+	.landing-tour-indicator {
+		width: 1px;
+		transform-origin: left;
+		transform: translateX(var(--active-tab-left))
+			scaleX(calc(var(--active-tab-width) / 1px));
+	}
+}
+.landing-tour-indicator[data-activation-direction="none"] {
+	transition: none;
+}
+.landing-tour-panel {
+	transition: opacity 200ms var(--ease-out);
+}
+.landing-tour-panel:is([data-starting-style], [data-ending-style]) {
+	opacity: 0;
+}
+
+/* FAQ: 높이 아코디언(높이는 transform 대체가 없는 예외) */
+.landing-faq-panel {
+	height: var(--accordion-panel-height);
+	overflow: hidden;
+	transition:
+		height 200ms var(--ease-out),
+		opacity 200ms var(--ease-out);
+}
+.landing-faq-panel:is([data-starting-style], [data-ending-style]) {
+	height: 0;
+	opacity: 0;
+}
+/* 닫기는 열기보다 빠르게(150ms) */
+.landing-faq-panel[data-ending-style] {
+	transition-duration: 150ms;
+}
+
+/* 휴대폰 메뉴: 패널은 위에서 내려오며 나타나고, 링크는 60ms 간격으로 올라온다(마지막 지연 150ms로 합 400ms 이하) */
+.landing-menu-panel {
+	transition:
+		opacity 300ms var(--ease-drawer),
+		transform 300ms var(--ease-drawer);
+}
+.landing-menu-panel:is([data-starting-style], [data-ending-style]) {
+	opacity: 0;
+	transform: translateY(calc(--spacing(4) * -1));
+}
+/* 닫기는 열기보다 빠르게: 200ms ease-out(열기는 위 300ms drawer 곡선) */
+.landing-menu-panel[data-ending-style] {
+	transition-duration: 200ms;
+	transition-timing-function: var(--ease-out);
+}
+.landing-menu-link {
+	transition:
+		opacity 250ms var(--ease-out),
+		transform 250ms var(--ease-out);
+}
+.landing-menu-panel[data-starting-style] .landing-menu-link {
+	opacity: 0;
+	transform: translateY(--spacing(6));
+}
+.landing-menu-panel:not([data-ending-style]) .landing-menu-link:nth-child(2) {
+	transition-delay: calc(var(--landing-stagger) * 1);
+}
+.landing-menu-panel:not([data-ending-style]) .landing-menu-link:nth-child(3) {
+	transition-delay: calc(var(--landing-stagger) * 2);
+}
+.landing-menu-panel:not([data-ending-style])
+	.landing-menu-link:nth-child(n + 4) {
+	transition-delay: calc(var(--landing-stagger) * 2.5);
+}
+@media (prefers-reduced-motion: reduce) {
+	.landing-menu-panel:is([data-starting-style], [data-ending-style]) {
+		transform: none;
+	}
+	.landing-menu-panel[data-starting-style] .landing-menu-link {
+		transform: none;
+	}
+}
+
+/* 메뉴 아이콘: 줄 둘이 ☰ → ✕로 모핑한다. 패널 안 닫기 단추는 열릴 때 ☰에서 ✕로, 닫힐 때 거꾸로 움직인다 */
+.landing-menu-icon {
+	position: relative;
+	display: block;
+	width: --spacing(5);
+	height: --spacing(5);
+}
+.landing-menu-icon > span {
+	position: absolute;
+	inset-inline: 0;
+	top: 50%;
+	height: 2px;
+	margin-top: -1px;
+	border-radius: 1px;
+	background: currentColor;
+	transition: transform 200ms var(--ease-in-out);
+}
+.landing-menu-icon > span:first-child {
+	transform: translateY(calc(--spacing(1) * -1));
+}
+.landing-menu-icon > span:last-child {
+	transform: translateY(--spacing(1));
+}
+.landing-menu-icon[data-open] > span:first-child {
+	transform: rotate(45deg);
+}
+.landing-menu-icon[data-open] > span:last-child {
+	transform: rotate(-45deg);
+}
+.landing-menu-panel:is([data-starting-style], [data-ending-style])
+	.landing-menu-icon[data-open]
+	> span:first-child {
+	transform: translateY(calc(--spacing(1) * -1));
+}
+.landing-menu-panel:is([data-starting-style], [data-ending-style])
+	.landing-menu-icon[data-open]
+	> span:last-child {
+	transform: translateY(--spacing(1));
+}
+
+/* 떠 있는 막대(top-3 + h-14)에 키보드 포커스·앵커 이동이 가리지 않게 페이지 위쪽 scroll-padding을 둔다(앱 index.css의 같은 방식).
+   12 + 56 + 여유 16px, md 이상·이하 모두. 랜딩 본문이 있을 때만 걸린다(globals.css의 max-md:scroll-pt-16보다 구체적이라 이긴다) */
+:root:has(#landing-content) {
+	scroll-padding-top: calc(--spacing(3) + --spacing(14) + --spacing(4));
+}

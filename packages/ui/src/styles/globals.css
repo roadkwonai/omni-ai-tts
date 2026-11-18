@@ -1,3 +1,6 @@
+/* UI SDK(@ui-sdk, 랜딩의 탭·FAQ·메뉴 동작)가 닫힌 팝업 숨김 같은 동작 CSS를 이 층에 더한다. 가장 낮은 층이라 우리 스타일이 이긴다 */
+@layer ui-sdk;
+
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -7,7 +10,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-	/* DESIGN.md(2026-10-03 교체: 채널톡 문법 + TTS Pilot 청록) — Light. 대비는 T2 계획 "계획에서 정한 것"의 토큰 표 */
+	/* DESIGN.md(2026-10-03 교체: 채널톡 문법 + Omni AI TTS 청록) — Light. 대비는 T2 계획 "계획에서 정한 것"의 토큰 표 */
 	--background: oklch(0.976 0.001 286); /* grey-100, 페이지 바탕 */
 	--foreground: oklch(0 0 0 / 0.85); /* black-85 */
 	--card: oklch(1 0 0);
@@ -204,6 +207,23 @@
 	--breakpoint-xl: 75rem;
 	--default-transition-duration: 150ms;
 	--default-transition-timing-function: cubic-bezier(0.3, 0, 0, 1);
+	/* 랜딩 값(docs/briefs/landing.md 5절): 섹션 위아래 간격 64px·80px, 히어로 제목·부제 폭 680px */
+	--spacing-section: 4rem;
+	--spacing-section-lg: 5rem;
+	--container-hero: 42.5rem;
+}
+
+/* 랜딩 모션 곡선과 시간(브리프 6절, animate 스킬 표 값). 앱의 색 전환 기본(위 --default-transition-*)은 그대로 쓴다.
+   :root에 둔 --ease-out은 Tailwind 테마의 기본 --ease-out을 덮어쓴다(@layer 밖이라 이긴다). 그래서 랜딩 CSS뿐 아니라 앱의 ease-out 유틸리티도 이 값을 쓴다.
+   시간은 Tailwind 기본 단계에 없는 값만 토큰이다 */
+:root {
+	--ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+	--ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+	--ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+	--landing-duration-hero: 600ms;
+	--landing-duration-reveal: 700ms;
+	--landing-duration-press: 120ms;
+	--landing-stagger: 60ms;
 }
 
 @layer base {

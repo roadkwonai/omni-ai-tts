@@ -97,6 +97,9 @@ tasks/evidence/
 # OMC·OMX·pro-kit 런타임 상태
 .prokit/
 
+# gpt-image 원본 생성물(반영한 결과물은 apps/web/public/brand, docs/assets에 있다)
+/generated-images/
+
 # Claude Code 개인 설정
 .claude/settings.local.json
 

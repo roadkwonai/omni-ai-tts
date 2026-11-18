@@ -10,16 +10,20 @@
 ## 사용자와 권한
 | 역할 | 할 수 있는 일 | 확인 위치 |
 |---|---|---|
-| 소유자 | 이메일·비밀번호로 로그인한 세션의 이메일이 서버 환경 변수 `OWNER_EMAILS`를 정리한 값 정확히 하나와 같을 때만 `context.ownerId = user.id`다(T14, [ADR 0012](../adr/0012-session-owner-single-allowlist.md)). 목록이 비거나 둘 이상이면 아무도 소유자가 아니다. 공개 가입은 서버에서 막히고(`disableSignUp`), 계정은 로컬 DB에서만 `pnpm owner:create`로 만든다([계정 안내](../owner-account.md)). 로그인하지 않으면 페이지는 `/login`으로 간다(proxy 쿠키 확인 + `(app)/layout`의 서버 판정) | `packages/api/src/owner.ts`, `apps/web/src/context.ts`(`readOwner`·`getOwnerSession`), `apps/web/src/proxy.ts`, `protectedProcedure` |
+| 소유자 | 이메일·비밀번호로 로그인한 세션의 이메일이 서버 환경 변수 `OWNER_EMAILS`를 정리한 값 정확히 하나와 같을 때만 `context.ownerId = user.id`다(T14, [ADR 0012](../adr/0012-session-owner-single-allowlist.md)). 목록이 비거나 둘 이상이면 아무도 소유자가 아니다. 공개 가입은 서버에서 막히고(`disableSignUp`), 계정은 로컬 DB에서만 `pnpm owner:create`로 만든다([계정 안내](../owner-account.md)). 로그인하지 않으면 `/`·`/login` 밖의 페이지는 `/login`으로 간다(proxy 쿠키 확인 + `(app)/layout`의 서버 판정) | `packages/api/src/owner.ts`, `apps/web/src/context.ts`(`readOwner`·`getOwnerSession`), `apps/web/src/proxy.ts`, `protectedProcedure` |
 | 배포 | 운영 주소 `https://omni-ai-tts.vercel.app`(T15-a, [ADR 0013](../adr/0013-first-deploy-vercel-neon-singapore.md)). Vercel Hobby 함수 `sin1`, 운영 DB는 Vercel Storage로 만든 Neon(싱가포르). 로그인은 IP당 1분 5회까지(그 뒤 429). `/api/rpc` 함수는 최대 300초이고 늦은 공급자 결과는 응답 뒤 작업(`after`)으로 저장한다 | `apps/web/src/app/api/rpc/[[...rest]]/route.ts`, `apps/web/vercel.json`, `packages/auth/src/index.ts` |
-| 소유자가 아닌 로그인 사용자 | '접근 권한 없음'과 로그아웃만 본다. 보호 프로시저는 모두 `UNAUTHORIZED` | `apps/web/src/app/login/page.tsx` |
+| 방문자(로그인하지 않음) | 공개 소개 페이지 `/`와 `/login`만 본다. 다른 화면은 proxy가 `/login?next=`로 보내고 데이터는 `protectedProcedure`가 막는다 | `apps/web/src/proxy.ts`, `apps/web/src/app/page.tsx` |
+| 소유자가 아닌 로그인 사용자 | '접근 권한 없음'과 로그아웃만 본다(`/`에서는 공개 소개 페이지). 보호 프로시저는 모두 `UNAUTHORIZED` | `apps/web/src/app/login/page.tsx` |
 
 ## 주요 흐름
 사용자가 목적을 이루는 흐름을 화면(URL)과 프로시저로 그린다. 흐름이 바뀐 라운드에서 고친다.
 
 ```mermaid
 flowchart LR
-  R["/"] --> S["/studio<br/>음성 작업실"]
+  R["/"] -->|소유자 세션| S["/studio<br/>음성 작업실"]
+  R -->|방문자| LD["공개 소개 페이지<br/>기능 투어·FAQ"]
+  LD -->|소유자 로그인| LG["/login"]
+  LG --> S
   S --> C["/connections<br/>연결 상태"]
   C -->|providerStatus × 5| P["Typecast · ElevenLabs · Fish Audio · Airy · Gemini<br/>계정 조회"]
   S --> CL["/classes<br/>채널·분류"]
@@ -115,8 +119,8 @@ flowchart LR
 ## 화면과 URL
 | URL | 화면 | 보호 | 파일 |
 |---|---|---|---|
-| `/` | `/studio`로 이동 | 로그인한 소유자(아니면 `/login`) | `apps/web/src/app/page.tsx` |
-| `/login` | 로그인: 메뉴 없는 판(글자 로고, 안내 한 줄, 이메일·비밀번호, 오류 한 줄, '로그인'). `?next=`(앱 안 경로만)로 돌아간다. 이미 소유자면 `next`로, 소유자가 아닌 로그인 사용자는 '접근 권한 없음' 판과 '로그아웃' | 공개 | `apps/web/src/app/login/page.tsx` |
+| `/` | 공개 소개 페이지(랜딩, T15-a): 떠 있는 막대(할 수 있는 일·작동 방식·만든 방법·FAQ 앵커, '로그인'), 히어로('기능 둘러보기' → `#tour`), 할 수 있는 일 5, 태그라인, 작동 방식 3단계, 기능 투어 `#tour`(실제 화면 6탭), 만든 방법, FAQ(FAQPage JSON-LD), 마지막 행동('맨 위로' → `#top`, '소유자 로그인' → `/login`), 바닥. 소유자 세션이면 `/studio`로 이동 | 없음(공개. 세션만 읽어 소유자를 보낸다, proxy가 쿠키 없이 통과) | `apps/web/src/app/page.tsx`, `apps/web/src/components/landing/` |
+| `/login` | 로그인: 메뉴 없는 판(심볼+글자 로고, 안내 한 줄, 이메일·비밀번호, 오류 한 줄, '로그인'). `?next=`(앱 안 경로만)로 돌아간다. 이미 소유자면 `next`로, 소유자가 아닌 로그인 사용자는 '접근 권한 없음' 판과 '로그아웃' | 공개 | `apps/web/src/app/login/page.tsx` |
 | `/studio` | 음성 작업실(문단 작업실): 머리의 채널 고르기·'프리셋' 메뉴, 작업 설정(기본 성우, 화자 칸(화자가 있을 때: 색 원·이름·문단 수·성우 단추·지우기), 문단 뒤 쉼, '대본 붙여 넣기'), 머리 '고르기'와 목록 위 고르기 막대(모두 고르기·N/M개 고름·성우·화자·쉼·따르기·지우기·끝내기), 문단 카드 목록(카드마다 고르기 체크(고르기 중)·번호·화자 표식·성우·상태 '만듦'/'안 만듦'/'확인 중'·듣기 또는 만들기·'설정'·⋯ 메뉴, 대본 칸 `N / 상한자`, 카드 사이 쉼 가름선), 작업 요약(만든 문단 N/M, 예상 길이, 글자 수, 공급자별 예상 사용량, '자동 태그' 버튼(작업 설정 '대본' 칸·작업 띠), 문단 카드 대본 칸 아래 태그 도구줄, 숫자가 있는 카드의 숫자 줄(발음용 대본 판·'숫자 N개 검수 안 함 · 검수하기'), '숫자 검수' 버튼(자동 태그 옆)과 숫자 검수 창, 처음 멈춘·막힌·안 만든 문단으로 가는 링크(멈춘 → 막힌 → 안 만든 순)), 가운데 열 바닥에 붙은 막대(결과 플레이어와 이어 듣기 중 이전·다음 문단·'문단 N 재생 중', 진행 한 줄, '전체 만들기'·'이어서 만들기'·'멈추기', '받기' 메뉴), 유료 확인 창. 본문 폭에 따라 3단·2단·1단. 머리 맨 앞 '대본' 메뉴(연결된 대본 제목·저장 안 됨 점, '저장'·'새 대본으로 저장…'·'보관함에서 넣기…'·'대본 보관함' 링크)와 새 대본으로 저장 창·보관함에서 넣기 창(이어 넣기·바꾸기)·미저장 경고·충돌 창, `?script=<id>`로 오면 그 대본의 바꾸기 확인 뒤 주소에서 뺌. 대본·성우·설정·채널·화자는 이 브라우저에 임시 작업으로 남고(작업 id·연결된 대본 포함), 저장은 대본 보관함에 한다 | 로그인한 소유자(`(app)/layout`, 아니면 `/login`). 데이터는 `protectedProcedure`가 막고, 쓰는 중 세션이 끝나면 '로그인이 끝났어요' 안내 | `apps/web/src/app/(app)/studio/page.tsx` |
 | `/drama` | 드라마 작업실: 머리(장면 이름, 모델 고르기, '샘플링' 창), 화자 띠(한 줄 띠: 색 원·이름·성우 버튼·기본 샘플·빼기, 구역 머리의 '화자 추가' 4명까지, 성우 고르기 창 '담은 성우'·'프리셋'·'전체' 탭), 대본 머리('기본 쉼' 칸(초)·'대본 붙여 넣기'·'전체 자동 태그'), 대본(한 층 줄 격자: 번호·화자 칩·지시 칸·대사 칸·'받을 테이크 ▾'·줄 ▶·줄 메뉴, 마지막 줄을 뺀 줄 아래 가름선의 쉼 숫자 칸(초)과 '기본으로', 글자 수, 하단 '줄 추가'와 Enter 도움 줄), 도구줄(마지막으로 포커스한 줄 아래: 연기 지시 알약 다섯 개와 '{묶음} 더 보기'·'분위기'·'범위' 메뉴, Drama 3은 '지시 쓰는 법', Typecast는 강도), 화면 바닥에 고정된 하단 막대(결과 칸: 테이크 모드는 테이크 넘기기와 장면 플레이어, 혼합 대본은 '이어 듣기' 또는 회색 안내 / 동작 칸: '받기' 메뉴와 주 버튼 / 한 줄 칸: 예상 줄·막는 이유·오류. 주 버튼은 Fish 대본이면 '장면 만들기'와 붙은 ▾ '다른 방법'의 '줄마다 읽기', 혼합 대본이면 '읽기'. '받기' 메뉴는 테이크 모드면 장면 파일 (WAV)·쉼 넣어 한 파일로 (WAV)·대사별 파일 (zip), 아니면 한 파일로 받기 (WAV)·줄마다 받기 (zip)), 유료 확인 창·읽기 확인 창·'전체 자동 태그' 미리 보기 창, 무대(테이크가 있거나 만드는 중일 때만: 캡션·안내·시간축·대사별 파일 안내와 '모든 줄을 이 테이크로'), 이전 테이크(최근 20개, 무대에 올리기·지우기, 처리 여부 미확인 줄). 화자·대본·모델·샘플링·장면 이름·줄 사이 쉼(`gap`, 줄 `gap`)은 이 브라우저에 임시 작업으로 남는다(`tts-pilot:drama:v1`) | 로그인한 소유자(`(app)/layout`, 아니면 `/login`). 데이터는 `protectedProcedure`가 막고, 쓰는 중 세션이 끝나면 '로그인이 끝났어요' 안내 | `apps/web/src/app/(app)/drama/page.tsx` |
 | `/connections` | 연결 상태(다섯 공급자의 연결 상태와 잔여 사용량, 공급자별 다시 확인, 카드 1280px 이상 3열·768~1279px 2열·767px 이하 1열. Gemini 카드는 잔액 조회 API가 없어 잔여 사용량 대신 안내 한 줄) | 로그인한 소유자(`(app)/layout`, 아니면 `/login`). 데이터는 `protectedProcedure`가 막고, 쓰는 중 세션이 끝나면 '로그인이 끝났어요' 안내 | `apps/web/src/app/(app)/connections/page.tsx` |

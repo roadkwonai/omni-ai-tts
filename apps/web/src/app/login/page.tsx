@@ -4,6 +4,7 @@ import {
 	CardHeader,
 } from "@tts-pilot-app/ui/components/card";
 import type { Metadata, Route } from "next";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 
 import { AccessDenied } from "@/components/access-denied";
@@ -33,8 +34,18 @@ export default async function LoginPage({
 		<div className="flex min-h-svh justify-center px-4 pt-16 pb-10 md:items-center md:pt-10 md:pb-32">
 			<Card className="h-fit w-full max-w-90 rounded-2xl">
 				<CardHeader>
-					<h1 translate="no" className="font-bold text-2xl tracking-tight">
-						TTS Pilot
+					<h1
+						translate="no"
+						className="flex items-center gap-3 font-bold text-2xl tracking-tight"
+					>
+						<Image
+							src="/brand/logo-symbol.png"
+							alt=""
+							width={40}
+							height={40}
+							className="size-10 rounded-lg dark:bg-foreground"
+						/>
+						Omni AI TTS
 					</h1>
 				</CardHeader>
 				<CardContent className="flex flex-col gap-4">

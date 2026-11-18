@@ -84,6 +84,7 @@
 | `ops` | 배포한 서비스의 비용·성능 점검 | `vercel-optimize` | `prokit-deploy` | <!-- edition:pro -->
 | `ops` | Neon의 오래 도는 함수, 파일 저장, LLM 호출. 새 서비스 의존이라 도입 전에 묻고 `docs/adr/`에 남긴다 | `neon-functions`, `neon-object-storage`, `neon-ai-gateway` | `prokit-db` | <!-- edition:pro -->
 | `motion` | 화면 전환, 공유 요소 애니메이션 | `vercel-react-view-transitions` | `prokit-ui` |
+| `ui-sdk` | `@ui-sdk/react` 부품(공개 랜딩의 탭·FAQ·휴대폰 메뉴)의 키보드·포커스·ARIA 동작. 쓰는 범위는 랜딩 컴포넌트뿐([ADR 0014](docs/adr/0014-ui-sdk-for-landing-behaviors.md)) | `ui-sdk` | `prokit-ui` |
 | `mobile` | React Native·Expo 모바일 앱. 이 프로젝트는 웹 앱만 있으므로 앱을 더하는 결정은 먼저 묻고 `docs/adr/`에 남긴다 | `vercel-react-native-skills` | `prokit-dev-cycle` |
 | `i-have-adhd` | 행동 중심 짧은 응답(다음 행동 먼저, 번호 단계, 다음 할 일 하나). 사용자가 `/i-have-adhd`로 켤 때만 쓰고 대화 응답에만 적용한다 | `i-have-adhd` | `prokit-dev-cycle` |
 | `taste`, `landing`, `tastemaker`, `web-design-engineer`, `awwwards`, `animation`, `visual-critique`, `ui-design` | 화면 디자인 보조(taste-skill 방향과 브라우저 검사, 랜딩 전환, 레퍼런스 스타일 고정, 스타일 레시피와 채점, 쇼케이스 모션, 애니메이션, 7개 차원 화면 비평, 게슈탈트·간격·타입 체계). 주 UI 스킬 흐름에 더하고 대신하지 않는다. 한 화면에 방향 보조는 하나만 쓴다. 아래 스킬이 스스로 불려도 쓰기 전에 `prokit-ui`의 "화면 디자인 보조"와 그 묶음의 guide(`prokit-ui/references/addon-<묶음>.md`)를 읽는다. 추천 조합은 `references/brains/README.md` | `design-taste-frontend`, `landing-page-design`, `tastemaker`, `web-design-engineer`, `build-awwwards-quality-sites`, `emil-design-eng`, `animate`, `improve-animations`, `apple-design`, `animation-vocabulary`, `critique-*` 7개, `law-of-*` 등 19개 | `prokit-ui` |

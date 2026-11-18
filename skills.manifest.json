@@ -184,6 +184,16 @@
 				}
 			]
 		},
+		"ui-sdk": {
+			"description": "화면 동작 라이브러리 UI SDK(@ui-sdk/core·react, 베타)의 키보드·포커스·선택·팝업·ARIA 동작 작성 지침(ui-sdk)",
+			"skills": [
+				{
+					"agents": ["claude-code", "codex"],
+					"source": "vercel-labs/ui",
+					"skills": ["ui-sdk"]
+				}
+			]
+		},
 		"i-have-adhd": {
 			"description": "행동 중심 짧은 응답(/i-have-adhd로 켠다. 대화 응답에만)",
 			"skills": [

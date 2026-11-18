@@ -23,6 +23,8 @@
 		"@tts-pilot-app/auth": "workspace:*",
 		"@tts-pilot-app/db": "workspace:*",
 		"@tts-pilot-app/ui": "workspace:*",
+		"@ui-sdk/core": "0.1.0-beta.7",
+		"@ui-sdk/react": "0.1.0-beta.7",
 		"@varlock/nextjs-integration": "1.2.2",
 		"babel-plugin-react-compiler": "^1.0.0",
 		"better-auth": "catalog:",

@@ -15,6 +15,8 @@
 .superpowers
 tasks/evidence
 coverage
+# gpt-image 원본 생성물(21MB). 배포 소스에 올리지 않는다
+/generated-images
 # pnpm export:html이 만든 정적 사이트(화면만 프로젝트에서 실제 서비스로 바꾼 뒤에도 남을 수 있다)
 /html
 # 로컬 경로와 에이전트 지시가 든 OMX 설정(.codex), Neon 연결 정보(.neon), Supabase CLI 연결 정보(supabase/.temp),

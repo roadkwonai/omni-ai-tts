@@ -1,186 +1,200 @@
-# tts-pilot-app
+<p align="center"><a href="https://omni-ai-tts.vercel.app"><img src="docs/assets/brand/banner.png" alt="Omni AI TTS. 다섯 공급자 성우로 만드는 한국어 음성 작업실" width="840"></a></p>
 
-## TTS UI/UX 기획
+<h1 align="center">Omni AI TTS</h1>
 
-초기는 개인 작업실로 개발하고 공개 가입·결제·팀은 후속으로 확장합니다.
+<p align="center"><strong>성우 찾기부터 음성 파일까지, 다섯 공급자를 한 작업실에서</strong></p>
 
-- [HTML UI 프로토타입 안내](docs/prototypes/tts-studio/README.md)
-- [UI 우선 개발 계획](docs/plans/tts-ui-first-implementation.md)
-- [제품 맥락](PRODUCT.md) · [요구사항](docs/plans/tts-service-requirements.md)
-- [영상 구간 분석](docs/research/tts-video-detailed.md) · [참고 서비스 화면 검토](docs/research/gowith-ux-review.md)
+<p align="center">
+  <em>Typecast · ElevenLabs · Fish Audio · Airy · Gemini 성우를 미리 듣고 담아 두고,<br>
+  대본의 숫자 발음을 검수한 뒤 문단마다 다른 성우로 한국어 음성을 만들어 받는 개인 TTS 작업실입니다.</em>
+</p>
 
-HTML은 UI/UX 검토용 시연이며 실제 음성 합성·클론·DB 연동은 다음 구현 단계입니다.
+<p align="center">
+  <a href="https://omni-ai-tts.vercel.app"><strong>서비스 소개 페이지 보기 →</strong></a><br>
+  <sub>작업실은 소유자 한 명만 로그인해 씁니다. 소개 페이지에서 실제 화면을 둘러볼 수 있습니다.</sub>
+</p>
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines Next.js, Self, ORPC, and more.
+<p align="center">
+  <img src="https://img.shields.io/badge/release-v0.1.0-111111?style=flat-square" alt="Release v0.1.0">
+  <img src="https://img.shields.io/badge/Next.js-16%20App%20Router-111111?style=flat-square" alt="Next.js 16 App Router">
+  <img src="https://img.shields.io/badge/React-19-111111?style=flat-square" alt="React 19">
+  <img src="https://img.shields.io/badge/API-oRPC-111111?style=flat-square" alt="oRPC">
+  <img src="https://img.shields.io/badge/auth-Better%20Auth-111111?style=flat-square" alt="Better Auth">
+  <img src="https://img.shields.io/badge/DB-Drizzle%20%C2%B7%20Neon%20Postgres-111111?style=flat-square" alt="Drizzle, Neon Postgres">
+  <img src="https://img.shields.io/badge/deploy-Vercel%20sin1-111111?style=flat-square" alt="Vercel sin1">
+  <img src="https://img.shields.io/badge/TTS-5%20providers-1A7A80?style=flat-square" alt="5 TTS providers">
+</p>
 
-## Features
+<p align="center">
+  <strong>다섯 공급자 성우 캐스팅 &middot; 음성 작업실 &middot; 드라마 장면 &middot; 한국어 숫자 발음 검수 &middot; 대본 보관함 &middot; 내 목소리 클론 &middot; 프리셋 &middot; 소유자 전용 로그인</strong>
+</p>
 
-- **TypeScript** - For type safety and improved developer experience
-- **Next.js** - Full-stack React framework
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **Shared UI package** - shadcn/ui primitives live in `packages/ui`
-- **oRPC** - End-to-end type-safe APIs with OpenAPI integration
-- **Drizzle** - TypeScript-first ORM
-- **PostgreSQL** - Database engine
-- **Authentication** - Better-Auth
-- **Turborepo** - Optimized monorepo build system
-- **Biome** - Linting and formatting
+<p align="center">
+  <a href="#무엇을-하나요">무엇을 하나요</a> &middot;
+  <a href="#화면-둘러보기">화면 둘러보기</a> &middot;
+  <a href="#작업-흐름">작업 흐름</a> &middot;
+  <a href="#기술-스택과-구조">기술과 구조</a> &middot;
+  <a href="#설계에서-지킨-것">설계 결정</a> &middot;
+  <a href="#빠른-시작">빠른 시작</a> &middot;
+  <a href="#배포">배포</a> &middot;
+  <a href="#문서-지도">문서</a>
+</p>
 
-## Getting Started
+---
 
-First, install the dependencies:
+## 무엇을 하나요
+
+유튜브 내레이션, 오디오 드라마, 교육 영상처럼 한국어 음성을 자주 만드는 사람은 공급자마다 다른 사이트를 오갑니다. 성우 목록, 설정, 요금, 파일 형식이 모두 다르고, 대본의 숫자("1,523억 달러", "12.4%")를 어떻게 읽을지도 매번 손봐야 합니다. Omni AI TTS는 이 일을 한 작업실로 모았습니다.
+
+<table>
+  <tr>
+    <td width="33%" valign="top"><strong>다섯 공급자 성우를 한 목록에서</strong><br>Typecast·ElevenLabs·Fish Audio·Airy·Gemini 성우를 탭 하나로 오가며 공급자마다 주는 필터로 찾고, 기본 샘플과 내 문장으로 미리 듣습니다.</td>
+    <td width="33%" valign="top"><strong>문단마다 다른 성우</strong><br>대본을 문단 카드로 나눠 문단마다 성우·설정을 고르고, 이어 듣고, 한 파일(WAV)·문단별(zip)·자막(SRT)으로 받습니다.</td>
+    <td width="33%" valign="top"><strong>한국어 숫자 발음 검수</strong><br>금액·날짜·시각·단위·전화번호를 항목별로 확인해 발음용 대본으로 만들고, 원문은 그대로 둡니다.</td>
+  </tr>
+  <tr>
+    <td valign="top"><strong>두 사람 이상의 드라마 장면</strong><br>화자마다 성우를 붙인 대본을 Fish Audio로 한 장면처럼 연기시키고, 장면 파일과 대사별 파일을 받습니다.</td>
+    <td valign="top"><strong>내 목소리 클론</strong><br>녹음이나 파일로 내 목소리를 Fish Audio·Gemini에 등록해 같은 작업에 씁니다. 원본 녹음은 서버 메모리에서만 다룹니다.</td>
+    <td valign="top"><strong>다시 찾기 쉬운 정리</strong><br>성우 보관함(즐겨찾기·자주 사용·채널·분류), 프리셋, 대본 보관함(한글 검색)으로 다음 작업을 빨리 시작합니다.</td>
+  </tr>
+</table>
+
+> **유료 호출은 항상 먼저 묻습니다.** 생성·시험 생성·클론처럼 공급자 크레딧을 쓰는 호출은 예상 사용량을 보여 주는 확인 창을 거치고, 같은 조합의 결과는 다시 쓰며, 자동으로 다시 시도하지 않습니다.
+
+## 화면 둘러보기
+
+<p align="center">
+  <img src="docs/assets/showcase/product-showcase.png" alt="노트북과 휴대폰에 띄운 음성 작업실과 마스코트" width="840">
+</p>
+
+<p align="center">
+  <img src="docs/assets/showcase/feature-collage.png" alt="성우 캐스팅, 드라마 작업실, 대본 보관함, 성우 보관함 화면을 모은 그림" width="840">
+  <br><sub>위 두 장은 실제 스크린샷을 바탕으로 만든 소개 그림입니다. 아래는 실제 화면 그대로입니다.</sub>
+</p>
+
+<p align="center">
+  <img src="docs/assets/screenshots/studio.png" alt="음성 작업실: 대본을 문단 카드로 나누고 문단마다 성우를 고르는 화면" width="840">
+  <br><sub>음성 작업실</sub>
+</p>
+
+| 성우 캐스팅 | 드라마 작업실 |
+|---|---|
+| <img src="docs/assets/screenshots/casting.png" alt="다섯 공급자 성우를 탭과 필터로 찾는 성우 캐스팅 화면" width="410"> | <img src="docs/assets/screenshots/drama.png" alt="화자와 줄 단위 대본으로 장면을 만드는 드라마 작업실 화면" width="410"> |
+| **대본 보관함** | **성우 보관함** |
+| <img src="docs/assets/screenshots/scripts.png" alt="저장한 대본을 검색하고 채널·분류로 거르는 대본 보관함 화면" width="410"> | <img src="docs/assets/screenshots/voices.png" alt="담은 성우를 즐겨찾기·채널·분류로 다시 찾는 성우 보관함 화면" width="410"> |
+| **프리셋** | **다크 테마** |
+| <img src="docs/assets/screenshots/presets.png" alt="성우와 설정 조합을 저장한 프리셋 화면" width="410"> | <img src="docs/assets/screenshots/studio-dark.png" alt="다크 테마의 음성 작업실" width="410"> |
+
+<details>
+<summary><b>휴대폰 화면(390px)</b></summary>
+
+<p align="center">
+  <img src="docs/assets/screenshots/studio-mobile.png" alt="휴대폰 너비의 음성 작업실" width="260">
+  <img src="docs/assets/screenshots/casting-mobile.png" alt="휴대폰 너비의 성우 캐스팅" width="260">
+</p>
+</details>
+
+> 스크린샷은 촬영용 예시 데이터로 찍었습니다. 성우 목록은 공급자의 실제 공개 목록입니다.
+
+## 작업 흐름
+
+```mermaid
+flowchart LR
+  A[성우 캐스팅<br/>다섯 공급자 탐색·미리 듣기] --> B[성우 보관함·프리셋<br/>담고 분류하기]
+  B --> C[음성 작업실·드라마<br/>대본 쓰기·불러오기]
+  C --> D[숫자 발음 검수<br/>발음용 대본]
+  D --> E[음성 만들기<br/>유료면 확인 창]
+  E --> F[듣고 받기<br/>WAV · zip · SRT]
+```
+
+1. **성우 고르기**: 성우 캐스팅에서 공급자별 필터로 찾고 기본 샘플이나 내 문장으로 들어 본 뒤 보관함에 담습니다.
+2. **대본과 검수**: 음성 작업실에 대본을 붙여 넣거나 대본 보관함에서 불러오고, 숫자 읽기를 항목별로 확인합니다.
+3. **만들고 받기**: 문단을 하나씩 또는 전체를 만들고, 이어 듣고, 한 파일·문단별·자막으로 받습니다.
+
+자세한 사용법은 [작업실 사용 안내](docs/guides/using-the-studio.md)에 있습니다.
+
+## 기술 스택과 구조
+
+| 영역 | 사용 |
+|---|---|
+| 앱 | Next.js 16 App Router, React 19, TanStack Query, Tailwind CSS 4, shadcn/ui(`packages/ui`) |
+| API | oRPC(`/api/rpc` 하나, 모든 사용자 데이터는 `protectedProcedure`), zod 입력 검증 |
+| 인증 | Better Auth 1.7(이메일·비밀번호, 공개 가입 막음, 로그인 시도 제한 DB 저장) |
+| DB | PostgreSQL 18, Drizzle ORM, 로컬은 컨테이너, 운영은 Neon(싱가포르) |
+| 배포 | Vercel(Fluid compute, 함수 지역 `sin1`, 최대 300초) |
+| 품질 | TypeScript, Biome, Vitest(API·화면 자동 테스트 1,900여 개), Turborepo |
+
+```text
+apps/web            Next.js 앱(화면, /api/rpc·/api/auth 진입점, proxy)
+packages/api        oRPC 라우터, 공급자 연동(providers/), 소유자 판정
+packages/auth       Better Auth 설정
+packages/db         Drizzle 스키마와 마이그레이션
+packages/ui         공용 UI 부품과 디자인 토큰(globals.css)
+docs/               요구사항, 로드맵, 화면 브리프, ADR, 가이드
+```
+
+## 설계에서 지킨 것
+
+- **소유자만 쓴다**: 세션 이메일이 `OWNER_EMAILS`의 이메일 하나와 같을 때만 소유자입니다. 공개 가입은 서버에서 막고 계정은 로컬 스크립트로만 만듭니다([ADR 0012](docs/adr/0012-session-owner-single-allowlist.md)).
+- **공급자 키는 서버에만**: 모든 공급자 호출은 `/api/rpc`의 보호 프로시저를 거치고, 키는 Vercel 환경 변수와 로컬 `.env`에만 둡니다.
+- **늦게 온 결과도 잃지 않는다**: 공급자 응답이 시간 제한 뒤에 오면 응답 뒤 작업(Next `after`)으로 저장해, 이미 과금된 결과를 버리지 않습니다([ADR 0013](docs/adr/0013-first-deploy-vercel-neon-singapore.md)).
+- **오디오는 4.5MB 응답 한도 안에서**: 작업실 결과는 3MiB 조각으로 받고 잇기는 브라우저에서 합니다([ADR 0006](docs/adr/0006-studio-audio-in-generation-record.md), [0007](docs/adr/0007-paragraph-join-in-browser.md)).
+- **목록은 Postgres 캐시로**: 공급자 성우 목록을 3단 캐시로 줄여 호출과 지연을 아낍니다([ADR 0003](docs/adr/0003-postgres-cache.md)).
+- **숫자 읽기는 자체 규칙**: 한국어 숫자 발음을 규칙 엔진으로 제안하고 사람이 확정합니다([ADR 0009](docs/adr/0009-number-reading-own-rules.md)).
+
+모든 결정은 [docs/adr/](docs/adr/)에 있습니다.
+
+## 빠른 시작
+
+필요한 것: Node.js 22 이상(24 권장), pnpm, Docker 또는 Podman.
 
 ```bash
 pnpm install
 ```
 
-## Database Setup
+```bash
+pnpm db:start
+```
 
-This project uses PostgreSQL with Drizzle ORM.
-
-1. Make sure you have a PostgreSQL database set up.
-2. Update your `apps/web/.env` file with your PostgreSQL connection details.
-
-3. Apply the checked-in migrations to your local database:
+`apps/web/.env`를 [`.env.example`](apps/web/.env.example)을 보고 채운 뒤 마이그레이션을 적용합니다.
 
 ```bash
 pnpm --filter @tts-pilot-app/db db:migrate
 ```
 
-For Neon, select the intended development branch and supply its direct connection
-string as the migration process's `DATABASE_URL`. Keep the web app on its pooled
-connection. Follow [the migration workflow](.agents/skills/prokit-db/references/migration-flow.md);
-do not run `db:push` against a shared or production database.
-
-Then, run the development server:
+소유자 계정을 만듭니다(이메일은 `.env`의 `OWNER_EMAILS`와 같게, 비밀번호 12자 이상).
 
 ```bash
-pnpm run dev
+pnpm owner:create
 ```
 
-Open [http://localhost:3001](http://localhost:3001) in your browser to see the fullstack application.
-
-## UI Customization
-
-React web apps in this stack share shadcn/ui primitives through `packages/ui`.
-
-- Change design tokens and global styles in `packages/ui/src/styles/globals.css`
-- Update shared primitives in `packages/ui/src/components/*`
-- Adjust shadcn aliases or style config in `packages/ui/components.json` and `apps/web/components.json`
-
-### Add more shared components
-
-Run this from the project root to add more primitives to the shared UI package:
+개발 서버를 띄우고 [http://localhost:3001](http://localhost:3001)을 엽니다.
 
 ```bash
-npx shadcn@latest add accordion dialog popover sheet table -c packages/ui
+pnpm dev:web
 ```
 
-Import shared components like this:
+자세한 내용은 [개발 안내](docs/guides/development.md)에 있습니다.
 
-```tsx
-import { Button } from "@tts-pilot-app/ui/components/button";
-```
+## 배포
 
-### Add app-specific blocks
+운영은 Vercel(함수 `sin1`)과 Neon(싱가포르)입니다. 배포는 릴리스한 커밋만 `pnpm release`와 `pnpm vercel:deploy production`으로 합니다. 운영 DB 계정은 로컬 계정을 데이터와 함께 한 번 복사해 만들었습니다. 절차는 [배포와 운영 안내](docs/guides/deployment.md)와 [소유자 계정](docs/owner-account.md)에 있습니다.
 
-If you want to add app-specific blocks instead of shared primitives, run the shadcn CLI from `apps/web`.
+## 문서 지도
 
-## Environment Configuration
+| 문서 | 내용 |
+|---|---|
+| [작업실 사용 안내](docs/guides/using-the-studio.md) | 화면별 사용법과 작업 흐름 |
+| [개발 안내](docs/guides/development.md) | 로컬 실행, 테스트, 구조, 개발 절차 |
+| [배포와 운영 안내](docs/guides/deployment.md) | 릴리스, 배포, 환경 변수, 운영 DB, 되돌리기 |
+| [제품 맥락](PRODUCT.md) · [용어](GLOSSARY.md) · [서비스 현재 모습](docs/domain/project.md) | 무엇을 왜 만드는지, 화면·API·데이터 표 |
+| [요구사항](docs/plans/tts-service-requirements.md) · [구현 로드맵](docs/plans/implementation-roadmap.md) | REQ-01~13과 TASK 순서 |
+| [화면 브리프](docs/briefs/) · [디자인 시스템](DESIGN.md) | 화면별 설계와 토큰 |
+| [ADR](docs/adr/) | 되돌리기 어려운 결정과 이유 |
 
-Each app owns its environment schema in `.env.schema`. Varlock generates `src/env.ts` during installation; run `pnpm run env:generate` after changing a schema. Commit schemas, and keep secrets in ignored env files or your deployment platform.
+---
 
-Import the generated `ENV` accessor in application code. Shared database and auth packages receive configuration or initialized clients from the application. See [Varlock's monorepo guide](https://varlock.dev/guides/monorepos/).
-
-Bun's automatic env loading is disabled in `bunfig.toml`; the framework integration or server bootstrap loads Varlock. Node deployments must include Varlock and its dependencies alongside the app schema.
-
-Run standalone Node/Bun tools that use Varlock from the owning app directory so they load that app's schema and env files. `env:generate` only generates TypeScript files; it does not initialize environment values in a subsequent command.
-
-### DB·인증·TTS 환경변수
-
-| 변수 | 용도 | 입력 기준 |
-|---|---|---|
-| `DATABASE_URL` | PostgreSQL 연결 | 필수. 로컬 개발 DB 또는 Neon 연결 문자열 전체 |
-| `BETTER_AUTH_SECRET` | 로그인 세션 보호 | 필수. 32자 이상 무작위 값; 기존 값 유지 |
-| `BETTER_AUTH_URL` | 인증 기준 주소 | 필수. 로컬은 `http://localhost:3001`, 배포는 실제 HTTPS 주소 |
-| `TYPECAST_API_KEY` | Typecast API | 실제 TTS 연동에 필요. UI 개발 중에는 비워 둘 수 있음 |
-| `ELEVENLABS_API_KEY` | ElevenLabs API | 실제 TTS 연동에 필요. UI 개발 중에는 비워 둘 수 있음 |
-| `FISH_AUDIO_API_KEY` | Fish Audio API | 실제 TTS 연동에 필요. UI 개발 중에는 비워 둘 수 있음 |
-| `AIRY_API_KEY` | Airy API | 실제 TTS 연동에 필요. UI 개발 중에는 비워 둘 수 있음 |
-| `GEMINI_API_KEY` | Gemini API | 실제 TTS 연동에 필요. UI 개발 중에는 비워 둘 수 있음 |
-| `OPENAI_API_KEY` | OpenAI API | 자동 태그 텍스트(gpt-6-luna)에만 쓴다. 없으면 Gemini로 보낸다. 비워 둘 수 있음 |
-
-Neon은 콘솔의 **Connect**에서 사용할 브랜치·데이터베이스·역할을 선택하고 연결 문자열을
-복사해 `DATABASE_URL`에 넣습니다. 웹 앱에는 pooled 연결을 사용하고 SSL 등 연결 옵션을
-그대로 유지합니다. [Neon 공식 연결 안내](https://neon.com/docs/get-started/connect-neon)를 참고하세요.
-일상 개발은 로컬 DB, 병합 전 검증은 Neon 개발 브랜치라는 프로젝트 원칙을 따릅니다.
-
-DB 도구의 `packages/db/.env.schema`는 웹 앱의 `DATABASE_*` 설정을 가져오므로 같은 URL을
-여러 파일에 중복 입력할 필요가 없습니다. `packages/db/.env`의 `DB_PORT`는 로컬 컨테이너
-포트만 제어합니다(기본 5432). 포트를 바꾸면 웹 앱의 로컬 `DATABASE_URL` 포트도 맞추세요.
-Neon 연결에는 `DB_PORT`를 사용하지 않습니다.
-
-현재 앱은 별도의 `NEON_API_KEY`, `NEON_PROJECT_ID`, `DIRECT_URL`, SMTP·스토리지 키를
-읽지 않습니다. `NODE_ENV`는 스키마/실행 도구에서 설정하므로 추가 입력할 필요가 없습니다.
-이메일 발송·오디오 영구 저장을 실제로 연결할 때 해당 서비스의 설정을 추가합니다.
-
-### TTS API 키 입력
-
-실제 입력 파일은 저장소 루트가 아닌 `apps/web/.env`입니다. 새 환경은
-`apps/web/.env.example`을 복사하고, 기존 `.env`가 있으면 아래 항목만 추가하세요.
-기존 DB·인증 설정을 덮어쓰지 마세요.
-
-```dotenv
-TYPECAST_API_KEY=
-ELEVENLABS_API_KEY=
-FISH_AUDIO_API_KEY=
-AIRY_API_KEY=
-GEMINI_API_KEY=
-OPENAI_API_KEY=
-```
-
-각 공급자의 API 키를 입력하고 실행 중인 개발 서버를 재시작하세요. 키는 Varlock에서
-선택적 민감값으로 선언되어 있어 비워 두어도 UI 개발이 가능합니다. 현재 설정은 키 입력과
-로딩 준비이며, 실제 TTS API 호출은 아직 구현하지 않았습니다. 키 값만 변경할 때는 타입을
-다시 생성할 필요가 없습니다.
-
-서버 코드에서는 `apps/web/src/env.server.ts`의 `ENV.TYPECAST_API_KEY`,
-`ENV.ELEVENLABS_API_KEY`, `ENV.FISH_AUDIO_API_KEY`, `ENV.AIRY_API_KEY`, `ENV.GEMINI_API_KEY`, `ENV.OPENAI_API_KEY`로 접근합니다. `NEXT_PUBLIC_` 접두사를 붙이거나 클라이언트로
-전달하지 마세요. `.env`는 Git에서 제외되고 `.env.example`에는 실제 키를 넣지 않습니다.
-배포 환경에서는 같은 이름의 서버 환경변수를 설정합니다.
-새 키는 `apps/web/.env.schema`와 `turbo.json` `globalEnv`에 함께 더합니다.
-
-## Git Hooks and Formatting
-
-- Run checks: `pnpm run check`
-
-## Project Structure
-
-```
-tts-pilot-app/
-├── apps/
-│   └── web/         # Fullstack application (Next.js)
-├── packages/
-│   ├── ui/          # Shared shadcn/ui components and styles
-│   ├── api/         # API layer / business logic
-│   ├── auth/        # Authentication configuration & logic
-│   └── db/          # Database schema & queries
-```
-
-## Available Scripts
-
-- `pnpm run dev`: Start all applications in development mode
-- `pnpm run build`: Build all applications
-- `pnpm run dev:web`: Start only the web application
-- `pnpm run check-types`: Check TypeScript types across all apps
-- `pnpm run db:push`: Push schema changes to database
-- `pnpm run db:generate`: Generate database client/types
-- `pnpm run db:migrate`: Run database migrations
-- `pnpm run db:studio`: Open database studio UI
-- `pnpm run check`: Run Biome formatting and linting
-
-## Better Auth Schema Generation
-
-After changing auth plugins or schema options, run `pnpm run auth:generate` from the project root. The script runs the Better Auth CLI through `varlock run` from the owning app directory, loading the auth instance from `src/services.ts`. Review the schema changes, then use your ORM's migration workflow to apply them.
-
-- [공급자별 전체 생성 옵션과 제작 도구 설계](docs/plans/tts-provider-options-and-tools.md): 기본·감정/표현·고급 설정 및 추천·목소리 찾기·체인저·가져오기 UX. 실제 API 연결 전 HTML 설계 단계.
+<p align="center">
+  <img src="docs/assets/brand/mascot.png" alt="헤드폰을 쓴 마이크 마스코트" width="120"><br>
+  <sub>Typecast, ElevenLabs, Fish Audio, Airy, Gemini는 각 회사의 상표입니다. 이 프로젝트는 각 공급자의 공식 API를 사용합니다.</sub>
+</p>

@@ -1,21 +1,21 @@
 ---
-name: TTS Pilot
+name: Omni AI TTS
 category: developer
 lang: ko
 colors:
-  primary: oklch(0.51 0.085 200)   # TTS Pilot 대표 색(청록) = brand-500. shadcn --primary로 옮기는 값
-  ## TTS Pilot 대표 색 (제품 조정, 2026-10-03. 카탈로그 원문 값이 아니다)
+  primary: oklch(0.51 0.085 200)   # Omni AI TTS 대표 색(청록) = brand-500. shadcn --primary로 옮기는 값
+  ## Omni AI TTS 대표 색 (제품 조정, 2026-10-03. 카탈로그 원문 값이 아니다)
   brand-300: oklch(0.84 0.09 198)   # 다크 hover, 다크 틴트 위 글자
   brand-350: oklch(0.78 0.105 198)   # 다크 1차 액션 채움(짙은 글자 8.8:1)
   brand-500: oklch(0.51 0.085 200)   # 라이트 1차 액션 채움과 글자(흰 바탕 5.5:1)
   brand-600: oklch(0.46 0.076 201)   # 라이트 hover
-  ## TTS Pilot 상태색과 불투명 옅은 바탕 (2026-10-04, T2 빌드. globals.css 정본, 다크는 각 주석)
+  ## Omni AI TTS 상태색과 불투명 옅은 바탕 (2026-10-04, T2 빌드. globals.css 정본, 다크는 각 주석)
   success: oklch(0.5 0.1 155)   # 상태 글자·아이콘, 흰 바탕 5.71:1. 다크는 green-300
   warning: oklch(0.52 0.12 50)   # 흰 바탕 5.76:1. 다크는 orange-300
   success-subtle: oklch(0.94 0.025 160)   # success 글자 4.83:1. 다크 oklch(0.32 0.045 150), 5.58:1
   warning-subtle: oklch(0.945 0.03 60)   # warning 글자 4.88:1. 다크 oklch(0.33 0.05 58), 5.63:1
   primary-subtle: oklch(0.945 0.016 200)   # 요약 띠·활성 메뉴(= sidebar-accent), primary 글자 4.73:1. 다크 oklch(0.31 0.035 198), 6.75:1
-  ## TTS Pilot 화자 색 (2026-10-22, T9.5 드라마 작업실. globals.css 정본, 다크는 각 주석)
+  ## Omni AI TTS 화자 색 (2026-10-22, T9.5 드라마 작업실. globals.css 정본, 다크는 각 주석)
   speaker-1: oklch(0.46 0.15 262)   # 파랑. 번호 7.31:1, 카드 7.31:1. 다크 oklch(0.68 0.13 262), 5.78 / 5.33
   speaker-1-subtle: oklch(0.95 0.02 262)   # 파랑 칩 바탕, foreground 글자 13.46:1. 다크 oklch(0.32 0.05 262), 10.62:1
   speaker-1-on: oklch(1 0 0)   # 파랑 위 번호. 다크 oklch(0.232 0.006 286)
@@ -31,7 +31,7 @@ colors:
   ## Accent global hues
   # Blue — 원문의 1차 액션 (indigo-violet)
   blue-300: oklch(0.665 0.181 280)
-  blue-400: oklch(0.554 0.214 280)   # 원문의 1차 액션 색. TTS Pilot은 brand를 쓴다
+  blue-400: oklch(0.554 0.214 280)   # 원문의 1차 액션 색. Omni AI TTS은 brand를 쓴다
   blue-500: oklch(0.483 0.229 280)
   # Green — 성공 / 폼 선택 상태 (체크박스·라디오·스위치·슬라이더)
   green-300: oklch(0.732 0.157 150)
@@ -146,9 +146,9 @@ rounded:
   radius-44: 44px
 ---
 
-> 출처: getdesign.kr 채널톡 항목 https://www.getdesign.kr/services/bezier/DESIGN.md (2026-10-03 받음). TTS Pilot 조정은 대표 색(청록 brand), 서체(Pretendard), 아이콘(lucide) 셋이고 각 절의 "TTS Pilot" 하위 절에 적었다. 원문 브랜드와 디자인 시스템 이름은 화면에 쓰지 않는다.
+> 출처: getdesign.kr 채널톡 항목 https://www.getdesign.kr/services/bezier/DESIGN.md (2026-10-03 받음). Omni AI TTS 조정은 대표 색(청록 brand), 서체(Pretendard), 아이콘(lucide) 셋이고 각 절의 "Omni AI TTS" 하위 절에 적었다. 원문 브랜드와 디자인 시스템 이름은 화면에 쓰지 않는다.
 
-# TTS Pilot — design.md
+# Omni AI TTS — design.md
 
 > 채널톡을 만드는 (주)채널코퍼레이션의 오픈소스 React 디자인 시스템. 컴포넌트 라이브러리 + 디자인 토큰 + 아이콘 세트를 한 모노레포로 배포하며, 핵심 패키지는 `@channel.io/bezier-react`·`@channel.io/bezier-tokens`(0.6.0)·`@channel.io/bezier-icons`(0.60.0)이다 [src:1][src:3][src:4]. 본 문서는 사용자가 제공한 Claude Design 핸드오프 번들을 1차 출처로 추출·정리해 합성한 결과다 — 번들은 비공개이므로, 아래 정량 주장은 2026-07-29에 공개 배포물(`@channel.io/bezier-tokens` 0.6.0 · `@channel.io/bezier-icons` 0.60.0 · Storybook 인덱스 [src:5])과 전수 대조했다. 색 토큰 43개는 전부 ΔE ≤ 0.02로 일치했고, 컴포넌트 59개 이름도 Storybook 문서와 1:1로 대응했다.
 
@@ -187,9 +187,9 @@ Bezier는 글로벌 원시값 → 시맨틱(라이트/다크) → 컴포넌트 3
 
 별도 `@channel.io/bezier-tokens/alpha` 엔트리가 `--alpha-color-fg-*`·`--alpha-color-bg-*`·`--alpha-color-surface-*` 네임스페이스를 제공해, 오버레이·딤·반투명 표면 전용 알파 채널 토큰 세트를 분리해 둔다.
 
-### TTS Pilot 대표 색 (제품 조정)
+### Omni AI TTS 대표 색 (제품 조정)
 
-1차 액션, 포커스 링, 활성 메뉴, 링크는 원문의 인디고 대신 청록 `{colors.primary}`(= `{colors.brand-500}`)를 쓴다. 2026-10-03 리디자인에서 사용자가 "어울리는 색상으로 잘 기획 설계해서 진행해줘"라고 맡겨 정했다. 원문 값이 아니라 TTS Pilot의 값이다.
+1차 액션, 포커스 링, 활성 메뉴, 링크는 원문의 인디고 대신 청록 `{colors.primary}`(= `{colors.brand-500}`)를 쓴다. 2026-10-03 리디자인에서 사용자가 "어울리는 색상으로 잘 기획 설계해서 진행해줘"라고 맡겨 정했다. 원문 값이 아니라 Omni AI TTS의 값이다.
 
 - 원문 인디고는 원래 브랜드 색이고 옛 파랑(원티드)과도 가깝다. 보라는 AI 음성 서비스에 흔해 피했다.
 - 원문 상태색(green 성공, orange 경고, red 위험, blue·cobalt 정보)과 색상각이 겹치지 않는 200° 부근이다.
@@ -198,7 +198,7 @@ Bezier는 글로벌 원시값 → 시맨틱(라이트/다크) → 컴포넌트 3
 - 원문의 "연한 틴트 + 진한 동색 글자" 쌍을 따르되, 틴트는 알파가 아니라 불투명 옅은 바탕(`{colors.primary-subtle}`, `{colors.success-subtle}`, `{colors.warning-subtle}`)이다. 시안의 채도로 고른 값이다. 알파 틴트는 바탕과 섞이며 채도가 빠져 시안보다 탁했고, 놓이는 표면마다 색이 달라졌다. 그 위 같은 색 글자는 라이트 4.73~4.88:1, 다크 5.58~6.75:1이다(oklch→sRGB 계산, T2 계획 토큰 표). 알파는 outline 버튼 hover(`primary/8`)에만 남는다.
 - 돈이 드는 동작(생성, 시험 생성, 클론)은 앱 전체에서 같은 표식(아이콘과 글자) 하나를 함께 붙인다. 색만으로 알리지 않는다.
 
-### TTS Pilot 상태색 (제품 조정)
+### Omni AI TTS 상태색 (제품 조정)
 
 상태는 초록(성공), 주황(경고), 회색(해당 없음) 셋으로 말한다. 2026-10-04 T2(연결 상태) 빌드에서 정했다.
 
@@ -209,11 +209,11 @@ Bezier는 글로벌 원시값 → 시맨틱(라이트/다크) → 컴포넌트 3
 
 **The Opaque Tint Rule.** 글자를 얹는 옅은 바탕(상태 배지, 요약 띠, 활성 메뉴)은 불투명 `*-subtle` 토큰으로 칠한다. `bg-primary/10` 같은 알파 틴트로 새로 만들지 않는다.
 
-### TTS Pilot 다크 표면 (제품 조정)
+### Omni AI TTS 다크 표면 (제품 조정)
 
 다크는 그림자 대신 명도 단계로 깊이를 낸다. 페이지 바탕 `{colors.grey-900}` < 카드와 사이드바 `{colors.grey-850}` < 팝오버·secondary·muted처럼 떠 있거나 한 단계 올라온 면 `{colors.grey-800}`. 다크 1차 액션은 `{colors.brand-350}` 채움에 `{colors.grey-900}` 글자(8.76:1)다. 보더는 `{colors.white-12}`.
 
-### TTS Pilot 화자 색 (제품 조정)
+### Omni AI TTS 화자 색 (제품 조정)
 
 2026-10-22 T9.5(드라마 작업실) 빌드에서 더했다. 값 정본은 `globals.css`, 근거는 `docs/briefs/drama.md` 9.2다.
 
@@ -240,7 +240,7 @@ Bezier는 글로벌 원시값 → 시맨틱(라이트/다크) → 컴포넌트 3
 - `letter-spacing-1`: -0.01rem — 15~17px
 - `letter-spacing-2`: -0.04rem — 22px↑ 타이트
 
-### TTS Pilot 서체 (제품 조정)
+### Omni AI TTS 서체 (제품 조정)
 
 원문의 Inter·Noto Sans KR 대신 Pretendard Variable(OFL, `next/font/local` 자체 호스팅) 하나로 라틴과 한글을 함께 쓴다. 굵기는 원문대로 400과 700 두 단계다. 숫자 열은 `tabular-nums`, 한글은 어절 단위 줄바꿈(`break-keep`)이다.
 
@@ -252,11 +252,20 @@ Bezier는 글로벌 원시값 → 시맨틱(라이트/다크) → 컴포넌트 3
 
 비활성 상태 공통 토큰으로 `--opacity-disabled: 0.4`가 있어, 다수 컴포넌트(버튼·인풋·아바타·스위치 등)가 disabled 표현에 이 값을 쓴다 [src:3][src:2]. 모션은 `--transition-duration-s 150ms` / `-m 300ms` / `-l 450ms`에 타이밍 `cubic-bezier(0.3,0,0,1)`이며, 컴포넌트는 `--motion-transition-fast`/`-default`로 참조한다 [src:3][src:2].
 
-### TTS Pilot 모션 (제품 조정)
+### Omni AI TTS 모션 (제품 조정)
 
 모션은 색 전환 하나다. Tailwind 기본 전환을 150ms `cubic-bezier(0.3,0,0,1)`로 바꿔 두고(`globals.css`의 `--default-transition-*`), 버튼·배지·메뉴는 `transition-colors`만 쓴다. 위치·크기 전환은 없다. 예외는 셋이다. 하나는 1199px 이하의 성우 서랍(`sheet.tsx`)이다. 서랍은 오른쪽 2.5rem(40px) 떨어진 투명한 자리에서 제자리로 200ms(`duration-200`, 이징은 위 기본 `cubic-bezier(0.3,0,0,1)`) 미끄러져 들어오고, 뒤 배경(`bg-black/10` + 흐림)도 같은 200ms로 투명에서 나타난다. 닫을 때는 거꾸로다. 둘째는 드롭다운 메뉴(`dropdown-menu.tsx`)의 100ms(`duration-100`) 확대(95%에서)·미끄러짐(8px)이다. shadcn 생성물 그대로이고 없애는 일은 백로그다. 셋째는 툴팁(`tooltip.tsx`)의 같은 확대·미끄러짐(기본 150ms, 생성물 그대로, 백로그)이다. `prefers-reduced-motion: reduce`에서는 이 미끄러짐을 포함해 전환과 애니메이션(스켈레톤 pulse, 스피너 회전 포함)이 사실상 멈춘다(0.01ms).
 
 767px 이하 성우 탭 줄 오른쪽 끝의 흐림은 시간으로 움직이는 애니메이션이 아니다. 탭 줄이 넘칠 때만 스크롤 위치에 묶인 마스크(`index.css`의 `tabs-overflow-fade`, `animation-timeline: scroll(self inline)`)이고, 끝까지 넘기면 걷힌다. 흐림이 그려지는 브라우저에서는 이 흐림이 넘침을 알리므로 탭 줄 스크롤바를 숨긴다(`@supports (animation-timeline: scroll())` 안의 `scrollbar-width: none`, QA 2026-10-05).
+
+### 공개 랜딩 모션과 간격 (제품 조정, 2026-11-19, T15-a)
+
+공개 랜딩(`/`)만 위의 "색 전환 하나" 규칙의 예외다. 정본은 `docs/briefs/landing.md` 5·6절과 랜딩 CSS(`landing.css`)이고, 값은 `globals.css` 토큰이다.
+- 곡선: `--ease-out` `cubic-bezier(0.23,1,0.32,1)`, `--ease-in-out` `cubic-bezier(0.77,0,0.175,1)`, `--ease-drawer` `cubic-bezier(0.32,0.72,0,1)`. `:root`에 두어 Tailwind 기본 `--ease-out`을 덮으므로 앱의 `ease-out` 유틸리티도 이 곡선이다. UI에 `ease-in`은 쓰지 않는다.
+- 시간: 히어로 등장 600ms(비등간격 0·60·130·210ms, 마스코트 마지막), 섹션 reveal 700ms(안쪽 항목 60ms 간격, 한 번만), 누름 120ms(scale 0.97), 투어 크로스페이드·밑줄 200ms(transform만), FAQ 열기 200ms·닫기 150ms(높이는 아코디언 예외), 휴대폰 메뉴 열기 300ms `--ease-drawer`·닫기 200ms `--ease-out`, 메뉴 아이콘 200ms, 태그라인 어절 300ms.
+- 간격: 섹션 위아래 `--spacing-section` 64px, `--spacing-section-lg` 80px(md 이상). 히어로 제목·부제 폭 `--container-hero` 680px.
+- 동작 라이브러리: 투어 탭·FAQ·휴대폰 메뉴는 `@ui-sdk/react`(ADR 0014). `globals.css`의 `@layer ui-sdk;` 선언으로 라이브러리 기본 스타일이 토큰보다 앞서지 않는다.
+- 움직임 줄이기: 앱 전역 규칙(0.01ms)을 따르고, 처음부터 숨기는 상태(reveal, 태그라인 30%)와 지연만 랜딩 CSS가 따로 푼다.
 
 z-index 레이어는 명시적으로 단계화돼 있다 [src:3][src:2]:
 
@@ -270,9 +279,9 @@ z-index 레이어는 명시적으로 단계화돼 있다 [src:3][src:2]:
 
 별도로 `{component.smooth-corners-box}`가 `--b-smooth-corners-box-border-radius`·`-shadow-*` 로컬 변수로 iOS식 연속 곡률(squircle)을 그리고, 아바타가 `--b-smooth-corners-box-shadow-spread-radius`를 재사용한다 — 단순 라운드를 넘어선 부드러운 코너가 브랜드 시그니처다 [src:2].
 
-TTS Pilot 빌드의 사용처는 버튼 `{rounded.radius-8}`, 배지·메뉴 항목·인라인 코드 `{rounded.radius-6}`, 요약 띠·빈 상태 `{rounded.radius-12}`, 카드 `{rounded.radius-16}`이다.
+Omni AI TTS 빌드의 사용처는 버튼 `{rounded.radius-8}`, 배지·메뉴 항목·인라인 코드 `{rounded.radius-6}`, 요약 띠·빈 상태 `{rounded.radius-12}`, 카드 `{rounded.radius-16}`이다.
 
-`--radius-42-p`(`42%`)는 명세(`alpha`)의 Dimension이 px·em·rem만 받는 명세 밖 단위라 frontmatter 토큰에서 뺐고, TTS Pilot은 쓰지 않는다. 쓰게 되면 비율 곡률은 요소 크기를 따라가므로 고정 길이로 옮기지 말고 값 그대로 쓴다.
+`--radius-42-p`(`42%`)는 명세(`alpha`)의 Dimension이 px·em·rem만 받는 명세 밖 단위라 frontmatter 토큰에서 뺐고, Omni AI TTS은 쓰지 않는다. 쓰게 되면 비율 곡률은 요소 크기를 따라가므로 고정 길이로 옮기지 말고 값 그대로 쓴다.
 
 ## Elevation & Depth
 
@@ -287,7 +296,7 @@ elevation-3: 토스트 / 셀렉트 / 툴팁
 elevation-4: 모달
 ```
 
-### TTS Pilot 깊이 (제품 조정)
+### Omni AI TTS 깊이 (제품 조정)
 
 화면에 놓인 카드는 그림자 없이 `ring-1`(라이트 `{colors.black-8}`, 다크 `{colors.white-12}`) 한 겹으로 바탕과 가른다. 라이트는 아주 옅은 회색 바탕(`{colors.grey-100}`) 위 흰 표면, 다크는 Colors 절의 grey-900 < 850 < 800 명도 단계다.
 
@@ -580,9 +589,9 @@ flex 스택. `HStackProps`·`VStackProps`·`StackProps`를 받고 `--b-stack-spa
 <SmoothCornersBox borderRadius={16}>{/* content */}</SmoothCornersBox>
 ```
 
-### TTS Pilot 컴포넌트 (제품 조정)
+### Omni AI TTS 컴포넌트 (제품 조정)
 
-`packages/ui`의 shadcn 컴포넌트를 위 문법에 맞춰 고친 것이다(2026-10-04 T2 빌드). 원문 컴포넌트 이름이 아니라 TTS Pilot 코드의 이름이다.
+`packages/ui`의 shadcn 컴포넌트를 위 문법에 맞춰 고친 것이다(2026-10-04 T2 빌드). 원문 컴포넌트 이름이 아니라 Omni AI TTS 코드의 이름이다.
 
 - **Button 기본(primary):** 청록 `{colors.primary}` 채움에 흰 글자, 14px 700, `{rounded.radius-8}`, 높이 32px. hover는 라이트 `{colors.brand-600}`(짙어짐), 다크 `{colors.brand-300}`(밝아짐)이다(CSS 토큰 `--primary-hover`, T9 CS-07). 포커스는 2px 청록 outline(간격 2px).
 - **Button outline:** 청록 보더와 청록 글자, 카드색 바탕. hover와 펼침 상태만 `primary/8` 알파 바탕을 깐다. 카드 바닥의 '다시 확인하기'가 이 변형이다.
@@ -723,9 +732,9 @@ flex 스택. `HStackProps`·`VStackProps`·`StackProps`를 받고 `--b-stack-spa
 - 띄우는 표면은 `--layer-z-index-*` 순서(overlay 1000 → modal 1100 → toast 1200 → tooltip 1300)를 지켜 쌓는다 [src:3][src:2].
 - 같은 역할에 alpha/legacy 변종이 있으면 신규 코드는 안정 또는 alpha 라인을 쓰고, `{component.legacy-tooltip}`·`{component.legacy-stack}` 같은 구버전은 마이그레이션 대상으로 둔다 [src:2].
 - 모션은 150ms `cubic-bezier(0.3,0,0,1)` 범위에서 가볍게 운용하고, 비활성은 `--opacity-disabled: 0.4`로 표현한다 [src:3][src:2].
-- (TTS Pilot) 1차 액션은 대표 색 `{colors.primary}` 계열로 통일한다. 아이콘은 원문 아이콘 세트 대신 `packages/ui/components.json`의 `iconLibrary`(lucide)를 쓴다.
-- (TTS Pilot) 상태는 `*-subtle` 바탕 + 같은 색 글자 + 아이콘을 한 배지에 묶는다. 요약 띠와 활성 메뉴 바탕은 `{colors.primary-subtle}`이다.
-- (TTS Pilot) 다크 표면은 grey-900(바탕) < grey-850(카드·사이드바) < grey-800(떠 있는 면) 순서로 쌓는다.
+- (Omni AI TTS) 1차 액션은 대표 색 `{colors.primary}` 계열로 통일한다. 아이콘은 원문 아이콘 세트 대신 `packages/ui/components.json`의 `iconLibrary`(lucide)를 쓴다.
+- (Omni AI TTS) 상태는 `*-subtle` 바탕 + 같은 색 글자 + 아이콘을 한 배지에 묶는다. 요약 띠와 활성 메뉴 바탕은 `{colors.primary-subtle}`이다.
+- (Omni AI TTS) 다크 표면은 grey-900(바탕) < grey-850(카드·사이드바) < grey-800(떠 있는 면) 순서로 쌓는다.
 
 **Don't**
 
@@ -737,8 +746,8 @@ flex 스택. `HStackProps`·`VStackProps`·`StackProps`를 받고 `--b-stack-spa
 - 유니코드·이모지를 UI 아이콘으로 쓰지 않는다 — Bezier는 자체 602 아이콘 세트(`@channel.io/bezier-icons` [src:4], 24×24 `currentColor`, outline/`-filled` 쌍)를 단일 출처로 두며, 이모지는 콘텐츠(채팅 리액션·👋)에서만 쓴다.
 - 챗봇 톤("~해보세요!")이나 마케팅 과장("혁신적", "차세대")으로 카피를 채우지 않는다 — Bezier 문서는 동작을 평이하게 서술하는 개발자 문서 톤을 유지한다 [src:1].
 - 채널톡의 B2B 고객 메시징 도메인 개념·플로우(상담 인박스, 팀 인박스, 마케팅·CRM 채널 등)를 성격이 다른 제품에 그대로 이식하지 않는다 — Bezier에서 차용할 것은 시각 언어(squircle 라운딩·8~12px 반경·Inter/Noto Sans KR 2-weight 타입·11-hue 무지개 액센트·라이트+다크 시맨틱 토큰 쌍·150ms 마이크로 모션)이지 채널톡의 메시징 서비스 도메인이 아니다 [src:1].
-- (TTS Pilot) 글자를 얹는 옅은 바탕을 알파 틴트(`bg-primary/10` 등)로 만들지 않는다. 채도가 빠지고 놓이는 표면마다 색이 달라진다. 알파는 outline 버튼 hover(`primary/8`)에만 쓴다.
-- (TTS Pilot) 위치·크기 애니메이션을 더하지 않는다. 전환은 150ms 색 전환뿐이다. 1199px 이하 성우 서랍의 200ms 미끄러짐과 드롭다운 메뉴의 100ms·툴팁의 150ms 확대·미끄러짐(shadcn 생성물 그대로, 백로그)만 예외다.
+- (Omni AI TTS) 글자를 얹는 옅은 바탕을 알파 틴트(`bg-primary/10` 등)로 만들지 않는다. 채도가 빠지고 놓이는 표면마다 색이 달라진다. 알파는 outline 버튼 hover(`primary/8`)에만 쓴다.
+- (Omni AI TTS) 앱 화면에는 위치·크기 애니메이션을 더하지 않는다. 전환은 150ms 색 전환뿐이다. 1199px 이하 성우 서랍의 200ms 미끄러짐과 드롭다운 메뉴의 100ms·툴팁의 150ms 확대·미끄러짐(shadcn 생성물 그대로, 백로그)만 예외다. 공개 랜딩(`/`)은 위 '공개 랜딩 모션과 간격'을 따른다.
 - 디자인시스템 이름 자체(`Bezier` 워드마크·`@channel.io/bezier-*` 패키지명)를 생성하는 제품 UI의 헤더·타이틀·버튼·라벨에 넣지 않는다 — 차용할 것은 시각 언어이지 시스템 이름이 아니다. UI 텍스트·네이밍은 자기 제품 브랜드로 재정의하고, 출처 표기가 필요하면 footer attribution(예: "Bezier 기반")에만 둔다.
 
 ## Responsive Behavior
@@ -753,7 +762,7 @@ Bezier는 앱 셸/뷰포트 브레이크포인트를 토큰으로 발행하지 �
 | 터치 타깃 / 밀도 | 폼 공통 `--b-form-field-size`로 입력 컨트롤 높이를 일원화하고, `{component.text-field}`/`{component.button}`이 `xl/l/m/xs` 사이즈 enum으로 밀도를 바꾼다(기본 `m`) — 모바일·데스크톱 양쪽을 한 컴포넌트의 사이즈 prop으로 커버한다 [src:2]. 표준 터치 타깃(최소 44×44px)이 필요하면 더 큰 사이즈 enum을 선택해 확보한다. |
 | 관찰 한계 | 제공 스크린샷은 모두 Storybook 데스크톱 autodocs 캔버스라 실제 모바일 웹/네이티브 리플로우는 직접 관찰되지 않았다 `(only desktop Storybook canvas observed; no mobile-web breakpoint surfaced)` [src:2]. |
 
-### TTS Pilot 앱 셸 (제품 조정)
+### Omni AI TTS 앱 셸 (제품 조정)
 
 원문에 없는 브레이크포인트를 앱 레이어에서 둘 정했다. 768px(Tailwind `md`)와 1200px(`globals.css`의 `--breakpoint-xl: 75rem`)이다.
 
