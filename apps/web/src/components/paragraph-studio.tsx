@@ -97,6 +97,7 @@ import {
 import { usePresetList } from "./presets";
 import { SamplePlayerProvider } from "./sample-player";
 import { useSavedList } from "./saved-voices";
+import { ScriptMenu } from "./script-menu";
 import { menuItem, RadioMenu } from "./voice-conditions";
 
 // 문단 작업실(T10 스펙 5.1, 브리프 docs/briefs/studio.md 5·6·7절). 본문 래퍼가 컨테이너이고 안쪽 격자(studio-grid)가 3·2·1단을 바꾼다.
@@ -652,6 +653,7 @@ function StudioBody() {
 						description={PARAGRAPH_TEXT.description}
 						actions={
 							<>
+								<ScriptMenu />
 								<ChannelPicker host={host} />
 								<PresetMenu host={host} trigger="condition" />
 								{/* 3단·2단: '고르기'가 머리 오른쪽 끝 회색 문단 수 앞에 온다. 1단은 작업 띠 끝에 있다 */}

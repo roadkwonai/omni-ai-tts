@@ -32,7 +32,7 @@ vi.mock("@/utils/orpc", async () => {
 vi.mock("./voice-problem", () => ({ ReloadRow: () => null }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 
-const { createAndFind } = await import("./class-picker");
+const { createAndFind } = await import("./class-checklist");
 const orpc = createTanstackQueryUtils(fake as unknown as AppRouterClient);
 
 test("다른 탭에서 만든 같은 이름 채널은 30초 캐시가 있어도 다시 받아 붙인다(R1)", async () => {

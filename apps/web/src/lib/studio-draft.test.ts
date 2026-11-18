@@ -503,6 +503,51 @@ describe("readWork(임시 작업 v2)", () => {
 	});
 });
 
+describe("readWork의 작업 id·연결된 대본(T12)", () => {
+	const linked = {
+		scriptId: "5b0f6a9e-3c1d-4e0a-8f57-0c1d2e3f4a5b",
+		title: "경제 나레이션",
+		version: 3,
+		fingerprint: "1a2b3c4d",
+	};
+	it("올바른 id·linked는 writeWork → readWork 왕복으로 남는다", () => {
+		const w = work({ id: "work-1", linked });
+		expect(readWork(writeWork(w), null)).toEqual(w);
+		expect(readWork(writeWork(w), [saved()])).toEqual(w);
+	});
+	it("옛 작업(두 칸 없음)은 두 칸 없이 그대로 읽고 새 id를 만들지 않는다", () => {
+		const read = readWork(raw(work()), null);
+		expect(read).not.toHaveProperty("id");
+		expect(read).not.toHaveProperty("linked");
+		expect(read).toEqual(work());
+	});
+	it("깨진 id·linked는 칸을 비운다", () => {
+		for (const bad of [
+			{ id: 3 },
+			{ id: "" },
+			{ id: "공백 있음" },
+			{ id: "x".repeat(101) },
+			{ linked: "x" },
+			{ linked: { ...linked, scriptId: "not-a-uuid" } },
+			{ linked: { ...linked, title: "" } },
+			{ linked: { ...linked, version: 0 } },
+			{ linked: { ...linked, version: 1.5 } },
+			{ linked: { ...linked, fingerprint: "" } },
+			{ linked: { ...linked, fingerprint: 3 } },
+		]) {
+			const read = readWork(raw({ ...work(), ...bad }), null);
+			expect(read).not.toHaveProperty(Object.keys(bad)[0] as string);
+		}
+	});
+	it("옛 작업에서는 checkedWork가 id를 만들지 않아 null이다", () => {
+		expect(checkedWork(raw(work()), [saved()])).toBeNull();
+		// id·linked가 있는 작업도 성우 목록이 맞으면 null
+		expect(
+			checkedWork(raw(work({ id: "work-1", linked })), [saved()]),
+		).toBeNull();
+	});
+});
+
 describe("droppedVoices(목록으로 읽을 때 비운 성우, F30-2)", () => {
 	const gone: VoiceSetup = {
 		provider: "elevenlabs",

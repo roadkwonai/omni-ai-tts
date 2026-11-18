@@ -191,4 +191,11 @@ describe("copyName(복제 이름)", () => {
 		expect([...copy]).toHaveLength(40);
 		expect(copy.endsWith(" 사본")).toBe(true);
 	});
+	it("상한을 인자로 넓힐 수 있다(대본 제목 100자)", () => {
+		const name = "가".repeat(100);
+		const copy = copyName(name, [name], 100);
+		expect([...copy]).toHaveLength(100);
+		expect(copy.endsWith(" 사본")).toBe(true);
+		expect(copyName("가".repeat(50), [], 100)).toBe(`${"가".repeat(50)} 사본`);
+	});
 });

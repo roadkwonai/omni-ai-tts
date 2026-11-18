@@ -20,6 +20,7 @@ import type { SavedVoice } from "@tts-pilot-app/api/saved-voice-contract";
 import { PROVIDER_IDS, PROVIDER_LABEL } from "./connection-view";
 import {
 	type Decision,
+	type LinkedScript,
 	PARAGRAPH_GAP_DEFAULT,
 	type Paragraph,
 	SPEAKERS_MAX,
@@ -239,6 +240,11 @@ export function readWork(
 			...(fixes ? { fixes } : {}),
 		};
 	});
+	const id =
+		typeof stored.id === "string" && VOICE_ID.test(stored.id)
+			? stored.id
+			: null;
+	const linked = linkedOf(stored.linked);
 	return {
 		defaultVoice: setupOf(stored.defaultVoice, voices),
 		gap: gapIn(stored.gap) ?? PARAGRAPH_GAP_DEFAULT,
@@ -248,8 +254,29 @@ export function readWork(
 				: null,
 		paragraphs,
 		...(speakers ? { speakers } : {}),
+		...(id ? { id } : {}),
+		...(linked ? { linked } : {}),
 	};
 }
+
+// 작업 id와 연결된 대본(T12). 올바를 때만 두고 아니면 비운다. 새 id는 만들지 않는다(checkedWork가 두 번 읽어 견주므로 결정적이어야 한다)
+const linkedOf = (raw: unknown): LinkedScript | null => {
+	const l = objectOf(raw);
+	const { scriptId, title, version, fingerprint } = l ?? {};
+	return typeof scriptId === "string" &&
+		UUID.test(scriptId) &&
+		typeof title === "string" &&
+		title.length >= 1 &&
+		title.length <= 200 &&
+		typeof version === "number" &&
+		Number.isInteger(version) &&
+		version >= 1 &&
+		typeof fingerprint === "string" &&
+		fingerprint.length >= 1 &&
+		fingerprint.length <= 64
+		? { scriptId, title, version, fingerprint }
+		: null;
+};
 
 // 목록으로 읽을 때 비운 성우(보관함에 없음): 목록 없이 읽은 결과와 견준다. 문단·화자는 같은 자리끼리(readWork가 같은 순서로 읽는다). 깨진 raw는 비운 것이 없다
 export function droppedVoices(

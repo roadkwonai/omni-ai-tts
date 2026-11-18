@@ -48,13 +48,23 @@ export type Paragraph = {
 };
 // 화자(GLOSSARY): 이름과 성우(비면 기본 성우를 따른다). 화자 이름은 생성 요청에 들지 않는다
 export type Speaker = { name: string; voice: VoiceSetup | null };
-// 작업(GLOSSARY '문단 제작 계획'). speakers는 선택 칸이라 T10-a 임시 작업도 그대로 읽힌다
+// 연결된 대본(T12): 대본 id·제목·판 번호와 저장할 때의 작업 지문(저장 안 됨 판정)
+export type LinkedScript = {
+	scriptId: string;
+	title: string;
+	version: number;
+	fingerprint: string;
+};
+// 작업(GLOSSARY '문단 제작 계획'). speakers·id·linked는 선택 칸이라 옛 임시 작업도 그대로 읽힌다.
+// id(작업 id)·linked는 요청과 조합 키에 들지 않는다
 export type Work = {
 	defaultVoice: VoiceSetup | null;
 	gap: number;
 	channelId: string | null;
 	paragraphs: Paragraph[];
 	speakers?: Speaker[];
+	id?: string;
+	linked?: LinkedScript;
 };
 export const SPEAKERS_MAX = 20;
 // 드라마 GAP_DEFAULT(0.3)와 다른 문단 쉼의 처음 값('스펙과 다른 점' 11)

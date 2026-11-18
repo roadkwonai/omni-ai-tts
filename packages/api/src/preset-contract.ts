@@ -119,14 +119,18 @@ export function readSettings<P extends ProviderId>(
 	return { settings: schema.parse(kept), fixed };
 }
 
-// 복제 이름: '{이름} 사본', 있으면 '사본 2', '사본 3'… 이름 규칙(40자)을 넘으면 앞 이름을 줄인다.
+// 복제 이름: '{이름} 사본', 있으면 '사본 2', '사본 3'… 상한(이름 규칙 40자, 대본 제목은 100자)을 넘으면 앞 이름을 줄인다.
 // 같은 이름 비교는 유니크 인덱스(lower)와 같게 대소문자를 무시한다
-export function copyName(name: string, taken: readonly string[]): string {
+export function copyName(
+	name: string,
+	taken: readonly string[],
+	max = NAME_MAX,
+): string {
 	const used = new Set(taken.map((entry) => entry.toLowerCase()));
 	for (let n = 1; ; n += 1) {
 		const suffix = n === 1 ? " 사본" : ` 사본 ${n}`;
 		const base = [...name]
-			.slice(0, NAME_MAX - codePoints(suffix))
+			.slice(0, max - codePoints(suffix))
 			.join("")
 			.trimEnd();
 		const candidate = `${base}${suffix}`;

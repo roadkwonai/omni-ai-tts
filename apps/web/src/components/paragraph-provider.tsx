@@ -8,6 +8,10 @@ import {
 	type SettingsOf,
 } from "@tts-pilot-app/api/providers/trial-options";
 import type { SavedVoice } from "@tts-pilot-app/api/saved-voice-contract";
+import {
+	type ScriptWorkProblem,
+	scriptWorkProblem,
+} from "@tts-pilot-app/api/script-rules";
 import type { StudioRequest } from "@tts-pilot-app/api/studio-contract";
 import {
 	createContext,
@@ -50,6 +54,7 @@ import {
 	workFileName,
 } from "@/lib/paragraph-files";
 import {
+	type LinkedScript,
 	PARAGRAPH_GAP_DEFAULT,
 	type Paragraph,
 	paragraphRequest,
@@ -59,6 +64,13 @@ import {
 	type VoiceSetup,
 	type Work,
 } from "@/lib/paragraph-script";
+import {
+	afterReplace,
+	appendWork as appendedWork,
+	dirtyOf,
+	nextIdOf,
+	toScriptWork,
+} from "@/lib/script-work";
 import { joinTimeline } from "@/lib/sound-join";
 import {
 	checkedWork,
@@ -97,7 +109,8 @@ import type { LoadedPreset } from "./trial-provider";
 // 이벤트와 await 뒤에는 ref의 최신 값을 읽는다. 판단(상태·찾기 대상·계획·받기 목록)은 lib의 순수 함수만 부른다
 
 // 작업에서 문단을 뺀 칸(문단은 useParagraphs)
-export type WorkMeta = Omit<Work, "paragraphs">;
+// linked는 meta 밖(linkedRef)에 둔다. meta에 두면 저장마다 요청 표를 다시 만들고 무료 찾기를 예약한다(T12 계획 2.3)
+export type WorkMeta = Omit<Work, "paragraphs" | "linked">;
 export type FindState = "first" | "ok" | "failed";
 export type ReceiveKind = "wav" | "zip" | "srt" | "play";
 // 막대 플레이어에 올린 소리. 캡션은 막대가 짓는다(브리프 4절 "문단 3 · Rachel · …", "이어 듣기 · 31분 12초")
@@ -128,9 +141,10 @@ type ParagraphsApi = {
 		undo?: { message: string },
 	) => void;
 	setText: (id: string, text: string) => void;
-	// 되돌리기 알림을 띄운다(10초). 열린 알림은 닫는다(알림은 늘 하나, 되돌리기는 한 단계). 화자 지우기가 쓴다:
-	// 이름이 사라진 화자의 문단 되돌리기 알림이 남아 목록에 없는 이름이 문단에 돌아오지 않게 이 알림이 앞 알림을 대신한다(계획 2.2, 브리프 16.8)
-	undoable: (message: string, onUndo: () => void) => void;
+	// 되돌리기 알림을 띄운다(10초). 열린 알림은 닫는다(알림은 늘 하나, 되돌리기는 한 단계). 화자 지우기·작업 바꾸기(넣기 창·붙여 넣기 전체 바꾸기)가 쓴다:
+	// 이름이 사라진 화자의 문단 되돌리기 알림이 남아 목록에 없는 이름이 문단에 돌아오지 않게 이 알림이 앞 알림을 대신한다(계획 2.2, 브리프 16.8).
+	// apply는 flushSync 안에서 불리고, 그 일로 문단 배열이 바뀌었으면 되살린 첫 문단의 대본 칸으로 포커스를 옮긴다(문단 되돌리기와 같은 규칙)
+	undoable: (message: string, apply: () => void) => void;
 };
 
 type WorkApi = {
@@ -142,6 +156,23 @@ type WorkApi = {
 	voicesFetching: boolean;
 	reloadVoices: () => void;
 	work: WorkMeta;
+	// 연결된 대본(저장한 대본에서 열었거나 저장한 작업). 없으면 undefined
+	linked: LinkedScript | undefined;
+	// 연결된 대본과 작업이 다르다(저장 안 됨). 지문 비교라 편집 300ms 뒤에 갱신한다
+	dirty: boolean;
+	// 대본으로 저장할 수 없는 이유(상한). 없으면 null. dirty와 같이 300ms 뒤에 갱신한다
+	saveBlocked: ScriptWorkProblem | null;
+	// 지금 작업(최신 ref). await 뒤나 이벤트에서 읽는다
+	snapshot: () => Work;
+	// 작업 전체를 바꾼다. id가 없으면 새로 주고, linked는 인자로만 정한다(최근 대본이면 undefined). 보관함에 없는 성우는 비우고 알린다.
+	// 되돌리기 알림은 부른 쪽이 undoable로 띄운다
+	replaceWork: (work: Work, opts: { linked: LinkedScript | undefined }) => void;
+	// source의 문단을 끝에 이어 붙인다(연결·id·채널은 그대로). 넣지 못한 문단 수와 화자를 비운 문단 수를 돌려준다
+	appendWork: (source: Work) => { paragraphs: number; speakers: number };
+	// 저장에 성공했다: 연결을 바꾸고 지금 작업으로 저장 안 됨을 다시 판정한다(linked.fingerprint는 보낸 작업의 지문)
+	markSaved: (linked: LinkedScript) => void;
+	// 연결을 비운다(지워진 대본)
+	clearLinked: () => void;
 	setDefaultVoice: (setup: VoiceSetup | null) => void;
 	// 기본 성우의 공급자 설정 칸을 바꾼다. 기본 성우가 없으면 그대로
 	setDefaultSettings: (
@@ -288,10 +319,11 @@ function ParagraphsProvider({
 		// 단 숫자 검수 창이 열려 있으면 창 안에 둔다.
 		// 알림 단추를 누르면 sonner가 알림에 들어오기 전 칸을 기억했다가 포커스가 알림을 떠날 때 그 칸으로 되돌린다(ol onBlur).
 		// 먼저 단추에서 포커스를 놓아 그 되돌림을 끝낸 뒤 옮긴다(F12-2)
-		function restore(before: Paragraph[]) {
-			const now = latest.current;
-			flushSync(() => change(before));
-			const back = before.find((p, i) => p !== now[i]) ?? before.at(-1);
+		// now는 되돌리기 직전의 문단(창의 그리기 값이 아니라 latest에서 읽은 것), after는 되돌린 뒤 배열이다.
+		// 배열이 그대로면(화자 되살리기처럼 문단이 아닌 것을 되돌림) 그 호출이 제 포커스를 정한다
+		function focusRestored(now: Paragraph[], after: Paragraph[]) {
+			if (after === now) return;
+			const back = after.find((p, i) => p !== now[i]) ?? after.at(-1);
 			if (!back) return;
 			if (document.activeElement instanceof HTMLElement)
 				document.activeElement.blur();
@@ -307,11 +339,18 @@ function ParagraphsProvider({
 		}
 		// 되돌리기는 한 단계다. 새로 띄우면 앞 알림을 닫는다(drama-lines useOwnToast와 같다).
 		// 지우기·합치기·나누기·붙여 넣기 모두 10초 남긴다(되돌릴 틈, critique 반영)
-		function undoable(message: string, onUndo: () => void) {
+		function undoable(message: string, apply: () => void) {
 			if (undoToast.current !== null) toast.dismiss(undoToast.current);
 			undoToast.current = toast(message, {
 				duration: 10_000,
-				action: { label: PARAGRAPH_TEXT.undo, onClick: onUndo },
+				action: {
+					label: PARAGRAPH_TEXT.undo,
+					onClick: () => {
+						const now = latest.current;
+						flushSync(apply);
+						focusRestored(now, latest.current);
+					},
+				},
 			});
 		}
 		function edit(
@@ -322,7 +361,7 @@ function ParagraphsProvider({
 			const next = fn(before);
 			if (next === before) return;
 			change(next);
-			if (undo) undoable(undo.message, () => restore(before));
+			if (undo) undoable(undo.message, () => change(before));
 		}
 		return {
 			edit,
@@ -356,6 +395,10 @@ export function WorkProvider({ children }: { children: ReactNode }) {
 	const [read, setRead] = useState(false);
 	const [hasVoice, setHasVoice] = useState(false);
 	const [meta, setMeta] = useState<WorkMeta>(BLANK_META);
+	// 연결·저장 안 됨·상한 잠금은 meta 밖에 둔다. dirty·blocked는 원시값이라 같으면 다시 그리지 않는다
+	const [linked, setLinked] = useState<LinkedScript | undefined>(undefined);
+	const [dirty, setDirty] = useState(false);
+	const [blocked, setBlocked] = useState<ScriptWorkProblem | null>(null);
 	const [found, setFound] = useState<FoundMap>(() => new Map());
 	const [findState, setFindState] = useState<FindState>("first");
 	// 서버 그리기와 같게 0으로 시작하고 복원할 때 정한다(렌더 중 Date.now() 금지)
@@ -371,6 +414,7 @@ export function WorkProvider({ children }: { children: ReactNode }) {
 	// 이벤트·await 뒤에 읽는 최신 값(렌더는 state를 읽는다)
 	const readRef = useRef(false);
 	const metaRef = useRef<WorkMeta>(BLANK_META);
+	const linkedRef = useRef<LinkedScript | undefined>(undefined);
 	const paragraphsRef = useRef<Paragraph[]>(NO_PARAGRAPHS);
 	const voicesRef = useRef<SavedVoice[] | null>(null);
 	const foundRef = useRef<FoundMap>(found);
@@ -411,14 +455,24 @@ export function WorkProvider({ children }: { children: ReactNode }) {
 		foundRef.current = next;
 		setFound(next);
 	}
+	// 지문 비교와 상한 검사는 직렬화가 들어서 저장과 같은 300ms 지연 안에서만 한다(렌더마다 하지 않는다)
+	function judge(work: Work) {
+		if (!mounted.current) return;
+		setDirty(dirtyOf(work, linkedRef.current));
+		setBlocked(scriptWorkProblem(toScriptWork(work)));
+	}
 	function persist() {
 		if (saveTimer.current) clearTimeout(saveTimer.current);
 		saveTimer.current = null;
-		if (readRef.current)
-			store(
-				WORK_KEY,
-				writeWork(asWork(metaRef.current, paragraphsRef.current)),
-			);
+		if (!readRef.current) return;
+		const work = asWork(metaRef.current, paragraphsRef.current);
+		const link = linkedRef.current;
+		store(WORK_KEY, writeWork(link ? { ...work, linked: link } : work));
+		judge(work);
+	}
+	function setLink(next: LinkedScript | undefined) {
+		linkedRef.current = next;
+		setLinked(next);
 	}
 	function saveSoon() {
 		if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -480,19 +534,25 @@ export function WorkProvider({ children }: { children: ReactNode }) {
 		paragraphsRef.current = next;
 		bridge.current?.(next);
 	}
+	// linked는 일부러 뺀다. 연결을 바꾸는 곳은 replaceWork·markSaved·clearLinked뿐이다(늦게 온 성우 목록 길이 연결을 지우지 않게)
 	function restore(work: Work) {
-		const { paragraphs, ...rest } = work;
+		const { paragraphs, linked: _linked, ...rest } = work;
 		metaRef.current = rest;
 		setMeta(rest);
 		replaceParagraphs(paragraphs);
 	}
 	// 목록으로 맞추며 비운 성우가 있으면 이유를 한 번 알리고 참(스펙 11절 Q15, F30-2). 비우는 규칙은 readWork 그대로다.
 	// 되돌리기 알림과 같은 10초(두 문장이다)
-	function tellDropped(raw: string | null, list: readonly SavedVoice[]) {
+	// again이면 앞서 알렸어도 다시 알린다(보관함에서 넣은 대본마다 따로 알린다)
+	function tellDropped(
+		raw: string | null,
+		list: readonly SavedVoice[],
+		again = false,
+	) {
 		const lost = droppedVoices(raw, list);
 		if (!lost.defaultVoice && lost.paragraphs === 0 && lost.speakers === 0)
 			return false;
-		if (!droppedTold.current)
+		if (again || !droppedTold.current)
 			toast(
 				PARAGRAPH_TEXT.voicesDropped(
 					lost.defaultVoice,
@@ -503,6 +563,43 @@ export function WorkProvider({ children }: { children: ReactNode }) {
 			);
 		droppedTold.current = true;
 		return true;
+	}
+
+	// 바깥에서 들어온 작업(보관함 대본·되돌릴 작업)의 성우를 보관함으로 맞춘다. 비운 것이 있으면 알린다(임시 작업을 되살릴 때와 같은 규칙).
+	// 목록이 아직 없으면 그대로 두고 늦게 오는 목록 길이 다시 본다(unchecked)
+	function checkedFor(work: Work): Work {
+		// 서버에서 받은 작업도 늘 readWork를 거쳐 새로 고침 뒤 읽은 작업과 같은 모양이 된다
+		const list = voicesRef.current;
+		const raw = writeWork(work);
+		if (!list) unchecked.current = true;
+		else if (checkedWork(raw, list)) tellDropped(raw, list, true);
+		return readWork(raw, list) ?? work;
+	}
+	function replaceWork(next: Work, opts: { linked: LinkedScript | undefined }) {
+		const after = afterReplace(checkedFor(next), opts.linked);
+		const before = metaRef.current.defaultVoice;
+		const target = after.work.defaultVoice;
+		restore(after.work);
+		setLink(after.linked);
+		// 불러온 프리셋 표시·안내는 기본 성우가 바뀔 때만 비운다(붙여 넣기 '전체 바꾸기'는 성우를 그대로 둔다)
+		if (
+			before?.provider !== target?.provider ||
+			before?.voiceId !== target?.voiceId
+		) {
+			setLoaded(null);
+			setNotice(null);
+		}
+		persist();
+		findSoon(0);
+	}
+	function appendWork(source: Work) {
+		const target = asWork(metaRef.current, paragraphsRef.current);
+		const { work, dropped } = appendedWork(target, checkedFor(source));
+		if (work.speakers !== target.speakers)
+			changeMeta({ speakers: work.speakers });
+		replaceParagraphs(work.paragraphs);
+		changedParagraphs();
+		return dropped;
 	}
 
 	// 성우 목록이 오거나 바뀌면 최신 값을 두고, 목록 없이 읽은 작업이면 그때 성우를 다시 본다(readWork에 성공한 목록만, Task 8 리뷰 b).
@@ -535,7 +632,13 @@ export function WorkProvider({ children }: { children: ReactNode }) {
 		unchecked.current = list === null;
 		readRef.current = true;
 		tick();
-		restore(work);
+		// 작업 id가 없으면(옛 임시 작업·새 작업) 여기서 한 번 준다. 바로 저장해 새로 고칠 때마다 id가 바뀌지 않게 한다
+		const id = nextIdOf(work);
+		restore({ ...work, id });
+		setLink(work.linked);
+		// 새로 고친 뒤에도 '저장 안 됨'이 남도록 첫 읽기에서 지문을 한 번 센다
+		judge(asWork(metaRef.current, paragraphsRef.current));
+		if (work.id === undefined) saveSoon();
 		// 비운 작업을 저장한다(늦은 목록 길과 같다). 저장하지 않으면 다시 열 때마다 같은 성우를 비우고 또 알린다
 		if (list && tellDropped(raw, list)) saveSoon();
 		setHasVoice(
@@ -860,6 +963,20 @@ export function WorkProvider({ children }: { children: ReactNode }) {
 		voicesFetching: saved.isFetching,
 		reloadVoices: () => void saved.refetch(),
 		work: meta,
+		linked,
+		dirty,
+		saveBlocked: blocked,
+		snapshot: () => asWork(metaRef.current, paragraphsRef.current),
+		replaceWork,
+		appendWork,
+		markSaved: (next) => {
+			setLink(next);
+			persist();
+		},
+		clearLinked: () => {
+			setLink(undefined);
+			persist();
+		},
 		setDefaultVoice: (next) => {
 			changeMeta({ defaultVoice: next });
 			setNotice(null);

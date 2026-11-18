@@ -4,6 +4,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { comboSignature } from "@tts-pilot-app/api/providers/trial-options";
 import type { SavedVoice } from "@tts-pilot-app/api/saved-voice-contract";
+import { scriptWorkProblem } from "@tts-pilot-app/api/script-rules";
 import type { StudioRequest } from "@tts-pilot-app/api/studio-contract";
 import { type RefObject, useEffect, useRef, useState } from "react";
 
@@ -29,6 +30,7 @@ import {
 	paragraphRequest,
 	type Work,
 } from "@/lib/paragraph-script";
+import { toScriptWork } from "@/lib/script-work";
 import { savedOf } from "@/lib/studio-view";
 import { client, orpc } from "@/utils/orpc";
 
@@ -136,6 +138,23 @@ export function useMakeAll({
 	async function begin(run: number, at: number) {
 		runRef.current = run;
 		let made = false;
+		// 최근 대본 보관은 run당 한 번, 첫 요청을 보낼 때(스펙 4.5). 기다리지도 알리지도 않고, 실패해도 만들기는 계속한다(다음 만들기가 다시 보관한다).
+		// 작업 id가 없거나 대본 상한을 넘으면 건너뛴다. 카드 만들기여도 문단 하나가 아니라 작업 전체를 보낸다
+		let recorded = false;
+		function recordRecent() {
+			if (recorded) return;
+			recorded = true;
+			const work = { ...meta.current, paragraphs: paragraphs.current };
+			const script = toScriptWork(work);
+			if (!work.id || scriptWorkProblem(script)) return;
+			void client
+				.scriptRecordRecent({
+					workId: work.id,
+					channelId: work.channelId,
+					work: script,
+				})
+				.catch(() => {});
+		}
 		await runMakeAll(makeRef.current.queue, run, {
 			current: (id) => {
 				const p = paragraphs.current.find((item) => item.id === id);
@@ -172,6 +191,7 @@ export function useMakeAll({
 				switch (event.type) {
 					// sent에는 item이 없다. 지금 보내는 문단은 큐의 at번째다
 					case "sent": {
+						recordRecent();
 						const item = makeRef.current.queue[makeRef.current.at];
 						if (item) mark(item.signature, { state: "making" });
 						break;

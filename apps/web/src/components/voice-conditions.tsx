@@ -357,6 +357,78 @@ export function RadioMenu<T extends string>({
 	);
 }
 
+type SearchProps = {
+	value: string;
+	placeholder: string;
+	label: string;
+	onChange: (value: string) => void;
+	// Enter를 누르면 부른다(서버 목록은 입력이 멈추길 기다리지 않고 바로 보낸다)
+	onSubmit?: () => void;
+};
+
+// 조건 줄의 검색 칸(돋보기·지우기 ×·44px). 대본 '보관함에서 넣기' 창도 같은 부품을 쓴다(name은 창이 처음 포커스를 찾는 이름)
+export function SearchField({
+	search,
+	searchRef,
+	disabled = false,
+	name = "voice-search",
+}: {
+	search: SearchProps;
+	searchRef: RefObject<HTMLInputElement | null>;
+	disabled?: boolean;
+	name?: string;
+}) {
+	return (
+		// 포커스 표시는 다른 컨트롤과 같은 바깥 2px 윤곽선이다. 그림자는 쓰지 않는다(DESIGN)
+		<InputGroup className="h-11 flex-1 rounded-lg bg-card shadow-none has-[[data-slot=input-group-control]:focus-visible]:outline-2 has-[[data-slot=input-group-control]:focus-visible]:outline-ring has-[[data-slot=input-group-control]:focus-visible]:outline-solid has-[[data-slot=input-group-control]:focus-visible]:outline-offset-2 has-[[data-slot=input-group-control]:focus-visible]:ring-0 dark:bg-card">
+			<InputGroupAddon>
+				<Search aria-hidden="true" />
+			</InputGroupAddon>
+			<InputGroupInput
+				ref={searchRef}
+				value={search.value}
+				onChange={(event) => search.onChange(event.target.value)}
+				onKeyDown={(event) => {
+					// 값이 있을 때 Escape는 비우기만 한다(창이 함께 닫히지 않게 전파를 막는다). 비었으면 그대로 전파
+					if (event.key === "Escape") {
+						if (search.value) {
+							event.stopPropagation();
+							search.onChange("");
+						}
+					} else if (event.key === "Enter") search.onSubmit?.();
+				}}
+				placeholder={search.placeholder}
+				aria-label={search.label}
+				name={name}
+				maxLength={100}
+				enterKeyHint="search"
+				autoComplete="off"
+				spellCheck={false}
+				disabled={disabled}
+				// Input 기본값의 md:text-xs까지 덮어야 768px 이상에서도 16px이다. h-full은 상자 어디를 눌러도 입력에 포커스가 가게 한다.
+				className="h-full text-base md:text-base"
+			/>
+			{search.value ? (
+				<InputGroupAddon align="inline-end" className="py-0 pr-0.5">
+					{/* 보이는 40px이 44px 상자 안에 들어가고, after로 누르는 영역은 48px이다 */}
+					<InputGroupButton
+						size="icon-sm"
+						className="relative size-10 rounded-md after:absolute after:-inset-1"
+						aria-label="검색어 지우기"
+						onClick={() => {
+							search.onChange("");
+							// 버튼이 사라져도 포커스가 검색 칸에 남는다
+							searchRef.current?.focus();
+						}}
+					>
+						<X aria-hidden="true" />
+					</InputGroupButton>
+				</InputGroupAddon>
+			) : null}
+		</InputGroup>
+	);
+}
+
 // 브리프 5·6절 조건 줄: 검색 칸과 공급자·출처마다 다른 조건들(axes). 정렬은 상태 줄에 있다(SortMenu).
 // 조건 묶음은 768px 이상에서도 넘치면 줄을 바꾼다(ElevenLabs 공개 목록은 드롭다운 7 + 토글 1). 767px 이하는 검색 칸 + '조건' 버튼, 조건은 펼칠 때만.
 // 인원 글자는 여기 없다(상태 줄 ListStatusBar가 맡는다). 잠금(disabled)은 처음 불러오는 중에만 넘긴다.
@@ -367,15 +439,11 @@ export function VoiceConditions({
 	selectedCount,
 	searchRef,
 	leading,
+	label = "성우 찾기",
 }: {
-	search: {
-		value: string;
-		placeholder: string;
-		label: string;
-		onChange: (value: string) => void;
-		// Enter를 누르면 부른다(서버 목록은 입력이 멈추길 기다리지 않고 바로 보낸다)
-		onSubmit?: () => void;
-	};
+	// 조건 줄 영역(search 랜드마크) 이름. 대본 보관함은 '대본 찾기'
+	label?: string;
+	search: SearchProps;
 	axes: AxisView[];
 	disabled: boolean;
 	selectedCount: number;
@@ -388,53 +456,14 @@ export function VoiceConditions({
 	const menusId = useId();
 	const hasMenus = axes.length > 0;
 	return (
-		<search
-			aria-label="성우 찾기"
-			className="flex flex-wrap items-center gap-2"
-		>
+		<search aria-label={label} className="flex flex-wrap items-center gap-2">
 			{/* 1200px 이상은 검색 칸이 192~288px 사이에서 줄어든다. 줄 바꿈은 192px로 정하고 남는 자리만큼 288px까지 늘어 조건이 한 줄에 들어갈 여지를 만든다(재확인 critique 2026-10-05) */}
 			<div className="flex w-full gap-2 xl:w-auto xl:min-w-48 xl:max-w-72 xl:flex-1">
-				{/* 포커스 표시는 다른 컨트롤과 같은 바깥 2px 윤곽선이다. 그림자는 쓰지 않는다(DESIGN) */}
-				<InputGroup className="h-11 flex-1 rounded-lg bg-card shadow-none has-[[data-slot=input-group-control]:focus-visible]:outline-2 has-[[data-slot=input-group-control]:focus-visible]:outline-ring has-[[data-slot=input-group-control]:focus-visible]:outline-solid has-[[data-slot=input-group-control]:focus-visible]:outline-offset-2 has-[[data-slot=input-group-control]:focus-visible]:ring-0 dark:bg-card">
-					<InputGroupAddon>
-						<Search aria-hidden="true" />
-					</InputGroupAddon>
-					<InputGroupInput
-						ref={searchRef}
-						value={search.value}
-						onChange={(event) => search.onChange(event.target.value)}
-						onKeyDown={(event) => {
-							if (event.key === "Escape") search.onChange("");
-							else if (event.key === "Enter") search.onSubmit?.();
-						}}
-						placeholder={search.placeholder}
-						aria-label={search.label}
-						name="voice-search"
-						enterKeyHint="search"
-						autoComplete="off"
-						spellCheck={false}
-						disabled={disabled}
-						// Input 기본값의 md:text-xs까지 덮어야 768px 이상에서도 16px이다. h-full은 상자 어디를 눌러도 입력에 포커스가 가게 한다.
-						className="h-full text-base md:text-base"
-					/>
-					{search.value ? (
-						<InputGroupAddon align="inline-end" className="py-0 pr-0.5">
-							{/* 보이는 40px이 44px 상자 안에 들어가고, after로 누르는 영역은 48px이다 */}
-							<InputGroupButton
-								size="icon-sm"
-								className="relative size-10 rounded-md after:absolute after:-inset-1"
-								aria-label="검색어 지우기"
-								onClick={() => {
-									search.onChange("");
-									// 버튼이 사라져도 포커스가 검색 칸에 남는다
-									searchRef.current?.focus();
-								}}
-							>
-								<X aria-hidden="true" />
-							</InputGroupButton>
-						</InputGroupAddon>
-					) : null}
-				</InputGroup>
+				<SearchField
+					search={search}
+					searchRef={searchRef}
+					disabled={disabled}
+				/>
 				{hasMenus ? (
 					<Button
 						variant="outline"

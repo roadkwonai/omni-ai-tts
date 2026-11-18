@@ -45,8 +45,12 @@ const stored = <T>(step: string, run: () => Promise<T>) =>
 const mine = (ownerId: string, id: string) =>
 	and(eq(voicePreset.id, id), eq(voicePreset.ownerId, ownerId));
 
-// 가리킬 채널은 내 것만. 없거나 남의 것이면 NOT_FOUND(prokit-api 불변식 3)
-async function ownChannel(tx: Tx, ownerId: string, channelId: string | null) {
+// 가리킬 채널은 내 것만. 없거나 남의 것이면 NOT_FOUND(prokit-api 불변식 3). 대본 라우터도 쓴다(T12)
+export async function ownChannel(
+	tx: Tx,
+	ownerId: string,
+	channelId: string | null,
+) {
 	if (channelId === null) return;
 	const [row] = await tx
 		.select({ id: channel.id })

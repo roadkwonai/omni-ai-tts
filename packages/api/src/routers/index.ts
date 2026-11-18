@@ -18,6 +18,7 @@ import { classificationRouter } from "./classification";
 import { dramaRouter } from "./drama";
 import { presetRouter } from "./preset";
 import { savedVoiceRouter } from "./saved-voice";
+import { scriptRouter } from "./script";
 import { studioRouter } from "./studio";
 import { trialRouter } from "./trial";
 
@@ -104,6 +105,8 @@ export const appRouter = {
 	...studioRouter,
 	// 드라마 작업실 네 프로시저(T9.5)
 	...dramaRouter,
+	// 대본 보관함 여덟 프로시저(T12)
+	...scriptRouter,
 };
 export type AppRouter = typeof appRouter;
 export type AppRouterClient = RouterClient<typeof appRouter>;

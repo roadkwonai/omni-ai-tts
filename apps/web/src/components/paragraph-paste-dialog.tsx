@@ -66,7 +66,7 @@ function PasteBody({
 	onInserted: (firstId: string) => void;
 }) {
 	const work = useWork();
-	const { paragraphs, edit } = useParagraphs();
+	const { paragraphs, edit, undoable } = useParagraphs();
 	const [mode, setMode] = useState<Mode>("append");
 	const previewId = useId();
 	const emptyId = useId();
@@ -98,14 +98,31 @@ function PasteBody({
 			text,
 			...(speaker === undefined ? {} : { speaker }),
 		}));
-		edit(
-			(ps) =>
-				append
-					? [...withoutBlankEnd(ps), ...fresh].slice(0, PARAGRAPHS_MAX)
-					: fresh,
-			{ message: PARAGRAPH_TEXT.inserted(fresh.length, extra) },
-		);
-		if (added !== list) work.setSpeakers(added);
+		const message = PARAGRAPH_TEXT.inserted(fresh.length, extra);
+		if (hasScript && !append) {
+			// 전체 바꾸기: 새 작업 id를 받고 연결은 그대로 둔다(저장 안 됨으로 보인다). 되돌리면 문단과 함께 이전 id·화자도 돌아온다
+			const previous = { ...meta, paragraphs };
+			const { id: _id, ...rest } = meta;
+			work.replaceWork(
+				{
+					...rest,
+					paragraphs: fresh,
+					...(added !== list ? { speakers: added } : {}),
+				},
+				{ linked: work.linked },
+			);
+			const linked = work.linked;
+			undoable(message, () => work.replaceWork(previous, { linked }));
+		} else {
+			edit(
+				(ps) =>
+					append
+						? [...withoutBlankEnd(ps), ...fresh].slice(0, PARAGRAPHS_MAX)
+						: fresh,
+				{ message },
+			);
+			if (added !== list) work.setSpeakers(added);
+		}
 		onInserted(fresh[0].id);
 	}
 
