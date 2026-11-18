@@ -696,6 +696,14 @@ flex 스택. `HStackProps`·`VStackProps`·`StackProps`를 받고 `--b-stack-spa
 - **저장 상태 점:** 연결된 대본이 저장 안 됨이면 메뉴 버튼 안 제목 뒤 8px `bg-warning` 점 + 화면 밖 "저장 안 됨". 색만으로 말하지 않는다.
 - **창 겹 배경:** `Dialog`·`AlertDialog` overlay는 라이트 `bg-black/10`, 다크 `bg-black/50`(다크에서 창 뒤 채움 버튼이 비쳐 보이던 것을 막는다). `Sheet`는 그대로다.
 
+2026-11-18 T13 빌드(내 보이스)에서 더한 것. 색·간격 토큰은 바뀌지 않았고, `destructive` 버튼 변형의 값만 바뀌었다.
+
+- **`destructive` 버튼(모든 화면):** 라이트·다크 모두 `bg-destructive/10` + `text-destructive`, hover는 `bg-destructive/20` + `text-foreground`. 다크 기본 대비가 3.9:1이던 것을 4.65:1로, hover를 라이트 11.95·다크 8.78:1로 올렸다(지우기 확인 창 전부에 적용).
+- **녹음 칸:** 큰 경과 시간(`text-4xl` 굵게 `tabular-nums`) 하나와 그 아래 회색 14px 범위 줄, 버튼 한 줄(녹음하기 `default` / 멈추기, 다시 녹음·파일 고르기 `neutral lg`). 녹음 중에는 시간 앞 12px `bg-warning` 점(`motion-safe`에서만 깜빡임) + 글자 '녹음 중'. 범위 줄은 최소 길이까지 남은 초를 세다가 넘으면 `foreground`의 '충분해요…'로 바뀐다(경고색이 아닌 진행 신호). 원본 재생은 앱의 한 번에 한 소리 플레이어(44px 둥근 재생 단추 + 이름 + 길이).
+- **보내기 전 고지 묶음:** 되돌릴 수 없는 외부 전송 직전에는 회색 낱줄 대신 `bg-muted rounded-xl` 한 겹 정의 목록(보낼 것·가는 곳·보관·되돌리는 법·요금)에 모으고 그 아래 동의 체크 하나. 중첩 카드 없음. 767px 이하 창은 버튼 줄을 아래에 고정하고 단계 칸만 스크롤한다.
+- **단계 창:** 창 머리에 단계 이름 줄(`role="group"`, 지금 단계 `aria-current="step"`, 사이 `ChevronRight`, 누를 수 없음), 767px 이하는 "2/4 원본" 한 줄. 단계를 옮기면 그 단계 제목으로 포커스.
+- **잠긴 버튼:** `focusableWhenDisabled` 버튼은 기존 `lockedButton`으로 흐리게(50%) 보인다. 잠긴 이유는 가까운 회색 한 줄로.
+
 ## Do's and Don'ts
 
 **Do**

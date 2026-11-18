@@ -1,3 +1,4 @@
+import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 
 import { DRAMA_LINES_MAX } from "../drama-script";
@@ -23,6 +24,7 @@ import {
 	audioOf,
 	audioTypeOf,
 	claim,
+	cloneBlocked,
 	comboKey,
 	complete,
 	findMany,
@@ -87,6 +89,13 @@ export const trialRouter = {
 				replayRequest(db, ownerId, requestId, key, provider),
 			);
 			if (existing) return existing;
+			// 삭제 대기·처리 중 클론과 남의 클론 id는 부르지 않는다(T13 계획 2.3). DB가 실패해도 부르지 않는다
+			if (
+				await withStorage(provider, () =>
+					cloneBlocked(db, ownerId, provider, [request.voiceId]),
+				)
+			)
+				throw new ORPCError("NOT_FOUND");
 			// 대기 시각 표를 읽지 못하면 부르지 않는다(로드맵 T5 메모)
 			const until = await withStorage(provider, () =>
 				cooldownOf(db, provider, new Date()),

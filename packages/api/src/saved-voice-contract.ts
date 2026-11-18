@@ -20,13 +20,14 @@ export const savedVoiceInputSchema = voiceSchema
 			sampleUrls(voice).every((url) => isSampleUrl(voice.provider, url)),
 		{ message: "sample_host" },
 	)
-	// voiceId는 공급자 REST 경로에 들어간다(encodeURIComponent 앞에서 모양을 한 번 더 제한). Typecast·Airy·Gemini는 공개 목록만 있다
+	// voiceId는 공급자 REST 경로에 들어간다(encodeURIComponent 앞에서 모양을 한 번 더 제한). Typecast·Airy는 공개 목록만 있다.
+	// Gemini account는 내 보이스 클론뿐이라 받되, 서버 upsert가 이 소유자의 my_voice 매핑을 확인한다(T13 계획 2.3)
 	.refine((voice) => /^[A-Za-z0-9_-]{1,200}$/.test(voice.voiceId), {
 		message: "voice_id",
 	})
 	.refine(
 		(voice) =>
-			!["typecast", "airy", "gemini"].includes(voice.provider) ||
+			!["typecast", "airy"].includes(voice.provider) ||
 			voice.source === "public",
 		{ message: "source" },
 	)

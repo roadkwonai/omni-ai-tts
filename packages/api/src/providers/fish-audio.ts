@@ -10,6 +10,8 @@ import {
 } from "../drama-script";
 import type { ListInputOf, Voice, VoiceSource } from "./contract";
 import {
+	CLONE_TIMEOUT_MS,
+	type CloneState,
 	fetchJson,
 	fetchOk,
 	logFailure,
@@ -25,6 +27,7 @@ import {
 } from "./errors";
 import { clip, emptyVoice, parseVoiceItems, queryOf } from "./list";
 import { SAMPLE_HOST } from "./sample-hosts";
+import { voiceIdSchema } from "./trial-contract";
 import {
 	type FishModel,
 	type FishSettings,
@@ -146,6 +149,29 @@ function fishVoice(
 			retiring: raw.pvc_release_state === "retiring",
 		},
 	};
+}
+
+// 클론(내 보이스) 응답의 상태(T13 계획 2.2). 모르는 state는 failed로 본다(id는 남겨 지울 수 있게)
+const fishCloneSchema = z.object({
+	_id: voiceIdSchema,
+	state: z.enum(["created", "training", "trained", "failed"]).catch("failed"),
+	quality: z
+		.object({
+			audios: z.array(
+				z.object({ quality_passed: z.boolean().optional() }).catch({}),
+			),
+		})
+		.nullish()
+		.catch(null),
+});
+function fishCloneState({ state, quality }: z.infer<typeof fishCloneSchema>): {
+	state: CloneState;
+	reason?: string;
+} {
+	if (quality?.audios.some((audio) => audio.quality_passed === false))
+		return { state: "failed", reason: "quality" };
+	if (state === "trained") return { state: "ready" };
+	return { state: state === "failed" ? "failed" : "processing" };
 }
 
 // 장면 SSE 이벤트는 두 층으로 읽는다(계획 리뷰 E1). 오디오(돈)는 느슨하게 읽어 정렬 모양이 달라도 잃지 않고,
@@ -421,5 +447,78 @@ export function createFishAudio(apiKey: string): ProviderClient {
 					? null
 					: fishVoice(rawVoiceSchema.parse(raw), source);
 			}),
+		// 내 보이스 클론 만들기 1회(T13). 비공개 고정, references(즉석 클론)·texts(없으면 ASR)는 보내지 않는다(tts-provider)
+		cloneCreate: async ({ name, source }, options) => {
+			const body = await runTrial(
+				"fish_audio",
+				async (signal) => {
+					const form = new FormData();
+					form.set("type", "tts");
+					form.set("title", name);
+					form.set("train_mode", "fast");
+					form.set("visibility", "private");
+					form.set("enhance_audio_quality", "true");
+					form.set(
+						"voices",
+						// slice: BlobPart는 ArrayBuffer 기반 배열만 받는다(타입). 원본 3MB 이하라 복사해도 된다
+						new Blob([source.slice()], { type: "audio/wav" }),
+						"source.wav",
+					);
+					// Content-Type은 쓰지 않는다(fetch가 멀티파트 경계를 붙인다)
+					const response = await fetchOk(
+						`${FISH_AUDIO_HOST}/model`,
+						{
+							method: "POST",
+							headers: { Authorization: `Bearer ${apiKey}` },
+							body: form,
+							signal: options.signal
+								? AbortSignal.any([signal, options.signal])
+								: signal,
+						},
+						fishCodes,
+					);
+					return (await response.json()) as unknown;
+				},
+				{ timeoutMs: CLONE_TIMEOUT_MS, logPrefix: "[myVoice]" },
+			);
+			// 응답은 받았는데 id를 쓸 수 없다. 처리 여부는 알지만 지울 id가 없어 공급자 오류로 보인다
+			const parsed = fishCloneSchema.safeParse(body);
+			if (!parsed.success) throw trialError("fish_audio", "provider_error");
+			return { voiceId: parsed.data._id, ...fishCloneState(parsed.data) };
+		},
+		cloneGet: (voiceId: string) =>
+			runList("fish_audio", async (signal) => {
+				const raw = await nullOnStatus(
+					getJson(`/model/${encodeURIComponent(voiceId)}`, signal),
+					403,
+					404,
+				);
+				return raw === null
+					? null
+					: { state: fishCloneState(fishCloneSchema.parse(raw)).state };
+			}),
+		cloneDelete: (voiceId: string) =>
+			runTrial(
+				"fish_audio",
+				async (signal) => {
+					await nullOnStatus(
+						fetchOk(
+							`${FISH_AUDIO_HOST}/model/${encodeURIComponent(voiceId)}`,
+							{
+								method: "DELETE",
+								headers: { Authorization: `Bearer ${apiKey}` },
+								signal,
+							},
+							fishCodes,
+						),
+						404,
+					);
+				},
+				{
+					timeoutMs: CLONE_TIMEOUT_MS,
+					logPrefix: "[myVoice]",
+					logLabel: "지우기 실패",
+				},
+			),
 	};
 }

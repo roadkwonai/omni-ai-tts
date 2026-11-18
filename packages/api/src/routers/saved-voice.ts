@@ -3,12 +3,24 @@ import {
 	channel,
 	classification,
 } from "@tts-pilot-app/db/schema/classification";
+import { myVoice } from "@tts-pilot-app/db/schema/my-voice";
 import {
 	savedVoice,
 	savedVoiceChannel,
 	savedVoiceClassification,
 } from "@tts-pilot-app/db/schema/saved-voice";
-import { and, desc, eq, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
+import {
+	and,
+	desc,
+	eq,
+	inArray,
+	isNull,
+	lt,
+	ne,
+	notExists,
+	or,
+	sql,
+} from "drizzle-orm";
 import { z } from "zod";
 
 import { deletedSchema, deleteInputSchema } from "../classification-contract";
@@ -103,28 +115,55 @@ async function listOf(
 	}));
 }
 
+// 공개 출처만 있던 공급자. 이 공급자의 account 성우는 앱이 만든 클론(my_voice 매핑)일 때만 담는다(T13 계획 2.3)
+const CLONE_ONLY_ACCOUNT = new Set<Voice["provider"]>([
+	"typecast",
+	"airy",
+	"gemini",
+]);
+
 // 담기: 공급자 + 성우 id로 upsert(조회 후 삽입이 아니라 유니크 제약이 막는다, data-upsert).
-// 새로 담기면 지금 확인한 것으로 본다(살아 있는 목록에서 담았다). 이미 있으면 정보·출처와 준 필드만 바꾸고 이용 가능 표시는 확인에 맡긴다
+// 새로 담기면 지금 확인한 것으로 본다(살아 있는 목록에서 담았다). 이미 있으면 정보·출처와 준 필드만 바꾸고 이용 가능 표시는 확인에 맡긴다.
+// 보관함에 쓰는 모든 길(담기·연결·프리셋·내 보이스)이 여기를 지나므로 클론 매핑 검사도 여기 한 곳이다. 검사와 쓰기가 한 트랜잭션이어야 해서 Tx만 받는다.
+// for share로 매핑을 잡아 지우기의 마지막 트랜잭션과 겹치지 않게 한다(잠금 순서 my_voice → saved_voice)
 export async function upsert(
-	db: Db | Tx,
+	tx: Tx,
 	ownerId: string,
 	voice: Voice,
 	patch: { favorite?: boolean; frequent?: boolean; memo?: string | null },
 ): Promise<string> {
-	const [row] = await db
+	// 출처와 상관없이 매핑을 본다: 남의 클론 id는 public으로 바꿔 와도 NOT_FOUND, 내 클론은 출처를 account로 고정한다.
+	// 내 클론도 ready일 때만 담는다(처리 중·실패·지우는 중이 이용 가능 행으로 생기지 않게)
+	const [mapped] = await tx
+		.select({ ownerId: myVoice.ownerId, status: myVoice.status })
+		.from(myVoice)
+		.where(
+			and(
+				eq(myVoice.provider, voice.provider),
+				eq(myVoice.providerVoiceId, voice.voiceId),
+			),
+		)
+		.for("share");
+	const own = mapped?.ownerId === ownerId && mapped.status === "ready";
+	const allowed = mapped
+		? own
+		: voice.source !== "account" || !CLONE_ONLY_ACCOUNT.has(voice.provider);
+	if (!allowed) throw new ORPCError("NOT_FOUND");
+	const kept: Voice = own ? { ...voice, source: "account" } : voice;
+	const [row] = await tx
 		.insert(savedVoice)
 		.values({
-			provider: voice.provider,
-			voiceId: voice.voiceId,
-			source: voice.source,
-			voice,
+			provider: kept.provider,
+			voiceId: kept.voiceId,
+			source: kept.source,
+			voice: kept,
 			...patch,
 			checkedAt: new Date(),
 			ownerId,
 		})
 		.onConflictDoUpdate({
 			target: [savedVoice.ownerId, savedVoice.provider, savedVoice.voiceId],
-			set: { voice, source: voice.source, ...patch },
+			set: { voice: kept, source: kept.source, ...patch },
 		})
 		.returning({ id: savedVoice.id });
 	return found(row).id;
@@ -249,6 +288,19 @@ export const savedVoiceRouter = {
 								ne(savedVoice.provider, "elevenlabs"),
 								ne(savedVoice.source, "public"),
 							),
+							// 내 보이스 클론의 이용 가능은 my_voice 상태가 정한다(Gemini getVoice는 클론을 못 찾는다, T13 계획 2.3)
+							notExists(
+								db
+									.select({ id: myVoice.id })
+									.from(myVoice)
+									.where(
+										and(
+											eq(myVoice.ownerId, savedVoice.ownerId),
+											eq(myVoice.provider, savedVoice.provider),
+											eq(myVoice.providerVoiceId, savedVoice.voiceId),
+										),
+									),
+							),
 						),
 					)
 					.orderBy(sql`${savedVoice.checkedAt} asc nulls first`)
@@ -272,10 +324,12 @@ export const savedVoiceRouter = {
 		.input(savedVoiceSaveInputSchema)
 		.output(savedVoiceSchema)
 		.handler(({ input: { voice, ...patch }, context: { db, ownerId } }) =>
-			stored(PREFIX, "담기", async () => {
-				const id = await upsert(db, ownerId, voice, patch);
-				return found((await listOf(db, ownerId, id))[0]);
-			}),
+			stored(PREFIX, "담기", () =>
+				db.transaction(async (tx) => {
+					const id = await upsert(tx, ownerId, voice, patch);
+					return found((await listOf(tx, ownerId, id))[0]);
+				}),
+			),
 		),
 	savedVoiceLinks: protectedProcedure
 		.input(savedVoiceLinksInputSchema)

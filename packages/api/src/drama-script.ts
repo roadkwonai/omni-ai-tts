@@ -218,7 +218,11 @@ export function splitLines(
 export const pcmSeconds = (bytes: number) =>
 	Math.floor(bytes / 2) / DRAMA_SAMPLE_RATE;
 
-export function wavHeader(dataBytes: number): Uint8Array<ArrayBuffer> {
+// 16비트 모노 PCM 머리말. 표본율은 드라마 44.1kHz가 기본이고 클론 원본은 24kHz(T13)
+export function wavHeader(
+	dataBytes: number,
+	rate = DRAMA_SAMPLE_RATE,
+): Uint8Array<ArrayBuffer> {
 	const head = new Uint8Array(WAV_HEADER_BYTES);
 	const v = new DataView(head.buffer);
 	const tag = (at: number, s: string) => {
@@ -231,8 +235,8 @@ export function wavHeader(dataBytes: number): Uint8Array<ArrayBuffer> {
 	v.setUint32(16, 16, true);
 	v.setUint16(20, 1, true); // PCM
 	v.setUint16(22, 1, true); // 모노
-	v.setUint32(24, DRAMA_SAMPLE_RATE, true);
-	v.setUint32(28, DRAMA_SAMPLE_RATE * 2, true);
+	v.setUint32(24, rate, true);
+	v.setUint32(28, rate * 2, true);
 	v.setUint16(32, 2, true);
 	v.setUint16(34, 16, true);
 	tag(36, "data");

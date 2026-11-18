@@ -2,8 +2,10 @@ import { z } from "zod";
 
 import type { ListInputOf, Voice, VoiceSource } from "./contract";
 import {
+	CLONE_TIMEOUT_MS,
 	fetchJson,
 	fetchOk,
+	nullOnStatus,
 	type ProviderClient,
 	ProviderHttpError,
 	providerError,
@@ -12,6 +14,7 @@ import {
 	runList,
 	runTrial,
 	type SynthesizeOptions,
+	trialError,
 } from "./errors";
 import { clip, emptyVoice, parseVoiceItems } from "./list";
 import { voiceIdSchema } from "./trial-contract";
@@ -372,6 +375,91 @@ export function createGemini(apiKey: string): ProviderClient {
 		getVoice: (_source: VoiceSource, voiceId: string) =>
 			allVoices().then(
 				(voices) => voices.find((voice) => voice.voiceId === voiceId) ?? null,
+			),
+		// 내 보이스 복제 1회(T13 계획 2.2, 공식 문서 voice-replication 2026-11-18). 동의 녹음이 없으면 부르지 않는다.
+		// Voice 리소스에 상태 필드가 없어 성공 응답은 ready다. 모델은 flash로 고정한다(6절 위험)
+		cloneCreate: async ({ name, source, consent }, options) => {
+			if (!consent) throw trialError("gemini", "provider_input");
+			const audio = (bytes: Uint8Array) => ({
+				mime_type: "audio/wav",
+				data: Buffer.from(bytes).toString("base64"),
+			});
+			const body = await runTrial(
+				"gemini",
+				async (signal) => {
+					const response = await waitDefault(
+						fetchOk(
+							`${GEMINI_HOST}/v1beta/voices`,
+							{
+								method: "POST",
+								headers: { ...auth, "Content-Type": "application/json" },
+								body: JSON.stringify({
+									store: true,
+									voice: {
+										model: "gemini-3.8-flash-tts",
+										type: "replicated",
+										display_name: name,
+										replicated: {
+											source_audio: audio(source),
+											consent_audio: audio(consent),
+										},
+									},
+								}),
+								signal: options.signal
+									? AbortSignal.any([signal, options.signal])
+									: signal,
+							},
+							geminiCodes,
+						),
+					);
+					return (await response.json()) as unknown;
+				},
+				{ timeoutMs: CLONE_TIMEOUT_MS, logPrefix: "[myVoice]" },
+			);
+			// 리소스 이름 꼴(voices/voice_…)이 오면 접두어를 뗀다. voiceIdSchema가 '/'를 막는다
+			const id = z
+				.object({ id: z.string() })
+				.safeParse(body)
+				.data?.id.replace(/^voices\//, "");
+			const voiceId = voiceIdSchema.safeParse(id);
+			if (!voiceId.success) throw trialError("gemini", "provider_error");
+			return { voiceId: voiceId.data, state: "ready" };
+		},
+		cloneGet: (voiceId: string) =>
+			runList("gemini", async (signal) => {
+				const found = await nullOnStatus(
+					waitDefault(
+						fetchJson(
+							`${GEMINI_HOST}/v1beta/voices/${encodeURIComponent(voiceId)}`,
+							auth,
+							signal,
+							geminiCodes,
+						),
+					),
+					404,
+				);
+				return found === null ? null : { state: "ready" as const };
+			}),
+		cloneDelete: (voiceId: string) =>
+			runTrial(
+				"gemini",
+				async (signal) => {
+					await nullOnStatus(
+						waitDefault(
+							fetchOk(
+								`${GEMINI_HOST}/v1beta/voices/${encodeURIComponent(voiceId)}`,
+								{ method: "DELETE", headers: auth, signal },
+								geminiCodes,
+							),
+						),
+						404,
+					);
+				},
+				{
+					timeoutMs: CLONE_TIMEOUT_MS,
+					logPrefix: "[myVoice]",
+					logLabel: "지우기 실패",
+				},
 			),
 	};
 }

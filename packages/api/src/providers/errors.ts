@@ -113,6 +113,8 @@ export type SynthesizeOptions<T = Uint8Array> = {
 	timeoutMs?: number;
 	// 실패 로그 접두어. 기본 "[trial]", 작업실 "[studio]", 드라마 "[drama]"
 	logPrefix?: string;
+	// 실패 로그 문구. 기본 "생성 실패", 클론 지우기 "지우기 실패"
+	logLabel?: string;
 	onLate?: (late: Promise<T>) => void;
 };
 
@@ -152,7 +154,26 @@ export type ProviderClient = {
 		voiceId: string,
 		preferred?: string | null,
 	): Promise<Voice | null>;
+	// Fish Audio·Gemini: 내 보이스 클론(T13 계획 2.2). 만들기·지우기는 공급자 상태를 바꾼다. runTrial(120초, 재시도 없음)로 감싼다.
+	// failed여도 voiceId를 돌려준다(공급자 쪽에 남은 클론을 지울 수 있게). id를 쓸 수 없는 응답은 provider_error로 던진다
+	cloneCreate?(
+		input: { name: string; source: Uint8Array; consent?: Uint8Array },
+		options: { signal?: AbortSignal },
+	): Promise<CloneResult>;
+	// 읽기 호출(runList 10초). null은 공급자가 '없다'고 답한 것이다
+	cloneGet?(voiceId: string): Promise<{ state: CloneState } | null>;
+	// 404는 이미 없는 것이라 성공이다
+	cloneDelete?(voiceId: string): Promise<void>;
 };
+
+export type CloneState = "ready" | "processing" | "failed";
+export type CloneResult = {
+	voiceId: string;
+	state: CloneState;
+	reason?: string;
+};
+// 클론 만들기·지우기 시간 제한(T13 계획 2.2)
+export const CLONE_TIMEOUT_MS = 120_000;
 
 export const CHECK_TIMEOUT_MS = 10_000;
 
@@ -451,6 +472,7 @@ export async function runTrial<T>(
 		timeoutMs = TRIAL_TIMEOUT_MS,
 		onLate,
 		logPrefix = "[trial]",
+		logLabel = "생성 실패",
 	}: SynthesizeOptions<T> = {},
 ): Promise<T> {
 	let started: Promise<T> | undefined;
@@ -472,7 +494,7 @@ export async function runTrial<T>(
 				providerCode: reason === "provider_input" ? error.codes[0] : undefined,
 			});
 		}
-		logFailure(`${logPrefix} ${provider} 생성 실패`, error, []);
+		logFailure(`${logPrefix} ${provider} ${logLabel}`, error, []);
 		throw trialError(provider, "unknown_outcome");
 	}
 }

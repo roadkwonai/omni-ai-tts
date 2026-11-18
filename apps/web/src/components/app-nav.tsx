@@ -49,6 +49,7 @@ const OPEN_ITEMS: {
 	{ label: "성우 캐스팅", icon: AudioWaveform, href: "/casting", bar: true },
 	{ label: "성우 보관함", icon: UserRound, href: "/voices", bar: false },
 	{ label: "프리셋", icon: SlidersHorizontal, href: "/presets", bar: false },
+	{ label: "내 보이스", icon: Mic, href: "/my-voices", bar: false },
 	{ label: "연결 상태", icon: Link2, href: "/connections", bar: true },
 	{ label: "채널·분류", icon: Tag, href: "/classes", bar: false },
 ];
@@ -56,7 +57,6 @@ const OPEN_ITEMS: {
 // 아직 만들지 않은 화면('준비 중', 사이트맵 "예외"). 그 화면을 여는 TASK가 OPEN_ITEMS로 옮긴다.
 const UPCOMING_ITEMS: { label: string; icon: LucideIcon }[] = [
 	{ label: "프로젝트", icon: Folder },
-	{ label: "내 보이스", icon: Mic },
 ];
 
 // 767px 이하: 위 막대 칸(아이콘 위, 글자 아래) / 768~1199px: 64px 아이콘 / 1200px 이상: 256px 전체

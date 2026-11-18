@@ -7,6 +7,7 @@ import { SimpleCsrfProtectionHandlerPlugin } from "@orpc/server/plugins";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import { myVoiceCreateInputSchema } from "./my-voice-contract";
 import { STUDIO_PART_BYTES } from "./providers/trial-options";
 
 // 시험 생성 결과는 base64 JSON이 아니라 바이너리로 보낸다(T5 스펙 5절, Vercel 4.5MB 한도).
@@ -77,6 +78,66 @@ describe("oRPC File 출력", () => {
 		expect(size).toBeLessThan(4_500_000);
 		expect(
 			Buffer.from(await part.arrayBuffer()).equals(Buffer.from(chunk)),
+		).toBe(true);
+	});
+});
+
+// 클론 원본은 File 입력으로 서버 메모리까지만 온다(T13 계획 2.3·6절 위험, ADR 0011). 입력 쪽 multipart를 같은 연결로 증명한다
+describe("oRPC File 입력", () => {
+	it("원본 3MB + 동의 1MB(계약 상한 그대로)가 multipart로 핸들러에 바이트 그대로 온다", async () => {
+		const source = new Uint8Array(3_000_000).map((_, i) => (i * 7) % 251);
+		const consent = new Uint8Array(1_000_000).map((_, i) => 250 - (i % 251));
+		const got: { source: Uint8Array; consent: Uint8Array; id: string }[] = [];
+		const inputRouter = {
+			create: os.input(myVoiceCreateInputSchema).handler(async ({ input }) => {
+				got.push({
+					id: input.requestId,
+					source: new Uint8Array(await input.source.arrayBuffer()),
+					consent: new Uint8Array(
+						(await input.consentAudio?.arrayBuffer()) ?? new ArrayBuffer(0),
+					),
+				});
+				return { ok: true };
+			}),
+		};
+		const handler = new RPCHandler(inputRouter, {
+			plugins: [new SimpleCsrfProtectionHandlerPlugin()],
+		});
+		let contentType = "";
+		const link = new RPCLink({
+			url: "http://127.0.0.1:3001/api/rpc",
+			plugins: [new SimpleCsrfProtectionLinkPlugin()],
+			fetch: async (request) => {
+				contentType = request.headers.get("content-type") ?? "";
+				const { response } = await handler.handle(request, {
+					prefix: "/api/rpc",
+					context: {},
+				});
+				return response ?? new Response("Not found", { status: 404 });
+			},
+		});
+		const client: RouterClient<typeof inputRouter> = createORPCClient(link);
+		const requestId = crypto.randomUUID();
+		await client.create({
+			requestId,
+			provider: "gemini",
+			name: "내 목소리",
+			consent: true,
+			source: new File([source], "source.wav", { type: "audio/wav" }),
+			consentAudio: new File([consent], "consent.wav", { type: "audio/wav" }),
+		});
+		expect(contentType).toMatch(/^multipart\/form-data/);
+		expect(got).toHaveLength(1);
+		const [result] = got;
+		expect(result?.id).toBe(requestId);
+		expect(result?.source.length).toBe(source.length);
+		expect(result?.consent.length).toBe(consent.length);
+		expect(result?.source[1]).toBe(source[1]);
+		expect(Buffer.from(result?.source ?? []).equals(Buffer.from(source))).toBe(
+			true,
+		);
+		expect(
+			Buffer.from(result?.consent ?? []).equals(Buffer.from(consent)),
 		).toBe(true);
 	});
 });

@@ -9,14 +9,37 @@ import {
 import { Input } from "@tts-pilot-app/ui/components/input";
 import { cn } from "@tts-pilot-app/ui/lib/utils";
 import { Coins, Play } from "lucide-react";
-import { useId, useRef } from "react";
+import { type ReactNode, useId, useRef } from "react";
 
 import { plain } from "@/lib/voice-view";
 
 import { useSentence } from "./trial-provider";
 
+const DEFAULT_HINT = (
+	<>
+		기본 샘플
+		<Play
+			aria-hidden="true"
+			className="mx-0.5 inline size-3.5 fill-current align-middle"
+		/>
+		은 무료예요. 내 문장 듣기는
+		<Coins
+			aria-hidden="true"
+			className="mx-0.5 inline size-3.5 align-middle text-warning"
+		/>
+		크레딧을 써요(Fish Audio 무료 모델 제외).
+	</>
+);
+
 // 모든 탭에서 같은 문장. IME 조합 중에는 자르지 않고 완료 시 200코드포인트로 제한한다.
-export function SentenceBar({ provider }: { provider: ProviderId | null }) {
+// hint는 아래 안내 칸이다. 넘기지 않으면 기본 안내, null이면 칸을 그리지 않는다(기본 샘플이 없는 내 보이스 창)
+export function SentenceBar({
+	provider,
+	hint = DEFAULT_HINT,
+}: {
+	provider: ProviderId | null;
+	hint?: ReactNode;
+}) {
 	const { text, setText } = useSentence();
 	const id = useId();
 	const composing = useRef(false);
@@ -48,7 +71,7 @@ export function SentenceBar({ provider }: { provider: ProviderId | null }) {
 						)
 					}
 					placeholder="들어 볼 문장을 써 주세요"
-					aria-describedby={`${id}-count ${id}-hint`}
+					aria-describedby={hint ? `${id}-count ${id}-hint` : `${id}-count`}
 					className="min-h-11 shrink-0 rounded-xl text-base md:flex-1 md:text-sm"
 				/>
 				<p
@@ -64,19 +87,11 @@ export function SentenceBar({ provider }: { provider: ProviderId | null }) {
 						: null}
 				</p>
 			</div>
-			<p id={`${id}-hint`} className="text-muted-foreground text-sm">
-				기본 샘플
-				<Play
-					aria-hidden="true"
-					className="mx-0.5 inline size-3.5 fill-current align-middle"
-				/>
-				은 무료예요. 내 문장 듣기는
-				<Coins
-					aria-hidden="true"
-					className="mx-0.5 inline size-3.5 align-middle text-warning"
-				/>
-				크레딧을 써요(Fish Audio 무료 모델 제외).
-			</p>
+			{hint ? (
+				<p id={`${id}-hint`} className="text-muted-foreground text-sm">
+					{hint}
+				</p>
+			) : null}
 		</section>
 	);
 }

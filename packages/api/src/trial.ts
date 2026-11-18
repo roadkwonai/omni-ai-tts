@@ -1,8 +1,9 @@
 import { ORPCError } from "@orpc/server";
 import type { Database } from "@tts-pilot-app/db";
+import { myVoice } from "@tts-pilot-app/db/schema/my-voice";
 import { savedVoice } from "@tts-pilot-app/db/schema/saved-voice";
 import { trialGeneration } from "@tts-pilot-app/db/schema/trial-generation";
-import { and, desc, eq, gt, inArray, lt, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, lt, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import type { Context } from "./context";
@@ -656,6 +657,29 @@ export async function audioPart(
 	return audioFile(row.chunk, row.audioType ?? "audio/mpeg");
 }
 
+// 합성 전 클론 검사(T13 계획 2.3): 보낼 voice id 가운데 앱이 만든 클론(my_voice 매핑)이 있는데 '내 것이고 ready'가 아니면 참이다.
+// 삭제 대기·처리 중 클론과, 보관함에 담긴 남의 클론 id를 막는다. 남의 매핑도 봐야 하므로 이 select만 소유자로 거르지 않는다(결과는 참·거짓뿐이다)
+export async function cloneBlocked(
+	db: Database,
+	ownerId: string,
+	provider: ProviderId,
+	voiceIds: readonly string[],
+) {
+	if (voiceIds.length === 0) return false;
+	const [row] = await db
+		.select({ id: myVoice.id })
+		.from(myVoice)
+		.where(
+			and(
+				eq(myVoice.provider, provider),
+				inArray(myVoice.providerVoiceId, voiceIds),
+				or(ne(myVoice.ownerId, ownerId), ne(myVoice.status, "ready")),
+			),
+		)
+		.limit(1);
+	return row !== undefined;
+}
+
 // 서버 성우 검사(T9 스펙 2절, T9.5 스펙 2절, 로드맵 T8 보안 메모): 보낼 성우가 모두 이 소유자가 그 공급자로 담았고 현재 이용 불가가 아니어야 한다.
 // 부르는 쪽은 선점·공급자 호출 전에 부르고, 거짓이면 voice_unavailable로 거절한다. 클라이언트가 보낸 voice id를 믿지 않는다. 담은 성우는 소유자 조건으로만 찾는다(prokit-api 불변식 3, tts-provider 클론 보이스 절).
 // 담은 성우의 voice id도 원래 클라이언트가 보낸 값(savedVoiceSave)이라 이 검사는 '이 소유자가 담은 성우'라는 앱 수준 일관성 검사이고,
@@ -668,6 +692,7 @@ export async function usableVoices(
 ) {
 	// 보낼 성우가 없으면 0 === 0으로 참이 되므로 거절한다(fail closed)
 	if (voiceIds.length === 0) return false;
+	if (await cloneBlocked(db, ownerId, provider, voiceIds)) return false;
 	const rows = await db
 		.select({ id: savedVoice.id })
 		.from(savedVoice)

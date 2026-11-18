@@ -112,7 +112,7 @@ describe("담기 입력(T7 스펙 3절)", () => {
 			}).success,
 		).toBe(false);
 	});
-	it("Gemini: 참고 음성 경로(docs.cloud.google.com/text-to-speech/docs/audio/)만, 공개 출처만 받는다", () => {
+	it("Gemini: 참고 음성 경로(docs.cloud.google.com/text-to-speech/docs/audio/)만, 계정 출처(클론)도 받는다", () => {
 		const url =
 			"https://docs.cloud.google.com/text-to-speech/docs/audio/ko-KR-Chirp3-HD-Kore.wav";
 		const kore = {
@@ -148,11 +148,16 @@ describe("담기 입력(T7 스펙 3절)", () => {
 					voice: { ...kore, previewUrl: bad },
 				}).success,
 			).toBe(false);
+		// T13: Gemini account(내 보이스 클론)는 계약이 받고, 서버 upsert가 my_voice 매핑을 확인한다(routers/my-voice.test.ts)
 		expect(
 			savedVoiceSaveInputSchema.safeParse({
-				voice: { ...kore, source: "account" },
+				voice: {
+					...emptyVoice("gemini", "account"),
+					voiceId: "voice_a1",
+					name: "클론",
+				},
 			}).success,
-		).toBe(false);
+		).toBe(true);
 	});
 	it("JSON 20,000자를 넘는 성우 정보는 거절한다", () => {
 		const big = {
