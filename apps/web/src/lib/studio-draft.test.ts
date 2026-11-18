@@ -123,6 +123,115 @@ describe("readWork(임시 작업 v2)", () => {
 		expect(readWork(writeWork(w), voices)).toEqual(w);
 		expect(readWork(writeWork(w), null)).toEqual(w);
 	});
+	describe("숫자 교정 결정(fixes, T11)", () => {
+		const TEXT = "사과 3개와 12,500원";
+		const decisions = [
+			{ start: 3, end: 5, original: "3개", choice: "apply", reading: "세 개" },
+			{
+				start: 7,
+				end: 14,
+				original: "12,500원",
+				choice: "manual",
+				reading: "만이천오백원",
+			},
+		] as const;
+		const withFixes = (fixes: unknown) =>
+			readWork(
+				raw({ ...work(), paragraphs: [{ id: "a", text: TEXT, fixes }] }),
+				null,
+			)?.paragraphs[0];
+		it("fixes가 있는 작업은 writeWork → readWork 왕복으로 남고, 없는 예전 작업은 그대로 읽힌다", () => {
+			const w = work({
+				paragraphs: [
+					{
+						id: "a",
+						text: TEXT,
+						fixes: { text: TEXT, decisions: decisions.map((d) => ({ ...d })) },
+					},
+					{ id: "b", text: "숫자 없음" },
+				],
+			});
+			expect(readWork(writeWork(w), null)).toEqual(w);
+			expect(readWork(writeWork(w), [saved()])).toEqual(w);
+			const old = work();
+			expect(readWork(writeWork(old), null)?.paragraphs[0]).not.toHaveProperty(
+				"fixes",
+			);
+			expect(readWork(writeWork(old), null)).toEqual(old);
+		});
+		it("fixes.text가 지금 글과 다르거나 모양이 틀리면 뺀다", () => {
+			for (const fixes of [
+				{ text: "다른 글", decisions },
+				{ decisions },
+				{ text: TEXT },
+				{ text: TEXT, decisions: "x" },
+				"x",
+				null,
+				[],
+			])
+				expect(withFixes(fixes)).not.toHaveProperty("fixes");
+			expect(withFixes({ text: TEXT, decisions: [] })).not.toHaveProperty(
+				"fixes",
+			);
+		});
+		it("잘못된 결정만 버린다(자리가 글과 안 맞음, 모르는 선택, 빈 직접 입력, 같은 자리 중복)", () => {
+			const good = decisions[0];
+			const read = withFixes({
+				text: TEXT,
+				decisions: [
+					{ ...good, original: "4개" },
+					{ ...good, start: -1 },
+					{ ...good, end: 99, original: "3개" },
+					{ ...good, choice: "other" },
+					{ ...good, choice: "manual", reading: "  " },
+					{ ...good, choice: "apply", reading: 3 },
+					"x",
+					good,
+					{ ...good, choice: "keep" },
+					decisions[1],
+				],
+			});
+			expect(read?.fixes).toEqual({
+				text: TEXT,
+				decisions: [good, decisions[1]],
+			});
+			// keep은 읽기를 남기지 않는다
+			expect(
+				withFixes({
+					text: TEXT,
+					decisions: [{ ...good, choice: "keep", reading: "세 개" }],
+				})?.fixes?.decisions,
+			).toEqual([{ start: 3, end: 5, original: "3개", choice: "keep" }]);
+		});
+		it("성우 목록이 늦게 와도 저장 글의 키 순서와 상관없이 다시 저장하지 않는다", () => {
+			// 화면 상태는 fixes 칸이 문단 맨 앞이고 결정의 키 순서도 다르다
+			const state = {
+				...work(),
+				paragraphs: [
+					{
+						fixes: {
+							decisions: [
+								{
+									reading: "세 개",
+									choice: "apply" as const,
+									original: "3개",
+									end: 5,
+									start: 3,
+								},
+							],
+							text: TEXT,
+						},
+						text: TEXT,
+						id: "a",
+					},
+				],
+			};
+			expect(checkedWork(writeWork(state), [saved()])).toBeNull();
+			expect(readWork(writeWork(state), [saved()])).toEqual(
+				readWork(writeWork(state), null),
+			);
+		});
+	});
 	it("200개를 넘는 문단은 앞 200개", () => {
 		const paragraphs = Array.from({ length: PARAGRAPHS_MAX + 5 }, (_, i) => ({
 			id: `p${i}`,

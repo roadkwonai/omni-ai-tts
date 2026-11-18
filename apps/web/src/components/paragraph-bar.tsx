@@ -46,7 +46,7 @@ import {
 	receivePlan,
 	usageByProvider,
 } from "@/lib/make-all";
-import { blankFor } from "@/lib/paragraph-script";
+import { blankFor, unreviewedList } from "@/lib/paragraph-script";
 import { seekOf, spanIndexAt } from "@/lib/sound-join";
 import { blockText, makeProblemText, PARAGRAPH_TEXT } from "@/lib/studio-text";
 import { STUDIO_TEXT } from "@/lib/studio-view";
@@ -419,6 +419,8 @@ export function ParagraphBar({
 	const mainLost = useRef(false);
 	// 문단 하나 확인 창을 '만들기'로 닫았다(그 카드의 '만들기'는 곧 '만드는 중'으로 빠진다)
 	const oneConfirmed = useRef(false);
+	// 한 문단 확인 창의 '검수하기'로 닫는 중(finalFocus가 포커스를 옮기지 않는다)
+	const toReview = useRef(false);
 	const setMain = useCallback((button: HTMLButtonElement | null) => {
 		if (!button)
 			mainLost.current =
@@ -823,6 +825,12 @@ export function ParagraphBar({
 			<TrialConfirm
 				kind="studio"
 				pending={one}
+				// 이 문단(큐의 첫 항목)의 검수 안 한 숫자 나열
+				unreviewedList={
+					one?.unreviewed
+						? unreviewedList(ps.filter((p) => p.id === work.make.queue[0]?.id))
+						: ""
+				}
 				onClose={() => {
 					oneConfirmed.current = false;
 					work.cancel();
@@ -831,8 +839,20 @@ export function ParagraphBar({
 					oneConfirmed.current = true;
 					work.confirm();
 				}}
-				// 취소면 연 '만들기'로. 만들기로 닫았거나 그 단추가 이미 빠졌으면 그 카드 숨은 제목(body로 떨어지지 않게)
+				// 검수 안 한 숫자가 있으면 '검수하기': 만들기를 취소하고 숫자 검수 창을 그 문단에서 연다(큐의 첫 항목이 이 문단이다). 닫으면 포커스는 연 '만들기'로
+				onReview={(pending) => {
+					oneConfirmed.current = false;
+					toReview.current = true;
+					const id = work.make.queue[0]?.id ?? null;
+					work.cancel();
+					work.openReview(id, pending.opener);
+				}}
+				// 취소면 연 '만들기'로. 만들기로 닫았거나 그 단추가 이미 빠졌으면 그 카드 숨은 제목(body로 떨어지지 않게). '검수하기'로 닫으면 옮기지 않는다(숫자 검수 창이 가져간다)
 				finalFocus={() => {
+					if (toReview.current) {
+						toReview.current = false;
+						return false;
+					}
 					const opener = one?.opener;
 					if (opener?.isConnected && !oneConfirmed.current) return opener;
 					const id = madeFrom.current;

@@ -175,6 +175,12 @@ type WorkApi = {
 	confirming: Confirming;
 	makeAll: (opener: HTMLElement | null) => void;
 	makeOne: (id: string, opener: HTMLElement | null) => void;
+	// 숫자 검수 창(T11, 브리프 17). paragraphId는 그 문단의 첫 미검수 항목(없으면 첫 항목)에서 열고, null이면 대본 전체의 첫 미검수 항목에서 연다.
+	// opener는 닫힐 때 포커스가 돌아갈 버튼(reviewOpener). 결정은 창이 useParagraphs().edit로 한다
+	reviewAt: { paragraphId: string | null } | null;
+	openReview: (paragraphId: string | null, opener: HTMLElement | null) => void;
+	closeReview: () => void;
+	reviewOpener: () => HTMLElement | null;
 	stop: () => void;
 	confirm: () => void;
 	cancel: () => void;
@@ -279,6 +285,7 @@ function ParagraphsProvider({
 			changed.current();
 		}
 		// 되돌리고 되살아난 첫 문단(지금 배열과 처음 다른 자리, 없으면 끝 문단)의 대본 칸으로 간다(브리프 7절). 곧바로 그려 바로 옮긴다.
+		// 단 숫자 검수 창이 열려 있으면 창 안에 둔다.
 		// 알림 단추를 누르면 sonner가 알림에 들어오기 전 칸을 기억했다가 포커스가 알림을 떠날 때 그 칸으로 되돌린다(ol onBlur).
 		// 먼저 단추에서 포커스를 놓아 그 되돌림을 끝낸 뒤 옮긴다(F12-2)
 		function restore(before: Paragraph[]) {
@@ -288,6 +295,14 @@ function ParagraphsProvider({
 			if (!back) return;
 			if (document.activeElement instanceof HTMLElement)
 				document.activeElement.blur();
+			// 숫자 검수 창이 열려 있으면(모달) 대본 칸은 창 뒤라 포커스를 창 안에 둔다
+			const review = document.querySelector("[data-number-review]");
+			if (review) {
+				review
+					.querySelector<HTMLElement>("[data-review-first],[data-review-done]")
+					?.focus();
+				return;
+			}
 			focusText(back.id);
 		}
 		// 되돌리기는 한 단계다. 새로 띄우면 앞 알림을 닫는다(drama-lines useOwnToast와 같다).
@@ -349,6 +364,10 @@ export function WorkProvider({ children }: { children: ReactNode }) {
 	const [loaded, setLoaded] = useState<LoadedPreset | null>(null);
 	const [shown, setShown] = useState<Shown | null>(null);
 	const [receiving, setReceiving] = useState<Receiving | null>(null);
+	const [reviewAt, setReviewAt] = useState<{
+		paragraphId: string | null;
+	} | null>(null);
+	const reviewer = useRef<HTMLElement | null>(null);
 	// 이벤트·await 뒤에 읽는 최신 값(렌더는 state를 읽는다)
 	const readRef = useRef(false);
 	const metaRef = useRef<WorkMeta>(BLANK_META);
@@ -901,6 +920,13 @@ export function WorkProvider({ children }: { children: ReactNode }) {
 		confirming: makeApi.confirming,
 		makeAll: makeApi.makeAll,
 		makeOne: makeApi.makeOne,
+		reviewAt,
+		openReview: (paragraphId, opener) => {
+			reviewer.current = opener;
+			setReviewAt({ paragraphId });
+		},
+		closeReview: () => setReviewAt(null),
+		reviewOpener: () => reviewer.current,
 		stop: makeApi.stop,
 		confirm: makeApi.confirm,
 		cancel: makeApi.cancel,

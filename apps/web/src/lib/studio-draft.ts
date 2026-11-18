@@ -19,7 +19,9 @@ import type { SavedVoice } from "@tts-pilot-app/api/saved-voice-contract";
 
 import { PROVIDER_IDS, PROVIDER_LABEL } from "./connection-view";
 import {
+	type Decision,
 	PARAGRAPH_GAP_DEFAULT,
+	type Paragraph,
 	SPEAKERS_MAX,
 	type Speaker,
 	type VoiceSetup,
@@ -155,6 +157,45 @@ function speakersOf(
 	return speakers;
 }
 
+// 숫자 교정 결정 하나(T11 스펙 3절). 자리가 지금 글과 맞고(original), 선택이 알려진 값이며, 직접 입력은 비지 않아야 한다. 키 순서는 늘 같게 만든다(저장 글 비교가 순서에 흔들리지 않게)
+function decisionOf(raw: unknown, text: string): Decision | null {
+	const d = objectOf(raw);
+	const { start, end, original, choice, reading } = d ?? {};
+	if (
+		!Number.isInteger(start) ||
+		!Number.isInteger(end) ||
+		typeof start !== "number" ||
+		typeof end !== "number" ||
+		start < 0 ||
+		end <= start ||
+		end > text.length ||
+		typeof original !== "string" ||
+		text.slice(start, end) !== original ||
+		(choice !== "apply" && choice !== "keep" && choice !== "manual")
+	)
+		return null;
+	if (choice === "keep") return { start, end, original, choice };
+	if (reading === undefined && choice === "apply")
+		return { start, end, original, choice };
+	return typeof reading === "string" && reading.trim() !== ""
+		? { start, end, original, choice, reading: reading.trim() }
+		: null;
+}
+// 결정 목록. fixes.text가 지금 글과 다르거나 모양이 틀리면 null이고, 같은 자리의 중복은 첫 결정만 둔다. 남은 결정이 없으면 null
+function fixesOf(raw: unknown, text: string): Paragraph["fixes"] | null {
+	const f = objectOf(raw);
+	if (!f || f.text !== text || !Array.isArray(f.decisions)) return null;
+	const starts = new Set<number>();
+	const decisions: Decision[] = [];
+	for (const item of f.decisions) {
+		const d = decisionOf(item, text);
+		if (!d || starts.has(d.start)) continue;
+		starts.add(d.start);
+		decisions.push(d);
+	}
+	return decisions.length > 0 ? { text, decisions } : null;
+}
+
 // 깨진 JSON·문단 목록이 없거나 빈 값은 null(화면이 v1 옮기기나 처음 상태로 간다). 칸마다 검사해 깨진 칸만 버리거나 처음 값으로 둔다(drama readDraft와 같은 뜻).
 // 상한을 넘는 글은 지우지 않는다(blockOf가 막는다)
 export function readWork(
@@ -187,12 +228,15 @@ export function readWork(
 		const name =
 			typeof p?.speaker === "string" ? speakerNameOf(p.speaker) : null;
 		const speaker = name !== null && speakers?.some((s) => s.name === name);
+		const text = typeof p?.text === "string" ? p.text : "";
+		const fixes = fixesOf(p?.fixes, text);
 		return {
 			id,
-			text: typeof p?.text === "string" ? p.text : "",
+			text,
 			...(gap === null ? {} : { gap }),
 			...(voice ? { voice } : {}),
 			...(speaker ? { speaker: name } : {}),
+			...(fixes ? { fixes } : {}),
 		};
 	});
 	return {

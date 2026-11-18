@@ -38,7 +38,9 @@ import {
 	summaryOf,
 	usageByProvider,
 } from "./make-all";
+import { readingItems } from "./number-reading";
 import {
+	decide,
 	PARAGRAPH_GAP_DEFAULT,
 	type Paragraph,
 	paragraphRequest,
@@ -170,6 +172,25 @@ describe("makePlan", () => {
 			n: 2,
 			block: { kind: "too_long", length: STUDIO_TEXT_MAX + 1, max: 2000 },
 		});
+	});
+	it("만들 문단의 검수 안 한 숫자를 unreviewed로 센다(저장된 결과·막힌 계획은 세지 않는다)", () => {
+		const w = work({ defaultVoice: fishFree });
+		const open = para("a", "3개와 12,500원");
+		const done = para("b", "3개와 5명");
+		const first = readingItems(done.text)[0];
+		const decided = decide(done, first, { choice: "keep" });
+		// 항목 둘 중 하나만 정하면 남은 하나가 센다
+		const plan = makePlan([open, decided], w, VOICES, new Map(), NOW);
+		expect(plan.unreviewed).toBe(2 + 1);
+		expect(
+			makePlan([para("c", "숫자 없음")], w, VOICES, new Map(), NOW).unreviewed,
+		).toBe(0);
+		const saved = table([[open, found()]], w);
+		expect(makePlan([open], w, VOICES, saved, NOW).unreviewed).toBe(0);
+		const blocked = para("d", "가".repeat(STUDIO_TEXT_MAX + 1));
+		expect(
+			makePlan([open, blocked], w, VOICES, new Map(), NOW).unreviewed,
+		).toBe(0);
 	});
 	it("빈 문단은 건너뛴다", () => {
 		const ps = [para("a", "  "), para("b", "둘")];
@@ -842,6 +863,7 @@ describe("makeReducer", () => {
 			queue: [A, B],
 			blocked: false,
 			unknown: 0,
+			unreviewed: 0,
 			free: false,
 			...over,
 		});
@@ -876,6 +898,10 @@ describe("makeReducer", () => {
 	});
 	it("무료여도 미확인이 있으면 confirm", () => {
 		expect(plannedWith({ free: true, unknown: 1 }).phase).toBe("confirm");
+	});
+	it("무료여도 검수 안 한 숫자가 있으면 confirm, 없으면 바로 making", () => {
+		expect(plannedWith({ free: true, unreviewed: 2 }).phase).toBe("confirm");
+		expect(plannedWith({ free: true, unreviewed: 0 }).phase).toBe("making");
 	});
 	it("빈 큐 planned는 idle과 notice nothing", () => {
 		expect(plannedWith({ queue: [], free: false })).toMatchObject({
@@ -1030,6 +1056,62 @@ describe("makeReducer", () => {
 	});
 });
 
+describe("발음용 대본 기준(T11 계획 결정 2): 찾기 길이 검사·막대 글자 수", () => {
+	const text = `${"가".repeat(1997)} 3개`;
+	const grown = decide(para("g", text), readingItems(text)[0], {
+		choice: "apply",
+	});
+	it("찾기 대상의 길이 검사는 발음용 대본이다(읽기가 길어져 상한을 넘으면 뺀다)", () => {
+		const w = work();
+		expect(
+			findTargets([para("g", text)], w, VOICES, new Map(), true, NOW),
+		).toHaveLength(1);
+		expect(findTargets([grown], w, VOICES, new Map(), true, NOW)).toEqual([]);
+	});
+	it("막대 글자 수는 발음용 대본이고, 결정이 없으면 지금과 같다", () => {
+		const plain = para("a", "3개와 12,500원");
+		const done = decide(plain, readingItems(plain.text)[0], {
+			choice: "apply",
+		});
+		const sum = (p: Paragraph) =>
+			summaryOf([p], work(), VOICES, new Map(), NOW).chars;
+		expect(sum(plain)).toBe(11);
+		expect(sum(done)).toBe(12);
+	});
+	it("조합 키(찾기 서명)는 결정이 없으면 같고, 적용하면 달라진다", () => {
+		const w = work();
+		const p = para("a", "3개");
+		const keep = decide(p, readingItems(p.text)[0], { choice: "keep" });
+		const done = decide(p, readingItems(p.text)[0], { choice: "apply" });
+		const sign = (q: Paragraph) => {
+			const request = paragraphRequest(q, w, VOICES, NOW);
+			return request && comboSignature(request);
+		};
+		expect(sign(keep)).toBe(sign(p));
+		expect(sign(done)).not.toBe(sign(p));
+		expect(
+			paragraphStatus(
+				done,
+				w,
+				VOICES,
+				new Map([[sign(p) ?? "", found()]]),
+				new Map(),
+				NOW,
+			),
+		).not.toBe("made");
+		expect(
+			paragraphStatus(
+				keep,
+				w,
+				VOICES,
+				new Map([[sign(p) ?? "", found()]]),
+				new Map(),
+				NOW,
+			),
+		).toBe("made");
+	});
+});
+
 describe("summaryOf·firstLink", () => {
 	it("빈 문단을 빼고 글자·만든 수·예상 초", () => {
 		const a = para("a", " 안녕하세요 ");
@@ -1066,6 +1148,7 @@ describe("summaryOf·firstLink", () => {
 				queue: [A],
 				blocked: false,
 				unknown: 0,
+				unreviewed: 0,
 				free: true,
 			}),
 			{ type: "fail", run: 1, item: A, problem: problem("quota"), sent: true },

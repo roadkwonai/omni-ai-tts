@@ -14,6 +14,7 @@ import {
 } from "@tts-pilot-app/api/providers/trial-options";
 
 import { PROVIDER_LABEL } from "./connection-view";
+import type { CheckReason, ReadingKind } from "./number-reading";
 import {
 	type ParagraphBlock,
 	SPEAKERS_MAX,
@@ -669,3 +670,93 @@ export function paragraphTagGroups(family: ActingFamily): TagGroup[] {
 	];
 	return all.filter((group) => group.items.length > 0);
 }
+
+// T11 숫자 검수(브리프 17.6). 이름·원문 표기 뒤에 받침 따라 바뀌는 조사를 붙이지 않는다.
+// leading_zero·unit_join 이유는 브리프 표에 없어 같은 말투로 더했다(보고)
+export const NUMBER_TEXT = {
+	// 카드
+	spoken: "발음용 대본",
+	changed: "읽기 바꿈",
+	spokenLabel: (no: number) => `문단 ${n(no)} 발음용 대본`,
+	// 카드 상태 줄 "숫자 1~3개 · GPT-4o · 1/2 검수 안 함"(가운데는 원문 표기 나열 unreviewedList, 화면이 translate="no"로 끼운다)
+	openHead: "숫자",
+	openTail: "검수 안 함",
+	review: "검수하기",
+	done: "숫자 검수 끝",
+	again: "다시 보기",
+	spokenCount: (count: number, max: number) =>
+		`발음용 대본 ${n(count)}/${n(max)}자`,
+	// 버튼
+	button: "숫자 검수",
+	buttonLabel: (count: number) => `숫자 검수, 검수 안 함 ${n(count)}개`,
+	// 창
+	title: "숫자 검수",
+	summary: (open: number, total: number) =>
+		`검수 안 함 ${n(open)} · 모두 ${n(total)}`,
+	note: "원문은 그대로 두고, 고른 읽기는 발음용 대본에만 넣어요.",
+	paragraph: (no: number) => `문단 ${n(no)}`,
+	kindLine: (no: number, kind: string) => `문단 ${n(no)} · ${kind}`,
+	needsCheck: "확인 필요",
+	recommend: "추천",
+	list: "검수 항목",
+	legend: "읽기",
+	keepOf: (original: string) => `원문 유지 · ${original}`,
+	manual: "직접 입력",
+	manualInput: "직접 입력할 읽을 글",
+	autoTag: "AutoTag 참고",
+	autoTagLoading: "AutoTag 참고 후보를 불러오는 중…",
+	// 현재 위치 "5 / 12"(창 머리 설명, 목록이 숨는 767px 이하에서도 보인다)
+	position: (at: number, total: number) => `${n(at)} / ${n(total)}`,
+	appliedMark: "적용함",
+	keptMark: "원문 유지함",
+	manualMark: "직접 입력함",
+	openMark: "검수 안 함",
+	prev: "이전",
+	next: "다음",
+	revert: "되돌리기",
+	applyCertain: (count: number) => `확실한 것 모두 적용 (${n(count)})`,
+	applyNext: "적용하고 다음",
+	copy: "발음용 대본 복사",
+	allDone: "모두 검수했어요",
+	pickReading: "읽기를 골라 주세요",
+	typeReading: "읽을 글을 입력해 주세요",
+	locked: "전체 만들기가 끝난 뒤 바꿀 수 있어요",
+	live: (no: number, original: string, mark: string) =>
+		`문단 ${n(no)}, ${original}, ${mark}`,
+	// 알림
+	applied: (count: number) => `숫자 ${n(count)}개를 적용했어요`,
+	copied: "발음용 대본을 복사했어요",
+	copyFailed: "복사하지 못했어요. 브라우저 권한을 확인해 주세요",
+	// 만들기 확인 창
+	// "숫자 N개를 검수하지 않았어요(나열). 검수하지 않은 숫자는 원문대로 보내요."(나열은 화면이 translate="no"로 끼운다)
+	unreviewedHead: (count: number) => `숫자 ${n(count)}개를 검수하지 않았어요`,
+	unreviewedTail: "검수하지 않은 숫자는 원문대로 보내요.",
+	asIs: "원문대로 만들기",
+	kinds: {
+		money: "금액",
+		phone: "전화번호",
+		date: "날짜",
+		time: "시간",
+		count: "수량",
+		percent: "비율",
+		decimal: "소수",
+		temperature: "온도",
+		range: "범위",
+		fraction: "분수·식",
+		product: "제품명·버전",
+		number: "수",
+	} satisfies Record<ReadingKind, string>,
+	reasons: {
+		range: "범위는 어떻게 읽을지 정해 주세요",
+		fraction: "분수·날짜·점수 가운데 무엇인지 정해 주세요",
+		product: "제품명·버전은 숫자 규칙으로 바꾸지 않아요",
+		negative: "영하인지 마이너스인지 정해 주세요",
+		unit: "단위를 어떻게 읽을지 정해 주세요",
+		list: "쉼표로 이은 수는 어떻게 읽을지 정해 주세요",
+		time: "시각인지 비율·점수인지 정해 주세요",
+		large: "아주 큰 수나 긴 소수는 직접 정해 주세요",
+		precision: "아주 큰 수나 긴 소수는 직접 정해 주세요",
+		leading_zero: "앞이 0인 수는 어떻게 읽을지 정해 주세요",
+		unit_join: "단위인지 단어의 일부인지 정해 주세요",
+	} satisfies Record<CheckReason, string>,
+} as const;

@@ -64,11 +64,17 @@ import { PROVIDER_LABEL } from "@/lib/connection-view";
 import type { ParagraphStatus } from "@/lib/make-all";
 import {
 	type Paragraph,
+	spokenOf,
 	tooLongOf,
 	type VoiceSetup,
 } from "@/lib/paragraph-script";
 import { sameSettings } from "@/lib/preset-view";
-import { chipsOf, PARAGRAPH_TEXT, paragraphTagGroups } from "@/lib/studio-text";
+import {
+	chipsOf,
+	NUMBER_TEXT,
+	PARAGRAPH_TEXT,
+	paragraphTagGroups,
+} from "@/lib/studio-text";
 import { emotionShift, type ListLoad, STUDIO_TEXT } from "@/lib/studio-view";
 
 import { useElapsed } from "./bar-height";
@@ -76,6 +82,7 @@ import { fieldClass } from "./class-form-dialog";
 import { LineGap } from "./drama-gap";
 import { SpeakerMark } from "./drama-voice-dialog";
 import { EmotionPalette } from "./emotion-palette";
+import { NumberLine } from "./number-review";
 import { paragraphHeadId, paragraphTextId } from "./paragraph-focus";
 import { ParagraphToolbar } from "./paragraph-tags";
 import { Options } from "./setting-fields";
@@ -123,6 +130,8 @@ export type CardActions = {
 	open: (id: string) => void;
 	listen: (id: string) => void;
 	make: (id: string, opener: HTMLElement) => void;
+	// 숫자 줄 '검수하기'·'다시 보기': 숫자 검수 창을 이 문단에서 연다(닫으면 포커스는 opener로)
+	review: (id: string, opener: HTMLElement) => void;
 	// 대본 칸 포커스·선택: 태그 대상 문단과 마지막 커서를 정한다(도구줄 안 포커스는 부르지 않는다)
 	caret: (id: string, start: number, end: number) => void;
 	// 태그 대상 문단의 마지막 커서 자리에 태그와 공백 하나를 넣는다. 값은 묶음이 정한 글 그대로(분위기는 [값], paragraphTagGroups)
@@ -818,8 +827,10 @@ export const ParagraphCard = memo(function ParagraphCard({
 	const shownChips = chips.length > 3 ? chips.slice(0, 3) : chips;
 	// 글자 수는 막는 이유(tooLongOf)와 같은 정리 뒤 코드 포인트. 성우가 없으면 일반 상한
 	const max = setup ? studioTextMax(setup.provider) : STUDIO_TEXT_MAX;
-	const count = codePoints(normalizeText(p.text));
-	const over = setup ? tooLongOf(p.text, setup.provider) !== null : count > max;
+	// 글자 수·상한은 보낼 글인 발음용 대본 기준이다(T11). 결정이 없으면 spokenOf가 p.text 그대로라 지금과 같다
+	const spoken = spokenOf(p);
+	const count = codePoints(normalizeText(spoken));
+	const over = setup ? tooLongOf(spoken, setup.provider) !== null : count > max;
 	const near = over || count > max * 0.9;
 	// 받지 않는 태그 안내(스펙 15.2). 빈 문단(blankFor)인데 뺀 태그가 있으면 원문이 공백뿐이 아니라 태그만 있던 문단이다. v2·flash는 주어가 모델
 	const note =
@@ -1163,6 +1174,12 @@ export const ParagraphCard = memo(function ParagraphCard({
 							}
 						/>
 					) : null}
+					{/* 숫자 줄: 교정 항목이 있는 문단에만 있다(발음용 대본 판과 검수 상태, 브리프 17.1) */}
+					<NumberLine
+						paragraph={p}
+						n={n}
+						onReview={(opener) => actions.review(p.id, opener)}
+					/>
 					{/* 안내도 글자 수도 보이지 않으면 줄째 숨긴다(빈 줄이 간격을 더하지 않게). 도구줄로 옮긴 안내는 화면 밖이라 보이지 않는 셈이다 */}
 					<div
 						className={cn(
@@ -1191,7 +1208,9 @@ export const ParagraphCard = memo(function ParagraphCard({
 							{over ? (
 								<TriangleAlert aria-hidden="true" className="size-4 shrink-0" />
 							) : null}
-							{PARAGRAPH_TEXT.count(count, max)}
+							{spoken === p.text
+								? PARAGRAPH_TEXT.count(count, max)
+								: NUMBER_TEXT.spokenCount(count, max)}
 						</p>
 					</div>
 				</div>

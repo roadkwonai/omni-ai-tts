@@ -33,6 +33,11 @@ describe("speakerLine(붙여 넣기 줄 한 줄 해석)", () => {
 		expect(speakerLine("https://example.com")).toBeNull();
 		expect(speakerLine("http：//example.com")).toBeNull();
 	});
+	it("글자가 섞여도 시각 표기(숫자로 끝나고 콜론 바로 뒤가 숫자)는 화자가 아니다", () => {
+		expect(speakerLine("2026년 6월 10일 오후 3:05에 만나요.")).toBeNull();
+		expect(speakerLine("민수:3시에 봐")?.name).toBe("민수");
+		expect(speakerLine("방 3: 안녕")?.name).toBe("방 3");
+	});
 	it("콜론이 없으면 null", () => {
 		expect(speakerLine("그냥 줄")).toBeNull();
 	});

@@ -9,6 +9,7 @@ import type { StudioAutoTagOutput } from "@tts-pilot-app/api/studio-contract";
 import { describe, expect, it } from "vitest";
 
 import type { ParagraphStatus } from "./make-all";
+import { readingItems } from "./number-reading";
 import {
 	type AutoTagTarget,
 	applyAutoTag,
@@ -23,10 +24,14 @@ import {
 	newTagMarks,
 } from "./paragraph-autotag";
 import {
+	applyCertain,
+	blockOf,
+	decide,
 	ownSettings,
 	PARAGRAPH_GAP_DEFAULT,
 	type Paragraph,
 	paragraphRequest,
+	spokenOf,
 	type VoiceSetup,
 	type Work,
 } from "./paragraph-script";
@@ -217,6 +222,42 @@ describe("hasAutoTagTarget(버튼 잠김 판정)", () => {
 			const w = work({ paragraphs: [p] });
 			expect(has([p], w)).toBe(targetsOf([p], w).targets.length > 0);
 		}
+	});
+});
+
+describe("자동 태그 대상 길이는 원문 기준(T11 계획 결정 2)", () => {
+	const w = work();
+	const has = (p: Paragraph) =>
+		hasAutoTagTarget([p], w, VOICES, (q) =>
+			paragraphRequest(q, w, VOICES, NOW),
+		);
+	// 읽기가 길어져 발음용 대본만 상한을 넘는 문단: 원문은 상한 안이라 대상이다
+	const grown = decide(
+		para("g", `${"가".repeat(1997)} 3개`),
+		readingItems(`${"가".repeat(1997)} 3개`)[0],
+		{ choice: "apply" },
+	);
+	// 읽기가 짧아져 발음용 대본은 상한 안이지만 원문이 상한을 넘는 문단: 대상이 아니다
+	const money = Array.from({ length: 300 }, () => "1,000원").join(" ");
+	const shrunk = applyCertain([para("s", money)])[0] as Paragraph;
+	it("발음용 대본만 상한을 넘으면 대상이다", () => {
+		expect(spokenOf(grown).length).toBeGreaterThan(2000);
+		expect(blockOf(grown, w, VOICES)).toMatchObject({ kind: "too_long" });
+		expect(targetsOf([grown]).targets.map((t) => t.id)).toEqual(["g"]);
+		expect(has(grown)).toBe(true);
+	});
+	it("원문이 상한을 넘으면 읽기가 짧아져도 대상이 아니다", () => {
+		expect(money.length).toBeGreaterThan(2000);
+		expect(spokenOf(shrunk).length).toBeLessThan(2000);
+		expect(blockOf(shrunk, w, VOICES)).toBeNull();
+		expect(targetsOf([shrunk]).targets).toEqual([]);
+		expect(has(shrunk)).toBe(false);
+	});
+	it("다른 막는 이유(빈 문단·성우 없음)는 그대로 대상에서 뺀다", () => {
+		expect(targetsOf([para("e", "  ")]).targets).toEqual([]);
+		expect(
+			targetsOf([para("n", "3개")], work({ defaultVoice: null })).targets,
+		).toEqual([]);
 	});
 });
 

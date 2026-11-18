@@ -15,12 +15,14 @@ import {
 	AlertDialogTitle,
 } from "@tts-pilot-app/ui/components/alert-dialog";
 import { Badge } from "@tts-pilot-app/ui/components/badge";
+import { Button } from "@tts-pilot-app/ui/components/button";
 import { Spinner } from "@tts-pilot-app/ui/components/spinner";
-import { Coins, Info, TriangleAlert } from "lucide-react";
+import { CircleAlert, Coins, Info, TriangleAlert } from "lucide-react";
 import { type RefObject, useId, useRef, useState } from "react";
 
 import { PROVIDER_LABEL } from "@/lib/connection-view";
-import { PARAGRAPH_TEXT } from "@/lib/studio-text";
+import { unreviewedList } from "@/lib/paragraph-script";
+import { NUMBER_TEXT, PARAGRAPH_TEXT } from "@/lib/studio-text";
 import {
 	GEMINI_DATA_NOTE,
 	remainingLabel,
@@ -32,7 +34,7 @@ import {
 import { orpc } from "@/utils/orpc";
 
 import type { Confirming } from "./paragraph-make";
-import { useWork } from "./paragraph-provider";
+import { useParagraphs, useWork } from "./paragraph-provider";
 
 type AllConfirming = Extract<NonNullable<Confirming>, { kind: "all" }>;
 type UsageRow = AllConfirming["usage"][number];
@@ -47,6 +49,8 @@ export function ParagraphMakeConfirm({
 }) {
 	const work = useWork();
 	const cancelRef = useRef<HTMLButtonElement>(null);
+	// '검수하기'로 닫을 때는 포커스를 돌리지 않는다(숫자 검수 창이 가져간다)
+	const toReview = useRef(false);
 	const confirming = work.confirming?.kind === "all" ? work.confirming : null;
 	return (
 		<AlertDialog
@@ -54,13 +58,26 @@ export function ParagraphMakeConfirm({
 			onOpenChange={(open) => !open && work.cancel()}
 		>
 			{confirming ? (
-				<AlertDialogContent initialFocus={cancelRef} finalFocus={finalFocus}>
+				<AlertDialogContent
+					initialFocus={cancelRef}
+					finalFocus={() => {
+						if (!toReview.current) return finalFocus();
+						toReview.current = false;
+						return false;
+					}}
+				>
 					<ConfirmBody
 						confirming={confirming}
 						now={work.now}
 						ratesLoading={work.ratesLoading}
 						cancelRef={cancelRef}
 						onConfirm={work.confirm}
+						// 만들기를 취소하고 숫자 검수 창을 첫 미검수 항목에서 연다. 닫으면 포커스는 이 확인 창을 연 주 버튼으로 돌아간다
+						onReview={() => {
+							toReview.current = true;
+							work.cancel();
+							work.openReview(null, confirming.opener);
+						}}
 					/>
 				</AlertDialogContent>
 			) : null}
@@ -74,15 +91,18 @@ function ConfirmBody({
 	ratesLoading,
 	cancelRef,
 	onConfirm,
+	onReview,
 }: {
 	confirming: AllConfirming;
 	now: number;
 	ratesLoading: boolean;
 	cancelRef: RefObject<HTMLButtonElement | null>;
 	onConfirm: () => void;
+	onReview: () => void;
 }) {
 	const { plan, usage } = confirming;
 	const warnId = useId();
+	const reviewId = useId();
 	const [sent, setSent] = useState(false);
 	const sentRef = useRef(false);
 	const count = plan.make.length;
@@ -104,6 +124,16 @@ function ConfirmBody({
 				? PARAGRAPH_TEXT.geminiBasis([...gemini], now)
 				: null;
 	const unknown = plan.unknown.length > 0;
+	const unreviewed = plan.unreviewed > 0;
+	// 검수 안 한 숫자의 원문 표기 나열(만들 문단만, 최대 3개)
+	const { paragraphs } = useParagraphs();
+	const list = unreviewed
+		? unreviewedList(
+				plan.make.flatMap(
+					({ id }) => paragraphs.find((p) => p.id === id) ?? [],
+				),
+			)
+		: "";
 	return (
 		<>
 			<AlertDialogHeader>
@@ -154,15 +184,37 @@ function ConfirmBody({
 							: PARAGRAPH_TEXT.unknownRetry(cost)}
 					</p>
 				) : null}
+				{/* 검수 안 한 숫자(T11, 브리프 17.4). 무료이고 미확인이 없어도 이 창이 뜬다 */}
+				{unreviewed ? (
+					<p id={reviewId} className="mt-3 flex gap-2 text-sm text-warning">
+						<CircleAlert
+							aria-hidden="true"
+							className="mt-0.5 size-4 shrink-0"
+						/>
+						<span>
+							{NUMBER_TEXT.unreviewedHead(plan.unreviewed)}(
+							<span translate="no">{list}</span>). {NUMBER_TEXT.unreviewedTail}
+						</span>
+					</p>
+				) : null}
 			</AlertDialogDescription>
 			<AlertDialogFooter>
 				<AlertDialogCancel ref={cancelRef} variant="neutral" size="lg">
 					{PARAGRAPH_TEXT.cancel}
 				</AlertDialogCancel>
+				{unreviewed ? (
+					<Button variant="neutral" size="lg" onClick={onReview}>
+						{NUMBER_TEXT.review}
+					</Button>
+				) : null}
 				<AlertDialogAction
 					size="lg"
 					// 유료 버튼에 닿을 때 경고를 한 번 더 읽는다(WCAG 3.3.4)
-					aria-describedby={unknown ? warnId : undefined}
+					aria-describedby={
+						[unknown ? warnId : null, unreviewed ? reviewId : null]
+							.filter((id) => id !== null)
+							.join(" ") || undefined
+					}
 					disabled={sent}
 					onClick={() => {
 						if (sentRef.current) return;
@@ -173,11 +225,13 @@ function ConfirmBody({
 				>
 					{/* 채운 청록 버튼 안의 유료 표식은 글자색이다(DESIGN.md). 무료면 붙이지 않는다 */}
 					{free ? null : <Coins data-icon="inline-start" aria-hidden="true" />}
-					{free
-						? PARAGRAPH_TEXT.make
-						: cost
-							? PARAGRAPH_TEXT.makeCost
-							: PARAGRAPH_TEXT.makeCredit}
+					{unreviewed
+						? NUMBER_TEXT.asIs
+						: free
+							? PARAGRAPH_TEXT.make
+							: cost
+								? PARAGRAPH_TEXT.makeCost
+								: PARAGRAPH_TEXT.makeCredit}
 				</AlertDialogAction>
 			</AlertDialogFooter>
 		</>

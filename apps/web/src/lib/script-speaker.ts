@@ -7,7 +7,7 @@ import {
 
 // 붙여 넣은 줄 한 줄의 '이름: 대사' 해석. 드라마 작업실과 문단 작업실이 같은 규칙을 쓴다(T10 스펙 17.1).
 // 이름은 첫 콜론(: 또는 전각 ：) 앞이고 글자를 하나 이상 품은 20자 이하다(시각 '12:30 회의'는 화자가 아니다).
-// 주소(콜론 바로 뒤가 //)도 화자가 아니다. 줄은 \r·\n으로만 나누므로 대사에 남는 U+2028·U+2029도 대사다([\s\S])
+// 주소(콜론 바로 뒤가 //)와 시각(숫자로 끝난 글 + 콜론 + 바로 숫자: 오후 3:05)도 화자가 아니다. 줄은 \r·\n으로만 나누므로 대사에 남는 U+2028·U+2029도 대사다([\s\S])
 const LINE = /^([^:：]*)[:：]([\s\S]*)$/;
 const LETTER = /\p{L}/u;
 
@@ -24,5 +24,9 @@ export function speakerLine(
 	const match = LINE.exec(row);
 	const name = speakerNameOf(match?.[1] ?? "");
 	const text = match?.[2] ?? "";
-	return name === null || text.startsWith("//") ? null : { name, text };
+	// 앞이 숫자로 끝나고 콜론 바로 뒤가 숫자면 시각 H:MM이다("오후 3:05에")
+	const clock = /\d$/.test(match?.[1] ?? "") && /^\d/.test(text);
+	return name === null || clock || text.startsWith("//")
+		? null
+		: { name, text };
 }

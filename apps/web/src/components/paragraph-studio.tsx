@@ -70,6 +70,7 @@ import { OWNED_LIST, orpc } from "@/utils/orpc";
 
 import { GAP_HELP_ID } from "./drama-gap";
 import { LoopbackNotice } from "./notice";
+import { NumberReview } from "./number-review";
 import { PageHeader } from "./page-header";
 import { ParagraphAutoTag } from "./paragraph-autotag";
 import { ParagraphBar } from "./paragraph-bar";
@@ -365,6 +366,7 @@ function useCardActions(
 				madeFrom.current = id;
 				workRef.current.makeOne(id, opener);
 			},
+			review: (id, opener) => workRef.current.openReview(id, opener),
 			caret: (id, start, end) => {
 				caretRef.current = { id, start, end };
 				setTagTarget(id);
@@ -713,6 +715,10 @@ function StudioBody() {
 					<ParagraphBar madeFrom={madeFrom} onPlaying={setPlayingId} />
 				</div>
 			</div>
+			{/* 숫자 검수 창은 작업실에 하나다. 버튼(레일·작업 띠)과 카드 숫자 줄·만들기 확인 창이 work.openReview로 연다. 전체 만들기가 도는 중에는 결정을 잠근다 */}
+			<NumberReview
+				locked={work.make.phase !== "idle" && work.make.phase !== "stopped"}
+			/>
 		</div>
 	);
 }

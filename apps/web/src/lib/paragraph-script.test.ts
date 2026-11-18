@@ -6,10 +6,19 @@ import {
 	STUDIO_TEXT_MAX,
 } from "@tts-pilot-app/api/providers/trial-options";
 import type { SavedVoice } from "@tts-pilot-app/api/saved-voice-contract";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { findTargets, paragraphStatus } from "./make-all";
+import { readingItems } from "./number-reading";
+
+// 엔진 호출 수를 세려고 원래 함수를 그대로 감싼다
+vi.mock("./number-reading", async (importOriginal) => {
+	const real = await importOriginal<typeof import("./number-reading")>();
+	return { ...real, readingItems: vi.fn(real.readingItems) };
+});
+
 import {
+	applyCertain,
 	batchFollow,
 	batchGap,
 	batchRemove,
@@ -17,10 +26,14 @@ import {
 	batchVoice,
 	blankFor,
 	blockOf,
+	type Decision,
+	decide,
+	decisionsOf,
 	followDefault,
 	followOf,
 	idleSpeakerCount,
 	insertAfter,
+	isCertain,
 	mergeNext,
 	move,
 	ownSettings,
@@ -30,6 +43,7 @@ import {
 	pasteAt,
 	pasteToParts,
 	removeAt,
+	reviewOf,
 	type Speaker,
 	sameVoice,
 	setupRequest,
@@ -40,7 +54,12 @@ import {
 	splitAt,
 	splitBlocks,
 	splitLong,
+	spokenOf,
+	spokenPartsOf,
 	tooLongOf,
+	undecide,
+	unreviewedCount,
+	unreviewedList,
 	type VoiceSetup,
 	voiceOf,
 	type Work,
@@ -1286,5 +1305,279 @@ describe("일괄 작업(batch*, 브리프 16.2·스펙 17.2)", () => {
 			expect(batchGap(ps, set, 1)).toBe(ps);
 			expect(batchRemove(ps, set)).toBe(ps);
 		}
+	});
+});
+
+describe("숫자 교정 결정과 발음용 대본(T11 스펙 3절, 계획 결정 1·2)", () => {
+	const TEXT = "사과 3개와 12,500원, 3.5%";
+	const [n3, money, pct] = readingItems(TEXT);
+	const base = para("a", TEXT);
+	const voices = [saved()];
+
+	it("결정이 없으면 발음용 대본은 원문과 같은 문자열이고 요청·조합 키가 바이트까지 같다", () => {
+		expect(spokenOf(base)).toBe(TEXT);
+		expect(spokenOf(para("b", "숫자 없음"))).toBe("숫자 없음");
+		const none = paragraphRequest(base, work(), voices, NOW);
+		const empty = paragraphRequest(
+			{ ...base, fixes: { text: TEXT, decisions: [] } },
+			work(),
+			voices,
+			NOW,
+		);
+		const keep = paragraphRequest(
+			decide(base, n3, { choice: "keep" }),
+			work(),
+			voices,
+			NOW,
+		);
+		expect(none?.text).toBe(TEXT);
+		for (const other of [empty, keep]) {
+			expect(JSON.stringify(other)).toBe(JSON.stringify(none));
+			expect(other && none && comboSignature(other)).toBe(
+				none && comboSignature(none),
+			);
+		}
+	});
+	it("여러 결정은 시작 위치 순으로 적용하고 keep·검수 안 함은 원문 그대로", () => {
+		let p = decide(base, pct, { choice: "apply", reading: "삼 점 오 퍼센트" });
+		p = decide(p, n3, { choice: "apply", reading: "세 개" });
+		p = decide(p, money, { choice: "manual", reading: "만 이천오백 원" });
+		expect(p.fixes?.decisions.map((d) => d.start)).toEqual([
+			n3?.start,
+			money?.start,
+			pct?.start,
+		]);
+		expect(spokenOf(p)).toBe("사과 세 개와 만 이천오백 원, 삼 점 오 퍼센트");
+		const some = decide(decide(base, n3, { choice: "keep" }), money, {
+			choice: "apply",
+			reading: "만 이천오백 원",
+		});
+		expect(spokenOf(some)).toBe("사과 3개와 만 이천오백 원, 3.5%");
+		// apply에 읽기를 안 주면 첫 제안
+		expect(spokenOf(decide(base, n3, { choice: "apply" }))).toBe(
+			"사과 세 개와 12,500원, 3.5%",
+		);
+	});
+	it("앞이 글자·숫자면 읽기 앞에 띄어 쓰고, 뒤 조사는 그대로 붙인다", () => {
+		const p = para("a", "약3개를 샀고 12,500원이다");
+		const [a, b] = readingItems(p.text);
+		const done = decide(decide(p, a, { choice: "apply" }), b, {
+			choice: "apply",
+		});
+		expect(spokenOf(done)).toBe("약 세 개를 샀고 만 이천오백 원이다");
+	});
+	it("결정이 없는 문단은 spokenPartsOf·spokenOf가 엔진을 돌리지 않는다", () => {
+		const engine = vi.mocked(readingItems);
+		for (const p of [
+			para("n1", "사과 3개와 12,500원"),
+			para("n2", "사과 3개", { fixes: { text: "사과 3개", decisions: [] } }),
+		]) {
+			engine.mockClear();
+			expect(spokenPartsOf(p)).toEqual([{ text: p.text, changed: false }]);
+			expect(spokenOf(p)).toBe(p.text);
+			expect(engine).not.toHaveBeenCalled();
+		}
+	});
+	it("isCertain: 결정이 없고 확인 필요가 아니며 읽기가 있는 항목만 확실하다", () => {
+		const [three, times] = readingItems("3개 3번");
+		if (!three || !times) throw new Error("항목 없음");
+		expect(isCertain(three, null)).toBe(true);
+		const kept: Decision = {
+			start: three.start,
+			end: three.end,
+			original: three.original,
+			choice: "keep",
+		};
+		expect(isCertain(three, kept)).toBe(false);
+		expect(isCertain(times, null)).toBe(false);
+		expect(isCertain({ ...three, readings: [] }, null)).toBe(false);
+	});
+	it("spokenPartsOf는 발음용 대본을 바뀐 자리와 그대로인 자리로 나눈다(이으면 spokenOf, 띄어 쓴 공백은 그대로인 쪽)", () => {
+		expect(spokenPartsOf(base)).toEqual([{ text: TEXT, changed: false }]);
+		const p = para("a", "약3개를 샀고 12,500원이다");
+		const [a, b] = readingItems(p.text);
+		const done = decide(decide(p, a, { choice: "apply" }), b, {
+			choice: "apply",
+		});
+		expect(spokenPartsOf(done)).toEqual([
+			{ text: "약 ", changed: false },
+			{ text: "세 개", changed: true },
+			{ text: "를 샀고 ", changed: false },
+			{ text: "만 이천오백 원", changed: true },
+			{ text: "이다", changed: false },
+		]);
+		expect(
+			spokenPartsOf(done)
+				.map((part) => part.text)
+				.join(""),
+		).toBe(spokenOf(done));
+		// keep만 있으면 바뀐 자리가 없다
+		expect(spokenPartsOf(decide(p, a, { choice: "keep" }))).toEqual([
+			{ text: p.text, changed: false },
+		]);
+	});
+	it("직접 입력이 비면 결정하지 않고 같은 문단을 돌려준다", () => {
+		expect(decide(base, n3, { choice: "manual", reading: "  " })).toBe(base);
+		expect(decide(base, n3, { choice: "manual" })).toBe(base);
+		expect(
+			spokenOf(decide(base, n3, { choice: "manual", reading: " 셋 " })),
+		).toBe("사과 셋와 12,500원, 3.5%");
+	});
+	it("같은 항목을 다시 결정하면 바꾸고, 되돌리면 검수 안 함이다", () => {
+		const a = decide(base, n3, { choice: "apply" });
+		const b = decide(a, n3, { choice: "keep" });
+		expect(b.fixes?.decisions).toHaveLength(1);
+		expect(b.fixes?.decisions[0]?.choice).toBe("keep");
+		expect(b.fixes?.text).toBe(TEXT);
+		const back = undecide(a, n3);
+		expect(back).not.toBe(a);
+		expect(back.fixes).toEqual({ text: TEXT, decisions: [] });
+		expect(spokenOf(back)).toBe(TEXT);
+		expect(reviewOf(back).unreviewed).toBe(3);
+		// 결정이 없는 항목을 되돌리면 같은 문단
+		expect(undecide(base, n3)).toBe(base);
+		// 원문 문단은 바뀌지 않는다
+		expect(base.fixes).toBeUndefined();
+	});
+	it("원문이 바뀌면 결정이 무효이고 요청 글이 원문이다. 같은 글로 돌아오면 다시 유효", () => {
+		const done = decide(base, n3, { choice: "apply" });
+		const edited = { ...done, text: `${TEXT}!` };
+		expect(decisionsOf(edited)).toEqual([]);
+		expect(spokenOf(edited)).toBe(`${TEXT}!`);
+		expect(paragraphRequest(edited, work(), voices, NOW)?.text).toBe(
+			`${TEXT}!`,
+		);
+		expect(reviewOf(edited).unreviewed).toBe(3);
+		expect(spokenOf({ ...edited, text: TEXT })).toBe(
+			"사과 세 개와 12,500원, 3.5%",
+		);
+	});
+	it("지금 항목과 위치·글이 다른 낡은 결정은 무시한다", () => {
+		const reading = "엉뚱";
+		const bad = (d: Partial<Decision>) =>
+			spokenOf({
+				...base,
+				fixes: {
+					text: TEXT,
+					decisions: [
+						{
+							start: n3?.start ?? 0,
+							end: n3?.end ?? 0,
+							original: "3개",
+							choice: "apply",
+							reading,
+							...d,
+						},
+					],
+				},
+			});
+		expect(bad({ original: "4개" })).toBe(TEXT);
+		expect(bad({ start: 4 })).toBe(TEXT);
+		expect(bad({ end: (n3?.end ?? 0) + 1 })).toBe(TEXT);
+		expect(bad({})).toBe("사과 엉뚱와 12,500원, 3.5%");
+	});
+	it("같은 결정이 겹쳐 있어도 한 번만 바꾼다", () => {
+		const d: Decision = {
+			start: n3?.start ?? 0,
+			end: n3?.end ?? 0,
+			original: "3개",
+			choice: "apply",
+			reading: "세 개",
+		};
+		const p = { ...base, fixes: { text: TEXT, decisions: [d, d] } };
+		expect(spokenOf(p)).toBe("사과 세 개와 12,500원, 3.5%");
+	});
+	it("paragraphRequest 글이 발음용 대본이고 조합 키가 요청 글을 따른다", () => {
+		const done = decide(base, n3, { choice: "apply" });
+		const req = paragraphRequest(done, work(), voices, NOW);
+		const plain = paragraphRequest(base, work(), voices, NOW);
+		expect(req?.text).toBe("사과 세 개와 12,500원, 3.5%");
+		expect(req && plain && comboSignature(req)).not.toBe(
+			req && plain && comboSignature(plain),
+		);
+		// 받지 않는 태그는 발음용 대본에서 뺀다
+		const tagged = decide(
+			para("t", "안녕 [sighs] 3개"),
+			readingItems("안녕 [sighs] 3개")[0],
+			{
+				choice: "apply",
+			},
+		);
+		expect(paragraphRequest(tagged, work(), voices, NOW)?.text).toBe(
+			"안녕 세 개",
+		);
+	});
+	it("길이 검사는 발음용 대본 기준(blockOf)이고 원문 기준은 tooLongOf(p.text)다", () => {
+		const long = para("l", `${"가".repeat(STUDIO_TEXT_MAX - 3)} 3개`);
+		expect(blockOf(long, work(), voices)).toBeNull();
+		const done = decide(long, readingItems(long.text)[0], { choice: "apply" });
+		expect(spokenOf(done).length).toBe(STUDIO_TEXT_MAX + 1);
+		expect(blockOf(done, work(), voices)).toEqual({
+			kind: "too_long",
+			length: STUDIO_TEXT_MAX + 1,
+			max: STUDIO_TEXT_MAX,
+		});
+		expect(tooLongOf(done.text, "typecast")).toBeNull();
+	});
+	it("reviewOf: 항목·결정 짝과 검수 안 한 수·확인 필요 수", () => {
+		const p = para("r", "3번 3개 5%");
+		const [bun, gae, per] = readingItems(p.text);
+		expect(reviewOf(para("x", "숫자 없음"))).toEqual({
+			pairs: [],
+			unreviewed: 0,
+			needsCheck: 0,
+		});
+		const first = reviewOf(p);
+		expect(first.pairs.map((x) => x.decision)).toEqual([null, null, null]);
+		expect(first).toMatchObject({ unreviewed: 3, needsCheck: 1 });
+		const done = decide(decide(p, gae, { choice: "apply" }), bun, {
+			choice: "keep",
+		});
+		const next = reviewOf(done);
+		expect(next).toMatchObject({ unreviewed: 1, needsCheck: 0 });
+		expect(next.pairs[0]?.decision?.choice).toBe("keep");
+		expect(next.pairs[2]?.item).toBe(per);
+		expect(next.pairs[2]?.decision).toBeNull();
+	});
+	it("applyCertain: 확인 필요가 아닌 미검수에만 첫 제안을 적용하고, 바뀐 것이 없으면 같은 배열", () => {
+		const p = para("a", "3번 3개 5%");
+		const other = para("b", "숫자 없음");
+		const next = applyCertain([p, other]);
+		expect(next[1]).toBe(other);
+		expect(spokenOf(next[0] ?? p)).toBe("3번 세 개 오 퍼센트");
+		expect(reviewOf(next[0] ?? p)).toMatchObject({
+			unreviewed: 1,
+			needsCheck: 1,
+		});
+		// 이미 정한 항목(keep 포함)은 건드리지 않는다
+		const kept = decide(p, readingItems(p.text)[1], { choice: "keep" });
+		expect(spokenOf(applyCertain([kept])[0] ?? kept)).toBe("3번 3개 오 퍼센트");
+		// 더 바꿀 것이 없으면 같은 배열
+		expect(applyCertain(next)).toBe(next);
+		expect(applyCertain([other])).toEqual([other]);
+		const only = [other];
+		expect(applyCertain(only)).toBe(only);
+	});
+	it("unreviewedCount: 모든 문단의 검수 안 한 항목 수", () => {
+		const ps = [para("a", "3번 3개"), para("b", "숫자 없음"), para("c", "5%")];
+		expect(unreviewedCount(ps)).toBe(3);
+		expect(unreviewedCount(applyCertain(ps))).toBe(1);
+		expect(unreviewedCount([])).toBe(0);
+	});
+	it("unreviewedList: 검수 안 한 원문 표기를 최대 3개 나열하고 넘치면 ' 외 N개'", () => {
+		const ps = [
+			para("a", "1~3개 GPT-4o"),
+			para("b", "숫자 없음"),
+			para("c", "1/2"),
+		];
+		expect(unreviewedList(ps)).toBe("1~3개 · GPT-4o · 1/2");
+		expect(unreviewedList([para("d", "3번 3개 5% 7일")])).toBe(
+			"3번 · 3개 · 5% 외 1개",
+		);
+		// 정한 항목은 뺀다
+		const p = para("e", "3번 3개");
+		const done = decide(p, readingItems(p.text)[0], { choice: "keep" });
+		expect(unreviewedList([done])).toBe("3개");
+		expect(unreviewedList([])).toBe("");
 	});
 });

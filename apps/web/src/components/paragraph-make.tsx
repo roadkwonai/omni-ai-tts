@@ -270,6 +270,7 @@ export function useMakeAll({
 										regenerate: false,
 										opener,
 										unknownSame: plan.unknown.length > 0,
+										unreviewed: plan.unreviewed,
 									}
 								: null,
 					},
@@ -280,6 +281,7 @@ export function useMakeAll({
 			queue: plan.make,
 			blocked: plan.firstBlocked !== null,
 			unknown: plan.unknown.length,
+			unreviewed: plan.unreviewed,
 			free: plan.free,
 		});
 		if (after.phase === "making") void begin(run, at);

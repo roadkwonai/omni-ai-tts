@@ -251,6 +251,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@neosapience/typecast-autotag':
+        specifier: 1.14.1
+        version: 1.14.1
       '@orpc/client':
         specifier: 'catalog:'
         version: 1.15.4
@@ -1168,6 +1171,10 @@ packages:
     peerDependenciesMeta:
       '@cfworker/json-schema':
         optional: true
+
+  '@neosapience/typecast-autotag@1.14.1':
+    resolution: {integrity: sha512-FZ0KO4Iaodf4Myy/4dDYMhLWpc0Xjyg6k6F4PSeTOJNRC8rdu/sWvQta2f2dYwJrlfEkpl/ZuRbWasCOmLnpAw==}
+    engines: {node: '>=18'}
 
   '@neosapience/typecast-js@0.4.15':
     resolution: {integrity: sha512-lkvSYmTYRIa0ejWL9RN1ShU/7b+SO/tLn7ED52LsHy9dQdZG6SxZ9QwaAxcrFfXJqRUl6A9KxTYg+y/ehEXiaw==}
@@ -4096,6 +4103,8 @@ snapshots:
       zod-to-json-schema: 3.25.2(zod@3.25.76)
     transitivePeerDependencies:
       - supports-color
+
+  '@neosapience/typecast-autotag@1.14.1': {}
 
   '@neosapience/typecast-js@0.4.15(patch_hash=4ebf3497bf96f4ef03f1f90d83263c8922bf406a785d045909517157b4291416)': {}
 

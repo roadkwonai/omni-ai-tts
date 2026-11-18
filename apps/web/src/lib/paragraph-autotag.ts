@@ -26,6 +26,7 @@ import {
 	blockOf,
 	ownSettings,
 	type Paragraph,
+	tooLongOf,
 	voiceOf,
 	type Work,
 } from "./paragraph-script";
@@ -76,7 +77,18 @@ function emotionsOf(
 	return model === "ssfm-v30" ? ["smart", ...presets] : presets;
 }
 
-// 보낼 문단: 막는 이유가 없고(빈 문단·성우 없음·이용 불가·길이 초과가 아님) 요청이 있으며 태그나 감정·말투를 받는다.
+// 자동 태그는 원문을 보내므로 길이는 발음용 대본(blockOf의 too_long)이 아니라 원문으로 본다(T11 계획 결정 2).
+// 그 밖의 막는 이유(빈 문단·성우 없음·이용 불가)는 blockOf 그대로다
+const blockedForTag = (
+	p: Paragraph,
+	work: Work,
+	voices: readonly SavedVoice[],
+	request: StudioRequest,
+) =>
+	typeof blockOf(p, work, voices) === "string" ||
+	tooLongOf(p.text, request.provider) !== null;
+
+// 보낼 문단: 막는 이유가 없고(빈 문단·성우 없음·이용 불가·원문 길이 초과가 아님) 요청이 있으며 태그나 감정·말투를 받는다.
 // skipped는 요청이 있는 ElevenLabs v2·flash 문단 수(미리 보기 '그대로 둬요')
 export function autoTagTargets(
 	paragraphs: readonly Paragraph[],
@@ -95,7 +107,7 @@ export function autoTagTargets(
 			skipped += 1;
 			continue;
 		}
-		if (blockOf(p, work, voices) !== null) continue;
+		if (blockedForTag(p, work, voices, request)) continue;
 		const status = statusOf(p);
 		targets.push({
 			id: p.id,
@@ -124,7 +136,7 @@ export function hasAutoTagTarget(
 			request !== null &&
 			familyOf(request.provider, request.settings.model) !==
 				"elevenlabs_plain" &&
-			blockOf(p, work, voices) === null
+			!blockedForTag(p, work, voices, request)
 		);
 	});
 }

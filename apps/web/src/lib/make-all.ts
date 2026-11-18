@@ -18,6 +18,8 @@ import {
 	type Paragraph,
 	type ParagraphBlock,
 	paragraphRequest,
+	reviewOf,
+	spokenOf,
 	tooLongOf,
 	voiceOf,
 	type Work,
@@ -73,7 +75,7 @@ function findable(
 ) {
 	const target = signatureOf(p, work, voices, now);
 	return target &&
-		!tooLongOf(p.text, target.request.provider) &&
+		!tooLongOf(spokenOf(p), target.request.provider) &&
 		(all || !found.has(target.signature))
 		? target
 		: null;
@@ -179,6 +181,8 @@ export type MakePlan = {
 	// 막힌 문단 수(빈 문단은 막힘이 아니다)
 	blockedCount: number;
 	unknown: string[];
+	// 만들 문단(make)에 든 검수 안 한 숫자 수(T11). 0보다 크면 확인 창을 거친다
+	unreviewed: number;
 	free: boolean;
 };
 // 만들기 계획(스펙 5.1 '전체 만들기'). 시작 전 찾기로 모든 대상의 키가 표에 있을 때 부른다. n은 카드 번호(빈 문단 포함).
@@ -198,6 +202,7 @@ export function makePlan(
 		firstBlocked: null,
 		blockedCount: 0,
 		unknown: [],
+		unreviewed: 0,
 		free: false,
 	};
 	const seen = new Set<string>();
@@ -223,9 +228,11 @@ export function makePlan(
 		seen.add(hit.signature);
 		if (result?.status === "unknown") plan.unknown.push(hit.signature);
 		plan.make.push({ id: p.id, n: i + 1, ...hit });
+		plan.unreviewed += reviewOf(p).unreviewed;
 	}
 	plan.estimate = plan.make;
-	if (plan.firstBlocked) return { ...plan, make: [], unknown: [] };
+	if (plan.firstBlocked)
+		return { ...plan, make: [], unknown: [], unreviewed: 0 };
 	plan.free =
 		plan.make.length > 0 &&
 		plan.make.every((item) => !needsConfirm(item.request, now));
@@ -334,6 +341,7 @@ export type MakeEvent =
 			queue: MakeItem[];
 			blocked: boolean;
 			unknown: number;
+			unreviewed: number;
 			free: boolean;
 	  }
 	| { type: "confirm"; run: number }
@@ -401,7 +409,10 @@ export function makeReducer(state: MakeState, event: MakeEvent): MakeState {
 				return { ...planned, phase: "idle", notice: "nothing" };
 			return {
 				...planned,
-				phase: !event.free || event.unknown > 0 ? "confirm" : "making",
+				phase:
+					!event.free || event.unknown > 0 || event.unreviewed > 0
+						? "confirm"
+						: "making",
 			};
 		}
 		case "confirm":
@@ -541,7 +552,7 @@ export function summaryOf(
 	seconds: number;
 } {
 	const filled = ps.filter((p) => !blankFor(p, work));
-	const chars = filled.reduce((sum, p) => sum + scriptCount(p.text), 0);
+	const chars = filled.reduce((sum, p) => sum + scriptCount(spokenOf(p)), 0);
 	const made = filled.filter((p) => {
 		const sig = signatureOf(p, work, voices, now)?.signature;
 		return sig !== undefined && found.get(sig)?.status === "done";

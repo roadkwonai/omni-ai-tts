@@ -16,12 +16,14 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@tts-pilot-app/ui/components/alert-dialog";
+import { Button } from "@tts-pilot-app/ui/components/button";
 import { Spinner } from "@tts-pilot-app/ui/components/spinner";
 import { cn } from "@tts-pilot-app/ui/lib/utils";
-import { Coins, Info, TriangleAlert } from "lucide-react";
+import { CircleAlert, Coins, Info, TriangleAlert } from "lucide-react";
 import { type RefObject, useId, useRef, useState } from "react";
 
 import { PROVIDER_LABEL } from "@/lib/connection-view";
+import { NUMBER_TEXT } from "@/lib/studio-text";
 import {
 	confirmCopy,
 	costCopy,
@@ -64,18 +66,26 @@ export type TrialPending = {
 	opener: HTMLElement | null;
 	// 작업실: 이전 결과에 같은 서명의 처리 여부 미확인 줄이 있다(중복 과금을 알고 누르게, 브리프 5.7). 캐스팅은 넘기지 않는다
 	unknownSame?: boolean;
+	// 작업실(T11): 이 문단의 검수 안 한 숫자 수. 0보다 크면 경고 줄과 '검수하기'가 더해지고 확인 버튼이 '원문대로 만들기'가 된다. 캐스팅은 넘기지 않는다
+	unreviewed?: number;
 };
 
 export function TrialConfirm({
 	pending,
 	onClose,
 	onConfirm,
+	onReview,
+	unreviewedList = "",
 	kind = "trial",
 	finalFocus,
 }: {
 	pending: TrialPending | null;
 	onClose: () => void;
 	onConfirm: (pending: TrialPending) => void;
+	// 검수 안 한 숫자가 있을 때 '검수하기'(작업실만 넘긴다). 확인 창을 닫는 일은 부른 쪽이 한다
+	onReview?: (pending: TrialPending) => void;
+	// 검수 안 한 숫자의 원문 표기 나열(작업실, lib unreviewedList). 경고 줄에 괄호로 든다
+	unreviewedList?: string;
 	// 작업실은 대본 앞 100자·총 글자 수와 '만들기' 문구다(T9 스펙 4절). boolean 대신 값 하나(patterns-explicit-variants)
 	kind?: "trial" | "studio";
 	// 닫힐 때 갈 곳(문단 작업실: 연 단추가 빠지면 그 카드 숨은 제목). 없으면 연 단추(캐스팅 그대로)
@@ -100,6 +110,8 @@ export function TrialConfirm({
 						kind={kind}
 						cancelRef={cancelRef}
 						onConfirm={onConfirm}
+						onReview={onReview}
+						unreviewedList={unreviewedList}
 					/>
 				</AlertDialogContent>
 			) : null}
@@ -112,14 +124,19 @@ function ConfirmBody({
 	kind,
 	cancelRef,
 	onConfirm,
+	onReview,
+	unreviewedList,
 }: {
 	pending: TrialPending;
 	kind: "trial" | "studio";
 	cancelRef: RefObject<HTMLButtonElement | null>;
 	onConfirm: (pending: TrialPending) => void;
+	onReview?: (pending: TrialPending) => void;
+	unreviewedList: string;
 }) {
-	const { voice, request, regenerate, unknownSame } = pending;
+	const { voice, request, regenerate, unknownSame, unreviewed = 0 } = pending;
 	const unknownId = useId();
+	const reviewId = useId();
 	const [sent, setSent] = useState(false);
 	const sentRef = useRef(false);
 	// Gemini는 잔액 조회 API가 없어 '남은 크레딧' 줄과 그 조회가 없다(T7.6 계획 '스펙과 다른 점' 6)
@@ -241,6 +258,20 @@ function ConfirmBody({
 						{copy.unknownRetry}
 					</p>
 				) : null}
+				{/* 검수 안 한 숫자(T11, 브리프 17.4). 설명 안이라 창을 열 때 읽힌다 */}
+				{unreviewed > 0 ? (
+					<p id={reviewId} className="mt-3 flex gap-2 text-sm text-warning">
+						<CircleAlert
+							aria-hidden="true"
+							className="mt-0.5 size-4 shrink-0"
+						/>
+						<span>
+							{NUMBER_TEXT.unreviewedHead(unreviewed)}(
+							<span translate="no">{unreviewedList}</span>).{" "}
+							{NUMBER_TEXT.unreviewedTail}
+						</span>
+					</p>
+				) : null}
 			</AlertDialogDescription>
 			{request.provider === "typecast" && typecastOverdrawn(quota) ? (
 				<p className="text-sm text-warning">
@@ -272,10 +303,19 @@ function ConfirmBody({
 				<AlertDialogCancel ref={cancelRef} size="lg">
 					취소
 				</AlertDialogCancel>
+				{unreviewed > 0 && onReview ? (
+					<Button variant="neutral" size="lg" onClick={() => onReview(pending)}>
+						{NUMBER_TEXT.review}
+					</Button>
+				) : null}
 				<AlertDialogAction
 					size="lg"
 					// 유료 버튼에 닿을 때 중복 과금 경고를 한 번 더 읽는다(창 설명에도 있다, WCAG 3.3.4)
-					aria-describedby={unknownSame ? unknownId : undefined}
+					aria-describedby={
+						[unknownSame ? unknownId : null, unreviewed > 0 ? reviewId : null]
+							.filter((id) => id !== null)
+							.join(" ") || undefined
+					}
 					disabled={sent}
 					onClick={() => {
 						if (sentRef.current) return;
@@ -285,7 +325,7 @@ function ConfirmBody({
 					}}
 				>
 					{coins ? <Coins data-icon="inline-start" aria-hidden="true" /> : null}
-					{copy.action}
+					{unreviewed > 0 ? NUMBER_TEXT.asIs : copy.action}
 				</AlertDialogAction>
 			</AlertDialogFooter>
 		</>

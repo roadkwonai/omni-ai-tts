@@ -14,6 +14,7 @@ import {
 import type { SavedVoice } from "@tts-pilot-app/api/saved-voice-contract";
 import type { StudioRequest } from "@tts-pilot-app/api/studio-contract";
 
+import { type ReadingItem, readingItems } from "./number-reading";
 import { sameSettings } from "./preset-view";
 import { speakerLine } from "./script-speaker";
 import { savedOf } from "./studio-view";
@@ -28,12 +29,22 @@ export type VoiceSetup = {
 }[ProviderId];
 // gap·voice가 비면 작업의 기본 쉼·기본 성우를 따른다
 // speaker는 작업 화자 목록(Work.speakers)에 있는 이름이고, 없는 이름은 화자 없음으로 본다(followOf·readWork)
+// 숫자 교정 결정(GLOSSARY '교정 항목'·'숫자 검수', T11 스펙 3절). 위치와 original은 결정할 때의 원문 기준이다
+export type Decision = {
+	start: number;
+	end: number;
+	original: string;
+	choice: "apply" | "keep" | "manual";
+	reading?: string;
+};
+// fixes.text는 결정할 때의 원문이다. 지금 원문과 다르면 결정 전체가 무효다(decisionsOf)
 export type Paragraph = {
 	id: string;
 	text: string;
 	gap?: number;
 	voice?: VoiceSetup;
 	speaker?: string;
+	fixes?: { text: string; decisions: Decision[] };
 };
 // 화자(GLOSSARY): 이름과 성우(비면 기본 성우를 따른다). 화자 이름은 생성 요청에 들지 않는다
 export type Speaker = { name: string; voice: VoiceSetup | null };
@@ -435,6 +446,161 @@ export function setupRequest(
 	);
 }
 
+// 지금 원문과 지금 엔진의 항목에 맞는 결정만(결정 때 원문과 같고 start·end·original이 항목과 정확히 같은 것). 같은 자리의 중복은 첫 결정만
+export function decisionsOf(p: Paragraph): Decision[] {
+	const fixes = p.fixes;
+	if (!fixes || fixes.text !== p.text) return [];
+	const items = readingItems(p.text);
+	const seen = new Set<number>();
+	return fixes.decisions.filter((d) => {
+		const ok =
+			!seen.has(d.start) &&
+			items.some(
+				(i) =>
+					i.start === d.start && i.end === d.end && i.original === d.original,
+			);
+		if (ok) seen.add(d.start);
+		return ok;
+	});
+}
+
+// 보낼 글의 바탕인 발음용 대본(GLOSSARY): 원문에서 apply·manual 결정 자리만 그 읽기로 바꾼 글. 결정이 없으면 p.text 그대로(같은 문자열)라 요청·조합 키가 달라지지 않는다.
+// 읽기는 앞이 글자·숫자면 띄어 붙이고 뒤 조사는 그대로 둔다. 겹치는 결정은 건너뛴다(방어). 길이·글자 수·요청·막기 판정이 모두 이 글을 쓴다. 재생기·SRT 같은 원문 표시는 p.text
+export const spokenOf = (p: Paragraph): string =>
+	spokenPartsOf(p)
+		.map((part) => part.text)
+		.join("");
+
+// 발음용 대본을 바뀐 자리(changed)와 그대로인 자리로 나눈다(카드 '발음용 대본' 판의 mark). 띄어 쓴 공백은 그대로인 쪽에 든다.
+// 바뀐 것이 없으면 p.text 하나다
+export function spokenPartsOf(p: Paragraph): SpokenPart[] {
+	// 결정이 없으면 엔진을 돌리지 않는다(요청·길이 판정이 문단마다 부른다)
+	if (!p.fixes?.decisions.length) return [{ text: p.text, changed: false }];
+	const decisions = decisionsOf(p);
+	const items = readingItems(p.text);
+	const parts: SpokenPart[] = [];
+	let out = "";
+	let at = 0;
+	for (const d of [...decisions].sort((a, b) => a.start - b.start)) {
+		const reading =
+			d.choice === "keep"
+				? undefined
+				: (d.reading ?? items.find((i) => i.start === d.start)?.readings[0]);
+		if (d.start < at || !reading?.trim()) continue;
+		const before = p.text.slice(at, d.start);
+		// 앞 글이 글자·숫자로 끝나면 읽기를 띄어 붙인다(앞 읽기도 글자로 끝나므로 지금까지 이은 글로 본다)
+		const space = /[A-Za-z0-9가-힣]$/.test(out + before) ? " " : "";
+		const lead = before + space;
+		out += lead + reading;
+		if (lead) parts.push({ text: lead, changed: false });
+		parts.push({ text: reading, changed: true });
+		at = d.end;
+	}
+	if (parts.length === 0) return [{ text: p.text, changed: false }];
+	const tail = p.text.slice(at);
+	return tail ? [...parts, { text: tail, changed: false }] : parts;
+}
+type SpokenPart = { text: string; changed: boolean };
+
+// 문단의 항목·결정 짝(시작 위치 순)과 검수 안 한 항목 수. needsCheck는 그중 확인 필요인 수다
+export function reviewOf(p: Paragraph): {
+	pairs: { item: ReadingItem; decision: Decision | null }[];
+	unreviewed: number;
+	needsCheck: number;
+} {
+	const decided = new Map(decisionsOf(p).map((d) => [d.start, d]));
+	const pairs = readingItems(p.text).map((item) => ({
+		item,
+		decision: decided.get(item.start) ?? null,
+	}));
+	const open = pairs.filter((x) => !x.decision);
+	return {
+		pairs,
+		unreviewed: open.length,
+		needsCheck: open.filter((x) => x.item.needsCheck).length,
+	};
+}
+
+const byStart = (a: Decision, b: Decision) => a.start - b.start;
+// 항목 하나의 결정을 정한 새 문단(fixes.text = 지금 원문). 직접 입력이 공백뿐이면 같은 문단
+export function decide(
+	p: Paragraph,
+	item: ReadingItem,
+	decision: Pick<Decision, "choice" | "reading">,
+): Paragraph {
+	const reading = decision.reading?.trim();
+	if (decision.choice === "manual" && !reading) return p;
+	const next: Decision = {
+		start: item.start,
+		end: item.end,
+		original: item.original,
+		choice: decision.choice,
+		...(decision.choice !== "keep" && reading ? { reading } : {}),
+	};
+	const others = decisionsOf(p).filter((d) => d.start !== item.start);
+	return {
+		...p,
+		fixes: { text: p.text, decisions: [...others, next].sort(byStart) },
+	};
+}
+// 그 항목을 검수 안 함으로 되돌린다. 결정이 없던 항목이면 같은 문단
+export function undecide(p: Paragraph, item: ReadingItem): Paragraph {
+	const current = decisionsOf(p);
+	const rest = current.filter((d) => d.start !== item.start);
+	return rest.length === current.length
+		? p
+		: { ...p, fixes: { text: p.text, decisions: rest } };
+}
+
+// '확실한 것'(검수 창의 '확실한 것 모두 적용 (N)'과 applyCertain이 같은 판정을 쓴다): 결정이 없고 확인 필요가 아니며 제안이 있는 항목
+export const isCertain = (item: ReadingItem, decision: Decision | null) =>
+	!decision && !item.needsCheck && item.readings.length > 0;
+
+// 확인 필요가 아닌 검수 안 한 항목에 첫 제안을 적용한다('확실한 것 모두 적용'). 바뀐 것이 없으면 같은 배열, 바뀌지 않은 문단은 같은 객체
+export function applyCertain(ps: Paragraph[]): Paragraph[] {
+	let changed = false;
+	const next = ps.map((p) => {
+		const kept = decisionsOf(p);
+		const fresh = readingItems(p.text).flatMap((item): Decision[] => {
+			const reading = item.readings[0];
+			return reading === undefined ||
+				!isCertain(item, kept.find((d) => d.start === item.start) ?? null)
+				? []
+				: [
+						{
+							start: item.start,
+							end: item.end,
+							original: item.original,
+							choice: "apply",
+							reading,
+						},
+					];
+		});
+		if (fresh.length === 0) return p;
+		changed = true;
+		return {
+			...p,
+			fixes: { text: p.text, decisions: [...kept, ...fresh].sort(byStart) },
+		};
+	});
+	return changed ? next : ps;
+}
+export const unreviewedCount = (ps: readonly Paragraph[]) =>
+	ps.reduce((sum, p) => sum + reviewOf(p).unreviewed, 0);
+
+// 검수 안 한 숫자의 원문 표기 나열(카드 상태 줄·만들기 확인 창): 앞에서 max개, 넘치면 " 외 N개". 없으면 ""
+export function unreviewedList(ps: readonly Paragraph[], max = 3): string {
+	const open = ps.flatMap((p) =>
+		reviewOf(p)
+			.pairs.filter((x) => !x.decision)
+			.map((x) => x.item.original),
+	);
+	return (
+		open.slice(0, max).join(" · ") +
+		(open.length > max ? ` 외 ${open.length - max}개` : "")
+	);
+}
+
 // 그 성우·모델로 보낼 글: 받지 않는 태그를 뺀다(T10 스펙 15.2). 성우 설정·요청 모두 provider와 settings.model이 있다
 const sendOf = (
 	voice: { provider: ProviderId; settings: { model: string } },
@@ -444,9 +610,10 @@ const sendOf = (
 // 빈 문단: 원문이 공백뿐이거나, 성우가 있고 보낼 글(태그를 뺀 글)이 빈다(스펙 15.2 '보낼 글이 비는 문단').
 // 성우 설정의 모델로 본다. requestOf가 바꾸는 모델(Typecast v30↔v21, Fish 무료→유료)은 태그 판정이 같다
 export function blankFor(p: Paragraph, work: Work): boolean {
-	if (isBlank(p.text)) return true;
+	const text = spokenOf(p);
+	if (isBlank(text)) return true;
 	const setup = voiceOf(p, work);
-	return setup !== null && normalizeText(sendOf(setup, p.text)) === "";
+	return setup !== null && normalizeText(sendOf(setup, text)) === "";
 }
 
 // 문단 요청. 성우나 성우 목록이 아직 없거나 빈 문단(blankFor)이면 null. 글은 보낼 글이다(받지 않는 태그가 없으면 원문 그대로라 조합 키가 같다)
@@ -458,11 +625,12 @@ export function paragraphRequest(
 ): StudioRequest | null {
 	const setup = voiceOf(p, work);
 	if (!setup || !voices || blankFor(p, work)) return null;
-	const request = setupRequest(setup, voices, p.text, now);
-	return { ...request, text: sendOf(request, p.text) };
+	const spoken = spokenOf(p);
+	const request = setupRequest(setup, voices, spoken, now);
+	return { ...request, text: sendOf(request, spoken) };
 }
 
-// 막는 이유(순서: 빈 문단 → 성우 없음 → 이용 불가 → 길이 초과). 길이는 대본 칸 글 그대로 잰다(스펙 15.2)
+// 막는 이유(순서: 빈 문단 → 성우 없음 → 이용 불가 → 길이 초과). 길이는 대본 칸 글 그대로(태그 포함) 재되, 교정을 반영한 발음용 대본(spokenOf)으로 잰다(스펙 15.2, T11)
 export function blockOf(
 	p: Paragraph,
 	work: Work,
@@ -473,7 +641,7 @@ export function blockOf(
 	if (!setup) return "no_voice";
 	const saved = savedOf(voices, setup.voiceId, setup.provider);
 	if (!saved || saved.unavailable) return "unavailable";
-	const long = tooLongOf(p.text, setup.provider);
+	const long = tooLongOf(spokenOf(p), setup.provider);
 	return long && { kind: "too_long", ...long };
 }
 

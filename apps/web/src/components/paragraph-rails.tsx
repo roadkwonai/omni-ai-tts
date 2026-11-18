@@ -52,6 +52,7 @@ import { GapInput } from "./drama-gap";
 import { SpeakerMark } from "./drama-voice-dialog";
 import { EmotionPalette } from "./emotion-palette";
 import { LockedIconButton } from "./locked-icon-button";
+import { NumberReviewButton } from "./number-review";
 import { AutoTagButton } from "./paragraph-autotag";
 import { VoiceMissingNote, VoiceName, voiceNameOf } from "./paragraph-card";
 import { showParagraph, visible } from "./paragraph-focus";
@@ -570,6 +571,7 @@ export function WorkSettings({
 				<div className="flex flex-wrap items-center gap-2">
 					<ParagraphPasteDialog filled={fill === "paste"} />
 					<AutoTagButton />
+					<NumberReviewButton />
 				</div>
 			</div>
 			<div className="flex flex-col items-start gap-2">
@@ -660,6 +662,7 @@ export function WorkBand({
 				</span>
 				<ParagraphPasteDialog filled={fill === "paste"} />
 				<AutoTagButton />
+				<NumberReviewButton />
 				{tail}
 			</div>
 			<VoiceProblems />
