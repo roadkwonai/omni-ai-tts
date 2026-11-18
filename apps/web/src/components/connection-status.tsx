@@ -12,7 +12,8 @@ import { Fragment, useState } from "react";
 import { PROVIDER_IDS, PROVIDER_LABEL, toView } from "@/lib/connection-view";
 import { orpc, QUIET } from "@/utils/orpc";
 
-import { SignInNotice } from "./notice";
+import { DEMO_TEXT, useDemo } from "./demo";
+import { Notice, SignInNotice } from "./notice";
 import { ProviderStatusCard, STATUS_LABEL } from "./provider-status-card";
 
 const isUnauthorized = (error: unknown) =>
@@ -58,8 +59,21 @@ function SummaryBanner({
 	);
 }
 
-// 다섯 공급자의 조회를 한곳에서 든다. 소유자 없음 판단과 스크린 리더 알림을 여기서만 한다.
+// 공개 데모는 카드 대신 안내 하나를 보인다(공급자를 부르지 않고, 조회도 하지 않는다)
 export function ConnectionStatus() {
+	return useDemo() ? (
+		<Notice
+			icon={Info}
+			title={DEMO_TEXT.connectionsTitle}
+			description={DEMO_TEXT.connectionsDescription}
+		/>
+	) : (
+		<ProviderChecks />
+	);
+}
+
+// 다섯 공급자의 조회를 한곳에서 든다. 소유자 없음 판단과 스크린 리더 알림을 여기서만 한다.
+function ProviderChecks() {
 	const queries = useQueries({
 		queries: PROVIDER_IDS.map((provider) =>
 			orpc.providerStatus.queryOptions({

@@ -79,6 +79,7 @@ import { emotionShift, type ListLoad, STUDIO_TEXT } from "@/lib/studio-view";
 
 import { useElapsed } from "./bar-height";
 import { fieldClass } from "./class-form-dialog";
+import { DemoBadge, useDemo } from "./demo";
 import { LineGap } from "./drama-gap";
 import { SpeakerMark } from "./drama-voice-dialog";
 import { EmotionPalette } from "./emotion-palette";
@@ -300,6 +301,8 @@ function StatusCell({
 				<span className={cn(STATE, "text-success")}>
 					<Check aria-hidden="true" className={STATE_ICON} />
 					{PARAGRAPH_TEXT.made}
+					{/* 공개 데모의 결과는 공급자가 만든 소리가 아니라 데모 샘플이다 */}
+					<DemoBadge />
 				</span>
 			);
 		case "unknown":
@@ -336,6 +339,7 @@ function MakeButton({
 	onMake: CardActions["make"];
 }) {
 	const reasonId = useId();
+	const demo = useDemo();
 	return (
 		<>
 			<Tooltip disabled={!locked}>
@@ -356,7 +360,7 @@ function MakeButton({
 					{PARAGRAPH_TEXT.make}
 					{free ? (
 						<Badge variant="success">{PARAGRAPH_TEXT.free}</Badge>
-					) : (
+					) : demo ? null : (
 						<Coins
 							data-icon="inline-end"
 							aria-hidden="true"
@@ -817,6 +821,7 @@ export const ParagraphCard = memo(function ParagraphCard({
 	const toggleRef = useRef<HTMLButtonElement>(null);
 	const boxRef = useRef<HTMLDivElement>(null);
 	const pressedRef = useRef<HTMLButtonElement>(null);
+	const demo = useDemo();
 	const panelId = useId();
 	const countId = useId();
 	const noteId = useId();
@@ -1044,7 +1049,7 @@ export const ParagraphCard = memo(function ParagraphCard({
 								)}
 							>
 								{PARAGRAPH_TEXT.make}
-								<Coins data-icon="inline-end" />
+								{demo ? null : <Coins data-icon="inline-end" />}
 							</span>
 						) : null}
 						<Tooltip>

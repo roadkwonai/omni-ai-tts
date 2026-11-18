@@ -11,48 +11,46 @@ import Image from "next/image";
 
 import { TOUR_TABS, type TourTab } from "@/lib/landing-content";
 
-// 실제 앱 화면 그대로(가공 없음). 1440px 판이 기본이고, 767px 이하에서는 휴대폰 판이 있는 화면만 그 판을 보인다.
-// 다크에는 다크 판이 있는 화면만 바꾼다. 숨은 판은 lazy라 받지 않는다. 너비·높이 속성이 자리를 잡아 늦게 와도 흔들리지 않는다.
+// 실제 앱 화면 그대로(가공 없음). 767px 이하는 휴대폰 판, 그 위는 1440px 판이고, 각각 라이트·다크 판을 테마로 바꾼다.
+// 숨은 판은 lazy라 받지 않는다. 너비·높이 속성이 자리를 잡아 늦게 와도 흔들리지 않는다.
 function TourShot({ tab }: { tab: TourTab }) {
 	return (
 		<div className="rounded-2xl bg-card p-2 ring-1 ring-border">
-			{tab.mobile ? (
-				<div className="mx-auto w-64 overflow-hidden rounded-lg md:hidden">
-					<Image
-						src={tab.mobile}
-						alt={`${tab.label} 휴대폰 화면`}
-						width={390}
-						height={844}
-						sizes="256px"
-						className="h-auto w-full"
-					/>
-				</div>
-			) : null}
-			<div
-				className={
-					tab.mobile
-						? "hidden overflow-hidden rounded-lg md:block"
-						: "overflow-hidden rounded-lg"
-				}
-			>
+			<div className="mx-auto w-64 overflow-hidden rounded-lg md:hidden">
+				<Image
+					src={tab.mobile}
+					alt={`${tab.label} 휴대폰 화면`}
+					width={390}
+					height={844}
+					sizes="256px"
+					className="h-auto w-full dark:hidden"
+				/>
+				<Image
+					src={tab.mobileDark}
+					alt={`${tab.label} 휴대폰 화면`}
+					width={390}
+					height={844}
+					sizes="256px"
+					className="hidden h-auto w-full dark:block"
+				/>
+			</div>
+			<div className="hidden overflow-hidden rounded-lg md:block">
 				<Image
 					src={tab.light}
 					alt={tab.alt}
 					width={1440}
 					height={900}
 					sizes="(min-width: 1024px) 1008px, 100vw"
-					className={tab.dark ? "h-auto w-full dark:hidden" : "h-auto w-full"}
+					className="h-auto w-full dark:hidden"
 				/>
-				{tab.dark ? (
-					<Image
-						src={tab.dark}
-						alt={tab.alt}
-						width={1440}
-						height={900}
-						sizes="(min-width: 1024px) 1008px, 100vw"
-						className="hidden h-auto w-full dark:block"
-					/>
-				) : null}
+				<Image
+					src={tab.dark}
+					alt={tab.alt}
+					width={1440}
+					height={900}
+					sizes="(min-width: 1024px) 1008px, 100vw"
+					className="hidden h-auto w-full dark:block"
+				/>
 			</div>
 		</div>
 	);

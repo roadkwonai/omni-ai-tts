@@ -33,6 +33,7 @@ import {
 } from "@/lib/trial-view";
 import { orpc } from "@/utils/orpc";
 
+import { DEMO_TEXT, useDemo } from "./demo";
 import type { Confirming } from "./paragraph-make";
 import { useParagraphs, useWork } from "./paragraph-provider";
 
@@ -109,6 +110,7 @@ function ConfirmBody({
 	// 모두 무료인데 미확인이 있어 뜬 창(22)은 크레딧·비용 말이 없다. Gemini는 크레딧이 아니라 요금이라 '비용'이다
 	const free = plan.free;
 	const cost = usage.some((row) => row.provider === "gemini");
+	const demo = useDemo();
 	// 근거는 문단 설정을 따르고 문단마다 다를 수 있어 서로 다른 값만 잇는다. Airy는 언어별 요율, Gemini는 모델별 1분 단가
 	const airy = new Set<string>();
 	const gemini = new Set<GeminiModel>();
@@ -140,9 +142,11 @@ function ConfirmBody({
 				<AlertDialogTitle>
 					{free
 						? PARAGRAPH_TEXT.confirmFree(count)
-						: cost
-							? PARAGRAPH_TEXT.confirmCost(count)
-							: PARAGRAPH_TEXT.confirmCredit(count)}
+						: demo
+							? DEMO_TEXT.makeTitle
+							: cost
+								? PARAGRAPH_TEXT.confirmCost(count)
+								: PARAGRAPH_TEXT.confirmCredit(count)}
 				</AlertDialogTitle>
 			</AlertDialogHeader>
 			<AlertDialogDescription render={<div />} className="text-foreground">
@@ -152,10 +156,12 @@ function ConfirmBody({
 							{PARAGRAPH_TEXT.confirmNew}
 						</dt>
 						<dd className="text-right tabular-nums">
-							{PARAGRAPH_TEXT.confirmCount(count, plan.reused)}
+							{demo
+								? `${PARAGRAPH_TEXT.confirmCount(count, 0)}${plan.reused > 0 ? ` (${DEMO_TEXT.savedCount(plan.reused)})` : ""}`
+								: PARAGRAPH_TEXT.confirmCount(count, plan.reused)}
 						</dd>
 					</div>
-					{usage.map((row) => (
+					{(demo ? [] : usage).map((row) => (
 						<ProviderRow
 							key={row.provider}
 							row={row}
@@ -166,7 +172,7 @@ function ConfirmBody({
 					))}
 				</dl>
 				{/* Gemini 무료 등급 약관(T5 확인 창과 같은 모양) */}
-				{cost ? (
+				{cost && !demo ? (
 					<p className="mt-3 flex gap-2 text-muted-foreground text-sm">
 						<Info aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
 						{GEMINI_DATA_NOTE}
@@ -224,14 +230,18 @@ function ConfirmBody({
 					}}
 				>
 					{/* 채운 청록 버튼 안의 유료 표식은 글자색이다(DESIGN.md). 무료면 붙이지 않는다 */}
-					{free ? null : <Coins data-icon="inline-start" aria-hidden="true" />}
+					{free || demo ? null : (
+						<Coins data-icon="inline-start" aria-hidden="true" />
+					)}
 					{unreviewed
 						? NUMBER_TEXT.asIs
 						: free
 							? PARAGRAPH_TEXT.make
-							: cost
-								? PARAGRAPH_TEXT.makeCost
-								: PARAGRAPH_TEXT.makeCredit}
+							: demo
+								? DEMO_TEXT.makeAction
+								: cost
+									? PARAGRAPH_TEXT.makeCost
+									: PARAGRAPH_TEXT.makeCredit}
 				</AlertDialogAction>
 			</AlertDialogFooter>
 		</>

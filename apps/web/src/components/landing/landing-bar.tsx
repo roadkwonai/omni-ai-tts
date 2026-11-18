@@ -36,13 +36,57 @@ const MENU_BUTTON =
 const MENU_LINK =
 	"flex min-h-14 items-center border-border border-b font-bold text-2xl outline-offset-2 focus-visible:outline-2 focus-visible:outline-ring hover:text-primary";
 
-// 떠 있는 막대(브리프 3절 0번). 맨 위를 벗어나면 배경 흐림·테두리가 나타난다(기준점은 IntersectionObserver).
-// 767px 이하는 로고 + 메뉴 단추이고 전체 높이 패널(UI SDK Dialog: 포커스 가두기·Esc·포커스 복귀)을 연다.
+// 막대 링크 하나. 지금 보는 섹션이면 aria-current="location"과 밑줄(토큰)로 알린다
+export function NavLink({
+	item,
+	current,
+}: {
+	item: (typeof NAV_ITEMS)[number];
+	current: boolean;
+}) {
+	return (
+		<a
+			href={item.href}
+			aria-current={current ? "location" : undefined}
+			className={cn(
+				"inline-flex min-h-11 items-center rounded-lg px-3 font-bold text-sm underline-offset-8 outline-offset-2 transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring",
+				current
+					? "text-foreground underline decoration-2 decoration-primary"
+					: "text-muted-foreground",
+			)}
+		>
+			{item.label}
+		</a>
+	);
+}
+
+// 떠 있는 막대(브리프 3절 0번). 맨 위를 벗어나면 불투명 바탕·테두리가 나타난다(기준점은 IntersectionObserver).
+// 지금 보는 섹션은 화면 위쪽 띠(위에서 30~40%)에 든 섹션이다. 767px 이하는 로고 + 메뉴 단추이고 전체 높이 패널(UI SDK Dialog: 포커스 가두기·Esc·포커스 복귀)을 연다.
 export function LandingBar() {
 	const sentinelRef = useRef<HTMLDivElement>(null);
 	const barRef = useRef<HTMLElement>(null);
 	const pendingHash = useRef<string | null>(null);
 	const [menuOpen, setMenuOpen] = useState(false);
+	const [current, setCurrent] = useState<string | null>(null);
+
+	useEffect(() => {
+		const observer = new IntersectionObserver(
+			(entries) => {
+				for (const { target, isIntersecting } of entries) {
+					const href = `#${target.id}`;
+					setCurrent((now) =>
+						isIntersecting ? href : now === href ? null : now,
+					);
+				}
+			},
+			{ rootMargin: "-30% 0px -60% 0px" },
+		);
+		for (const item of NAV_ITEMS) {
+			const section = document.querySelector(item.href);
+			if (section) observer.observe(section);
+		}
+		return () => observer.disconnect();
+	}, []);
 
 	useEffect(() => {
 		const sentinel = sentinelRef.current;
@@ -74,7 +118,7 @@ export function LandingBar() {
 				>
 					<span
 						aria-hidden="true"
-						className="absolute inset-0 -z-10 rounded-2xl bg-background/90 opacity-0 ring-1 ring-border backdrop-blur-lg transition-opacity group-data-scrolled/bar:opacity-100"
+						className="absolute inset-0 -z-10 rounded-2xl bg-background opacity-0 ring-1 ring-border transition-opacity group-data-scrolled/bar:opacity-100"
 					/>
 					<a
 						href="#top"
@@ -85,23 +129,18 @@ export function LandingBar() {
 					<ul className="hidden items-center gap-1 md:flex">
 						{NAV_ITEMS.map((item) => (
 							<li key={item.href}>
-								<a
-									href={item.href}
-									className="inline-flex min-h-11 items-center rounded-lg px-3 font-bold text-muted-foreground text-sm outline-offset-2 transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
-								>
-									{item.label}
-								</a>
+								<NavLink item={item} current={current === item.href} />
 							</li>
 						))}
 					</ul>
 					<Link
-						href="/login"
+						href="/studio"
 						className={cn(
 							buttonVariants({ variant: "neutral" }),
 							"landing-press hidden md:inline-flex",
 						)}
 					>
-						로그인
+						데모 써 보기
 					</Link>
 					<Dialog
 						open={menuOpen}
@@ -124,7 +163,7 @@ export function LandingBar() {
 						>
 							{({ open }) => <MenuIcon open={open} />}
 						</DialogTrigger>
-						<DialogContent className="landing-menu-panel fixed inset-0 m-0 flex h-dvh max-h-none w-full max-w-none flex-col overflow-y-auto overscroll-contain border-0 bg-background/95 p-0 text-foreground backdrop-blur-xl">
+						<DialogContent className="landing-menu-panel fixed inset-0 m-0 flex h-dvh max-h-none w-full max-w-none flex-col overflow-y-auto overscroll-contain border-0 bg-background p-0 text-foreground">
 							<DialogTitle className="sr-only">메뉴</DialogTitle>
 							<div className="mx-3 mt-3 flex h-14 shrink-0 items-center justify-between px-4">
 								<LandingLogo className="h-10 w-auto" />
@@ -148,10 +187,10 @@ export function LandingBar() {
 								))}
 								<li className="landing-menu-link">
 									<DialogClose
-										render={<Link href="/login" />}
+										render={<Link href="/studio" />}
 										className={cn(MENU_LINK, "text-primary")}
 									>
-										로그인
+										데모 써 보기
 									</DialogClose>
 								</li>
 							</ul>

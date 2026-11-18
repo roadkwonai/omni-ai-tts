@@ -48,6 +48,7 @@ import { emotionShift, STUDIO_TEXT, savedOf } from "@/lib/studio-view";
 import { settingsSummary } from "@/lib/trial-view";
 
 import { fieldClass, isComposingEnter } from "./class-form-dialog";
+import { useDemo } from "./demo";
 import { GapInput } from "./drama-gap";
 import { SpeakerMark } from "./drama-voice-dialog";
 import { EmotionPalette } from "./emotion-palette";
@@ -738,6 +739,7 @@ function SummaryBody({ onShow }: { onShow: (id: string) => void }) {
 		useWork();
 	const ps = useShownParagraphs();
 	const usageId = useId();
+	const demo = useDemo();
 	const { summary, link, usage, blocked } = useMemo(() => {
 		const all = { ...work, paragraphs: ps };
 		const plan = voices ? makePlan(ps, all, voices, found, now) : null;
@@ -836,7 +838,11 @@ function SummaryBody({ onShow }: { onShow: (id: string) => void }) {
 				</dl>
 				<JumpField paragraphs={ps} onShow={onShow} />
 			</div>
-			<section aria-labelledby={usageId} className="flex flex-col gap-2">
+			{/* 공개 데모는 공급자를 부르지 않아 예상 사용량 칸을 숨긴다 */}
+			<section
+				aria-labelledby={usageId}
+				className={demo ? "hidden" : "flex flex-col gap-2"}
+			>
 				<h3 id={usageId} className={SUBHEAD}>
 					{PARAGRAPH_TEXT.estimate}
 				</h3>

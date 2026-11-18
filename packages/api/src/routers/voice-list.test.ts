@@ -262,6 +262,28 @@ describe("voiceList", () => {
 		expect(result.voices).toHaveLength(1);
 	});
 
+	it.each([
+		["키 없음", createProviders({})],
+		[
+			"listVoices 없는 클라이언트(공개 데모)",
+			{ elevenlabs: { checkStatus: vi.fn() } },
+		],
+	])(
+		"%s: 목록 새로 고침은 no_key이고 캐시(DB)·공급자를 건드리지 않는다",
+		async (_name, providers) => {
+			await expect(
+				as("local-admin", providers as Context["providers"]).voiceListRefresh({
+					provider: "elevenlabs",
+				}),
+			).rejects.toMatchObject({
+				code: "PRECONDITION_FAILED",
+				data: { provider: "elevenlabs", reason: "no_key" },
+			});
+			expect(dbTouches).toBe(0);
+			expect(fetchMock).not.toHaveBeenCalled();
+		},
+	);
+
 	it("DB가 실패해도 목록 새로 고침은 retryAt null로 끝나고 공급자를 부르지 않는다", async () => {
 		await expect(
 			as("local-admin", createProviders({ elevenlabs: KEY })).voiceListRefresh({

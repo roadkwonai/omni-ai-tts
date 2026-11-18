@@ -8,7 +8,7 @@ import { Section, SectionHeading } from "./section";
 export function FaqSection() {
 	return (
 		<Section id="faq" labelledBy="faq-title">
-			<div className="flex items-end justify-between gap-6">
+			<div className="flex items-end gap-4 md:gap-6">
 				<SectionHeading id="faq-title">자주 묻는 질문</SectionHeading>
 				<Image
 					src="/brand/mascot-faq.png"

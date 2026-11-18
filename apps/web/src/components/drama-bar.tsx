@@ -47,6 +47,7 @@ import {
 } from "@/lib/drama-view";
 
 import { useBarHeight, useElapsed, WAIT_NOTE_AFTER } from "./bar-height";
+import { DEMO_TEXT, useDemo } from "./demo";
 import {
 	DRAMA_MAIN_ID,
 	dramaFieldId,
@@ -242,6 +243,7 @@ function JoinButton({
 // 주 버튼 id(DRAMA_MAIN_ID)는 모델을 바꾼 뒤(switchModel)와 무대가 없을 때(stageOrMain) 포커스가 오는 자리다. 확인 창은 누른 버튼(opener)으로 돌아온다
 export function DramaBar() {
 	const drama = useDrama();
+	const demo = useDemo();
 	const read = useDramaRead();
 	const take = useTakeAudio();
 	const ctxOf = useReadCtx();
@@ -286,7 +288,8 @@ export function DramaBar() {
 			: null;
 	const readLines = readCheck && "lines" in readCheck ? readCheck.lines : null;
 	// 유료 확인이 필요한 줄이 있으면 '읽기'에 Coins(스펙 17.2 '읽기 Coins'). 막는 이유가 있으면 붙이지 않는다
-	const readCost = readLines !== null && readPaid(readLines);
+	// 공개 데모는 공급자를 부르지 않아 돈 표시와 예상 금액이 없다
+	const readCost = !demo && readLines !== null && readPaid(readLines);
 	const readLocked = !ready || readBlock !== null;
 	// 보이는 막는 이유 하나: 주 버튼의 이유, 없으면 읽기의 이유(barReason). 같은 글이면 두 쪽의 이유다.
 	// 혼합 대본에는 장면 버튼이 없으므로 장면 이유(섞임)를 보이지 않는다(한 줄 칸이 읽기 예상을 보이게)
@@ -313,13 +316,14 @@ export function DramaBar() {
 	// 나누지 못함은 장면(Fish 대본)만의 경고다
 	const split = fishOnly ? splitWarning(shownLines) : null;
 	// 한 줄 칸에 다른 글이 없을 때의 예상(스펙 17.3): Fish 대본은 장면 예상, 혼합 대본은 읽을 줄·글자(유료 화자가 있으면 덧붙임)
-	const estimate = !ready
-		? null
-		: fishOnly
-			? DRAMA_TEXT.estimate(count.chars, count.bytes, count.usage)
-			: readLines
-				? DRAMA_TEXT.readEstimate(shownLines.length, count.chars, readCost)
-				: null;
+	const estimate =
+		!ready || demo
+			? null
+			: fishOnly
+				? DRAMA_TEXT.estimate(count.chars, count.bytes, count.usage)
+				: readLines
+					? DRAMA_TEXT.readEstimate(shownLines.length, count.chars, readCost)
+					: null;
 	// '이전 테이크 보기'는 그 구역이 있을 때만(받는 중·0개면 구역이 없다, 5.11)
 	const hasTakes =
 		(drama.takes?.length ?? 0) > 0 || drama.takesLoad === "failed";
@@ -465,7 +469,9 @@ export function DramaBar() {
 				generating
 					? undefined
 					: paid
-						? DRAMA_TEXT.makePaid
+						? demo
+							? DEMO_TEXT.makeName
+							: DRAMA_TEXT.makePaid
 						: DRAMA_TEXT.makeFree
 			}
 			// 보이는 한 줄 칸이 이 버튼 것(오류·제 막는 이유·경고·안내)이면 그것, 보이지 않는 이유로 잠겼으면 화면 밖 이유
@@ -480,7 +486,7 @@ export function DramaBar() {
 		>
 			{generating ? (
 				<Spinner data-icon="inline-start" aria-hidden="true" />
-			) : paid ? (
+			) : paid && !demo ? (
 				// 채운 청록 버튼 안의 유료 표식은 글자색이다(DESIGN.md)
 				<Coins data-icon="inline-start" aria-hidden="true" />
 			) : null}

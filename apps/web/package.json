@@ -7,7 +7,7 @@
 		"build": "tsc -b ../../packages/api && next build",
 		"check-types": "next typegen && tsc -b ../../packages/api && tsc --noEmit",
 		"start": "next start --hostname 127.0.0.1",
-		"test": "vitest run --dir src",
+		"test": "vitest run",
 		"env:generate": "varlock codegen",
 		"owner:create": "varlock run -- jiti scripts/owner-create.ts",
 		"auth:generate": "varlock run -- pnpm dlx auth@latest generate --config src/services.ts --output ../../packages/db/src/schema/auth.ts --yes"

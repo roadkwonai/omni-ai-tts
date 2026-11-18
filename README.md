@@ -10,8 +10,8 @@
 </p>
 
 <p align="center">
-  <a href="https://omni-ai-tts.vercel.app"><strong>서비스 소개 페이지 보기 →</strong></a><br>
-  <sub>작업실은 소유자 한 명만 로그인해 씁니다. 소개 페이지에서 실제 화면을 둘러볼 수 있습니다.</sub>
+  <a href="https://omni-ai-tts.vercel.app"><strong>공개 데모 써 보기 →</strong></a> &nbsp;&middot;&nbsp; <a href="docs/adr/"><strong>설계 결정(ADR) 보기</strong></a><br>
+  <sub>로그인 없이 예시 데이터로 작업실을 써 볼 수 있습니다. 공급자를 부르지 않고 미리 만든 샘플로 들려 주며, 데이터는 매일 처음 상태로 돌아갑니다.</sub>
 </p>
 
 <p align="center">
@@ -21,12 +21,12 @@
   <img src="https://img.shields.io/badge/API-oRPC-111111?style=flat-square" alt="oRPC">
   <img src="https://img.shields.io/badge/auth-Better%20Auth-111111?style=flat-square" alt="Better Auth">
   <img src="https://img.shields.io/badge/DB-Drizzle%20%C2%B7%20Neon%20Postgres-111111?style=flat-square" alt="Drizzle, Neon Postgres">
-  <img src="https://img.shields.io/badge/deploy-Vercel%20sin1-111111?style=flat-square" alt="Vercel sin1">
+  <img src="https://img.shields.io/badge/deploy-Vercel-111111?style=flat-square" alt="Vercel">
   <img src="https://img.shields.io/badge/TTS-5%20providers-1A7A80?style=flat-square" alt="5 TTS providers">
 </p>
 
 <p align="center">
-  <strong>다섯 공급자 성우 캐스팅 &middot; 음성 작업실 &middot; 드라마 장면 &middot; 한국어 숫자 발음 검수 &middot; 대본 보관함 &middot; 내 목소리 클론 &middot; 프리셋 &middot; 소유자 전용 로그인</strong>
+  <strong>다섯 공급자 성우 캐스팅 &middot; 음성 작업실 &middot; 드라마 장면 &middot; 한국어 숫자 발음 검수 &middot; 대본 보관함 &middot; 내 목소리 클론 &middot; 프리셋 &middot; 로그인 없는 공개 데모</strong>
 </p>
 
 <p align="center">
@@ -59,7 +59,8 @@
   </tr>
 </table>
 
-> **유료 호출은 항상 먼저 묻습니다.** 생성·시험 생성·클론처럼 공급자 크레딧을 쓰는 호출은 예상 사용량을 보여 주는 확인 창을 거치고, 같은 조합의 결과는 다시 쓰며, 자동으로 다시 시도하지 않습니다.
+> [!NOTE]
+> **유료 호출은 항상 먼저 묻습니다.** 생성·시험 생성·클론처럼 공급자 크레딧을 쓰는 호출은 예상 사용량을 보여 주는 확인 창을 거치고, 같은 조합의 결과는 다시 쓰며, 자동으로 다시 시도하지 않습니다. 공개 데모는 공급자 키가 없는 별도 배포라 유료 호출이 일어나지 않습니다.
 
 ## 화면 둘러보기
 
@@ -77,24 +78,45 @@
   <br><sub>음성 작업실</sub>
 </p>
 
-| 성우 캐스팅 | 드라마 작업실 |
-|---|---|
-| <img src="docs/assets/screenshots/casting.png" alt="다섯 공급자 성우를 탭과 필터로 찾는 성우 캐스팅 화면" width="410"> | <img src="docs/assets/screenshots/drama.png" alt="화자와 줄 단위 대본으로 장면을 만드는 드라마 작업실 화면" width="410"> |
-| **대본 보관함** | **성우 보관함** |
-| <img src="docs/assets/screenshots/scripts.png" alt="저장한 대본을 검색하고 채널·분류로 거르는 대본 보관함 화면" width="410"> | <img src="docs/assets/screenshots/voices.png" alt="담은 성우를 즐겨찾기·채널·분류로 다시 찾는 성우 보관함 화면" width="410"> |
-| **프리셋** | **다크 테마** |
-| <img src="docs/assets/screenshots/presets.png" alt="성우와 설정 조합을 저장한 프리셋 화면" width="410"> | <img src="docs/assets/screenshots/studio-dark.png" alt="다크 테마의 음성 작업실" width="410"> |
+<table>
+  <tr>
+    <th width="50%" align="center">성우 캐스팅</th>
+    <th width="50%" align="center">드라마 작업실</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/assets/screenshots/casting.png" alt="다섯 공급자 성우를 탭과 필터로 찾는 성우 캐스팅 화면" width="410"></td>
+    <td align="center"><img src="docs/assets/screenshots/drama.png" alt="화자와 줄 단위 대본으로 장면을 만드는 드라마 작업실 화면" width="410"></td>
+  </tr>
+  <tr>
+    <th align="center">대본 보관함</th>
+    <th align="center">성우 보관함</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/assets/screenshots/scripts.png" alt="저장한 대본을 검색하고 채널·분류로 거르는 대본 보관함 화면" width="410"></td>
+    <td align="center"><img src="docs/assets/screenshots/voices.png" alt="담은 성우를 즐겨찾기·채널·분류로 다시 찾는 성우 보관함 화면" width="410"></td>
+  </tr>
+  <tr>
+    <th align="center">프리셋</th>
+    <th align="center">다크 테마</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/assets/screenshots/presets.png" alt="성우와 설정 조합을 저장한 프리셋 화면" width="410"></td>
+    <td align="center"><img src="docs/assets/screenshots/studio-dark.png" alt="다크 테마의 음성 작업실" width="410"></td>
+  </tr>
+</table>
 
 <details>
 <summary><b>휴대폰 화면(390px)</b></summary>
-
+<br>
 <p align="center">
   <img src="docs/assets/screenshots/studio-mobile.png" alt="휴대폰 너비의 음성 작업실" width="260">
+  &nbsp;&nbsp;
   <img src="docs/assets/screenshots/casting-mobile.png" alt="휴대폰 너비의 성우 캐스팅" width="260">
 </p>
 </details>
 
-> 스크린샷은 촬영용 예시 데이터로 찍었습니다. 성우 목록은 공급자의 실제 공개 목록입니다.
+> [!TIP]
+> 스크린샷은 공개 데모에서 예시 데이터로 찍었습니다. 화면 위의 띠와 '공개 데모' 표시는 데모에서만 보입니다. 성우 목록은 공급자의 실제 공개 목록입니다.
 
 ## 작업 흐름
 
@@ -120,8 +142,8 @@ flowchart LR
 | 앱 | Next.js 16 App Router, React 19, TanStack Query, Tailwind CSS 4, shadcn/ui(`packages/ui`) |
 | API | oRPC(`/api/rpc` 하나, 모든 사용자 데이터는 `protectedProcedure`), zod 입력 검증 |
 | 인증 | Better Auth 1.7(이메일·비밀번호, 공개 가입 막음, 로그인 시도 제한 DB 저장) |
-| DB | PostgreSQL 18, Drizzle ORM, 로컬은 컨테이너, 운영은 Neon(싱가포르) |
-| 배포 | Vercel(Fluid compute, 함수 지역 `sin1`, 최대 300초) |
+| DB | PostgreSQL 18, Drizzle ORM, Neon(로컬은 컨테이너) |
+| 배포 | Vercel(Fluid compute), 본인용 작업실과 공개 데모를 같은 코드로 따로 배포 |
 | 품질 | TypeScript, Biome, Vitest(API·화면 자동 테스트 1,900여 개), Turborepo |
 
 ```text
@@ -135,7 +157,7 @@ docs/               요구사항, 로드맵, 화면 브리프, ADR, 가이드
 
 ## 설계에서 지킨 것
 
-- **소유자만 쓴다**: 세션 이메일이 `OWNER_EMAILS`의 이메일 하나와 같을 때만 소유자입니다. 공개 가입은 서버에서 막고 계정은 로컬 스크립트로만 만듭니다([ADR 0012](docs/adr/0012-session-owner-single-allowlist.md)).
+- **본인용과 공개 데모를 나눈다**: 본인용 작업실은 세션 이메일이 `OWNER_EMAILS`의 이메일 하나와 같을 때만 열리고 공개 가입은 서버에서 막습니다([ADR 0012](docs/adr/0012-session-owner-single-allowlist.md)). 공개 데모는 공급자 키 없는 별도 배포라, 데모 모드가 잘못 켜져도 키가 있으면 소유자를 정하지 않습니다([ADR 0015](docs/adr/0015-public-demo-separate-deploy.md)).
 - **공급자 키는 서버에만**: 모든 공급자 호출은 `/api/rpc`의 보호 프로시저를 거치고, 키는 Vercel 환경 변수와 로컬 `.env`에만 둡니다.
 - **늦게 온 결과도 잃지 않는다**: 공급자 응답이 시간 제한 뒤에 오면 응답 뒤 작업(Next `after`)으로 저장해, 이미 과금된 결과를 버리지 않습니다([ADR 0013](docs/adr/0013-first-deploy-vercel-neon-singapore.md)).
 - **오디오는 4.5MB 응답 한도 안에서**: 작업실 결과는 3MiB 조각으로 받고 잇기는 브라우저에서 합니다([ADR 0006](docs/adr/0006-studio-audio-in-generation-record.md), [0007](docs/adr/0007-paragraph-join-in-browser.md)).
@@ -178,7 +200,24 @@ pnpm dev:web
 
 ## 배포
 
-운영은 Vercel(함수 `sin1`)과 Neon(싱가포르)입니다. 배포는 릴리스한 커밋만 `pnpm release`와 `pnpm vercel:deploy production`으로 합니다. 운영 DB 계정은 로컬 계정을 데이터와 함께 한 번 복사해 만들었습니다. 절차는 [배포와 운영 안내](docs/guides/deployment.md)와 [소유자 계정](docs/owner-account.md)에 있습니다.
+릴리스한 커밋만 배포합니다. 같은 커밋을 본인용과 공개 데모 두 곳에 올립니다.
+
+```bash
+pnpm release --title "<영어 제목>"
+```
+
+```bash
+pnpm vercel:deploy production --target studio
+```
+
+```bash
+pnpm vercel:deploy production --target demo
+```
+
+> [!IMPORTANT]
+> 배포 스크립트는 대상마다 모드(`APP_MODE`)와 공급자 키 이름을 검사합니다. 공개 데모에 공급자 키가 있거나 본인용에 데모 모드가 켜져 있으면 배포를 멈춥니다.
+
+절차는 [배포와 운영 안내](docs/guides/deployment.md)와 [소유자 계정](docs/owner-account.md)에 있습니다.
 
 ## 문서 지도
 

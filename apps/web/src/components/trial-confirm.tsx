@@ -38,6 +38,7 @@ import {
 import { sampleKindOf } from "@/lib/voice-view";
 import { orpc } from "@/utils/orpc";
 
+import { DEMO_TEXT, useDemo } from "./demo";
 import { useSample } from "./sample-player";
 import { SampleButton } from "./voice-row";
 
@@ -140,7 +141,9 @@ function ConfirmBody({
 	const [sent, setSent] = useState(false);
 	const sentRef = useRef(false);
 	// Gemini는 잔액 조회 API가 없어 '남은 크레딧' 줄과 그 조회가 없다(T7.6 계획 '스펙과 다른 점' 6)
-	const hasBalance = request.provider !== "gemini";
+	// 공개 데모는 공급자를 부르지 않아 잔액·예상 사용량·돈 표시가 없다
+	const demo = useDemo();
+	const hasBalance = !demo && request.provider !== "gemini";
 	const status = useQuery({
 		...orpc.providerStatus.queryOptions({
 			input: { provider: request.provider },
@@ -158,15 +161,22 @@ function ConfirmBody({
 	const { status: sampleStatus, toggle } = useSample(sample ?? "");
 	const cost = costCopy(request.provider);
 	const copy = confirmCopy(kind, request);
+	// 돈이 드는 제목·버튼만 데모 문구로 바꾼다
+	const demoCopy =
+		demo && (kind === "trial" || ("paid" in copy && copy.paid))
+			? kind === "trial"
+				? { title: DEMO_TEXT.listenTitle, action: DEMO_TEXT.listenAction }
+				: { title: DEMO_TEXT.makeTitle, action: DEMO_TEXT.makeAction }
+			: null;
 	// 작업실 무료 요청(미확인이라 뜬 창)에는 돈 표식이 없다. 캐스팅 창은 늘 유료라 그대로 붙는다
-	const coins = !("paid" in copy) || copy.paid;
+	const coins = !demo && (!("paid" in copy) || copy.paid);
 	// 말투 지시가 있는 Gemini 설정은 길어 '문장'처럼 이름표 위·값 아래로 쌓는다(critique P3)
 	const stacked =
 		request.provider === "gemini" && request.settings.direction.trim() !== "";
 	return (
 		<>
 			<AlertDialogHeader>
-				<AlertDialogTitle>{copy.title}</AlertDialogTitle>
+				<AlertDialogTitle>{(demoCopy ?? copy).title}</AlertDialogTitle>
 			</AlertDialogHeader>
 			<AlertDialogDescription render={<div />} className="text-foreground">
 				<dl className="flex flex-col gap-2 text-sm">
@@ -199,7 +209,11 @@ function ConfirmBody({
 						</dd>
 					</div>
 					{/* 근거는 금액 아래 별도 줄이다(Airy 포함, 사용자 결정 2026-10-13) */}
-					<div className="flex flex-wrap justify-between gap-x-4 gap-y-1">
+					<div
+						className={
+							demo ? "hidden" : "flex flex-wrap justify-between gap-x-4 gap-y-1"
+						}
+					>
 						<dt className="whitespace-nowrap text-muted-foreground">
 							예상 사용량
 						</dt>
@@ -242,7 +256,7 @@ function ConfirmBody({
 					) : null}
 				</dl>
 				{/* 무료 등급 안내는 설명 안이라 창을 열 때 읽힌다. 패널 데이터 안내와 같은 모양(계획 리뷰 R6-4) */}
-				{request.provider === "gemini" ? (
+				{request.provider === "gemini" && !demo ? (
 					<p className="mt-3 flex gap-2 text-muted-foreground text-sm">
 						<Info aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
 						{GEMINI_DATA_NOTE}
@@ -294,7 +308,9 @@ function ConfirmBody({
 					<p className="flex flex-col">
 						<span className="font-bold">{sampleName}</span>
 						<span>
-							{cost.free} 들으려면 {sampleName}을 들어 보세요
+							{demo
+								? DEMO_TEXT.voiceNote(sampleName)
+								: `${cost.free} 들으려면 ${sampleName}을 들어 보세요`}
 						</span>
 					</p>
 				</div>
@@ -325,7 +341,7 @@ function ConfirmBody({
 					}}
 				>
 					{coins ? <Coins data-icon="inline-start" aria-hidden="true" /> : null}
-					{unreviewed > 0 ? NUMBER_TEXT.asIs : copy.action}
+					{unreviewed > 0 ? NUMBER_TEXT.asIs : (demoCopy ?? copy).action}
 				</AlertDialogAction>
 			</AlertDialogFooter>
 		</>

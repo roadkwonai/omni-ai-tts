@@ -242,15 +242,34 @@
 	}
 }
 
+/* 움직임 줄이기: 없애는 것은 위치·크기·회전의 움직임이고, 투명도와 색의 전환은 남는다(emil·animate: fewer and gentler, not zero).
+   - 전환: 속성을 투명도·색으로 거른다. 그 밖 속성(transform·height 등)은 즉시 끝난다. 시간은 만든 그대로다.
+   - tw-animate-css의 진입·퇴장(animate-in/out)은 이동·확대·회전 변수를 0/1로 두어 투명도만 변하는 크로스페이드로 남긴다.
+     변수는 @property로 등록돼 있고(inherits: false) 유틸리티가 요소에 직접 쓰므로 `*`에서 덮어쓴다. 아래 규칙은 레이어 밖이라 !important 없이 레이어 안 유틸리티를 이긴다.
+   - 무한 반복(스피너·펄스 등)은 멈춘다. 랜딩 이동 키프레임은 landing.css가 멈춘다. */
 @media (prefers-reduced-motion: reduce) {
 	*,
 	::before,
 	::after {
-		/* biome-ignore lint/complexity/noImportantStyles: 동작 줄이기 설정은 모든 애니메이션을 덮어야 한다 */
-		animation-duration: 0.01ms !important;
-		/* biome-ignore lint/complexity/noImportantStyles: 동작 줄이기 설정은 모든 애니메이션을 덮어야 한다 */
-		animation-iteration-count: 1 !important;
-		/* biome-ignore lint/complexity/noImportantStyles: 동작 줄이기 설정은 모든 애니메이션을 덮어야 한다 */
-		transition-duration: 0.01ms !important;
+		--tw-enter-translate-x: 0;
+		--tw-enter-translate-y: 0;
+		--tw-enter-scale: 1;
+		--tw-enter-rotate: 0;
+		--tw-exit-translate-x: 0;
+		--tw-exit-translate-y: 0;
+		--tw-exit-scale: 1;
+		--tw-exit-rotate: 0;
+		/* 컴포넌트·랜딩이 정한 전환 속성(transform 등)까지 덮어야 해서 !important다 */
+		transition-property:
+			opacity, color, background-color, border-color, text-decoration-color,
+			/* biome-ignore lint/complexity/noImportantStyles: 위와 같다 */ fill,
+			stroke !important;
+	}
+	.animate-spin,
+	.animate-pulse,
+	.animate-ping,
+	.animate-bounce {
+		/* biome-ignore lint/complexity/noImportantStyles: 무한 반복은 모두 멈춘다 */
+		animation: none !important;
 	}
 }

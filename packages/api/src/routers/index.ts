@@ -93,9 +93,13 @@ export const appRouter = {
 	voiceListRefresh: protectedProcedure
 		.input(z.object({ provider: providerIdSchema }))
 		.output(z.object({ retryAt: z.iso.datetime().nullable() }))
-		.handler(({ input, context }) =>
-			expireProvider(context.db, input.provider, context.ownerId),
-		),
+		.handler(({ input, context }) => {
+			// 목록을 받을 수 없으면(키 없음·공개 데모) 캐시를 만료시키지 않는다. 만료하면 저장해 둔 목록까지 잃는다(T15-a2)
+			const client = context.providers?.[input.provider];
+			if (!client?.listVoices || client.demo)
+				throw providerError(input.provider, "no_key");
+			return expireProvider(context.db, input.provider, context.ownerId);
+		}),
 	// 시험 생성 여섯 프로시저(T5)
 	...trialRouter,
 	...classificationRouter,

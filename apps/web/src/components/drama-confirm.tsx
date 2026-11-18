@@ -19,6 +19,7 @@ import { type ReactNode, type RefObject, useId, useRef, useState } from "react";
 import { castOrder, DRAMA_TEXT, scriptHead } from "@/lib/drama-view";
 import { savedOf } from "@/lib/studio-view";
 
+import { DEMO_TEXT, useDemo } from "./demo";
 import { type DramaPending, useDrama } from "./drama-provider";
 
 // 유료 확인 창(브리프 5.9). 유료 모델 둘(s2.1-pro·drama-3)이 생성마다 거친다. 무료는 provider.start가 확인 없이 만든다.
@@ -63,6 +64,7 @@ function ConfirmBody({
 	cancelRef: RefObject<HTMLButtonElement | null>;
 }) {
 	const drama = useDrama();
+	const demo = useDemo();
 	const warnId = useId();
 	const [sent, setSent] = useState(false);
 	const sentRef = useRef(false);
@@ -84,13 +86,17 @@ function ConfirmBody({
 	return (
 		<>
 			<AlertDialogHeader>
-				<AlertDialogTitle>{DRAMA_TEXT.confirmTitle}</AlertDialogTitle>
+				<AlertDialogTitle>
+					{demo ? DEMO_TEXT.makeTitle : DRAMA_TEXT.confirmTitle}
+				</AlertDialogTitle>
 			</AlertDialogHeader>
 			<AlertDialogDescription
 				render={<div />}
 				className="flex flex-col gap-3 text-foreground"
 			>
-				<p className="text-muted-foreground">{DRAMA_TEXT.confirmCredit}</p>
+				<p className="text-muted-foreground">
+					{demo ? DEMO_TEXT.makeNote : DRAMA_TEXT.confirmCredit}
+				</p>
 				<dl className="flex flex-col gap-2 text-sm">
 					<Row label={DRAMA_TEXT.confirmScene}>
 						{DRAMA_TEXT.sceneSummary(
@@ -112,20 +118,22 @@ function ConfirmBody({
 						<span translate="no">{DRAMA_TEXT.modelName[request.model]}</span>
 					</Row>
 					{/* 근거는 금액 아래 별도 회색 줄(음성 작업실 확인 창과 같다) */}
-					<div className="flex flex-wrap justify-between gap-x-4 gap-y-1">
-						<dt className="whitespace-nowrap text-muted-foreground">
-							{DRAMA_TEXT.confirmEstimate}
-						</dt>
-						<dd className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1.5 tabular-nums">
-							<Coins aria-hidden="true" className="size-4 text-warning" />
-							{DRAMA_TEXT.confirmUsage(usage, bytes)}
-						</dd>
-						{basis ? (
-							<dd className="basis-full text-left text-muted-foreground md:text-right">
-								{basis}
+					{demo ? null : (
+						<div className="flex flex-wrap justify-between gap-x-4 gap-y-1">
+							<dt className="whitespace-nowrap text-muted-foreground">
+								{DRAMA_TEXT.confirmEstimate}
+							</dt>
+							<dd className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1.5 tabular-nums">
+								<Coins aria-hidden="true" className="size-4 text-warning" />
+								{DRAMA_TEXT.confirmUsage(usage, bytes)}
 							</dd>
-						) : null}
-					</div>
+							{basis ? (
+								<dd className="basis-full text-left text-muted-foreground md:text-right">
+									{basis}
+								</dd>
+							) : null}
+						</div>
+					)}
 				</dl>
 				{warnings.length > 0 ? (
 					<div id={warnId} className="flex flex-col gap-2">
@@ -157,8 +165,8 @@ function ConfirmBody({
 					}}
 				>
 					{/* 채운 청록 버튼 안의 유료 표식은 글자색이다(DESIGN.md) */}
-					<Coins data-icon="inline-start" aria-hidden="true" />
-					{DRAMA_TEXT.confirmMake}
+					{demo ? null : <Coins data-icon="inline-start" aria-hidden="true" />}
+					{demo ? DEMO_TEXT.makeAction : DRAMA_TEXT.confirmMake}
 				</AlertDialogAction>
 			</AlertDialogFooter>
 		</>

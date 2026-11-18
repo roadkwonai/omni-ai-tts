@@ -24,7 +24,7 @@ import {
 	usageText,
 } from "@/lib/trial-view";
 import { voiceKey } from "@/lib/voice-view";
-
+import { DEMO_TEXT, useDemo } from "./demo";
 import { type PresetHost, PresetLine, PresetMenu } from "./preset-menu";
 import { Options } from "./setting-fields";
 import { useRate } from "./trial-confirm";
@@ -37,6 +37,8 @@ import { lockedButton } from "./voice-problem";
 // 바닥 줄은 패널(칸은 voice-panel-sticky, 서랍은 본문)의 스크롤 칸 바닥에 붙고, 제자리가 보이면 풀린다
 export function TrialSection({ voice }: { voice: Voice }) {
 	const trial = useTrial();
+	// 공개 데모는 공급자를 부르지 않아 돈 표시와 '크레딧 0'이 없다
+	const demo = useDemo();
 	const text = useShownText();
 	const request = requestOf(voice, text, trial.settings);
 	const key = voiceKey(voice);
@@ -131,16 +133,20 @@ export function TrialSection({ voice }: { voice: Voice }) {
 				{empty ? null : (
 					<p className="flex flex-wrap items-center gap-1.5 text-sm tabular-nums">
 						{saved ? (
-							costCopy(voice.provider).saved
+							demo ? (
+								DEMO_TEXT.savedFree
+							) : (
+								costCopy(voice.provider).saved
+							)
 						) : usage.unit === "free" ? (
 							<Badge variant="success">무료</Badge>
-						) : (
+						) : demo ? null : (
 							<>
 								<Coins aria-hidden="true" className="size-4 text-warning" />
 								새로 만들 때 {usageText(usage)}
 							</>
 						)}
-						{!saved && rate.missing ? (
+						{!saved && !demo && rate.missing ? (
 							<span className="text-muted-foreground">
 								(배율을 확인하지 못했어요)
 							</span>
@@ -152,11 +158,21 @@ export function TrialSection({ voice }: { voice: Voice }) {
 					className={cn("w-full", lockedButton(!playing && block !== null))}
 					focusableWhenDisabled
 					disabled={!playing && (block !== null || mine)}
-					aria-label={trialAriaLabel(
-						voice.name,
-						request,
-						playing ? "playing" : creating ? "busy" : saved ? "saved" : "idle",
-					)}
+					aria-label={
+						demo && !playing && !creating && !saved
+							? DEMO_TEXT.listenName(voice.name)
+							: trialAriaLabel(
+									voice.name,
+									request,
+									playing
+										? "playing"
+										: creating
+											? "busy"
+											: saved
+												? "saved"
+												: "idle",
+								)
+					}
 					aria-describedby={describedBy}
 					onClick={(event) =>
 						playing ? trial.stop() : trial.listen(voice, event.currentTarget)
@@ -170,7 +186,7 @@ export function TrialSection({ voice }: { voice: Voice }) {
 						/>
 					) : mine ? (
 						<Spinner data-icon="inline-start" aria-hidden="true" />
-					) : saved ? null : usage.unit === "free" ? (
+					) : saved || demo ? null : usage.unit === "free" ? (
 						<Badge variant="success">무료</Badge>
 					) : (
 						// 채운 청록 버튼 안의 유료 표식은 글자색이다(Global Constraints)
@@ -192,7 +208,11 @@ export function TrialSection({ voice }: { voice: Voice }) {
 						className={cn("w-full", lockedButton(block !== null))}
 						focusableWhenDisabled
 						disabled={block !== null || mine}
-						aria-label={`${voice.name} 새로 만들기, ${usage.unit === "free" ? "무료" : costCopy(voice.provider).paid}`}
+						aria-label={
+							demo
+								? DEMO_TEXT.regenerateName(voice.name)
+								: `${voice.name} 새로 만들기, ${usage.unit === "free" ? "무료" : costCopy(voice.provider).paid}`
+						}
 						aria-describedby={describedBy}
 						onClick={(event) =>
 							trial.listen(voice, event.currentTarget, { regenerate: true })
@@ -202,7 +222,7 @@ export function TrialSection({ voice }: { voice: Voice }) {
 							<Badge data-icon="inline-start" variant="success">
 								무료
 							</Badge>
-						) : (
+						) : demo ? null : (
 							<Coins
 								data-icon="inline-start"
 								aria-hidden="true"

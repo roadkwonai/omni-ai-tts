@@ -13,23 +13,36 @@ import { type ReactNode, useId, useRef } from "react";
 
 import { plain } from "@/lib/voice-view";
 
+import { DEMO_TEXT, useDemo } from "./demo";
 import { useSentence } from "./trial-provider";
 
-const DEFAULT_HINT = (
-	<>
-		기본 샘플
-		<Play
-			aria-hidden="true"
-			className="mx-0.5 inline size-3.5 fill-current align-middle"
-		/>
-		은 무료예요. 내 문장 듣기는
-		<Coins
-			aria-hidden="true"
-			className="mx-0.5 inline size-3.5 align-middle text-warning"
-		/>
-		크레딧을 써요(Fish Audio 무료 모델 제외).
-	</>
-);
+// 공개 데모는 공급자를 부르지 않아 돈 표시 없이 데모 샘플이라고 알린다
+function DefaultHint() {
+	const demo = useDemo();
+	return (
+		<>
+			기본 샘플
+			<Play
+				aria-hidden="true"
+				className="mx-0.5 inline size-3.5 fill-current align-middle"
+			/>
+			은 무료예요. 내 문장 듣기는
+			{demo ? (
+				` ${DEMO_TEXT.sentenceHint}`
+			) : (
+				<>
+					<Coins
+						aria-hidden="true"
+						className="mx-0.5 inline size-3.5 align-middle text-warning"
+					/>
+					크레딧을 써요(Fish Audio 무료 모델 제외).
+				</>
+			)}
+		</>
+	);
+}
+
+const DEFAULT_HINT = <DefaultHint />;
 
 // 모든 탭에서 같은 문장. IME 조합 중에는 자르지 않고 완료 시 200코드포인트로 제한한다.
 // hint는 아래 안내 칸이다. 넘기지 않으면 기본 안내, null이면 칸을 그리지 않는다(기본 샘플이 없는 내 보이스 창)

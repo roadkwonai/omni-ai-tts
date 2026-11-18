@@ -1,6 +1,6 @@
 /* 공개 랜딩 모션(docs/briefs/landing.md 6절). 곡선·시간 토큰은 packages/ui의 globals.css(--ease-*, --landing-*).
-   transition: all, scale(0), ease-in, 무한 반복은 쓰지 않는다. 움직임 줄이기 설정은 globals.css가 시간을 0.01ms로 줄여 바로 끝 상태가 되고,
-   처음부터 숨기는 상태(아래 @media)만 따로 푼다. hover 모션은 (hover: hover) and (pointer: fine) 안에서만 둔다. */
+   transition: all, scale(0), ease-in, 무한 반복은 쓰지 않는다. 움직임 줄이기 설정은 globals.css가 전환을 투명도·색으로만 남기고,
+   이동·확대 키프레임은 아래 @media가 멈춘다(투어·태그라인·reveal은 투명도 크로스페이드로 남는다). hover 모션은 (hover: hover) and (pointer: fine) 안에서만 둔다. */
 
 @keyframes landing-in {
 	from {
@@ -21,17 +21,13 @@
 	}
 }
 
-/* 히어로: 마운트 때 한 번, 비등간격 0·60·130·210ms(Orchestration: 간격이 점점 벌어져 앞이 빨리 읽힌다), 마스코트는 마지막(290ms).
-   단계는 data-step이 정하고, 증거 한 줄(3)은 주 버튼(2)과 같이 올라온다 */
+/* 히어로: 마운트 때 한 번, 비등간격 0·60·210ms(Orchestration: 간격이 점점 벌어져 앞이 빨리 읽힌다), 마스코트는 마지막(290ms).
+   단계는 data-step이 정한다: 제목(0), 부제(1), 카드·버튼·출처(4) */
 .landing-hero-in {
 	animation: landing-in var(--landing-duration-hero) var(--ease-out) both;
 }
 .landing-hero-in[data-step="1"] {
 	animation-delay: 60ms;
-}
-.landing-hero-in[data-step="2"],
-.landing-hero-in[data-step="3"] {
-	animation-delay: 130ms;
 }
 .landing-hero-in[data-step="4"] {
 	animation-delay: 210ms;
@@ -66,17 +62,19 @@
 .landing-item:nth-child(6) {
 	animation-delay: calc(var(--landing-stagger) * 5);
 }
-/* 움직임 줄이기: 시간은 globals.css가 0.01ms로 줄이지만 지연은 남아 첫 화면이 비어 보이므로 지연을 없애고, 숨김 상태도 풀어 둔다.
-   선택자 구체성을 위 지연 규칙과 같게 맞춰 뒤에 두어 !important 없이 이긴다 */
+/* 움직임 줄이기: 이동·확대 키프레임(landing-in·scale-in·rise)은 멈춘다. 히어로는 처음부터 보이고,
+   스크롤 reveal은 숨김(opacity 0) → 보임을 투명도 전환(크로스페이드)으로만 한다(전환 속성은 globals.css가 투명도·색으로 거른다).
+   선택자 구체성을 위 규칙과 같게 맞춰 뒤에 두어 !important 없이 이긴다 */
 @media (prefers-reduced-motion: reduce) {
-	[data-reveal="hidden"]:not(.landing-stagger),
-	.landing-stagger[data-reveal="hidden"] .landing-item {
-		opacity: 1;
-	}
-	.landing-hero-in[data-step],
+	.landing-hero-in,
 	.landing-mascot-in,
-	.landing-item:nth-child(n) {
-		animation-delay: 0s;
+	[data-reveal="shown"]:not(.landing-stagger),
+	.landing-stagger[data-reveal="shown"] .landing-item {
+		animation: none;
+	}
+	[data-reveal]:not(.landing-stagger),
+	.landing-stagger[data-reveal] .landing-item {
+		transition: opacity var(--landing-duration-reveal) var(--ease-out);
 	}
 }
 
@@ -87,11 +85,6 @@
 }
 .landing-tagline[data-armed] .landing-word[data-on] {
 	opacity: 1;
-}
-@media (prefers-reduced-motion: reduce) {
-	.landing-tagline[data-armed] .landing-word {
-		opacity: 1;
-	}
 }
 
 /* 누름 피드백: scale 0.97. 색 전환은 앱 기본(150ms)을 그대로 두고 scale만 120ms다 */

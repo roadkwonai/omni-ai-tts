@@ -62,6 +62,9 @@ pnpm dev:web
 | `OWNER_EMAILS` | 사실상 예 | 소유자 이메일 하나. 비거나 둘 이상이면 아무도 소유자가 아니다 |
 | `TYPECAST_API_KEY` · `ELEVENLABS_API_KEY` · `FISH_AUDIO_API_KEY` · `AIRY_API_KEY` · `GEMINI_API_KEY` | 선택 | 공급자 키. 서버 전용 |
 | `OPENAI_API_KEY` | 선택 | 자동 태그 텍스트 모델(없으면 Gemini 보조) |
+| `APP_MODE` | 아니오(기본 `owner`) | `owner` 본인용, `demo` 공개 데모. 빌드할 때 코드에 굳으므로 바꾸면 다시 빌드한다 |
+
+로컬에서 공개 데모를 보려면 예시 데이터 DB를 `DATABASE_URL`로, `APP_MODE=demo`, 공급자·OpenAI 키를 빈 값으로 덮은 셸에서 `pnpm build` 뒤 `next start`로 띄웁니다(키가 하나라도 있으면 데모는 소유자를 정하지 않고 닫힙니다).
 
 새 변수는 `.env.schema`에 먼저 선언합니다. 배포 환경의 값은 Vercel 환경 변수에만 둡니다([배포와 운영 안내](deployment.md)).
 

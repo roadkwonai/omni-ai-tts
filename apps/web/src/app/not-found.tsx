@@ -3,13 +3,17 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 
+import { AppFrame } from "@/components/app-frame";
 import { PageHeader } from "@/components/page-header";
+import { getOwnerSession } from "@/context";
+import { ENV } from "@/env.server";
 
 export const metadata: Metadata = { title: "페이지를 찾을 수 없어요" };
 
-// 없는 주소 전부. 루트 레이아웃의 앱 틀(메뉴) 안에서 그려진다.
-export default function NotFound() {
-	return (
+// 없는 주소 전부. `<main>`은 늘 하나다: 소유자(데모의 예시 소유자 포함)에게는 앱 틀(메뉴·main) 안에, 아니면 메뉴 없는 main 하나에 그린다.
+export default async function NotFound() {
+	const owner = await getOwnerSession();
+	const body = (
 		<>
 			<PageHeader
 				title="페이지를 찾을 수 없어요"
@@ -29,5 +33,17 @@ export default function NotFound() {
 				</Link>
 			</div>
 		</>
+	);
+	if (owner.state === "owner") {
+		return (
+			<AppFrame email={owner.email} demo={ENV.APP_MODE === "demo"}>
+				{body}
+			</AppFrame>
+		);
+	}
+	return (
+		<main id="main-content" tabIndex={-1} className="outline-none">
+			{body}
+		</main>
 	);
 }

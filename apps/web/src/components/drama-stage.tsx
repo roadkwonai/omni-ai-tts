@@ -19,6 +19,7 @@ import {
 } from "@/lib/drama-view";
 
 import { boxClass } from "./class-group";
+import { DemoBadge, useDemo } from "./demo";
 import { DRAMA_STAGE_ID, useDrama, useScriptKey } from "./drama-provider";
 import { lineAt, useTakeAudio, useTakeTime } from "./drama-take";
 import { showScriptUndo } from "./drama-undo";
@@ -134,6 +135,8 @@ function StageTimeline({ take }: { take: DramaItem }) {
 		);
 	}
 
+	// 줄 구간이 없으면(공개 데모 샘플) 대사별 빈 띠를 그리지 않는다
+	if (segments.length === 0) return null;
 	return (
 		<div aria-hidden="true" className="flex gap-2">
 			<div className="flex min-h-11 flex-col justify-center gap-1">
@@ -201,6 +204,7 @@ function StageTimeline({ take }: { take: DramaItem }) {
 // 플레이어·넘기기는 장면 플레이어(TakePlayer), 받기는 막대, 줄 듣기·받을 테이크는 대본 줄이 맡는다(스펙 17.2 '무대')
 function StageTake({ take }: { take: DramaItem }) {
 	const drama = useDrama();
+	const demo = useDemo();
 	const { split, group, picked, followAll } = useTakeAudio();
 	// 이 테이크의 대본으로 되돌리고 포커스는 무대 제목(브리프 7절). 알림 '실행 취소'는 대본 실행 취소의 한 주인(showScriptUndo)이 띄운다
 	function restore() {
@@ -210,7 +214,8 @@ function StageTake({ take }: { take: DramaItem }) {
 	}
 	// 무대 테이크와 다른 테이크를 쓰는 줄이 있다('모든 줄을 이 테이크로'를 보인다)
 	const mixed = picked.some((target) => target.id !== take.id);
-	const reason = split ? null : notSplitReason(take);
+	// 공개 데모의 샘플은 줄 구간이 없다. 나누지 못한 게 아니라 데모 샘플이라 경고를 내지 않는다
+	const reason = split || demo ? null : notSplitReason(take);
 	// 나누지 못함 셋째 행: Drama 3 이유이고 지금 모델도 Drama 3
 	const toSplit =
 		reason === DRAMA_TEXT.notSplitDrama3 && drama.model === "drama-3";
@@ -294,6 +299,7 @@ export function DramaStage() {
 						{stageCaption(take, group)}
 					</p>
 				) : null}
+				{take ? <DemoBadge /> : null}
 			</div>
 			<div className={cn(boxClass, "flex flex-col gap-4 p-4 md:p-5")}>
 				{generating ? (

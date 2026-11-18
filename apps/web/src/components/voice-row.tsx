@@ -42,6 +42,7 @@ import {
 	voiceKey,
 } from "@/lib/voice-view";
 
+import { DEMO_TEXT, useDemo } from "./demo";
 import { usePlayer, useSample } from "./sample-player";
 import { SavedStar, useClassLists, useSavedItem } from "./saved-voices";
 import { useOptionalTrial, useShownText, useTrial } from "./trial-provider";
@@ -113,6 +114,7 @@ function TrialButton({
 	describedBy?: string;
 }) {
 	const trial = useTrial();
+	const demo = useDemo();
 	const text = useShownText();
 	const key = voiceKey(voice);
 	const request = requestOf(voice, text, trial.settings);
@@ -140,11 +142,15 @@ function TrialButton({
 						focusableWhenDisabled
 						disabled={!playing && (block !== null || mine)}
 						tabIndex={tabIndex}
-						aria-label={trialAriaLabel(
-							voice.name,
-							request,
-							playing ? "playing" : creating ? "busy" : "idle",
-						)}
+						aria-label={
+							demo && !playing && !creating
+								? DEMO_TEXT.listenName(voice.name)
+								: trialAriaLabel(
+										voice.name,
+										request,
+										playing ? "playing" : creating ? "busy" : "idle",
+									)
+						}
 						aria-describedby={describe}
 						onClick={(event) => {
 							if (playing) {
@@ -168,6 +174,8 @@ function TrialButton({
 							무료
 						</Badge>
 					</>
+				) : demo ? (
+					<AudioLines aria-hidden="true" />
 				) : (
 					<Coins aria-hidden="true" className="text-warning" />
 				)}

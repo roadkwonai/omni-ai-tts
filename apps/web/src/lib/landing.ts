@@ -1,10 +1,12 @@
 import type { OwnerSession } from "@/context";
 
-// 소유자는 랜딩 없이 작업실로 간다(브리프 1절). 그 밖은 공개 랜딩을 그린다.
+// 소개 페이지는 공개 데모에만 있다(예시 소유자여도 그린다). 본인용은 소개 페이지 없이 소유자는 작업실로, 아니면 로그인으로 간다.
 export function landingRedirect(
 	state: OwnerSession["state"],
-): "/studio" | null {
-	return state === "owner" ? "/studio" : null;
+	mode: "owner" | "demo",
+): "/studio" | "/login" | null {
+	if (mode === "demo") return null;
+	return state === "owner" ? "/studio" : "/login";
 }
 
 // 페이지 맨 아래에 닿았는지(반올림 오차 2px). 태그라인이 트리거 선에 못 닿아도 끝에서는 모든 어절을 켠다.
@@ -14,6 +16,12 @@ export function atPageEnd(
 	scrollHeight: number,
 ): boolean {
 	return scrollY + viewportHeight >= scrollHeight - 2;
+}
+
+// 칩을 마우스·터치로 눌렀을 때의 뜻: 고른 칩이면 재생·멈춤, 다른 칩이면 고르고 바로 재생(사용자 제스처).
+// 방향키로 옮길 때는 이 함수를 거치지 않고 고르기(준비)만 한다.
+export function chipPress(pick: number, index: number): "toggle" | "play" {
+	return pick === index ? "toggle" : "play";
 }
 
 // 태그라인을 줄(디자인한 줄바꿈)과 어절로 나눈다. 어절마다 스크롤로 진해진다.

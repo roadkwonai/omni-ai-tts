@@ -22,6 +22,7 @@ import { PROVIDER_LABEL } from "@/lib/connection-view";
 import { agoText, receivedText } from "@/lib/voice-view";
 import { QUIET } from "@/utils/orpc";
 
+import { useDemo } from "./demo";
 import {
 	cooldownText,
 	lockedButton,
@@ -198,6 +199,8 @@ export function ListStatusBar({
 	fetchedAt: string | null;
 	refresh: Refresh | null;
 }) {
+	// 공개 데모는 공급자를 부르지 않으니 '목록 새로 고침'을 숨긴다
+	const demo = useDemo();
 	return (
 		<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
 			<div className="flex flex-wrap items-center gap-x-3">
@@ -215,7 +218,7 @@ export function ListStatusBar({
 			</div>
 			<div className="flex flex-wrap items-center gap-x-2">
 				{sort}
-				{refresh ? (
+				{refresh && !demo ? (
 					<RefreshButton refresh={refresh} busy={busy} fallback={countRef} />
 				) : null}
 				{fetchedAt ? (

@@ -121,6 +121,8 @@ export type SynthesizeOptions<T = Uint8Array> = {
 // 공급자 클라이언트. 목록·억양은 메서드 문법이다. 메서드 매개변수는 이변이라 공급자 구현이 자기 입력 모양(ListInputOf<P>)만 받아도 들어간다.
 // 라우터는 context.providers?.[input.provider]로 그 공급자의 클라이언트를 고르므로 입력과 구현이 어긋나지 않는다.
 export type ProviderClient = {
+	// 공개 데모 클라이언트(demo/client.ts). 공급자를 부르지 않는다
+	demo?: true;
 	checkStatus(): Promise<ProviderStatusResult>;
 	// 성우 목록 한 페이지(T3 Typecast, T4 ElevenLabs·Fish Audio)
 	listVoices?(input: VoiceListInput): Promise<VoiceListPage>;

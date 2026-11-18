@@ -1,6 +1,6 @@
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { NextRequest } from "next/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { config, proxy } from "./proxy";
 
@@ -39,6 +39,42 @@ describe("proxy 낙관적 확인(T15-a 랜딩)", () => {
 	it("세션 쿠키가 있으면 앱 화면도 통과한다", () => {
 		const res = run("/studio", "better-auth.session_token=abc");
 		expect(res.headers.get("location")).toBeNull();
+	});
+
+	it("공개 데모는 쿠키 없이 어느 화면이든 통과한다(/login으로 보내지 않는다)", () => {
+		vi.stubEnv("APP_MODE", "demo");
+		try {
+			for (const path of ["/studio", "/x?y=1", "/login", "/"]) {
+				expect(run(path).headers.get("location"), path).toBeNull();
+			}
+		} finally {
+			vi.unstubAllEnvs();
+		}
+	});
+
+	it("본인용(APP_MODE owner·없음)은 쿠키 없이 앱 화면을 /login으로 보낸다", () => {
+		vi.stubEnv("APP_MODE", "owner");
+		try {
+			expect(run("/studio").headers.get("location")).toBe(
+				`${BASE}/login?next=%2Fstudio`,
+			);
+		} finally {
+			vi.unstubAllEnvs();
+		}
+	});
+
+	it("글꼴·데모 샘플 파일은 matcher에서 빠져 쿠키 없이도 /login으로 가지 않는다", () => {
+		for (const url of [
+			"/fonts/x.woff2",
+			"/fonts/pretendard/a.woff2",
+			"/samples/typecast.wav",
+		]) {
+			expect(matches(url), url).toBe(false);
+		}
+		// 비슷한 이름은 남는다
+		for (const url of ["/fontsx", "/samples", "/sample/x"]) {
+			expect(matches(url), url).toBe(true);
+		}
 	});
 
 	it("공개 정적 파일은 matcher에서 빠진다", () => {

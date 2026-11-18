@@ -8,7 +8,7 @@ import { CTA_STACK_TEXT, CTA_TEXT, CTA_TITLE } from "@/lib/landing-content";
 import { Reveal } from "./reveal";
 import { Section } from "./section";
 
-// 마지막 행동(브리프 3절 9번): 주 버튼 '맨 위로'(#top) + 보조 '소유자 로그인'(/login). 이미 본 투어로 되돌리지 않고 외부 링크는 두지 않는다
+// 마지막 행동(T15-a2): 주 버튼 '데모 써 보기'(/studio) + 보조 '맨 위로'(#top). 로그인 링크는 없다. 이미 본 투어로 되돌리지 않고 외부 링크는 두지 않는다(재설계는 Task 9)
 export function FinalCta() {
 	return (
 		<Section labelledBy="cta-title">
@@ -31,21 +31,21 @@ export function FinalCta() {
 					{CTA_TEXT}
 				</p>
 				<div className="flex flex-wrap items-center justify-center gap-3">
-					<a
-						href="#top"
+					<Link
+						href="/studio"
 						className={cn(buttonVariants({ size: "lg" }), "landing-press")}
 					>
-						맨 위로
-					</a>
-					<Link
-						href="/login"
+						데모 써 보기
+					</Link>
+					<a
+						href="#top"
 						className={cn(
 							buttonVariants({ variant: "neutral", size: "lg" }),
 							"landing-press",
 						)}
 					>
-						소유자 로그인
-					</Link>
+						맨 위로
+					</a>
 				</div>
 				<p translate="no" className="text-muted-foreground text-sm">
 					{CTA_STACK_TEXT}

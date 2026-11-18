@@ -435,8 +435,8 @@ export const resultWhen = (createdAt: string, now: Date) => {
 	return ago === "방금" ? "방금" : `${ago} 전`;
 };
 // 결과 줄 둘째 줄. 잘려도 언제·사용량이 남게 앞에 둔다(계획 리뷰 D2). 화면은 두 줄까지 감는다(line-clamp-2)
-export const resultLine = (item: TrialItem, now: Date) =>
-	`${resultWhen(item.createdAt, now)} · ${usageText(item.usage)} · ${settingsSummary(item.request)}`;
+export const resultLine = (item: TrialItem, now: Date, withUsage = true) =>
+	`${resultWhen(item.createdAt, now)} · ${withUsage ? `${usageText(item.usage)} · ` : ""}${settingsSummary(item.request)}`;
 // 결과 줄 버튼의 대상 이름. 줄마다 다르게 문장 앞 20자를 넣는다(계획 리뷰 D6)
 export const resultSubject = (name: string, item: TrialItem) =>
 	`${name} 저장된 결과 '${[...normalizeText(item.request.text)].slice(0, 20).join("")}'`;

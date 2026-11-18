@@ -58,6 +58,7 @@ import { trialFailureOf } from "@/lib/trial-view";
 import { orpc } from "@/utils/orpc";
 
 import { BeforeAfter } from "./before-after";
+import { DEMO_TEXT, useDemo } from "./demo";
 import { dramaFieldId, useDrama, useLines } from "./drama-provider";
 import { SpeakerMark } from "./drama-voice-dialog";
 import { lockedButton } from "./voice-problem";
@@ -401,6 +402,7 @@ function PreviewBody({
 export function AutoTagButton() {
 	const autoTag = useContext(AutoTagContext);
 	if (!autoTag) throw new Error("AutoTagButton은 DramaAutoTag 안에서만 쓴다");
+	const demo = useDemo();
 	const drama = useDrama();
 	const { lines } = useLines();
 	const reasonId = useId();
@@ -413,18 +415,23 @@ export function AutoTagButton() {
 				size="lg"
 				focusableWhenDisabled
 				disabled={locked}
-				aria-label={DRAMA_TEXT.autoTagName}
+				aria-label={demo ? DEMO_TEXT.autoTagDramaName : DRAMA_TEXT.autoTagName}
 				aria-describedby={block ? reasonId : undefined}
 				className={lockedButton(true)}
 				onClick={(event) => {
-					if (!locked) autoTag.open(event.currentTarget);
+					if (locked) return;
+					// 공개 데모는 확인 창도 공급자 호출도 없이 안내만 한다
+					if (demo) toast(DEMO_TEXT.autoTag);
+					else autoTag.open(event.currentTarget);
 				}}
 			>
-				<Coins
-					data-icon="inline-start"
-					aria-hidden="true"
-					className="text-warning"
-				/>
+				{demo ? null : (
+					<Coins
+						data-icon="inline-start"
+						aria-hidden="true"
+						className="text-warning"
+					/>
+				)}
 				<span className="md:hidden">{DRAMA_TEXT.autoTagShort}</span>
 				<span className="max-md:hidden">{DRAMA_TEXT.autoTag}</span>
 			</Button>

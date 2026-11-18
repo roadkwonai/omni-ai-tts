@@ -1,6 +1,13 @@
 import { Badge } from "@tts-pilot-app/ui/components/badge";
+import { ArrowUpRight } from "lucide-react";
 
-import { BUILD_POINTS, STACK, TEST_COUNT_TEXT } from "@/lib/landing-content";
+import {
+	BUILD_POINTS,
+	REPO_LINK_TEXT,
+	REPO_URL,
+	STACK,
+	TEST_COUNT_TEXT,
+} from "@/lib/landing-content";
 
 import { Reveal } from "./reveal";
 import { Section, SectionHeading } from "./section";
@@ -20,11 +27,12 @@ export function Built() {
 				</ul>
 				<dl className="mt-10 grid gap-x-12 gap-y-8 md:grid-cols-2">
 					{BUILD_POINTS.map((point) => (
-						<div key={point.title} className="landing-item">
+						// 5개라 2열 마지막 칸이 비므로 마지막 항목은 두 칸을 차지한다
+						<div key={point.title} className="landing-item md:last:col-span-2">
 							<dt className="text-balance break-keep font-bold text-xl">
 								{point.title}
 							</dt>
-							<dd className="mt-2 text-pretty break-keep text-muted-foreground">
+							<dd className="mt-2 max-w-hero text-pretty break-keep text-muted-foreground">
 								{point.text}
 							</dd>
 						</div>
@@ -32,6 +40,19 @@ export function Built() {
 				</dl>
 				<p className="landing-item mt-10 font-bold text-lg">
 					{TEST_COUNT_TEXT}가 코드가 바뀔 때마다 이 동작들을 확인합니다.
+				</p>
+				<p className="landing-item mt-4">
+					<a
+						href={REPO_URL}
+						target="_blank"
+						rel="noopener noreferrer"
+						className="inline-flex min-h-11 items-center gap-1 rounded-sm font-bold underline decoration-2 decoration-primary underline-offset-4 outline-offset-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+					>
+						<span translate="no">GitHub</span>
+						{REPO_LINK_TEXT}
+						<ArrowUpRight aria-hidden="true" className="size-4" />
+						<span className="sr-only">(새 창)</span>
+					</a>
 				</p>
 			</Reveal>
 		</Section>

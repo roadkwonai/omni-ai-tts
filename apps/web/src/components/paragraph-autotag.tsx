@@ -61,6 +61,7 @@ import { trialFailureOf } from "@/lib/trial-view";
 import { orpc } from "@/utils/orpc";
 
 import { BeforeAfter } from "./before-after";
+import { DEMO_TEXT, useDemo } from "./demo";
 import { voiceNameOf } from "./paragraph-card";
 import {
 	useParagraphs,
@@ -611,6 +612,7 @@ export function AutoTagButton() {
 	if (!context)
 		throw new Error("AutoTagButton은 ParagraphAutoTag 안에서만 쓴다");
 	const { open, retryAt } = context;
+	const demo = useDemo();
 	const work = useWork();
 	const ps = useShownParagraphs();
 	const reasonId = useId();
@@ -634,18 +636,25 @@ export function AutoTagButton() {
 				size="lg"
 				focusableWhenDisabled
 				disabled={reason !== null}
-				aria-label={PARAGRAPH_TEXT.autoTagName}
+				aria-label={
+					demo ? DEMO_TEXT.autoTagParagraphName : PARAGRAPH_TEXT.autoTagName
+				}
 				aria-describedby={reason ? reasonId : undefined}
 				className={lockedButton(true)}
 				onClick={(event) => {
-					if (reason === null) open(event.currentTarget);
+					if (reason !== null) return;
+					// 공개 데모는 확인 창도 공급자 호출도 없이 안내만 한다
+					if (demo) toast(DEMO_TEXT.autoTag);
+					else open(event.currentTarget);
 				}}
 			>
-				<Coins
-					data-icon="inline-start"
-					aria-hidden="true"
-					className="text-warning"
-				/>
+				{demo ? null : (
+					<Coins
+						data-icon="inline-start"
+						aria-hidden="true"
+						className="text-warning"
+					/>
+				)}
 				{PARAGRAPH_TEXT.autoTag}
 			</Button>
 			{reason ? (

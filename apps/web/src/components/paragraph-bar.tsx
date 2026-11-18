@@ -53,6 +53,7 @@ import { STUDIO_TEXT } from "@/lib/studio-view";
 import { usageText } from "@/lib/trial-view";
 
 import { useBarHeight, useElapsed, WAIT_NOTE_AFTER } from "./bar-height";
+import { DEMO_TEXT, useDemo } from "./demo";
 import { LockedIconButton } from "./locked-icon-button";
 import { ParagraphMakeConfirm } from "./paragraph-confirm";
 import { paragraphHeadId, showParagraph } from "./paragraph-focus";
@@ -410,6 +411,7 @@ export function ParagraphBar({
 	// 이어 듣기 재생 위치의 문단 id(없으면 null). 읽는 쪽은 문단 목록뿐이다
 	onPlaying: (id: string | null) => void;
 }) {
+	const demo = useDemo();
 	const work = useWork();
 	const ps = useShownParagraphs();
 	const bandRef = useRef<HTMLElement>(null);
@@ -604,7 +606,9 @@ export function ParagraphBar({
 					text={
 						make.notice === "nothing"
 							? PARAGRAPH_TEXT.nothingNew
-							: PARAGRAPH_TEXT.receiveFree
+							: demo
+								? DEMO_TEXT.receiveFree
+								: PARAGRAPH_TEXT.receiveFree
 					}
 				/>
 			);
@@ -617,7 +621,7 @@ export function ParagraphBar({
 					<ShowLink id={left} n={numberOf(left)} />
 				</Line>
 			);
-		if (count === 0) return null;
+		if (count === 0 || demo) return null;
 		// 모두 무료여도 미확인 문단이 있으면 확인 창이 뜨고 무료 줄 대신 미확인 문구다(브리프 4절). 유료면 금액 줄(확인 창이 경고한다)
 		const unknown = plan.free
 			? plan.make.find((item) => plan.unknown.includes(item.signature))
@@ -783,7 +787,7 @@ export function ParagraphBar({
 								>
 									{finding ? (
 										<Spinner data-icon="inline-start" aria-hidden="true" />
-									) : !running && paid ? (
+									) : !running && paid && !demo ? (
 										// 채운 청록 버튼 안은 글자색, 테두리 버튼 위는 경고색(DESIGN.md 사용량 표식)
 										<Coins
 											data-icon="inline-start"

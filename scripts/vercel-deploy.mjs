@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // 로컬 Vercel CLI로 develop(Preview 배포 + 고정 주소)과 production을 배포한다. `pnpm vercel:deploy`가 부른다.
 // 프로젝트 연결, 환경변수 준비, 배포 전 DB 적용 순서는 prokit-deploy 스킬에 있다.
-// 사용법: node scripts/vercel-deploy.mjs <develop|production> [--check]
-//   develop     Preview로 배포하고, Preview 환경 BETTER_AUTH_URL의 호스트를 alias로 붙인다.
+// 사용법: node scripts/vercel-deploy.mjs <develop|production> [--check] [--target studio|demo]
+//   --target    .dev-cycle.json deploy.projects의 대상(기본 studio). 그 id를 VERCEL_PROJECT_ID·VERCEL_ORG_ID로 모든 vercel 호출에 넣고,
+//               APP_MODE와 공급자 키 이름을 검사한다(modeErrors). deploy 절이 없는 프로젝트는 예전처럼 동작한다.
+//   develop    Preview로 배포하고, Preview 환경 BETTER_AUTH_URL의 호스트를 alias로 붙인다.
 //   production  기본 브랜치(.dev-cycle.json defaultBranch)의 릴리스한 커밋(scripts/release.mjs)만 --prod로 배포한다.
 //   --check     배포하지 않고 준비 상태와 지난 배포 이후 새 마이그레이션만 본다.
 // exit: 0 정상, 1 준비 안 됨·사용법 오류, 2 배포·alias 실패
@@ -54,7 +56,61 @@ export function requiredEnv(root) {
 		.map((m) => m[2]);
 }
 
-export function main(argv, root = process.cwd()) {
+// 공개 데모에 있으면 안 되는 이름(공급자·OpenAI 키). 값은 읽지 않는다.
+export const PAID_KEYS = [
+	"TYPECAST_API_KEY",
+	"ELEVENLABS_API_KEY",
+	"FISH_AUDIO_API_KEY",
+	"AIRY_API_KEY",
+	"GEMINI_API_KEY",
+	"OPENAI_API_KEY",
+];
+
+// `--target <이름>`·`--target=<이름>`을 떼어 낸다. 값이 없으면 빈 문자열(알 수 없는 대상으로 거절된다).
+export function parseArgs(argv) {
+	const rest = [];
+	let target = "studio";
+	for (let i = 0; i < argv.length; i++) {
+		if (argv[i] === "--target") target = argv[++i] ?? "";
+		else if (argv[i].startsWith("--target=")) target = argv[i].slice(9);
+		else rest.push(argv[i]);
+	}
+	return { target, rest };
+}
+
+// production만 비교(develop의 Preview 주소는 고정 alias라 production 주소와 다르다).
+export function urlMismatch({ name, url, projUrl }) {
+	return (
+		name === "production" &&
+		Boolean(projUrl && url && url.replace(/\/$/, "") !== projUrl)
+	);
+}
+
+// 대상별 모드 판정. expect: 그 대상의 appMode("demo"면 공개 데모), mode: 읽은 APP_MODE(null이면 못 읽음), keys: env ls의 변수 이름들.
+export function modeErrors({ expect, mode, keys }) {
+	if (mode == null) return ["APP_MODE를 읽지 못했다"];
+	const errors = [];
+	if (expect === "demo") {
+		if (mode !== "demo")
+			errors.push(`demo 대상은 APP_MODE=demo여야 한다(지금 ${mode || "없음"})`);
+		if (!keys.includes("DEMO_DB_HOST"))
+			errors.push(
+				"공개 데모에 DEMO_DB_HOST가 없다: 데모는 이 호스트의 DB에서만 소유자를 정한다",
+			);
+		const paid = PAID_KEYS.filter((k) => keys.includes(k));
+		if (paid.length)
+			errors.push(
+				`demo 환경에 공급자·OpenAI 키가 있다(${paid.join(", ")}) → vercel env rm으로 지운다`,
+			);
+	} else if (mode === "demo")
+		errors.push(
+			"APP_MODE=demo가 켜져 있다(본인용에 켜면 실제 데이터가 로그인 없이 열린다) → 값을 owner로 고친다",
+		);
+	return errors;
+}
+
+export function main(argv0, root = process.cwd()) {
+	const { target, rest: argv } = parseArgs(argv0);
 	const [name, ...extra] = argv.filter((a) => !a.startsWith("-"));
 	const env = TARGETS[name];
 	// 모르는 플래그를 버리면 --chek 같은 오타가 검사 없는 실제 배포가 된다.
@@ -63,14 +119,49 @@ export function main(argv, root = process.cwd()) {
 		extra.length ||
 		argv.some((a) => a.startsWith("-") && a !== "--check")
 	) {
-		console.error("사용법: pnpm vercel:deploy <develop|production> [--check]");
+		console.error(
+			"사용법: pnpm vercel:deploy <develop|production> [--check] [--target studio|demo]",
+		);
 		return 1;
 	}
-	const vercel = (args, opts) => run("vercel", args, { cwd: root, ...opts });
+	let cfg = {};
+	try {
+		cfg = JSON.parse(readFileSync(join(root, ".dev-cycle.json"), "utf8")) ?? {};
+	} catch {}
+	const projects = cfg.deploy?.projects;
+	const proj = projects?.[target];
+	if (projects ? !proj : target !== "studio") {
+		console.error(
+			`알 수 없는 대상: ${target || "(없음)"} (${Object.keys(projects ?? { studio: 1 }).join(", ")})`,
+		);
+		return 1;
+	}
+	if (proj && !proj.projectId) {
+		console.error(
+			`준비 안 됨: ${target} 프로젝트 id가 없다(.dev-cycle.json deploy.projects.${target}.projectId) → Vercel 프로젝트를 만든 뒤 채운다`,
+		);
+		return 1;
+	}
+	// 대상의 id는 모든 vercel 호출 env에 넣는다(CLI는 둘 다 있으면 .vercel/project.json보다 이 값을 먼저 쓴다).
+	const idEnv = proj
+		? { VERCEL_PROJECT_ID: proj.projectId, VERCEL_ORG_ID: proj.orgId }
+		: {};
+	const vercel = (args, opts = {}) =>
+		run("vercel", args, {
+			cwd: root,
+			...opts,
+			env: { ...(opts.env ?? process.env), ...idEnv },
+		});
 	const git = (...args) => run("git", args, { cwd: root });
 	const gitOut = (...args) => git(...args).stdout?.trim() ?? "";
 	// 토큰만 쓰는 환경(CI)은 VERCEL_ORG_ID와 VERCEL_PROJECT_ID가 연결을 대신한다(둘 다 있어야 한다. CLI도 둘 다 있으면 이 값을 먼저 쓴다).
-	const envIds = process.env.VERCEL_ORG_ID && process.env.VERCEL_PROJECT_ID;
+	const ids0 = proj
+		? { projectId: proj.projectId, orgId: proj.orgId }
+		: {
+				projectId: process.env.VERCEL_PROJECT_ID,
+				orgId: process.env.VERCEL_ORG_ID,
+			};
+	const envIds = ids0.orgId && ids0.projectId;
 	const linked = envIds || existsSync(join(root, ".vercel/project.json"));
 	// 연결한 기기거나 릴리스한 적이 있으면(production 배포가 있다) Vercel 프로젝트가 있다. 여기서 멈추면 Git 자동 배포도 모른다.
 	// 릴리스 노트(release/)는 커밋되므로 태그를 받지 않은 clone(--depth, --no-tags)에도 남는다.
@@ -105,10 +196,7 @@ export function main(argv, root = process.cwd()) {
 	// 이 스크립트의 검사와 "DB 먼저"를 거치지 않는다. vercel link --yes는 새 프로젝트를 만들 때 git 원격이 있으면
 	// 묻지 않고 연결한다(CLI 60.1 소스, 실측). 확인하지 못해도 연결된 것으로 본다(prokit-dev-cycle 5절이 push하지 않는다).
 	if (name === "production") {
-		let ids = {
-			projectId: process.env.VERCEL_PROJECT_ID,
-			orgId: process.env.VERCEL_ORG_ID,
-		};
+		let ids = ids0;
 		if (!envIds)
 			try {
 				ids =
@@ -268,8 +356,10 @@ export function main(argv, root = process.cwd()) {
 				`루트 ${f}에 BETTER_AUTH_URL이 있다(Vercel 값 대신 읽힌다) → 루트에서 지운다(앱 값은 apps/web/.env)`,
 			);
 	}
-	const { BETTER_AUTH_URL: _local, ...cleanEnv } = process.env;
-	const authUrl = (target) => {
+	// 로컬 셸의 APP_MODE(로컬 데모 실행 값)도 지워 Vercel 값이 읽히게 한다.
+	const { BETTER_AUTH_URL: _local, APP_MODE: _mode, ...cleanEnv } = process.env;
+	// 실패하면 null. 값은 호출한 쪽이 판정만 하고 출력하지 않는다(BETTER_AUTH_URL·APP_MODE는 비밀이 아니다).
+	const readVar = (target, key) => {
 		const r = vercel(
 			[
 				"env",
@@ -279,15 +369,17 @@ export function main(argv, root = process.cwd()) {
 				"--",
 				process.execPath,
 				"-p",
-				"process.env.BETTER_AUTH_URL || ''",
+				`process.env.${key} || ''`,
 			],
 			{ env: cleanEnv },
 		);
-		if (r.status !== 0)
-			return {
-				error: `${target} 환경변수를 읽지 못했다(vercel env run exit ${r.status})`,
-			};
-		const url = r.stdout.trim().split("\n").pop() ?? "";
+		return r.status === 0 ? (r.stdout.trim().split("\n").pop() ?? "") : null;
+	};
+	const authUrl = (target) => {
+		const read = readVar(target, "BETTER_AUTH_URL");
+		if (read === null)
+			return { error: `${target} 환경변수를 읽지 못했다(vercel env run 실패)` };
+		const url = read;
 		try {
 			return { url, host: new URL(url).host };
 		} catch {
@@ -307,6 +399,25 @@ export function main(argv, root = process.cwd()) {
 			errors.push(
 				`Preview BETTER_AUTH_URL이 production과 같다(${host}) → develop 고정 주소를 따로 둔다`,
 			);
+		// 대상의 주소와 다르면 다른 프로젝트 값이거나 오타다(배포 뒤 주소 확인도 이 값을 쓴다).
+		if (urlMismatch({ name, url, projUrl: proj?.url }))
+			errors.push(
+				`${target}의 BETTER_AUTH_URL(${url})이 설정한 주소(${proj.url})와 다르다`,
+			);
+	}
+	if (proj) {
+		// demo는 모든 환경에서 키 이름이 없어야 하므로 환경을 가리지 않고 읽는다. 값은 읽지 않는다.
+		const keys = json(vercel(["env", "ls", "--format", "json"]))?.envs?.map(
+			(e) => e.key,
+		);
+		if (!keys) errors.push(`${target}: 전체 환경변수 목록을 읽지 못했다`);
+		errors.push(
+			...modeErrors({
+				expect: proj.appMode,
+				mode: readVar(env, "APP_MODE"),
+				keys: keys ?? [],
+			}).map((m) => `${target}: ${m}`),
+		);
 	}
 
 	// 지난 배포: 그 주소가 지금 가리키는 배포. 새 마이그레이션은 그 커밋과 HEAD 사이에서 센다.

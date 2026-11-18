@@ -36,7 +36,7 @@ export function Notice({
 						<Icon aria-hidden="true" />
 					</EmptyMedia>
 				) : null}
-				<EmptyTitle>{title}</EmptyTitle>
+				<EmptyTitle className="break-keep">{title}</EmptyTitle>
 				{description ? (
 					<EmptyDescription>{description}</EmptyDescription>
 				) : null}

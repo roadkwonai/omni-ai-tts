@@ -254,7 +254,7 @@ Bezier는 글로벌 원시값 → 시맨틱(라이트/다크) → 컴포넌트 3
 
 ### Omni AI TTS 모션 (제품 조정)
 
-모션은 색 전환 하나다. Tailwind 기본 전환을 150ms `cubic-bezier(0.3,0,0,1)`로 바꿔 두고(`globals.css`의 `--default-transition-*`), 버튼·배지·메뉴는 `transition-colors`만 쓴다. 위치·크기 전환은 없다. 예외는 셋이다. 하나는 1199px 이하의 성우 서랍(`sheet.tsx`)이다. 서랍은 오른쪽 2.5rem(40px) 떨어진 투명한 자리에서 제자리로 200ms(`duration-200`, 이징은 위 기본 `cubic-bezier(0.3,0,0,1)`) 미끄러져 들어오고, 뒤 배경(`bg-black/10` + 흐림)도 같은 200ms로 투명에서 나타난다. 닫을 때는 거꾸로다. 둘째는 드롭다운 메뉴(`dropdown-menu.tsx`)의 100ms(`duration-100`) 확대(95%에서)·미끄러짐(8px)이다. shadcn 생성물 그대로이고 없애는 일은 백로그다. 셋째는 툴팁(`tooltip.tsx`)의 같은 확대·미끄러짐(기본 150ms, 생성물 그대로, 백로그)이다. `prefers-reduced-motion: reduce`에서는 이 미끄러짐을 포함해 전환과 애니메이션(스켈레톤 pulse, 스피너 회전 포함)이 사실상 멈춘다(0.01ms).
+모션은 색 전환 하나다. Tailwind 기본 전환을 150ms `cubic-bezier(0.3,0,0,1)`로 바꿔 두고(`globals.css`의 `--default-transition-*`), 버튼·배지·메뉴는 `transition-colors`만 쓴다. 위치·크기 전환은 없다. 예외는 셋이다. 하나는 1199px 이하의 성우 서랍(`sheet.tsx`)이다. 서랍은 오른쪽 2.5rem(40px) 떨어진 투명한 자리에서 제자리로 200ms(`duration-200`, 이징은 위 기본 `cubic-bezier(0.3,0,0,1)`) 미끄러져 들어오고, 뒤 배경(`bg-black/10` + 흐림)도 같은 200ms로 투명에서 나타난다. 닫을 때는 거꾸로다. 둘째는 드롭다운 메뉴(`dropdown-menu.tsx`)의 100ms(`duration-100`) 확대(95%에서)·미끄러짐(8px)이다. shadcn 생성물 그대로이고 없애는 일은 백로그다. 셋째는 툴팁(`tooltip.tsx`)의 같은 확대·미끄러짐(기본 150ms, 생성물 그대로, 백로그)이다. `prefers-reduced-motion: reduce`에서는 위치·크기 움직임(이 미끄러짐·확대, 이동 키프레임)과 무한 반복(스켈레톤 pulse, 스피너 회전)이 멈추고, 투명도·색 전환은 원래 시간대로 남아 크로스페이드가 된다(T15-a2, 2026-11-19. 움직임은 더 적고 부드럽게이지 0이 아니다).
 
 767px 이하 성우 탭 줄 오른쪽 끝의 흐림은 시간으로 움직이는 애니메이션이 아니다. 탭 줄이 넘칠 때만 스크롤 위치에 묶인 마스크(`index.css`의 `tabs-overflow-fade`, `animation-timeline: scroll(self inline)`)이고, 끝까지 넘기면 걷힌다. 흐림이 그려지는 브라우저에서는 이 흐림이 넘침을 알리므로 탭 줄 스크롤바를 숨긴다(`@supports (animation-timeline: scroll())` 안의 `scrollbar-width: none`, QA 2026-10-05).
 
@@ -265,7 +265,17 @@ Bezier는 글로벌 원시값 → 시맨틱(라이트/다크) → 컴포넌트 3
 - 시간: 히어로 등장 600ms(비등간격 0·60·130·210ms, 마스코트 마지막), 섹션 reveal 700ms(안쪽 항목 60ms 간격, 한 번만), 누름 120ms(scale 0.97), 투어 크로스페이드·밑줄 200ms(transform만), FAQ 열기 200ms·닫기 150ms(높이는 아코디언 예외), 휴대폰 메뉴 열기 300ms `--ease-drawer`·닫기 200ms `--ease-out`, 메뉴 아이콘 200ms, 태그라인 어절 300ms.
 - 간격: 섹션 위아래 `--spacing-section` 64px, `--spacing-section-lg` 80px(md 이상). 히어로 제목·부제 폭 `--container-hero` 680px.
 - 동작 라이브러리: 투어 탭·FAQ·휴대폰 메뉴는 `@ui-sdk/react`(ADR 0014). `globals.css`의 `@layer ui-sdk;` 선언으로 라이브러리 기본 스타일이 토큰보다 앞서지 않는다.
-- 움직임 줄이기: 앱 전역 규칙(0.01ms)을 따르고, 처음부터 숨기는 상태(reveal, 태그라인 30%)와 지연만 랜딩 CSS가 따로 푼다.
+- 움직임 줄이기: 앱 전역 규칙(이동 멈춤, 투명도 전환 유지)을 따른다. 히어로·reveal 이동 키프레임은 멈추고 reveal·태그라인·투어는 크로스페이드로 남는다.
+
+### 공개 데모 표시와 소개 페이지 2판 (제품 조정, 2026-11-19, T15-a2)
+
+공개 데모(`APP_MODE=demo`)에만 있는 표시다. 본인용 작업실에는 없다.
+- 데모 띠: 모든 앱 화면 맨 위 한 줄, `primary-subtle` 바탕에 `foreground` 14px 글자("공개 데모 · 예시 데이터는 매일 처음 상태로 돌아가요"), 닫기 없음.
+- 계정 줄: 이메일·로그아웃 대신 '공개 데모' 한 줄.
+- 데모 샘플 배지: 결과 자리(문단 카드 완료 칸, 드라마 무대·이전 테이크, 시험 생성 결과)에 `Badge` secondary 기본 크기 '데모 샘플'.
+- 데모 안내: 연결 상태·내 보이스·캐시에 없는 성우 목록은 빈 상태 판(`EmptyTitle` keep-all)에 안내와 다음 행동 한 줄.
+- 소개 페이지 히어로는 앱 문단 카드 문법을 따른 카드 하나다: 대본 한 문단, 숫자 검수 줄과 원문/발음용 `ToggleGroup`(숫자는 `primary-subtle` 강조), 공급자 칩 다섯(라디오, 고른 칩은 `primary-subtle` 바탕과 2px `primary` 테두리), 재생 막대(진행은 `primary`, 시간은 tabular-nums). 칩을 누르면 바로 재생, 방향키는 선택만, 자동 재생 없음.
+- 떠 있는 막대는 스크롤 뒤 불투명 `background` 바탕(흐림 없음)이고, 보이는 섹션의 링크에 `aria-current="location"`과 `primary` 밑줄.
 
 z-index 레이어는 명시적으로 단계화돼 있다 [src:3][src:2]:
 

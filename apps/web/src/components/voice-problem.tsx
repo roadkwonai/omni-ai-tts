@@ -20,6 +20,7 @@ export { problemCopy } from "@/lib/voice-failure";
 
 import { latestTime, retryTime } from "@/lib/voice-view";
 
+import { DEMO_TEXT, useDemo } from "./demo";
 import { Notice } from "./notice";
 
 // 429 Retry-After로 정한 대기 시각(브리프 8절)
@@ -118,7 +119,16 @@ export function Problem({
 	onClear?: () => void;
 	compact?: boolean;
 }) {
-	const copy = problemCopy(provider, failure);
+	const demo = useDemo();
+	// 공개 데모의 목록 실패는 저장해 둔 목록에 그 조합이 없다는 뜻이다. 연결 상태·다시 불러오기(공급자 호출)는 없다
+	const copy = demo
+		? {
+				title: DEMO_TEXT.listTitle,
+				description: DEMO_TEXT.listDescription,
+				connections: false,
+				reload: false,
+			}
+		: problemCopy(provider, failure);
 	const cooldown = useCooldown(retryAt);
 	const description = cooldown ? cooldownText(cooldown) : copy.description;
 	const actions = (
@@ -188,16 +198,21 @@ export function EmptyList({
 	waiting: boolean;
 	onReload: () => void;
 }) {
+	// 공개 데모는 공급자를 부르지 않아 '다시 불러오기'가 늘 실패한다. 버튼 대신 안내만 둔다(ListStatusBar와 같다)
+	const demo = useDemo();
 	return (
 		<Notice
 			role="alert"
 			title={`${PROVIDER_LABEL[provider]}가 준 공개 성우가 없어요`}
+			description={demo ? DEMO_TEXT.listDescription : undefined}
 		>
-			<ReloadButton
-				reloading={reloading}
-				waiting={waiting}
-				onReload={onReload}
-			/>
+			{demo ? null : (
+				<ReloadButton
+					reloading={reloading}
+					waiting={waiting}
+					onReload={onReload}
+				/>
+			)}
 		</Notice>
 	);
 }

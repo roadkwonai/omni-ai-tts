@@ -52,6 +52,7 @@ import { client, orpc, QUIET } from "@/utils/orpc";
 
 import { boxClass } from "./class-group";
 import { ConfirmDialog } from "./confirm-dialog";
+import { DEMO_TEXT, useDemo } from "./demo";
 import { CREATE_ID, MyVoiceCreate, ProviderText } from "./my-voice-create";
 import { MyVoiceListen } from "./my-voice-listen";
 import { Notice, SignInNotice } from "./notice";
@@ -107,7 +108,15 @@ function refresh(queryClient: QueryClient) {
 type Asking = { item: MyVoice; mode: "delete" | "dismiss" };
 
 // 만들기 창의 원본 재생, 들어보기 창, 목록이 오디오 요소 하나를 함께 쓴다(한 번에 한 소리)
+// 공개 데모는 만들기·지우기 대신 안내 하나를 보인다(클론은 공급자 계정이 필요하다)
 export function MyVoices() {
+	if (useDemo())
+		return (
+			<Notice
+				title={DEMO_TEXT.myVoicesTitle}
+				description={DEMO_TEXT.myVoicesDescription}
+			/>
+		);
 	return (
 		<SamplePlayerProvider>
 			<MyVoicesList />

@@ -25,6 +25,7 @@ import { OWNED_LIST, orpc } from "@/utils/orpc";
 
 import { boxClass, RowAction } from "./class-group";
 import { ConfirmDialog } from "./confirm-dialog";
+import { DemoBadge, useDemo } from "./demo";
 import { stageOrMain, useDrama, useScriptKey } from "./drama-provider";
 import { lockedButton } from "./voice-problem";
 
@@ -91,6 +92,8 @@ function TakeRow({
 	onRemove: (button: HTMLButtonElement) => void;
 }) {
 	const drama = useDrama();
+	// 공개 데모의 샘플은 줄 구간이 없다. 나누지 못한 게 아니라 데모 샘플이라 '나누지 못함' 배지를 숨긴다
+	const demo = useDemo();
 	const unknown = take.status === "unknown";
 	const onStage = drama.shown?.id === take.id;
 	// 줄마다 다른 접근 이름("{장면 이름} 10:42 무대에 올리기")
@@ -121,7 +124,8 @@ function TakeRow({
 						</Badge>
 					) : null}
 					<OtherScriptBadge take={take} />
-					{!unknown && !splitOk(take) ? (
+					{unknown ? null : <DemoBadge />}
+					{!unknown && !demo && !splitOk(take) ? (
 						<Badge variant="secondary" className="shrink-0">
 							{DRAMA_TEXT.notSplitBadge}
 						</Badge>

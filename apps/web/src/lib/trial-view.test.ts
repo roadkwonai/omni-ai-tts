@@ -277,6 +277,8 @@ describe("문구", () => {
 			),
 		} as const;
 		expect(resultLine(item, now)).toBe("방금 · 약 31크레딧 · eleven_v4");
+		// 공개 데모는 사용량 조각만 뺀다
+		expect(resultLine(item, now, false)).toBe("방금 · eleven_v4");
 		// 줄마다 다른 접근 이름(D6): 문장 앞 20자
 		expect(resultSubject("Jiyoung", item)).toBe(
 			"Jiyoung 저장된 결과 '오늘 소개할 제품은 30초 만에 끝나'",

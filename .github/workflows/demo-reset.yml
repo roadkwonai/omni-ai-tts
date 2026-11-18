@@ -1,0 +1,84 @@
+name: demo-reset
+
+# 앱이 쓰는 live 브랜치를 부모 main(예시 데이터 원본)에서 복원한다. 매일 KST 04:00(UTC 19:00).
+on:
+  schedule:
+    - cron: "0 19 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: demo-reset
+  cancel-in-progress: false
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+      PROJECT_ID: ${{ vars.DEMO_NEON_PROJECT_ID }}
+      BRANCH_ID: ${{ vars.DEMO_NEON_BRANCH_ID }}
+      EXPECTED_PROJECT_ID: orange-hat-58134409
+    steps:
+      - name: 데모 프로젝트인지 확인
+        run: |
+          set +x
+          if [ -z "$PROJECT_ID" ] || [ -z "$BRANCH_ID" ] || [ -z "$NEON_API_KEY" ]; then
+            echo "DEMO_NEON_PROJECT_ID, DEMO_NEON_BRANCH_ID, NEON_API_KEY 중 빈 값이 있다" >&2
+            exit 1
+          fi
+          if [ "$PROJECT_ID" != "$EXPECTED_PROJECT_ID" ]; then
+            echo "프로젝트 id가 기대한 데모 id와 다르다. 운영 DB를 건드리지 않으려고 멈춘다" >&2
+            exit 1
+          fi
+
+      - name: 앱이 쓰는 live를 부모 main(예시 데이터 원본)에서 복원
+        run: |
+          set +x
+          api="https://console.neon.tech/api/v2/projects/$PROJECT_ID"
+
+          # 부모 브랜치 id (루트 브랜치면 null이라 실패)
+          parent_id=$(curl --fail --silent --show-error \
+            --header "Authorization: Bearer $NEON_API_KEY" \
+            --header "Accept: application/json" \
+            "$api/branches/$BRANCH_ID" | jq -r '.branch.parent_id // empty')
+          if [ -z "$parent_id" ]; then
+            echo "브랜치에 부모가 없다. 초기화할 수 없다" >&2
+            exit 1
+          fi
+
+          # Neon의 'reset from parent'는 restore 엔드포인트에 source_branch_id=부모 id를 준다
+          op_ids=$(curl --fail --silent --show-error --request POST \
+            --header "Authorization: Bearer $NEON_API_KEY" \
+            --header "Accept: application/json" \
+            --header "Content-Type: application/json" \
+            --data "$(jq -n --arg s "$parent_id" '{source_branch_id: $s}')" \
+            "$api/branches/$BRANCH_ID/restore" | jq -r '.operations[].id')
+          if [ -z "$op_ids" ]; then
+            echo "응답에 operation이 없다" >&2
+            exit 1
+          fi
+
+          # operation이 모두 finished가 될 때까지 최대 약 5분 기다린다
+          for op in $op_ids; do
+            for _ in $(seq 1 60); do
+              status=$(curl --fail --silent --show-error \
+                --header "Authorization: Bearer $NEON_API_KEY" \
+                --header "Accept: application/json" \
+                "$api/operations/$op" | jq -r '.operation.status')
+              case "$status" in
+                finished) break ;;
+                failed|cancelled|cancelling|skipped)
+                  echo "operation $op 상태: $status" >&2
+                  exit 1 ;;
+              esac
+              sleep 5
+            done
+            if [ "$status" != "finished" ]; then
+              echo "operation $op 시간 초과(마지막 상태: $status)" >&2
+              exit 1
+            fi
+          done
+          echo "초기화 완료"

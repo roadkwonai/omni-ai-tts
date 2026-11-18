@@ -38,6 +38,7 @@ import { toast } from "sonner";
 
 import { signOutToLogin } from "@/lib/auth-client";
 
+import { DEMO_TEXT, useDemo } from "./demo";
 import { LockedIconButton } from "./locked-icon-button";
 import { ModeToggle } from "./mode-toggle";
 
@@ -100,7 +101,9 @@ function NavTip({
 
 // 메뉴 아래 줄: 이메일, 로그아웃, 테마. 로그아웃은 오른쪽 끝 테마 버튼 앞에 둔다(2026-10-04 사용자 요청: 테마가 맨 오른쪽). 보이는 순서와 Tab 순서가 같게 DOM에서도 이 순서다.
 // 로그아웃 상태는 이 줄만 알면 돼서 AppNav 밖에 둔다(메뉴 상태가 바뀌어도 다시 그리지 않는다)
+// 공개 데모는 로그인이 없어 이메일·로그아웃 대신 '공개 데모' 글자와 테마만 둔다
 function AccountRow({ email }: { email: string }) {
+	const demo = useDemo();
 	const [signingOut, setSigningOut] = useState(false);
 
 	async function signOut() {
@@ -124,18 +127,20 @@ function AccountRow({ email }: { email: string }) {
 						srOnlyAtIconNav,
 					)}
 				>
-					<span title={email} className="block truncate">
-						{email}
+					<span title={demo ? undefined : email} className="block truncate">
+						{demo ? DEMO_TEXT.account : email}
 					</span>
 				</span>
 				<div className="flex shrink-0 items-center gap-2 md:flex-col xl:flex-row">
-					<LockedIconButton
-						label="로그아웃"
-						reason={signingOut ? "로그아웃 중…" : undefined}
-						onClick={signOut}
-					>
-						<LogOut aria-hidden="true" />
-					</LockedIconButton>
+					{demo ? null : (
+						<LockedIconButton
+							label="로그아웃"
+							reason={signingOut ? "로그아웃 중…" : undefined}
+							onClick={signOut}
+						>
+							<LogOut aria-hidden="true" />
+						</LockedIconButton>
+					)}
 					<ModeToggle />
 				</div>
 			</div>

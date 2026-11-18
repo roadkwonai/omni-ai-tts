@@ -26,6 +26,7 @@ import { Fragment, useId, useLayoutEffect, useRef, useState } from "react";
 import { resultLine, resultSubject } from "@/lib/trial-view";
 import { orpc } from "@/utils/orpc";
 
+import { DemoBadge, useDemo } from "./demo";
 import { useSample } from "./sample-player";
 import { useTrial } from "./trial-provider";
 import { ReloadButton } from "./voice-problem";
@@ -46,6 +47,7 @@ export function useTrialItems(voice: Voice) {
 // 줄마다 재생(저장본, 크레딧 0)·지우기. 새로 만들기는 줄에 두지 않는다(사용자 결정 U4)
 export function TrialResults({ voice }: { voice: Voice }) {
 	const items = useTrialItems(voice);
+	const demo = useDemo();
 	const [removing, setRemoving] = useState<TrialItem | null>(null);
 	const [deleting, setDeleting] = useState(false);
 	const [deleteFailed, setDeleteFailed] = useState(false);
@@ -112,7 +114,7 @@ export function TrialResults({ voice }: { voice: Voice }) {
 							key={item.id}
 							voice={voice}
 							item={item}
-							line={resultLine(item, now)}
+							line={resultLine(item, now, !demo)}
 							onRemove={(button) => {
 								openerRef.current = button;
 								setDeleteFailed(false);
@@ -214,8 +216,9 @@ function ResultRow({
 				}}
 			/>
 			<span className="flex min-w-0 flex-1 flex-col">
-				<span id={`${id}-text`} className="truncate">
-					{item.request.text}
+				<span id={`${id}-text`} className="flex min-w-0 items-center gap-2">
+					<span className="truncate">{item.request.text}</span>
+					<DemoBadge />
 				</span>
 				<span
 					id={`${id}-line`}

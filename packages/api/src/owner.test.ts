@@ -1,9 +1,12 @@
 import { createRouterClient } from "@orpc/server";
-import { describe, expect, it } from "vitest";
+import { user } from "@tts-pilot-app/db/schema/auth";
+import { eq } from "drizzle-orm";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Context } from "./context";
 import { protectedProcedure } from "./index";
-import { ownerEmailFrom, ownerIdOf } from "./owner";
+import { demoOwner, ownerEmailFrom, ownerIdOf } from "./owner";
+import { testDb as db, testDatabaseUrl as url } from "./test-db";
 
 describe("ownerEmailFrom", () => {
 	it.each([
@@ -75,5 +78,53 @@ describe("protectedProcedure", () => {
 
 	it("소유자가 있으면 핸들러가 그 값을 받는다", async () => {
 		await expect(as("u1").whoami()).resolves.toBe("u1");
+	});
+});
+
+describe("demoOwner (T15-a2 공개 데모)", () => {
+	// 닫히는 경우는 DB를 부르지 않는다. 닿으면 실패한다.
+	const untouchable = new Proxy(
+		{},
+		{
+			get() {
+				throw new Error("db touched");
+			},
+		},
+	) as Context["db"];
+
+	it.each([
+		["공급자·OpenAI 키가 하나라도 있음", "demo@example.com", true],
+		["OWNER_EMAILS 빔", "", false],
+		["OWNER_EMAILS 없음", undefined, false],
+		["OWNER_EMAILS 둘 이상", "demo@example.com,b@example.com", false],
+	])("%s: 소유자 없음이고 DB를 부르지 않는다", async (_name, raw, hasKey) => {
+		await expect(demoOwner(untouchable, raw, hasKey)).resolves.toBeNull();
+	});
+});
+
+describe.skipIf(!url)("demoOwner DB 조회", () => {
+	const id = `demo-owner-${Date.now()}`;
+	const email = `${id}@example.com`;
+
+	beforeAll(async () => {
+		await db.insert(user).values({ id, name: "demo", email });
+	});
+	afterAll(async () => {
+		await db.delete(user).where(eq(user.id, id));
+		await db.$client.end();
+	});
+
+	it("OWNER_EMAILS 한 명의 user 행이 있으면 그 id와 이메일", async () => {
+		await expect(
+			demoOwner(db, `  ${email.toUpperCase()} `, false),
+		).resolves.toEqual({ userId: id, email });
+	});
+
+	it("키가 남아 있으면 user 행이 있어도 소유자 없음", async () => {
+		await expect(demoOwner(db, email, true)).resolves.toBeNull();
+	});
+
+	it("그 이메일의 user 행이 없으면 소유자 없음", async () => {
+		await expect(demoOwner(db, `missing-${email}`, false)).resolves.toBeNull();
 	});
 });

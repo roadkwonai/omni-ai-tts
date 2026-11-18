@@ -1,23 +1,26 @@
 import { buttonVariants } from "@tts-pilot-app/ui/components/button";
 import { cn } from "@tts-pilot-app/ui/lib/utils";
 import Image from "next/image";
+import Link from "next/link";
 
 import {
+	HERO_SOURCE_LEAD,
+	HERO_SOURCES,
 	HERO_SUBTITLE,
 	HERO_TITLE,
-	PROVIDERS,
-	TEST_COUNT_TEXT,
 } from "@/lib/landing-content";
 
-// 히어로(브리프 3절 1번): 헤드라인 → 부제 → 주 버튼 → 증거 한 줄 → 스크린샷·마스코트 순으로 비등간격(0·60·130·210ms, 마스코트 마지막)으로 올라온다(CSS 애니메이션, landing.css).
-// 주 행동은 '기능 둘러보기' 하나이고 로그인은 막대의 보조 버튼이다. 첫 화면 390px에 주 버튼이 들어온다.
+import { HeroCard } from "./hero-card";
+
+// 히어로(브리프 3절 1번 2판): 헤드라인 → 부제 → 작동하는 문단 카드 → 주·보조 버튼 → 출처 한 줄. 비등간격(0·60·210ms, 마스코트 마지막)으로 올라온다(landing.css).
+// 카드와 버튼은 마지막 단계(4)에 함께 올라온다. 마스코트는 lg 이상에서 카드 옆에 작게 둔다(좁은 폭은 첫 화면에 카드와 버튼이 들어오게 뺀다).
 export function Hero() {
 	return (
 		<section
 			aria-labelledby="hero-title"
-			className="px-4 pt-28 pb-section md:px-8 md:pt-40 md:pb-section-lg"
+			className="px-4 pt-24 md:px-8 md:pt-40"
 		>
-			<div className="mx-auto flex max-w-hero flex-col items-center gap-6 text-center">
+			<div className="mx-auto flex max-w-hero flex-col items-center gap-4 text-center md:gap-6">
 				<h1
 					id="hero-title"
 					data-step="0"
@@ -31,72 +34,62 @@ export function Hero() {
 				>
 					{HERO_SUBTITLE}
 				</p>
-				<a
-					href="#tour"
-					data-step="2"
-					className={cn(
-						buttonVariants({ size: "lg" }),
-						"landing-hero-in landing-press",
-					)}
-				>
-					기능 둘러보기
-				</a>
-				<p
-					data-step="3"
-					className="landing-hero-in text-pretty break-keep text-muted-foreground text-sm"
-				>
-					<span translate="no">{PROVIDERS.join(" · ")}</span> 연동 ·{" "}
-					{TEST_COUNT_TEXT}
-				</p>
 			</div>
 			<div
 				data-step="4"
-				className="landing-hero-in relative mx-auto mt-14 max-w-234"
+				className="landing-hero-in mx-auto mt-8 flex max-w-234 flex-col items-center gap-6 md:mt-10"
 			>
-				<div className="rounded-2xl bg-card p-2 ring-1 ring-border">
-					{/* 767px 이하: 휴대폰 판(투어와 같은 w-64 틀) */}
-					<div className="mx-auto w-64 overflow-hidden rounded-lg md:hidden">
-						<Image
-							src="/screenshots/studio-mobile.png"
-							alt="음성 작업실 휴대폰 화면"
-							width={390}
-							height={844}
-							fetchPriority="high"
-							sizes="256px"
-							className="h-auto w-full"
-						/>
+				<div className="flex w-full items-end justify-center gap-6">
+					<div className="w-full max-w-180">
+						<HeroCard />
 					</div>
-					{/* 768px 이상: 제목·첫 문단 카드·작업 요약만 자른 1:1 판(920px 폭을 넘겨 늘리지 않는다). 테마 판은 fetchPriority만 두고
-					    기본 lazy로 숨은 판을 받지 않는다(Next 16 Image 문서: 테마별 이미지에는 preload·eager 금지) */}
-					<div className="hidden overflow-hidden rounded-lg md:block">
-						<Image
-							src="/screenshots/studio-hero.png"
-							alt="음성 작업실 화면. 제목 아래 첫 문단 카드에 성우가 붙어 있고 숫자 검수 안내가 보이며, 오른쪽에 만든 문단 수와 예상 길이가 있다"
-							width={920}
-							height={445}
-							fetchPriority="high"
-							sizes="(min-width: 1024px) 920px, calc(100vw - 80px)"
-							className="h-auto w-full dark:hidden"
-						/>
-						<Image
-							src="/screenshots/studio-hero-dark.png"
-							alt="다크 테마의 음성 작업실 화면. 제목 아래 첫 문단 카드에 성우가 붙어 있고 숫자 검수 안내가 보이며, 오른쪽에 만든 문단 수와 예상 길이가 있다"
-							width={920}
-							height={445}
-							fetchPriority="high"
-							sizes="(min-width: 1024px) 920px, calc(100vw - 80px)"
-							className="hidden h-auto w-full dark:block"
-						/>
-					</div>
+					<Image
+						src="/brand/mascot-hero.png"
+						alt="헤드폰을 쓴 마이크 마스코트가 대본을 들고 손을 흔드는 모습"
+						width={658}
+						height={720}
+						sizes="144px"
+						className="landing-mascot-in hidden h-auto w-36 lg:block"
+					/>
 				</div>
-				<Image
-					src="/brand/mascot-hero.png"
-					alt="헤드폰을 쓴 마이크 마스코트가 대본을 들고 손을 흔드는 모습"
-					width={658}
-					height={720}
-					sizes="(min-width: 768px) 160px, 112px"
-					className="landing-mascot-in absolute -right-2 -bottom-8 h-auto w-28 md:-right-6 md:w-40"
-				/>
+				<div className="flex flex-wrap items-center justify-center gap-3">
+					<Link
+						href="/studio"
+						className={cn(buttonVariants({ size: "lg" }), "landing-press")}
+					>
+						데모 써 보기
+					</Link>
+					<a
+						href="#tour"
+						className={cn(
+							buttonVariants({ variant: "outline", size: "lg" }),
+							"landing-press",
+						)}
+					>
+						기능 둘러보기
+					</a>
+				</div>
+				{/* 항목(점 + 이름)은 nowrap 한 덩어리라 '· Gemini'만 줄 끝에 떨어지지 않는다. 번역 금지는 브랜드·도메인에만 */}
+				<p className="max-w-180 text-pretty break-keep text-muted-foreground text-sm">
+					{HERO_SOURCE_LEAD}{" "}
+					{HERO_SOURCES.map((source) => (
+						<span key={source.name}>
+							<span className="whitespace-nowrap">
+								· <span translate="no">{source.name}</span>
+								{source.detail || source.domain ? (
+									<>
+										({source.detail}
+										{source.detail && source.domain ? ", " : null}
+										{source.domain ? (
+											<span translate="no">{source.domain}</span>
+										) : null}
+										)
+									</>
+								) : null}
+							</span>{" "}
+						</span>
+					))}
+				</p>
 			</div>
 		</section>
 	);

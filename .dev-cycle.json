@@ -51,6 +51,22 @@
 		"dbMigrate": "pnpm --filter @tts-pilot-app/db db:migrate",
 		"dbPush": "pnpm --filter @tts-pilot-app/db db:push"
 	},
+	"deploy": {
+		"projects": {
+			"studio": {
+				"projectId": "prj_KPyb8lfwyp1IcXViSihLCKbNC5VW",
+				"orgId": "team_watcX4AF0JGxqPzByKF3tdYu",
+				"url": "https://omni-ai-tts-studio.vercel.app",
+				"appMode": "owner"
+			},
+			"demo": {
+				"projectId": "prj_pRTsaJvqLUqB7iHWTZliA9Z0zTWj",
+				"orgId": "team_watcX4AF0JGxqPzByKF3tdYu",
+				"url": "https://omni-ai-tts.vercel.app",
+				"appMode": "demo"
+			}
+		}
+	},
 	"resources": {
 		"roots": []
 	}
