@@ -155,3 +155,7 @@
 ## 2026-11-19 · 비밀값 파일은 셸로 불러오거나 줄을 출력하지 않는다 (T15-a2)
 - **무슨 일:** `. ./.envrc`로 키를 불러왔더니 파일 안의 `export #…` 줄(주석이 export 뒤)이 인자 없는 `export`로 실행되어 환경 변수 전체(토큰·API 키)가 출력됐다. 원인을 찾으려고 `export`가 아닌 줄을 그대로 출력해 비밀번호 한 줄이 또 나왔다.
 - **규칙:** `.envrc`·`.env`는 셸에서 `.`/`source`로 불러오지 않고 `node scripts/load-keys.mjs -- <명령>`으로 그 명령에만 넣는다. 비밀값 파일의 구조를 볼 때는 변수 이름만 뽑는다(`grep -oE '^[[:space:]]*(export[[:space:]]+)?[A-Z_]+=' 파일`). 줄 전체(`$0`, `cat`, `sed -n`)는 출력하지 않는다. 출력이 생길 수 있는 명령은 `| grep -vE '키 패턴'`이 아니라 출력 자체를 만들지 않는 방식으로 쓴다.
+
+## 2026-11-20 · 저장소 push 계정은 roadkwonai, 셸 기본은 freelife1191 (사용자 지시)
+- **무슨 일:** push가 403으로 막히자 셸의 `GH_TOKEN`·`GITHUB_TOKEN`(freelife1191)을 빼고 `gh auth login`·협업자 추가를 안내했다. 사용자는 기본 계정은 freelife1191이 맞고, youtube 경로에서는 `.envrc`의 `GH_TOKEN`(roadkwonai)을 쓰면 된다고 정정했다.
+- **규칙:** `roadkwonai/omni-ai-tts`에 push·`gh`(릴리스 포함)할 때는 프로젝트 루트 `.envrc`의 `GH_TOKEN` 값 한 줄만 셸 변수로 읽어 그 명령에만 `GH_TOKEN`·`GITHUB_TOKEN`으로 넘긴다(`.envrc` 전체를 source하지 않고 값은 출력하지 않는다). 먼저 `gh api user --jq .login`이 roadkwonai인지 확인한다. 셸 기본 계정과 gh 로그인은 바꾸지 않는다.
