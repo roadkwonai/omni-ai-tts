@@ -35,6 +35,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
 			toastOptions={{
 				classNames: {
 					toast: "cn-toast",
+					// 어두운 단추 위에서 sonner 기본 링(rgba 검정 box-shadow)이 안 보인다: 토큰 링 2px + 간격.
+					// sonner CSS가 선택자 [data-sonner-toast][data-styled=true] [data-button]{outline:0}(index.mjs 457행, styles.css 185행, 우선순위 0,3,0)와
+					// :focus-visible{box-shadow}(styles.css 205행)로 더 세서 클래스만으로는 덮이지 않아 중요도(!)를 붙인다
+					actionButton:
+						"focus-visible:shadow-none! focus-visible:outline-2! focus-visible:outline-ring! focus-visible:outline-solid! focus-visible:outline-offset-2!",
 				},
 			}}
 			{...props}

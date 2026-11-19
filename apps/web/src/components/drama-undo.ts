@@ -4,6 +4,7 @@ import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
 import { DRAMA_TEXT } from "@/lib/drama-view";
+import { hasOpenModal } from "@/lib/toast-position";
 
 // 실행 취소 알림의 지속 시간(audit P2-1). 다른 알림은 sonner 기본값이다
 const UNDO_TOAST_MS = 10_000;
@@ -23,7 +24,8 @@ function undoSlot() {
 					onClick: () => {
 						id = null;
 						flushSync(undo);
-						after?.();
+						// 모달이 열려 있으면 대사 칸은 창 뒤라 포커스를 옮기지 않는다(providers.tsx가 모달 안으로 되돌린다, MG-10)
+						if (!hasOpenModal(document)) after?.();
 					},
 				},
 			});

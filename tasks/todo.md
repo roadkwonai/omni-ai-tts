@@ -382,7 +382,7 @@ critique 27/40, audit 18/20(접근성 3/4) 결과 가운데 브리프·스펙을
 - [ ] T15b-15 데모 QA 관찰: 채널·카테고리 삭제 확인의 연결 수가 성우만 센다(대본·프리셋 미표시), voiceList가 끊기면 /casting 전체가 오류 경계로 바뀐다, ego-browser에서만 /drama 768 다크 ResizeObserver loop 콘솔 오류(5회 중 2회), 데모 결과 행을 지울 화면이 없음(매일 초기화로 정리). 스펙 9절 '저장 10,000자'는 문단당 상한이다.
 
 ### 백로그·UI/UX 병합 검수 (병합 라운드에서 미룬 것, 2026-11-20)
-- [ ] MG-10 (MG-09 라운드 critique P2·P3) 모달이 열린 채 알림의 '되돌리기'를 키보드로 누르면 알림이 닫히며 포커스가 시트 밖 배경(문단 textarea)으로 간다. 모달이 열려 있으면 포커스를 시트 안(제목·닫기)으로 돌릴지 정한다. 휴대폰에서 모달 위 알림이 상단 막대와 거의 맞닿는 것도 함께 본다.
+- [ ] MG-11 (MG-10 라운드 critique·리뷰) ① drama-read.tsx 509행(blockActionOf)·drama-provider.tsx 697행(focusStage)·drama-lines.tsx showPasted 알림 행동도 포커스를 옮긴다. 모달 중에는 providers.tsx 복귀가 덮지만 원천 조건을 같이 걸지 본다. ② Alt+T로 알림에 가는 단축이 화면 어디에도 안내되지 않는다(작업실 '단축키' 메뉴에 한 줄). ③ 모달을 닫으면 알림이 위→아래로 점프한다(이동 애니메이션 여부).
 - [ ] MG-02 (critique P2) 요약 링크 '안 만든 문단 1 보기'의 숫자가 개수처럼 읽힌다(실제는 첫 안 만든 문단 번호). '1번부터 안 만든 문단 보기'처럼 문구를 나눈다.
 - [ ] MG-03 (critique P2·P3) 채운 대본에서 카드마다 '만들기 무료' 버튼이 반복되고, 빈 상태에서도 막대의 받기·이어 듣기·전체 만들기 비활성 단추가 남는다. T15b-12·13·14와 함께 본다.
 - [ ] MG-04 (audit P3, web-design-guidelines) 랜딩 막대 로고는 라이트·다크 두 판 모두 eager·fetchPriority high로 받는다. 로고를 currentColor SVG 한 장으로 바꿀 때 없앤다(landing-logo.tsx shortcut 주석). 같은 때 landing.css:219 `border-radius: 1px`(DESIGN rounded 스케일 밖)도 본다.

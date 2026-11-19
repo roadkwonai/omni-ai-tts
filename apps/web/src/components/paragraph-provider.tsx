@@ -96,6 +96,7 @@ import {
 	savedOf,
 	unknownRefetch,
 } from "@/lib/studio-view";
+import { hasOpenModal } from "@/lib/toast-position";
 import { zipStore } from "@/lib/zip-store";
 import { client, orpc, QUIET } from "@/utils/orpc";
 
@@ -337,6 +338,8 @@ function ParagraphsProvider({
 					?.focus();
 				return;
 			}
+			// 다른 모달(시트·대화상자)이 열려 있어도 같다. 그 칸은 창 뒤라 포커스는 모달 복귀(providers.tsx)에 맡긴다(MG-10)
+			if (hasOpenModal(document)) return;
 			focusText(back.id);
 		}
 		// 되돌리기는 한 단계다. 새로 띄우면 앞 알림을 닫는다(drama-lines useOwnToast와 같다).

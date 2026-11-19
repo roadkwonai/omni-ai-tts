@@ -6,8 +6,12 @@ import { useEffect, useRef, useState } from "react";
 import { type ToastT, toast, useSonner } from "sonner";
 
 import {
+	hasOpenModal,
 	MODAL_OPEN_SELECTOR,
+	MODAL_TITLE_SELECTOR,
 	planToastHold,
+	shouldReturnFocusToModal,
+	TOASTER_SELECTOR,
 	toastPlacement,
 } from "@/lib/toast-position";
 import { getQueryClient } from "@/utils/orpc";
@@ -27,9 +31,54 @@ function retime(t: ToastT, duration: number) {
 // 같은 모달 신호로 행동 알림(action이 있는 것)만 시간을 멈춘다. 단순 안내까지 붙잡아 두면 쌓이기만 한다
 function AppToaster() {
 	const [modalOpen, setModalOpen] = useState(false);
+	// 같은 효과에서 모달 알림 뒤 포커스 복귀도 한다(MG-10). 알림에서 행동·닫힘으로 포커스가 나갈 때 sonner가 알림 진입 전 요소(모달 밖 배경)로 돌려놓거나,
+	// 알림이 DOM에서 사라져 포커스가 body로 떨어지면 열린 모달 안으로 되돌린다. 순서: 모달 안에서 마지막으로 포커스했던 요소(아직 연결돼 있으면), 없으면 가장 위 모달의 제목.
+	// 제목은 tabIndex가 없을 때만 -1을 주어 프로그램 포커스만 받게 한다(MG-07과 같다)
 	useEffect(() => {
-		const sync = () =>
-			setModalOpen(document.body.querySelector(MODAL_OPEN_SELECTOR) !== null);
+		let fromToaster = false;
+		let lastInModal: HTMLElement | null = null;
+		const restore = () => {
+			const popups =
+				document.body.querySelectorAll<HTMLElement>(MODAL_OPEN_SELECTOR);
+			const popup = popups[popups.length - 1];
+			const heading =
+				popup?.querySelector<HTMLElement>(MODAL_TITLE_SELECTOR) ?? popup;
+			const back =
+				lastInModal?.isConnected && popup?.contains(lastInModal)
+					? lastInModal
+					: heading;
+			if (back && !back.hasAttribute("tabindex") && back === heading)
+				back.setAttribute("tabindex", "-1");
+			fromToaster = false;
+			back?.focus({ preventScroll: true });
+		};
+		// 알림에서 온 포커스가 모달·알림 밖이거나(target이 null이면 body로 떨어진 것) 이미 그런 상태면 복귀한다
+		const check = (target: Element | null) =>
+			shouldReturnFocusToModal({
+				fromToaster,
+				modalOpen: hasOpenModal(document.body),
+				inModal: target?.closest(MODAL_OPEN_SELECTOR) != null,
+				inToaster: target?.closest(TOASTER_SELECTOR) != null,
+			});
+		const onFocusIn = (event: FocusEvent) => {
+			const target = event.target instanceof Element ? event.target : null;
+			if (check(target)) return restore();
+			if (target?.closest(TOASTER_SELECTOR)) fromToaster = true;
+			else {
+				fromToaster = false;
+				if (
+					target instanceof HTMLElement &&
+					target.closest(MODAL_OPEN_SELECTOR)
+				)
+					lastInModal = target;
+			}
+		};
+		const sync = () => {
+			setModalOpen(hasOpenModal(document.body));
+			// 알림이 사라져 focusin 없이 body로 떨어진 경우
+			const active = document.activeElement;
+			if (active === document.body && check(null)) restore();
+		};
 		const observer = new MutationObserver(sync);
 		observer.observe(document.body, {
 			childList: true,
@@ -37,8 +86,12 @@ function AppToaster() {
 			attributes: true,
 			attributeFilter: ["data-open"],
 		});
+		document.addEventListener("focusin", onFocusIn);
 		sync();
-		return () => observer.disconnect();
+		return () => {
+			observer.disconnect();
+			document.removeEventListener("focusin", onFocusIn);
+		};
 	}, []);
 
 	// 모달이 열린 동안 행동 알림의 시간을 멈추고, 닫히면 다시 흐르게 한다(MG-09).

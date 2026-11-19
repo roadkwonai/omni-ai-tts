@@ -990,11 +990,7 @@ export function SummarySheet() {
 				className="md:mx-auto md:max-w-xl"
 			>
 				<SheetHeader>
-					<SheetTitle
-						ref={titleRef}
-						tabIndex={-1}
-						className="rounded-md outline-offset-2 focus-visible:outline-2 focus-visible:outline-ring"
-					>
+					<SheetTitle ref={titleRef} tabIndex={-1} className="rounded-md">
 						{PARAGRAPH_TEXT.summary}
 					</SheetTitle>
 				</SheetHeader>

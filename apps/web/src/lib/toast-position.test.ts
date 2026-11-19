@@ -1,8 +1,11 @@
 import { expect, test } from "vitest";
 
 import {
+	hasOpenModal,
 	MODAL_OPEN_SELECTOR,
+	MODAL_TITLE_SELECTOR,
 	planToastHold,
+	shouldReturnFocusToModal,
 	TOAST_RESUME_MS,
 	toastPlacement,
 } from "./toast-position";
@@ -14,7 +17,44 @@ test("평소에는 아래(작업실 막대 위), 모달이 열리면 위 가운�
 	const open = toastPlacement(true);
 	expect(open.position).toBe("top-center");
 	expect(open.offset.top).toBe(24);
-	expect(open.mobileOffset.top).toBe(64);
+	// 휴대폰 상단 막대 59px + 8px 이상
+	expect(open.mobileOffset.top).toBe(72);
+	expect(open.mobileOffset.top).toBeGreaterThanOrEqual(59 + 8);
+});
+
+test("알림에 있던 포커스가 모달·알림 밖으로 가면 모달로 되돌린다", () => {
+	const base = {
+		fromToaster: true,
+		modalOpen: true,
+		inModal: false,
+		inToaster: false,
+	};
+	expect(shouldReturnFocusToModal(base)).toBe(true);
+	expect(shouldReturnFocusToModal({ ...base, inModal: true })).toBe(false);
+	expect(shouldReturnFocusToModal({ ...base, inToaster: true })).toBe(false);
+	expect(shouldReturnFocusToModal({ ...base, modalOpen: false })).toBe(false);
+	// 알림에서 온 포커스가 아니면(메뉴·툴팁 등) 건드리지 않는다
+	expect(shouldReturnFocusToModal({ ...base, fromToaster: false })).toBe(false);
+});
+
+test("hasOpenModal은 열린 모달 선택자로 찾고 있으면 true, 없으면 false다", () => {
+	const seen: string[] = [];
+	const root = (found: boolean) => ({
+		querySelector: (selector: string) => {
+			seen.push(selector);
+			return found ? {} : null;
+		},
+	});
+	expect(hasOpenModal(root(true) as unknown as ParentNode)).toBe(true);
+	expect(hasOpenModal(root(false) as unknown as ParentNode)).toBe(false);
+	expect(seen[0]).toBe(MODAL_OPEN_SELECTOR);
+});
+
+test("제목 선택자는 시트·대화상자·알림창 제목만 가리킨다", () => {
+	expect(MODAL_TITLE_SELECTOR).toContain('[data-slot="sheet-title"]');
+	expect(MODAL_TITLE_SELECTOR).toContain('[data-slot="dialog-title"]');
+	expect(MODAL_TITLE_SELECTOR).toContain('[data-slot="alert-dialog-title"]');
+	expect(MODAL_TITLE_SELECTOR).not.toMatch(/card|popover/);
 });
 
 test("열린 시트·대화상자·알림창만 센다(툴팁·팝오버·메뉴는 아니다)", () => {
