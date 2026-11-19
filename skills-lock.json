@@ -62,16 +62,17 @@
     },
     "ci-cd-and-automation": {
       "source": "addyosmani/agent-skills",
+      "commit": "8c99fa36d90068c82d547f7c12a9d67a3e95f4ee",
       "sourceType": "github",
       "skillPath": "skills/ci-cd-and-automation/SKILL.md",
-      "computedHash": "fbffe27b3bc3df30ba2895a71b87b2f032bb7b163de762bc8900f2673631c96d"
+      "computedHash": "7be96fc2a6cc3d8d769d5769b9024d41a4b40f502372b34bf4438b7056e5b2b9"
     },
     "code-review-and-quality": {
       "source": "addyosmani/agent-skills",
-      "commit": "39b723ceebf81474d0557c1fecd01eddab585563",
+      "commit": "8c99fa36d90068c82d547f7c12a9d67a3e95f4ee",
       "sourceType": "github",
       "skillPath": "skills/code-review-and-quality/SKILL.md",
-      "computedHash": "55dfc44b9cce8f74673005d566a1af57e9c95694f1c89b964a9d12b7ae76930c"
+      "computedHash": "a63e1874fa8f1ee04194868f9b8ba18133aa20464586369f3eedb8df6000a0cc"
     },
     "code-simplification": {
       "source": "addyosmani/agent-skills",
@@ -182,10 +183,10 @@
     },
     "impeccable": {
       "source": "pbakaus/impeccable",
-      "commit": "d41d9860b0094dcb68030657da63461212835aaa",
+      "commit": "b49177d32788f2dc585c42831d845dacf1ebed2c",
       "sourceType": "github",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "computedHash": "077889e9782761360c17acbc2522af320d0dd0f928b09cd90884fa304f443a34"
+      "computedHash": "08bd5bf141cb507f46bd8347890cd985865606f15adf88295ed3a73bc9ad5d96"
     },
     "improve-animations": {
       "source": "emilkowalski/skills",
@@ -215,10 +216,10 @@
     },
     "neon": {
       "source": "neondatabase/agent-skills",
-      "commit": "067f9fb2df21953b216867d60ec500ddaf3e5647",
+      "commit": "d3601d9e1f9398b96a1ee25047bafba5f04199eb",
       "sourceType": "github",
       "skillPath": "skills/neon/SKILL.md",
-      "computedHash": "18f5e4de54d88f84d2e36b5e4f1888211940abbd0ae794ff597556340787da77"
+      "computedHash": "8794b9b86d45f893b2b3e71f45d4b24d56daf07b2c5ba8258c65b67411a4c688"
     },
     "neon-postgres": {
       "source": "neondatabase/agent-skills",
@@ -361,10 +362,10 @@
     },
     "spec-driven-development": {
       "source": "addyosmani/agent-skills",
-      "commit": "39b723ceebf81474d0557c1fecd01eddab585563",
+      "commit": "8c99fa36d90068c82d547f7c12a9d67a3e95f4ee",
       "sourceType": "github",
       "skillPath": "skills/spec-driven-development/SKILL.md",
-      "computedHash": "504a76654a492c1ec1fa0e1c59387b8b2969fe2319191cd298c4e3482cf2582a"
+      "computedHash": "e560111a2823150a1be6d5a264cd3449dbdb9c67de011eea29204b4dee438e58"
     },
     "supabase-postgres-best-practices": {
       "source": "supabase/agent-skills",
@@ -387,10 +388,10 @@
     },
     "ui-sdk": {
       "source": "vercel-labs/ui",
-      "commit": "63df19ae09452fb185d54275404da044f0addda2",
+      "commit": "ab55044caee66cc8228fa7ed3525088a1b7b5af7",
       "sourceType": "github",
       "skillPath": "packages/core/skills/ui-sdk/SKILL.md",
-      "computedHash": "930036de569c0d07313af7a065194fd1fa5f167293a20c6a404cd0a740abf500"
+      "computedHash": "9a60caf01da3d47beedf627bf1505d922dccc93b04f294c6aa64edf01c46b3ba"
     },
     "use-design-md": {
       "source": "CaesiumY/ko-design-md",
@@ -400,9 +401,10 @@
     },
     "using-agent-skills": {
       "source": "addyosmani/agent-skills",
+      "commit": "8c99fa36d90068c82d547f7c12a9d67a3e95f4ee",
       "sourceType": "github",
       "skillPath": "skills/using-agent-skills/SKILL.md",
-      "computedHash": "64ee1ea9d458df9cd5cdbf40dd0961a0322d9be6b85e45f9de8abae65b4fe7b1"
+      "computedHash": "026ffd73c9e433c0a70d0a06f5530840c5a9aefd11e77be92a262ff26a0ca140"
     },
     "vercel-cli-with-tokens": {
       "source": "vercel-labs/agent-skills",
