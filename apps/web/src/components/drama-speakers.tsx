@@ -62,7 +62,8 @@ function SpeakerCard({
 			aria-label={DRAMA_TEXT.speakerName(index + 1)}
 			className={cn(
 				boxClass,
-				"flex h-13 min-w-0 items-center gap-0.5 pr-0.5 pl-3 max-md:w-full",
+				// 높이는 최소값이고 칸이 넘치면(좁은 폭·글자 200%) 두 줄로 쌓인다
+				"flex min-h-13 min-w-0 flex-wrap items-center gap-0.5 py-0.5 pr-0.5 pl-3 max-md:w-full",
 			)}
 		>
 			<SpeakerMark index={index} />
@@ -182,7 +183,7 @@ export function DramaSpeakers() {
 						</p>
 					) : (
 						<Button
-							variant="outline"
+							variant="neutral"
 							size="lg"
 							className="ml-auto"
 							onClick={add}

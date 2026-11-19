@@ -378,7 +378,7 @@ function PreviewBody({
 				<DialogClose
 					render={
 						<Button
-							variant="outline"
+							variant="neutral"
 							size="lg"
 							className="flex-1 md:flex-none"
 						/>
@@ -411,7 +411,7 @@ export function AutoTagButton() {
 	return (
 		<>
 			<Button
-				variant="outline"
+				variant="neutral"
 				size="lg"
 				focusableWhenDisabled
 				disabled={locked}

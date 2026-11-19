@@ -23,6 +23,7 @@ import { Skeleton } from "@tts-pilot-app/ui/components/skeleton";
 import { Spinner } from "@tts-pilot-app/ui/components/spinner";
 import { cn } from "@tts-pilot-app/ui/lib/utils";
 import {
+	ArrowRight,
 	BookmarkPlus,
 	Ellipsis,
 	Loader2,
@@ -53,6 +54,7 @@ import { client, orpc, QUIET } from "@/utils/orpc";
 import { boxClass } from "./class-group";
 import { ConfirmDialog } from "./confirm-dialog";
 import { DEMO_TEXT, useDemo } from "./demo";
+import { EmptyState } from "./empty-state";
 import { CREATE_ID, MyVoiceCreate, ProviderText } from "./my-voice-create";
 import { MyVoiceListen } from "./my-voice-listen";
 import { Notice, SignInNotice } from "./notice";
@@ -112,10 +114,23 @@ type Asking = { item: MyVoice; mode: "delete" | "dismiss" };
 export function MyVoices() {
 	if (useDemo())
 		return (
-			<Notice
+			<EmptyState
+				art="my-voice"
 				title={DEMO_TEXT.myVoicesTitle}
 				description={DEMO_TEXT.myVoicesDescription}
-			/>
+				className="max-w-3xl"
+			>
+				<Link
+					href="/casting"
+					className={cn(
+						buttonVariants({ variant: "neutral", size: "lg" }),
+						"h-auto min-h-11 max-w-full whitespace-normal py-2",
+					)}
+				>
+					{DEMO_TEXT.myVoicesAction}
+					<ArrowRight data-icon="inline-end" aria-hidden="true" />
+				</Link>
+			</EmptyState>
 		);
 	return (
 		<SamplePlayerProvider>
@@ -278,7 +293,16 @@ function MyVoicesList() {
 		);
 	else if (items.length === 0)
 		body = noProvider ? null : (
-			<Notice title={T.emptyTitle} description={T.emptyDescription} />
+			<EmptyState
+				art="my-voice"
+				title={T.emptyTitle}
+				description={T.emptyDescription}
+			>
+				<Button size="lg" variant="neutral" onClick={() => setCreating(true)}>
+					<Plus data-icon="inline-start" aria-hidden="true" />
+					{T.create}
+				</Button>
+			</EmptyState>
 		);
 	else
 		body = (
@@ -313,7 +337,7 @@ function MyVoicesList() {
 				<Notice title={T.noProviderTitle}>
 					<Link
 						href="/connections"
-						className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
+						className={cn(buttonVariants({ variant: "neutral", size: "lg" }))}
 					>
 						{T.viewConnections}
 					</Link>

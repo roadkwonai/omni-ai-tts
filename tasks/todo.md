@@ -368,6 +368,10 @@ critique 27/40, audit 18/20(접근성 3/4) 결과 가운데 브리프·스펙을
 - [ ] UX-02 랜딩 og-image(`public/brand/og-image.png`)는 2판 그림이다. 3판 헤드라인 "같은 문장을 다섯 성우에게 읽혀 보세요"와 어긋나면 새로 만든다. (R1 랜딩 3판)
 - [ ] UX-03 루트 `layout.tsx`의 Providers(TanStack Query·Toaster)가 공개 랜딩에도 실려 디코드 JS가 약 1MB다. production 빌드 분석으로 확인하고 랜딩·앱 Providers 분리를 검토한다. (진단 audit P2)
 - [ ] UX-05 320px 폭에서 루트 글자 200%로 키우면 히어로 문단 카드(`hero-card.tsx`) 안 문장·칩 줄이 카드 오른쪽 경계(288)를 넘어 334까지 나가 화면 끝에서 잘린다(바깥 overflow-x-clip이 가려 가로 스크롤은 없음). 2판부터 있던 카드 배치다. 카드 안 문장 줄바꿈(min-w-0, wrap-anywhere)과 칩 줄 flex-wrap을 확인한다. WCAG 1.4.4. (R1 11행 재확인)
+- [ ] UX-06 320px·글자 200%에서 `/drama` 대본 줄의 `.drama-line-take` 안 버튼이 오른쪽 368px까지 나가 부모 `overflow-clip`에 잘린다(가로 스크롤은 없음). 버튼 줄 줄바꿈 또는 아이콘화. (R2 후속 측정)
+- [ ] UX-07 `notice.tsx`의 `compact` 불리언이 다른 마크업(한 줄 띠)을 그리고 children을 버린다(소비자 연결 상태 데모 하나). 손댈 때 띠를 따로 두거나 `NoticeBand`로 분리. (R2 리뷰 low, ponytail Nice to have)
+- [ ] UX-08 `Button` 기본 크기(32px)와 제품 크기(44px) 불일치로 `size="lg"`가 156곳. 화면 단위로 나눠 기본 크기를 올린다(한 번에 바꾸면 높이·줄바꿈이 흔들림). (R2 브리프 8절에서 뺌)
+- [ ] UX-09 랜딩 투어 `/scripts` 스크린샷은 로컬 데모 DB의 QA 잔재 행을 촬영 때 DOM에서만 숨겼다. UX-01(데모 데이터 정리) 뒤 다시 찍으면 숨김 없이 같은 화면이 된다. (R2 재촬영)
 - [ ] UX-04 막대 로고는 라이트·다크 PNG 두 장이라 즉시 로드 시 숨은 판도 받는다(shortcut). 로고를 SVG 한 장(currentColor)으로 바꾸면 없앤다. `landing.css:212` 메뉴 아이콘 1px 반경(detector advisory)은 백로그 세션 파일이라 그쪽에서 정리한다. (R1 랜딩 3판)
 
 ### 이번 문서 작업에서 확인한 기존 품질 항목

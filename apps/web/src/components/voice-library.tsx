@@ -25,6 +25,7 @@ import { voiceKey } from "@/lib/voice-view";
 import { client, OWNED_LIST } from "@/utils/orpc";
 
 import { CastingWorkspace } from "./casting-workspace";
+import { EmptyState } from "./empty-state";
 import { LibraryFilters as FiltersBar } from "./library-filters";
 import { Notice, SignInNotice } from "./notice";
 import { usePresetList } from "./presets";
@@ -236,18 +237,21 @@ function Library() {
 							</span>
 						</div>
 					) : items.length === 0 ? (
-						<Notice title={LIBRARY_TEXT.empty}>
-							{/* cn 없이 쓰면 기본 border-transparent가 outline 테두리를 지운다(critique P2) */}
+						<EmptyState
+							art="list"
+							title={LIBRARY_TEXT.empty}
+							description={LIBRARY_TEXT.emptyDetail}
+						>
 							<Link
 								href="/casting"
 								className={cn(
-									buttonVariants({ variant: "outline", size: "lg" }),
+									buttonVariants({ variant: "neutral", size: "lg" }),
 								)}
 							>
 								{LIBRARY_TEXT.toCasting}
 								<ArrowRight data-icon="inline-end" aria-hidden="true" />
 							</Link>
-						</Notice>
+						</EmptyState>
 					) : shown.length > 0 ? (
 						<RowList
 							ref={listRef}
@@ -273,7 +277,7 @@ function Library() {
 							<Link
 								href="/casting"
 								className={cn(
-									buttonVariants({ variant: "outline", size: "lg" }),
+									buttonVariants({ variant: "neutral", size: "lg" }),
 								)}
 							>
 								{PRESET_TEXT.toCasting}

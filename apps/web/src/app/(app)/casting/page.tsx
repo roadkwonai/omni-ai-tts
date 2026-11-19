@@ -23,7 +23,10 @@ export default function CastingPage() {
 				}
 			/>
 			<div className="px-4 pb-10 md:px-11">
-				<VoiceCasting />
+				{/* 탐색 화면은 목록+상세 1152px(R2 브리프 2절 3) */}
+				<div className="max-w-6xl">
+					<VoiceCasting />
+				</div>
 			</div>
 		</>
 	);

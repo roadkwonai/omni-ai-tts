@@ -570,7 +570,10 @@ export function WorkSettings({
 				<h2 className={SUBHEAD}>{PARAGRAPH_TEXT.script}</h2>
 				{/* 좁으면 '자동 태그'가 다음 줄로 감기고, 잠긴 이유는 맨 아래 한 줄이다(order-last basis-full) */}
 				<div className="flex flex-wrap items-center gap-2">
-					<ParagraphPasteDialog filled={fill === "paste"} />
+					{/* 빈 상태 카드의 주 행동과 같은 '대본 붙여 넣기'라 그동안 접는다 */}
+					<span className="contents group-data-empty/studio:hidden">
+						<ParagraphPasteDialog filled={fill === "paste"} />
+					</span>
 					<AutoTagButton />
 					<NumberReviewButton />
 				</div>
@@ -626,7 +629,8 @@ export function WorkBand({
 	const gapId = useId();
 	return (
 		<div className="flex flex-col items-start gap-2 pb-4">
-			<div className="flex flex-wrap items-center gap-2">
+			{/* w-full: 폭이 정해져야 기본 성우 버튼의 max-w-full이 듣는다(글자 200%에서 넘치지 않게) */}
+			<div className="flex w-full flex-wrap items-center gap-2">
 				<DefaultVoicePicker host={host} filled={fill === "default_voice"} />
 				<Sheet>
 					<DialogTrigger render={<Button variant="ghost" size="lg" />}>
@@ -661,7 +665,10 @@ export function WorkBand({
 					<label htmlFor={gapId}>{PARAGRAPH_TEXT.gap}</label>
 					<GapField id={gapId} />
 				</span>
-				<ParagraphPasteDialog filled={fill === "paste"} />
+				{/* 빈 상태 카드의 주 행동과 같은 '대본 붙여 넣기'라 그동안 접는다(레일과 같다) */}
+				<span className="contents group-data-empty/studio:hidden">
+					<ParagraphPasteDialog filled={fill === "paste"} />
+				</span>
 				<AutoTagButton />
 				<NumberReviewButton />
 				{tail}
@@ -931,6 +938,10 @@ export function SummarySheet() {
 					summary.total,
 					summary.seconds,
 				);
+	// '12/40 · 약 31분'은 첫 공백에서 앞(12/40)과 뒤(· 약 31분)로 가른다. 없으면(—) 통째로 앞이다
+	const split = chip.indexOf(" ");
+	const chipFraction = split < 0 ? chip : chip.slice(0, split);
+	const chipRest = split < 0 ? "" : chip.slice(split);
 	return (
 		<Sheet
 			open={open}
@@ -945,11 +956,13 @@ export function SummarySheet() {
 						variant="neutral"
 						size="lg"
 						aria-label={`${PARAGRAPH_TEXT.summary} · ${chip}`}
-						className="tabular-nums"
+						className="tabular-nums max-md:px-3"
 					/>
 				}
 			>
-				{chip}
+				{/* 767px 이하는 막대가 한 줄이라 '12/40'만 보인다(예상 길이는 시트에 있고 접근 이름에는 전체가 있다) */}
+				{chipFraction}
+				{chipRest ? <span className="max-md:hidden">{chipRest}</span> : null}
 			</DialogTrigger>
 			<SheetContent finalFocus={() => !jumping.current} side="bottom">
 				<SheetHeader>

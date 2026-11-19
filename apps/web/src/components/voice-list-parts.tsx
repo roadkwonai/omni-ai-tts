@@ -260,7 +260,7 @@ export function StaleNotice({
 		>
 			<p className="flex-1">{text}</p>
 			<Button
-				variant="outline"
+				variant="neutral"
 				size="lg"
 				focusableWhenDisabled
 				disabled={reloading || cooldown !== null}

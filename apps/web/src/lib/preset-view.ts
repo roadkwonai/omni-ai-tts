@@ -10,7 +10,12 @@ import {
 
 import { PROVIDER_LABEL } from "./connection-view";
 import { LIBRARY_TEXT } from "./saved-voice-view";
-import { optionText, requestOf, settingsSummary } from "./trial-view";
+import {
+	optionText,
+	requestOf,
+	settingsParts,
+	settingsSummary,
+} from "./trial-view";
 
 // 프리셋 화면 문구와 계산(T8 스펙 4절). 화면 없이 테스트하는 순수 함수만 둔다.
 // 문구는 브리프(18행 docs/briefs/presets.md)가 정본이고 브리프가 이긴다. 이름 뒤에 조사를 붙이지 않는다(받침을 모른다).
@@ -229,6 +234,10 @@ export function castingLoadView(
 // /presets 줄과 저장 창의 요약(모델 + 처음 값과 다른 값, 설정 요약과 같은 표기)
 export const presetSummary = (preset: PresetValue) =>
 	settingsSummary(requestFor(preset.provider, preset.settings));
+
+// 같은 요약을 칩 하나씩 그리려고 조각으로 돌려준다(값에 ' · '가 들어가도 쪼개지지 않게 문자열을 다시 자르지 않는다)
+export const presetSummaryParts = (preset: PresetValue) =>
+	settingsParts(requestFor(preset.provider, preset.settings));
 
 export const providerVoiceLine = (preset: Pick<Preset, "provider" | "voice">) =>
 	`${PROVIDER_LABEL[preset.provider]} · ${preset.voice?.name ?? PRESET_TEXT.noVoice}`;

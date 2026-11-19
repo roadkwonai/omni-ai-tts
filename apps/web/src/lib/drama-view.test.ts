@@ -48,7 +48,6 @@ import {
 	feelOptions,
 	feelPatch,
 	feelText,
-	firstEmptySpeaker,
 	joinFileName,
 	lineFileName,
 	lineText,
@@ -700,20 +699,6 @@ describe("요청 만들기: 재번호와 열쇠", () => {
 			}),
 		);
 		expect(sceneText(request).referenceIds).toEqual(["f2", "f1"]);
-	});
-});
-
-describe("채운 성우 고르기", () => {
-	it("줄이 쓰는 화자 중 성우 없는 첫 화자만 가리킨다", () => {
-		const cards = [sp("A", "f1"), sp("B", null), sp("C", null)];
-		expect(firstEmptySpeaker(cards, [1, 0, 1])).toBe(2);
-		expect(firstEmptySpeaker(cards, [1, 1, 1])).toBe(1);
-		expect(
-			firstEmptySpeaker(
-				[sp("A", "f1"), sp("B", "f2"), sp("C", null)],
-				[1, 1, 0],
-			),
-		).toBeNull();
 	});
 });
 

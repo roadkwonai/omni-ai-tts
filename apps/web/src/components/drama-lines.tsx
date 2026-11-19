@@ -874,7 +874,7 @@ export function DramaLines() {
 					{/* 아래(브리프 17절 4): [줄 추가][Enter 안내] + 50줄 알림 */}
 					<div className="flex flex-wrap items-center gap-x-3 gap-y-2">
 						<Button
-							variant="outline"
+							variant="neutral"
 							size="lg"
 							focusableWhenDisabled
 							disabled={full}

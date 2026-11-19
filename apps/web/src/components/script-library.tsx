@@ -80,7 +80,8 @@ import { client, orpc, QUIET } from "@/utils/orpc";
 import { DialogButtons, isComposingEnter } from "./class-form-dialog";
 import { boxClass } from "./class-group";
 import { ConfirmDialog } from "./confirm-dialog";
-import { Notice, SignInNotice } from "./notice";
+import { EmptyState } from "./empty-state";
+import { SignInNotice } from "./notice";
 import { useClassLists } from "./saved-voices";
 import { ScriptFields } from "./script-save-dialog";
 import { type AxisView, menuItem, VoiceConditions } from "./voice-conditions";
@@ -293,7 +294,8 @@ export function ScriptLibrary() {
 					window.scrollTo({ top: 0 });
 				}}
 				aria-label="보기 구역"
-				className="self-start bg-muted p-1"
+				// 좁은 폭·글자 200%에서 칸이 줄을 바꿔 넘치지 않는다
+				className="max-w-full flex-wrap self-start bg-muted p-1"
 			>
 				<Toggle id={viewId("saved")} value="saved" className={viewItem}>
 					{SCRIPT_TEXT.savedSection}
@@ -469,12 +471,13 @@ function ScriptBody({
 					<p className="text-muted-foreground text-sm">
 						{SCRIPT_TEXT.noMatches}
 					</p>
-					<Button size="lg" variant="outline" onClick={onClear}>
+					<Button size="lg" variant="neutral" onClick={onClear}>
 						{SCRIPT_TEXT.clearAll}
 					</Button>
 				</div>
 			) : (
-				<Notice
+				<EmptyState
+					art="list"
 					title={
 						view === "saved" ? SCRIPT_TEXT.emptySaved : SCRIPT_TEXT.emptyRecent
 					}
@@ -486,12 +489,12 @@ function ScriptBody({
 				>
 					<Link
 						href="/studio"
-						className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
+						className={cn(buttonVariants({ variant: "neutral", size: "lg" }))}
 					>
 						{SCRIPT_TEXT.toStudio}
 						<ArrowRight data-icon="inline-end" aria-hidden="true" />
 					</Link>
-				</Notice>
+				</EmptyState>
 			);
 	else
 		body = (

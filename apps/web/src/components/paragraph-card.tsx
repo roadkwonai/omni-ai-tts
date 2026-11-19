@@ -1000,7 +1000,7 @@ export const ParagraphCard = memo(function ParagraphCard({
 						}
 					/>
 					{/* 오른쪽 묶음: 상태 → 주 동작 → '설정' → ⋯. 좁으면 다음 줄로 감긴다 */}
-					<div className="ml-auto flex items-center gap-1">
+					<div className="ml-auto flex flex-wrap items-center justify-end gap-1">
 						{/* 이어 듣기가 지금 이 문단을 들려준다. 바탕·링은 바꾸지 않고 알리지 않는다(문단이 바뀔 때마다 읽지 않게, 브리프 16.3) */}
 						{playing ? (
 							<span className={cn(STATE, "text-primary")}>

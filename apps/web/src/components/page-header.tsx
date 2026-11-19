@@ -6,6 +6,7 @@ export function PageHeader({
 	description,
 	actions,
 	flush,
+	actionsClassName,
 }: {
 	title: string;
 	description: ReactNode;
@@ -13,10 +14,13 @@ export function PageHeader({
 	actions?: ReactNode;
 	// 좌우 여백을 두지 않는다(문단 작업실: 머리가 여백을 가진 격자의 가운데 열 안에 있다, T10 브리프 5.1)
 	flush?: boolean;
+	// 조작 묶음의 보임 규칙(작업실이 빈 상태에서 휴대폰만 접는다)
+	actionsClassName?: string;
 }) {
 	return (
 		<header
-			className={cn("pt-6 pb-5 md:pt-11 md:pb-8", !flush && "px-4 md:px-11")}
+			// 머리 위는 지금 값, 머리와 본문 사이는 24px 하나(R2 브리프 2절 2)
+			className={cn("pt-6 pb-6 md:pt-11", !flush && "px-4 md:px-11")}
 		>
 			{/* tabIndex -1: 오류 경계가 제목으로 포커스를 옮길 수 있게(Tab 순서에는 없다). 제목 포커스는 보이지 않아도 된다 */}
 			<h1
@@ -25,11 +29,18 @@ export function PageHeader({
 			>
 				{title}
 			</h1>
-			<p className="mt-2 text-muted-foreground text-sm md:text-base">
+			<p className="mt-2 max-w-2xl text-muted-foreground text-sm md:text-base">
 				{description}
 			</p>
 			{actions ? (
-				<div className="mt-4 flex flex-wrap items-center gap-2">{actions}</div>
+				<div
+					className={cn(
+						"mt-4 flex flex-wrap items-center gap-2",
+						actionsClassName,
+					)}
+				>
+					{actions}
+				</div>
 			) : null}
 		</header>
 	);

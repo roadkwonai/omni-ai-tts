@@ -92,7 +92,7 @@ function DramaHead() {
 }
 
 // 머리 → 편집 열(최대 1024px, 왼쪽 정렬, 구역 사이 32px): 화자 → 대본(+ 도구줄) → 막대 → 무대 → 이전 테이크(브리프 5.1, 11절 19).
-// 막대는 화면 바닥에 고정되지만 DOM은 대본 바로 뒤라 Tab이 무대·이전 테이크를 지나지 않고 주 버튼에 닿는다(음성 작업실 DN-1과 같다).
+// 막대는 767px 이하에서 화면 바닥에 고정, 768px 이상에서는 sticky이고 DOM은 대본 바로 뒤라 Tab이 무대·이전 테이크를 지나지 않고 주 버튼에 닿는다(음성 작업실 DN-1과 같다).
 // 열 바닥 여백은 막대 높이 + 24px(studio-bar-space)
 function DramaBody() {
 	return (
@@ -102,7 +102,7 @@ function DramaBody() {
 				description={DRAMA_TEXT.description}
 				actions={<DramaHead />}
 			/>
-			<div className="studio-bar-space px-4 md:px-11">
+			<div className="max-md:studio-bar-space px-4 md:px-11 md:pb-10">
 				<div className="flex max-w-5xl flex-col gap-8">
 					<DramaSpeakers />
 					<DramaLines />

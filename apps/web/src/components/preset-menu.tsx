@@ -273,7 +273,7 @@ export function PresetMenu({
 					render={
 						<Button
 							ref={triggerRef}
-							variant="outline"
+							variant={trigger === "condition" ? "outline" : "neutral"}
 							size="lg"
 							className={
 								trigger === "condition" ? conditionButton(0) : undefined

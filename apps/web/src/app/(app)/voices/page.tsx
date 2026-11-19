@@ -17,13 +17,19 @@ export default function VoicesPage() {
 				description="담은 성우를 즐겨찾기·자주 사용·채널·분류로 다시 찾아요. 성우 캐스팅에서 별을 누르면 여기에 담겨요."
 			/>
 			<div className="px-4 pb-10 md:px-11">
-				<Suspense
-					fallback={
-						<Skeleton aria-hidden="true" className="h-96 w-full rounded-2xl" />
-					}
-				>
-					<VoiceLibrary />
-				</Suspense>
+				{/* 탐색 화면은 목록+상세 1152px(R2 브리프 2절 3) */}
+				<div className="max-w-6xl">
+					<Suspense
+						fallback={
+							<Skeleton
+								aria-hidden="true"
+								className="h-96 w-full rounded-2xl"
+							/>
+						}
+					>
+						<VoiceLibrary />
+					</Suspense>
+				</div>
 			</div>
 		</>
 	);

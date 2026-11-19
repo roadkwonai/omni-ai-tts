@@ -306,7 +306,7 @@ export function ProviderStatusCard({
 			<CardFooter className="mt-auto pt-0">
 				{/* 확인 중에도 포커스는 남기고(focusableWhenDisabled) 누르기만 막는다. 같은 공급자로 두 번째 호출이 나가지 않는다 */}
 				<Button
-					variant="outline"
+					variant="neutral"
 					size="lg"
 					className={cn("w-full", lockedButton(waiting))}
 					aria-label={`${name} ${checking ? "확인 중" : "다시 확인하기"}`}

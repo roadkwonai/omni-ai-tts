@@ -133,7 +133,7 @@ function TrialButton({
 			<TooltipTrigger
 				render={
 					<Button
-						variant={playing ? "default" : "outline"}
+						variant={playing ? "default" : "neutral"}
 						size="lg"
 						className={cn(
 							"relative z-10 @max-2xl:size-11 shrink-0 @max-2xl:px-0",

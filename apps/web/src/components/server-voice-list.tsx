@@ -395,7 +395,7 @@ export function ServerVoiceList({
 									) : null}
 									<div className="flex flex-wrap items-center justify-center gap-3">
 										<Button
-											variant="outline"
+											variant="neutral"
 											size="lg"
 											// 받는 중에도 포커스를 지킨다(계획 리뷰 E13)
 											focusableWhenDisabled

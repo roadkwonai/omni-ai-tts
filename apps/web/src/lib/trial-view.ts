@@ -403,7 +403,7 @@ export function optionText(
 }
 
 // 결과 줄·확인 창의 설정 요약: 모델 + 기본값에서 벗어난 옵션. Typecast 직접 감정은 늘 보인다(계획 '계획에서 정한 것')
-export function settingsSummary(request: TrialRequest): string {
+export function settingsParts(request: TrialRequest): string[] {
 	const used = usedSettings(request);
 	const defaults = DEFAULT_SETTINGS[request.provider] as Record<
 		string,
@@ -427,8 +427,11 @@ export function settingsSummary(request: TrialRequest): string {
 				: `${text.label} ${text.value}`,
 		);
 	}
-	return parts.join(" · ");
+	return parts;
 }
+
+export const settingsSummary = (request: TrialRequest): string =>
+	settingsParts(request).join(" · ");
 
 export const resultWhen = (createdAt: string, now: Date) => {
 	const ago = agoText(createdAt, now);

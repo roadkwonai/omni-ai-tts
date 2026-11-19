@@ -96,7 +96,7 @@ export function Sampling() {
 			<DialogTrigger
 				render={
 					<Button
-						variant="outline"
+						variant="neutral"
 						size="lg"
 						aria-label={DRAMA_TEXT.samplingLabel(settings)}
 					/>

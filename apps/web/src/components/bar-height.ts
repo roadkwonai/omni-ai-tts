@@ -3,6 +3,11 @@
 // paragraph-bar와 drama-bar가 둘 다 여기서 가져와 드라마 화면이 음성 작업실 모듈(paragraph-bar·paragraph-provider)을 끌어오지 않는다
 import { type RefObject, useEffect, useState } from "react";
 
+// 767px 이하 아이콘 전용 막대 버튼(글자는 sr-only, 이름은 툴팁·접근 이름): 44px 정사각형이다.
+// 아이콘에 data-icon을 달면 size lg의 has-data 안쪽 여백(pl-4·pr-4)이 px-0보다 앞서므로 같은 선택자로 덮어쓴다(768px 이상은 글자 + 아이콘 그대로)
+export const ICON_ONLY_PHONE =
+	"max-md:size-11 max-md:px-0 max-md:has-data-[icon=inline-end]:px-0 max-md:has-data-[icon=inline-start]:px-0";
+
 // 만드는 중 이 초가 지나면 한 줄 칸에 기다림 안내(음성 작업실 브리프 5.6, 드라마 브리프 5.8 waitNote, 디자인 리뷰 D12)
 export const WAIT_NOTE_AFTER = 20;
 

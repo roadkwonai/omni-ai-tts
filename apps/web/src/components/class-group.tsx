@@ -164,7 +164,7 @@ export function ClassGroup({
 				{sorted.map((item) => {
 					const voices = voiceCountText(item.voiceCount ?? 0);
 					return (
-						<li key={item.id} className="flex items-start gap-3 p-4">
+						<li key={item.id} className="flex min-h-14 items-start gap-3 p-4">
 							<div className="min-w-0 flex-1">
 								<p className="wrap-break-word font-bold">{item.name}</p>
 								{item.memo ? (
@@ -261,7 +261,8 @@ export function ClassGroup({
 					<Button
 						ref={createRef}
 						size="lg"
-						variant="outline"
+						variant="neutral"
+						className="h-auto min-h-11 max-w-full whitespace-normal py-2"
 						onClick={(event) =>
 							open(event.currentTarget, () => setEditing("new"))
 						}

@@ -19,6 +19,7 @@ import {
 	presetRemoveNote,
 	presetSettingsOf,
 	presetSummary,
+	presetSummaryParts,
 	presetVoiceIds,
 	providerVoiceLine,
 	removeDefaultNote,
@@ -193,6 +194,12 @@ describe("프리셋 줄과 안내", () => {
 				settings: { ...DEFAULT_SETTINGS.typecast, pitch: -1 },
 			}),
 		).toBe("ssfm-v30 · 음높이 -1반음");
+		const value = {
+			provider: "typecast",
+			settings: { ...DEFAULT_SETTINGS.typecast, pitch: -1 },
+		} as const;
+		expect(presetSummaryParts(value)).toEqual(["ssfm-v30", "음높이 -1반음"]);
+		expect(presetSummaryParts(value).join(" · ")).toBe(presetSummary(value));
 	});
 	it("공급자·성우 줄과 배지(성우 없음 → 이용 불가 → 바뀐 값)", () => {
 		expect(providerVoiceLine(preset({}))).toBe("Typecast · 민지");

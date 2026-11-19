@@ -86,7 +86,7 @@ function pickedOf(options: Option[], selected: string[], countUnknown = false) {
 // 하나는 라디오 목록(맨 위 '조건 없음', 고르면 닫힘: RadioItem은 closeOnClick을 켠다).
 // 잠김은 Trigger에 건다(Base UI Menu.Trigger가 disabled를 받아 렌더한 Button에 넘긴다).
 // 고를 값이 없고 사유(hint)가 있으면 열어서 사유 한 줄만 본다('전체' 항목도 없다).
-function ChoiceMenu({
+export function ChoiceMenu({
 	axis,
 	disabled,
 }: {
@@ -305,14 +305,18 @@ export function RadioMenu<T extends string>({
 						variant="outline"
 						size="lg"
 						aria-label={`${label}, ${shown} 선택됨`}
-						className={cn(conditionButton(0), className)}
+						className={cn("max-w-full", conditionButton(0), className)}
 					/>
 				}
 			>
 				<span className="flex min-w-0 items-center">
 					{label}
 					<span className="whitespace-pre">{separator}</span>
-					<span className={cn("max-w-40 truncate", strong && "font-bold")}>
+					{/* 잘리면 마우스를 올려 전체 이름을 본다 */}
+					<span
+						title={shown}
+						className={cn("max-w-40 truncate", strong && "font-bold")}
+					>
 						{shown}
 					</span>
 				</span>

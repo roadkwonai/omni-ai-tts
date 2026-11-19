@@ -137,7 +137,7 @@ export function Problem({
 				// cn 없이 쓰면 기본 border-transparent가 outline 테두리를 지운다(critique P2)
 				<Link
 					href="/connections"
-					className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
+					className={cn(buttonVariants({ variant: "neutral", size: "lg" }))}
 				>
 					연결 상태 보기
 				</Link>
@@ -150,7 +150,7 @@ export function Problem({
 				/>
 			) : null}
 			{onClear ? (
-				<Button variant="outline" size="lg" onClick={onClear}>
+				<Button variant="neutral" size="lg" onClick={onClear}>
 					조건 모두 해제
 				</Button>
 			) : null}
@@ -225,7 +225,7 @@ export function NoMatches({ onClear }: { onClear: () => void }) {
 			title="조건에 맞는 성우가 없어요"
 			description="조건을 줄이거나 검색어를 바꿔 보세요."
 		>
-			<Button size="lg" variant="outline" onClick={onClear}>
+			<Button size="lg" variant="neutral" onClick={onClear}>
 				조건 모두 해제
 			</Button>
 		</Notice>

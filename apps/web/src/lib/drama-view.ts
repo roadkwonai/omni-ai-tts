@@ -1021,16 +1021,6 @@ const LINE_CHECKS: Check<LineRow>[] = [
 		(row) => (row.text.includes("<|") ? "text" : "direction"),
 	],
 ];
-// 채운 '성우 고르기'를 붙일 화자: 줄이 쓰는 화자(줄 수 > 0) 중 성우 없는 첫 화자. 막는 이유(dramaBlock)가 가리키는 화자와 같다
-export const firstEmptySpeaker = (
-	speakers: readonly DraftSpeaker[],
-	lineCounts: readonly number[],
-): number | null => {
-	const at = speakers.findIndex(
-		(speaker, i) => speaker.voiceId === null && (lineCounts[i] ?? 0) > 0,
-	);
-	return at < 0 ? null : at;
-};
 // '장면 만들기'를 막는 이유(브리프 8절, 이 순서. 섞인 화자가 그 앞, 14절). 없으면 null. 글자는 서버와 같게 정리 뒤 코드 포인트로 세고,
 // 원문이 계약의 원문 상한을 넘어도 막는다(서버 BAD_REQUEST가 '다시 해 주세요'로 보이지 않게).
 // 다른 생성 진행 중·대기 시각은 서버 거절 뒤 오류 줄이다('스펙과 다른 점' 5)

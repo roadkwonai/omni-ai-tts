@@ -46,7 +46,7 @@ export function TakesFailed({ headingId }: { headingId: string }) {
 				{DRAMA_TEXT.takesFailed}
 			</p>
 			<Button
-				variant="outline"
+				variant="neutral"
 				size="lg"
 				focusableWhenDisabled
 				disabled={fetching}
@@ -148,7 +148,7 @@ function TakeRow({
 			<div className="flex shrink-0 items-center gap-1 self-end sm:-my-2.5 sm:self-auto">
 				{unknown || onStage ? null : (
 					<Button
-						variant="outline"
+						variant="neutral"
 						size="lg"
 						aria-label={`${subject} ${DRAMA_TEXT.putOnStage}`}
 						onClick={() => {

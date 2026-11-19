@@ -146,7 +146,8 @@ export function sameName<T extends { name: string }>(
 export const LIBRARY_TEXT = {
 	loading: "성우 보관함을 불러오고 있어요",
 	empty: "아직 담은 성우가 없어요",
-	toCasting: "성우 캐스팅에서 찾기",
+	emptyDetail: "성우 캐스팅에서 별을 누르면 여기에 담겨요.",
+	toCasting: "성우 캐스팅으로",
 	listFailed: "성우 보관함을 불러오지 못했어요",
 	classesFailed: "채널·분류 목록을 불러오지 못했어요",
 	checking: "이용 가능 여부를 확인하고 있어요",

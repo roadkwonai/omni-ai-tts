@@ -560,7 +560,7 @@ export function TakePlayer() {
 						/>
 						{DRAMA_TEXT.sceneFailed}
 					</p>
-					<Button variant="outline" size="lg" onClick={retry}>
+					<Button variant="neutral" size="lg" onClick={retry}>
 						{DRAMA_TEXT.retryReceive}
 					</Button>
 				</div>

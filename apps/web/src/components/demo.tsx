@@ -26,7 +26,8 @@ export const DEMO_TEXT = {
 	connectionsTitle: "공개 데모에서는 공급자를 부르지 않아요",
 	connectionsDescription:
 		"연결 상태는 본인용 작업실에서만 확인해요. 여기서는 만들기 결과로 데모 샘플이 나와요.",
-	myVoicesTitle: "공개 데모에서는 내 보이스를 만들거나 지울 수 없어요",
+	myVoicesTitle: "공개 데모에서는 내 보이스를 만들 수 없어요",
+	myVoicesAction: "성우 캐스팅 둘러보기",
 	myVoicesDescription:
 		"클론은 공급자 계정이 있어야 해서 데모에서는 막아 두었어요.",
 	listTitle: "공개 데모는 저장해 둔 목록만 보여요",
