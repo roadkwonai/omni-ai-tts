@@ -25,7 +25,7 @@ export const DEMO_TEXT = {
 	sample: "데모 샘플",
 	connectionsTitle: "공개 데모에서는 공급자를 부르지 않아요",
 	connectionsDescription:
-		"연결 상태는 본인용 작업실에서만 확인해요. 여기서는 만들기 결과로 데모 샘플이 나와요.",
+		"연결 상태는 본인용 작업실에서만 확인해요. 여기서는 만들기 결과로 데모 샘플이 나와요. 성우 기본 샘플과 참고 음성은 공급자가 공개한 파일을 브라우저가 공급자 서버에서 바로 받아요.",
 	myVoicesTitle: "공개 데모에서는 내 보이스를 만들거나 지울 수 없어요",
 	myVoicesDescription:
 		"클론은 공급자 계정이 있어야 해서 데모에서는 막아 두었어요.",
@@ -48,8 +48,8 @@ export const DEMO_TEXT = {
 	// sampleName은 '기본 샘플'(받침 없음, 로)과 '참고 음성'(받침 있음, 으로) 둘뿐이다
 	voiceNote: (sampleName: string) =>
 		sampleName === "참고 음성"
-			? "비슷한 목소리는 참고 음성으로 들어 보세요"
-			: "성우 본래 목소리는 기본 샘플로 들어 보세요",
+			? "비슷한 목소리는 참고 음성으로 들어 보세요. Google이 공개한 파일이에요."
+			: "성우 본래 목소리는 기본 샘플로 들어 보세요. 공급자가 공개한 파일이에요.",
 	listenName: (name: string) => `${name} 내 문장 듣기, 데모 샘플`,
 	regenerateName: (name: string) => `${name} 새로 만들기, 데모 샘플`,
 	autoTagParagraphName: "자동 태그 추천",
