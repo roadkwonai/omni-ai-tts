@@ -29,7 +29,12 @@ import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
 import { byName } from "@/lib/classes-view";
-import { EXAMPLE_SCRIPT, shouldFillExample } from "@/lib/demo-example";
+import {
+	EXAMPLE_SCRIPT,
+	exampleVoiceSetup,
+	shouldFillExample,
+	shouldSetExampleVoice,
+} from "@/lib/demo-example";
 import type { ParagraphStatus } from "@/lib/make-all";
 import {
 	batchSpeaker,
@@ -677,6 +682,30 @@ function ExampleFill() {
 		);
 		edit(() => parts.map(({ text }) => ({ id: crypto.randomUUID(), text })));
 	}, [demo, work.restored, paragraphs, edit]);
+	// 예시를 채웠으면 기본 성우도 정한다(태그를 읽는 Fish Audio '일반여성2'). 담은 성우 목록은 늦게 올 수 있어 따로 기다리고,
+	// 목록이 비었거나 실패하거나 그 성우가 없으면 성우 없이 둔다. 저장은 브라우저 저장소뿐이고, 평소 편집처럼 저장된 결과 찾기(무료 읽기)만 돈다
+	const voiced = useRef(false);
+	const { setDefaultVoice } = work;
+	useEffect(() => {
+		if (
+			voiced.current ||
+			!shouldSetExampleVoice({
+				filled: filled.current,
+				voicesLoad: work.voicesLoad,
+				hasDefaultVoice: work.work.defaultVoice !== null,
+			})
+		)
+			return;
+		voiced.current = true;
+		const setup = exampleVoiceSetup(work.voices);
+		if (setup) setDefaultVoice(setup);
+	}, [
+		work.voicesLoad,
+		work.voices,
+		work.work.defaultVoice,
+		setDefaultVoice,
+		paragraphs,
+	]);
 	return null;
 }
 

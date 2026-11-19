@@ -18,7 +18,7 @@ import { Section } from "./section";
 // 마지막 행동(브리프 3절 10번): 주 버튼 '데모 작업실 열기'(/studio?example=1) + 보조 '처음으로 돌아가 다시 듣기'(오디션 무대, 모두 이어 듣기 포커스). 로그인 링크는 없다
 export function FinalCta() {
 	return (
-		<Section labelledBy="cta-title" sectionClassName="bg-muted">
+		<Section labelledBy="cta-title">
 			<Reveal className="flex flex-col items-center gap-6 text-center">
 				<Image
 					src="/brand/mascot-cta.png"

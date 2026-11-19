@@ -1,8 +1,8 @@
-<p align="center"><a href="https://omni-ai-tts.vercel.app"><img src="docs/assets/brand/banner.png" alt="Omni AI TTS. 다섯 공급자 성우로 만드는 한국어 음성 작업실" width="840"></a></p>
+<p align="center"><a href="https://omni-ai-tts.vercel.app"><img src="docs/assets/brand/banner.png" alt="Omni AI TTS. 다섯 음성 서비스의 성우로 만드는 한국어 음성 작업실" width="840"></a></p>
 
 <h1 align="center">Omni AI TTS</h1>
 
-<p align="center"><strong>성우 찾기부터 음성 파일까지, 다섯 공급자를 한 작업실에서</strong></p>
+<p align="center"><strong>성우 찾기부터 음성 파일까지, 다섯 음성 서비스를 한 작업실에서</strong></p>
 
 <p align="center">
   <em>Typecast · ElevenLabs · Fish Audio · Airy · Gemini 성우를 미리 듣고 담아 두고,<br>
@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://omni-ai-tts.vercel.app"><strong>공개 데모 써 보기 →</strong></a> &nbsp;&middot;&nbsp; <a href="docs/adr/"><strong>설계 결정(ADR) 보기</strong></a><br>
-  <sub>로그인 없이 예시 데이터로 작업실을 써 볼 수 있습니다. 공급자를 부르지 않고 미리 만든 샘플로 들려 주며, 데이터는 매일 처음 상태로 돌아갑니다.</sub>
+  <sub>첫 화면에서 같은 문장을 다섯 성우로 비교해 듣고, 숫자 읽기를 직접 해 보고, '데모 작업실 열기'로 예시 대본이 열린 작업실에 들어갑니다.<br>로그인이 필요 없습니다. 음성 서비스를 부르지 않고 미리 만든 샘플로 들려 주며, 데이터는 매일 처음 상태로 돌아갑니다.</sub>
 </p>
 
 <p align="center">
@@ -26,7 +26,7 @@
 </p>
 
 <p align="center">
-  <strong>다섯 공급자 성우 캐스팅 &middot; 음성 작업실 &middot; 드라마 장면 &middot; 한국어 숫자 발음 검수 &middot; 대본 보관함 &middot; 내 목소리 클론 &middot; 프리셋 &middot; 로그인 없는 공개 데모</strong>
+  <strong>다섯 음성 서비스 성우 캐스팅 &middot; 음성 작업실 &middot; 드라마 장면 &middot; 한국어 숫자 발음 검수 &middot; 대본 보관함 &middot; 내 목소리 클론 &middot; 프리셋 &middot; 로그인 없는 공개 데모</strong>
 </p>
 
 <p align="center">
@@ -44,11 +44,11 @@
 
 ## 무엇을 하나요
 
-유튜브 내레이션, 오디오 드라마, 교육 영상처럼 한국어 음성을 자주 만드는 사람은 공급자마다 다른 사이트를 오갑니다. 성우 목록, 설정, 요금, 파일 형식이 모두 다르고, 대본의 숫자("1,523억 달러", "12.4%")를 어떻게 읽을지도 매번 손봐야 합니다. Omni AI TTS는 이 일을 한 작업실로 모았습니다.
+유튜브 내레이션, 오디오 드라마, 교육 영상처럼 한국어 음성을 자주 만드는 사람은 음성 서비스마다 다른 사이트를 오갑니다. 성우 목록, 설정, 요금, 파일 형식이 모두 다르고, 대본의 숫자("1,523억 달러", "12.4%")를 어떻게 읽을지도 매번 손봐야 합니다. Omni AI TTS는 이 일을 한 작업실로 모았습니다.
 
 <table>
   <tr>
-    <td width="33%" valign="top"><strong>다섯 공급자 성우를 한 목록에서</strong><br>Typecast·ElevenLabs·Fish Audio·Airy·Gemini 성우를 탭 하나로 오가며 공급자마다 주는 필터로 찾고, 기본 샘플과 내 문장으로 미리 듣습니다.</td>
+    <td width="33%" valign="top"><strong>다섯 음성 서비스 성우를 한 목록에서</strong><br>Typecast·ElevenLabs·Fish Audio·Airy·Gemini 성우를 탭 하나로 오가며 서비스마다 주는 필터로 찾고, 기본 샘플과 내 문장으로 미리 듣습니다.</td>
     <td width="33%" valign="top"><strong>문단마다 다른 성우</strong><br>대본을 문단 카드로 나눠 문단마다 성우·설정을 고르고, 이어 듣고, 한 파일(WAV)·문단별(zip)·자막(SRT)으로 받습니다.</td>
     <td width="33%" valign="top"><strong>한국어 숫자 발음 검수</strong><br>금액·날짜·시각·단위·전화번호를 항목별로 확인해 발음용 대본으로 만들고, 원문은 그대로 둡니다.</td>
   </tr>
@@ -60,9 +60,24 @@
 </table>
 
 > [!NOTE]
-> **유료 호출은 항상 먼저 묻습니다.** 생성·시험 생성·클론처럼 공급자 크레딧을 쓰는 호출은 예상 사용량을 보여 주는 확인 창을 거치고, 같은 조합의 결과는 다시 쓰며, 자동으로 다시 시도하지 않습니다. 공개 데모는 공급자 키가 없는 별도 배포라 유료 호출이 일어나지 않습니다.
+> **유료 호출은 항상 먼저 묻습니다.** 생성·시험 생성·클론처럼 음성 서비스 크레딧을 쓰는 호출은 예상 사용량을 보여 주는 확인 창을 거치고, 같은 조합의 결과는 다시 쓰며, 자동으로 다시 시도하지 않습니다. 공개 데모는 음성 서비스 키가 없는 별도 배포라 유료 호출이 일어나지 않습니다.
 
 ## 화면 둘러보기
+
+### 공개 데모 첫 화면
+
+설명보다 먼저 들려주고 만져 보게 하는 소개 페이지입니다([랜딩 브리프](docs/briefs/landing.md)).
+
+<p align="center">
+  <img src="docs/assets/screenshots/landing.png" alt="공개 데모 첫 화면: 왼쪽에 헤드라인과 '데모 작업실 열기', 오른쪽에 같은 문장을 읽은 다섯 성우의 파형 줄" width="840">
+</p>
+
+- **오디션 무대**: 같은 문장을 다섯 음성 서비스의 성우가 읽은 샘플을 파형 줄로 나란히 두고, 하나씩 또는 차례로 이어 듣습니다.
+- **숫자 놀이터**: 방문자가 숫자가 든 문장을 넣으면 작업실과 같은 숫자 읽기 엔진이 브라우저에서 바로 한글 읽기를 보여 줍니다(서버 호출 없음).
+- **같은 문단, 다른 연기와 드라마 장면**: 연기 태그만 바꾼 샘플 넷과, 두 사람의 대화를 한 번에 만든 장면을 자막 줄 강조와 함께 듣습니다.
+- **돈 걱정 없는 설계**: '만들기'를 누르면 확인 창이 먼저 뜨고, 이미 만든 문단은 저장된 결과를 다시 써서 호출도 크레딧도 들지 않는 과정을 직접 눌러 봅니다.
+
+### 작업실
 
 <p align="center">
   <img src="docs/assets/showcase/product-showcase.png" alt="노트북과 휴대폰에 띄운 음성 작업실과 마스코트" width="840">
@@ -84,7 +99,7 @@
     <th width="50%" align="center">드라마 작업실</th>
   </tr>
   <tr>
-    <td align="center"><img src="docs/assets/screenshots/casting.png" alt="다섯 공급자 성우를 탭과 필터로 찾는 성우 캐스팅 화면" width="410"></td>
+    <td align="center"><img src="docs/assets/screenshots/casting.png" alt="다섯 음성 서비스의 성우를 탭과 필터로 찾는 성우 캐스팅 화면" width="410"></td>
     <td align="center"><img src="docs/assets/screenshots/drama.png" alt="화자와 줄 단위 대본으로 장면을 만드는 드라마 작업실 화면" width="410"></td>
   </tr>
   <tr>
@@ -109,6 +124,8 @@
 <summary><b>휴대폰 화면(390px)</b></summary>
 <br>
 <p align="center">
+  <img src="docs/assets/screenshots/landing-mobile.png" alt="휴대폰 너비의 공개 데모 첫 화면" width="260">
+  &nbsp;&nbsp;
   <img src="docs/assets/screenshots/studio-mobile.png" alt="휴대폰 너비의 음성 작업실" width="260">
   &nbsp;&nbsp;
   <img src="docs/assets/screenshots/casting-mobile.png" alt="휴대폰 너비의 성우 캐스팅" width="260">
@@ -116,20 +133,20 @@
 </details>
 
 > [!TIP]
-> 스크린샷은 공개 데모에서 예시 데이터로 찍었습니다. 화면 위의 띠와 '공개 데모' 표시는 데모에서만 보입니다. 성우 목록은 공급자의 실제 공개 목록입니다.
+> 스크린샷은 공개 데모에서 예시 데이터로 찍었습니다(2026-11-20). 작업실 화면은 '데모 작업실 열기'로 들어와 예시 대본과 기본 성우가 채워진 모습입니다. 대본 보관함의 점검용 대본 몇 개는 촬영 때 화면에서만 가렸습니다. 화면 위의 띠와 '공개 데모' 표시는 데모에서만 보입니다. 성우 목록은 각 음성 서비스의 실제 공개 목록입니다.
 
 ## 작업 흐름
 
 ```mermaid
 flowchart LR
-  A[성우 캐스팅<br/>다섯 공급자 탐색·미리 듣기] --> B[성우 보관함·프리셋<br/>담고 분류하기]
+  A[성우 캐스팅<br/>다섯 음성 서비스 탐색·미리 듣기] --> B[성우 보관함·프리셋<br/>담고 분류하기]
   B --> C[음성 작업실·드라마<br/>대본 쓰기·불러오기]
   C --> D[숫자 발음 검수<br/>발음용 대본]
   D --> E[음성 만들기<br/>유료면 확인 창]
   E --> F[듣고 받기<br/>WAV · zip · SRT]
 ```
 
-1. **성우 고르기**: 성우 캐스팅에서 공급자별 필터로 찾고 기본 샘플이나 내 문장으로 들어 본 뒤 보관함에 담습니다.
+1. **성우 고르기**: 성우 캐스팅에서 음성 서비스별 필터로 찾고 기본 샘플이나 내 문장으로 들어 본 뒤 보관함에 담습니다.
 2. **대본과 검수**: 음성 작업실에 대본을 붙여 넣거나 대본 보관함에서 불러오고, 숫자 읽기를 항목별로 확인합니다.
 3. **만들고 받기**: 문단을 하나씩 또는 전체를 만들고, 이어 듣고, 한 파일·문단별·자막으로 받습니다.
 
@@ -144,7 +161,9 @@ flowchart LR
 | 인증 | Better Auth 1.7(이메일·비밀번호, 공개 가입 막음, 로그인 시도 제한 DB 저장) |
 | DB | PostgreSQL 18, Drizzle ORM, Neon(로컬은 컨테이너) |
 | 배포 | Vercel(Fluid compute), 본인용 작업실과 공개 데모를 같은 코드로 따로 배포 |
-| 품질 | TypeScript, Biome, Vitest(API·화면 자동 테스트 1,900여 개), Turborepo |
+| 품질 | TypeScript, Biome, Vitest(API·화면 자동 테스트 2,000여 개), Turborepo |
+
+코드와 설계 문서에서는 음성 서비스를 '공급자(provider)'라고 부릅니다([용어](GLOSSARY.md)).
 
 ```text
 apps/web            Next.js 앱(화면, /api/rpc·/api/auth 진입점, proxy)
@@ -235,5 +254,6 @@ pnpm vercel:deploy production --target demo
 
 <p align="center">
   <img src="docs/assets/brand/mascot.png" alt="헤드폰을 쓴 마이크 마스코트" width="120"><br>
-  <sub>Typecast, ElevenLabs, Fish Audio, Airy, Gemini는 각 회사의 상표입니다. 이 프로젝트는 각 공급자의 공식 API를 사용합니다.</sub>
+  <sub>Typecast, ElevenLabs, Fish Audio, Airy, Gemini는 각 회사의 상표입니다. 이 프로젝트는 각 음성 서비스의 공식 API를 사용합니다.<br>
+  이 프로젝트는 <a href="https://prokit.highvalue.kr/">ProKit</a>(<a href="https://github.com/roadkwon-ai/pro-kit">GitHub</a>)으로 만들었습니다.</sub>
 </p>

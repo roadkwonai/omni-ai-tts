@@ -11,7 +11,6 @@ vi.mock("@/lib/classes-view", () => import("../../lib/classes-view"));
 
 import {
 	ACTING,
-	BUILT,
 	COST,
 	DRAMA,
 	FLOW,
@@ -24,7 +23,6 @@ import { FAQ_ITEMS } from "../../lib/landing-faq";
 import { DEMO_TEXT, DemoBadge, DemoProvider } from "../demo";
 import { Notice } from "../notice";
 import { ActingSection } from "./acting-section";
-import { Built } from "./built";
 import { CostSection } from "./cost-section";
 import { DramaSection } from "./drama-section";
 import { Faq } from "./faq";
@@ -192,7 +190,7 @@ test("히어로 #listen: 헤드라인, '데모 작업실 열기'(/studio?example
 	expect(html).toContain("lg:grid-cols-[minmax(0,1fr)_minmax(0,32rem)]");
 });
 
-test("히어로 행동 위계: '데모 작업실 열기'가 주 행동(채운 primary)이고 '모두 이어 듣기'는 무대 안 보조(outline)다, 만든 방법 링크는 #built", () => {
+test("히어로 행동 위계: '데모 작업실 열기'가 주 행동(채운 primary)이고 '모두 이어 듣기'는 무대 안 보조(outline)다", () => {
 	const html = renderToStaticMarkup(createElement(Hero));
 	const demo =
 		html.match(/<a [^>]*href="\/studio\?example=1"[^>]*>/)?.[0] ?? "";
@@ -201,9 +199,8 @@ test("히어로 행동 위계: '데모 작업실 열기'가 주 행동(채운 pr
 		html.match(/<button [^>]*id="audition-play-all"[^>]*>/)?.[0] ?? "";
 	expect(all).toContain("border-primary");
 	expect(all).not.toContain("bg-primary ");
-	expect(html).toMatch(
-		/<a [^>]*href="#built"[^>]*>[^<]*혼자 8주 동안 만든 개인 프로젝트/,
-	);
+	// 만든 방법 섹션을 뺐으므로 #built 링크는 없다
+	expect(html).not.toContain("#built");
 });
 
 test("재생 중이 아니면 감독 마스코트에 음파 링이 없다(반복 애니메이션은 재생 중에만)", () => {
@@ -394,46 +391,8 @@ test("비용 재현: 문단 카드 둘과 '만들기', 처음엔 확인 창·배
 	expect(html).toContain("mascot-piggy");
 });
 
-test("숫자로 보는 제작 #built: 숫자 띠 넷과 아키텍처 도해(방문자·소유자 두 줄, 저장된 결과 재사용)", () => {
-	const html = renderToStaticMarkup(createElement(Built));
-	expect(html).toContain('id="built"');
-	expect(html).toContain(BUILT.title);
-	expect(count(html, /<dt /g)).toBe(4);
-	for (const stat of BUILT.stats) {
-		expect(html).toContain(stat.label);
-		expect(html).toContain(stat.value);
-	}
-	const { arch } = BUILT;
-	for (const text of [
-		arch.visitor,
-		arch.owner,
-		arch.demo,
-		arch.own,
-		arch.services,
-		arch.reuse,
-		arch.demoNotes.join(" · "),
-		arch.ownNotes.join(" · "),
-	])
-		expect(html).toContain(text);
-	// 도해는 글자 대신 설명 한 줄(figcaption)을 읽히고 화살표는 장식이다
-	expect(html).toContain(
-		`<figcaption class="sr-only">${arch.label}</figcaption>`,
-	);
-	expect(html).toContain("mascot-blueprint");
-	// 색은 토큰 클래스뿐이다(원시 hex·인라인 색 없음)
-	expect(html).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
-	// 이 섹션만 반전한 띠(라이트·다크 모두 페이지와 갈린다), 자동 테스트 수가 가장 크다
-	expect(html).toMatch(/<section [^>]*bg-foreground text-background/);
-	const tests = BUILT.stats.find((stat) => stat.id === "tests");
-	expect(html).toMatch(new RegExp(`text-6xl[^>]*>${tests?.value}`));
-	// 도해와 마스코트는 한 상자 안이다
-	expect(html).toMatch(
-		/lg:grid-cols-\[minmax\(0,1fr\)_13rem\][\s\S]*mascot-blueprint/,
-	);
-});
-
-test("숫자로 보는 제작 끝에 GitHub 저장소 외부 링크가 새 창 안내와 함께 있다", () => {
-	const html = renderToStaticMarkup(createElement(Built));
+test("바닥에 GitHub 저장소 외부 링크가 새 창 안내와 함께 있다(숫자로 보는 제작 섹션은 없다)", () => {
+	const html = renderToStaticMarkup(createElement(LandingFooter));
 	const link = html.match(/<a [^>]*>[\s\S]*?<\/a>/)?.[0] ?? "";
 	expect(link).toContain('href="https://github.com/roadkwonai/omni-ai-tts"');
 	expect(link).toContain('target="_blank"');
@@ -442,9 +401,7 @@ test("숫자로 보는 제작 끝에 GitHub 저장소 외부 링크가 새 창 �
 	expect(link).toContain("에서 코드 보기");
 	expect(link).toMatch(/<span class="sr-only">[^<]*새 창[^<]*<\/span>/);
 	expect(link).toMatch(/<svg [^>]*aria-hidden="true"/);
-	// 버튼 모양(반전: 띠 바탕색 버튼)이고 hover에서 바탕이 바뀐다
-	expect(link).toContain("bg-background");
-	expect(link).toContain("hover:bg-background/85");
+	expect(link).toContain("focus-visible:outline-ring");
 });
 
 test("안내 제목은 한글 단어가 쪼개지지 않게 break-keep이다", () => {

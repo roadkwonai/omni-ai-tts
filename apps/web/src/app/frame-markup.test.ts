@@ -34,10 +34,6 @@ vi.mock("next/navigation", async (original) => ({
 	},
 }));
 vi.mock(
-	"@/components/landing/built",
-	() => import("../components/landing/built"),
-);
-vi.mock(
 	"@/components/landing/acting-section",
 	() => import("../components/landing/acting-section"),
 );
@@ -125,8 +121,8 @@ test("공개 데모 `/`: 예시 소유자여도 소개 페이지를 그리고 �
 	expect(html.indexOf("</header>")).toBeLessThan(html.indexOf("<main"));
 	expect(html.indexOf("<footer")).toBeGreaterThan(html.indexOf("</main>"));
 	// 섹션 순서(브리프 3절): 앵커가 이 차례로 있고 막대 메뉴 앵커가 모두 실제 섹션 id다
-	const order = ["listen", "try", "drama", "cost", "built", "tour", "faq"].map(
-		(id) => html.indexOf(`id="${id}"`),
+	const order = ["listen", "try", "drama", "cost", "tour", "faq"].map((id) =>
+		html.indexOf(`id="${id}"`),
 	);
 	expect(order.every((at) => at > 0)).toBe(true);
 	expect([...order].sort((a, b) => a - b)).toEqual(order);

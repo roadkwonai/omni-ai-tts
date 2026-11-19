@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { ActingSection } from "@/components/landing/acting-section";
-import { Built } from "@/components/landing/built";
 import { CostSection } from "@/components/landing/cost-section";
 import { DramaSection } from "@/components/landing/drama-section";
 import { FaqSection } from "@/components/landing/faq-section";
@@ -53,7 +52,7 @@ export const metadata: Metadata = {
 };
 
 // 소개 페이지(공개 데모에만 있다, T15-a2). 본인용은 소유자 → /studio, 아니면 /login. 세션만 읽고 db·공급자를 부르지 않는다. 세션 때문에 동적 경로다.
-// 4판(브리프 3절): 막대 → 1 오디션 무대 → 2 숫자 놀이터 → 3 연기(1단계 자리) → 4 드라마(1단계 자리) → 5 작업 흐름 → 6 비용 재현 → 7 숫자로 보는 제작 → 투어 → FAQ → 마지막 행동 → 바닥.
+// 4판(브리프 3절): 막대 → 1 오디션 무대 → 2 숫자 놀이터 → 3 연기(1단계 자리) → 4 드라마(1단계 자리) → 5 작업 흐름 → 6 비용 재현 → 투어 → FAQ → 마지막 행동 → 바닥.
 // 막대(banner)·바닥(contentinfo)은 `<main id="landing-content">` 밖에 둔다. 앱 틀은 (app)/layout에만 있다.
 export default async function Home() {
 	const owner = await getOwnerSession();
@@ -76,7 +75,6 @@ export default async function Home() {
 				<DramaSection />
 				<FlowSection />
 				<CostSection />
-				<Built />
 				<TourSection />
 				<FaqSection />
 				<FinalCta />

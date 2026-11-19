@@ -380,6 +380,7 @@ critique 27/40, audit 18/20(접근성 3/4) 결과 가운데 브리프·스펙을
 - [ ] UX-15 랜딩 연기 칩·세그먼트 Toggle·놀이터 Textarea가 className으로 색·모양을 덮어쓴다. DESIGN.md의 세그먼트·칩 모양을 `packages/ui` Toggle/ToggleGroup cva variant로 옮긴다. 랜딩 눌림 시간은 `landing.css`의 `--landing-duration-press` 120ms(emil 권장 160ms와 차이)도 함께 본다. (랜딩 4판 web-design-guidelines low, 마감)
 - [ ] UX-16 랜딩 범위 밖 접근성: 투어 탭 패널(`tour.tsx`) Tab 정지점에 포커스 링 없음(WCAG 2.4.7), 푸터 ProKit 링크 20px 높이와 1px 50% 투명 포커스 링. (랜딩 4판 audit, 백로그 세션 파일)
 - [ ] UX-17 랜딩 드라마 줄 시작 재생(src 직후 currentTime)과 재생 훅 상태 전이를 Safari에서 확인한다. DOM 테스트 환경이 없어 재생 큐·blocked·failed 전이는 순수 함수만 테스트했다. (랜딩 4판 코드 리뷰 한계)
+- [ ] UX-18 랜딩 마지막 행동의 보조 버튼 '처음으로 돌아가 다시 듣기'가 주 행동 '데모 작업실 열기'와 같은 크기의 흰 버튼이라 시선이 나뉜다. 보조는 링크 모양으로 낮춘다(`final-cta.tsx`). (2026-11-20 critique P3)
 - [ ] UX-04 막대 로고는 라이트·다크 PNG 두 장이라 즉시 로드 시 숨은 판도 받는다(shortcut). 로고를 SVG 한 장(currentColor)으로 바꾸면 없앤다. `landing.css:212` 메뉴 아이콘 1px 반경(detector advisory)은 백로그 세션 파일이라 그쪽에서 정리한다. (R1 랜딩 3판)
 
 ### 이번 문서 작업에서 확인한 기존 품질 항목

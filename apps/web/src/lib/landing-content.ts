@@ -87,10 +87,6 @@ export const HERO_PLAY_ALL_STOP = "이어 듣기 멈춤";
 export const AUDIO_FAILED_TEXT = "재생할 수 없어요";
 // 브라우저가 소리 재생을 막았을 때(실패가 아니라 한 번 더 누르면 된다)
 export const AUDIO_BLOCKED_TEXT = "다시 눌러 주세요";
-// 히어로 부 링크(첫 화면의 '누가 만들었나' 단서, #built로 간다)
-export const HERO_BUILT_TEXT =
-	"혼자 8주 동안 만든 개인 프로젝트 · 만든 방법 보기";
-export const HERO_BUILT_HREF = "#built";
 // 출처 줄(무대 아래) 한 줄
 export const HERO_SOURCE_LEAD = "모든 목소리는 AI로 만든 음성입니다";
 // '데모 작업실 열기'는 예시 대본이 열린 작업실로 간다(브리프 7절). 막대는 다른 세션 파일이라 이 상수를 아직 쓰지 않는다
@@ -102,7 +98,6 @@ export const MASCOTS = {
 	director: { src: "/brand/mascot-director.png", width: 640, height: 640 },
 	magnifier: { src: "/brand/mascot-magnifier.png", width: 585, height: 640 },
 	piggy: { src: "/brand/mascot-piggy.png", width: 585, height: 640 },
-	blueprint: { src: "/brand/mascot-blueprint.png", width: 585, height: 640 },
 } as const;
 
 // 재생 시간 m:ss. 길이를 모르면 0:00이다(`--:--`은 비활성이나 고장처럼 보여 0:00으로 보인다)
@@ -116,7 +111,6 @@ export const NAV_ITEMS = [
 	{ href: "#listen", label: "들어 보기" },
 	{ href: "#try", label: "해 보기" },
 	{ href: "#drama", label: "드라마" },
-	{ href: "#built", label: "만든 방법" },
 	{ href: "#faq", label: "FAQ" },
 ] as const;
 
@@ -326,34 +320,6 @@ export const COST = {
 		"같은 문단은 다시 만들지 않아요",
 		"응답이 늦어도 끝까지 받아 저장해요",
 	],
-} as const;
-
-// 7 숫자로 보는 제작 `#built`: 숫자 띠와 아키텍처 도해(브리프 3절 7번). 값은 구현 때 실측한 것이다
-export const BUILT = {
-	title: "혼자 8주 동안 만든 것",
-	stats: [
-		{
-			id: "code",
-			value: "약 5.8만",
-			unit: "줄",
-			label: "앱 코드(테스트 제외)",
-		},
-		{ id: "tests", value: "2,000여", unit: "개", label: "자동 테스트" },
-		{ id: "adr", value: "15", unit: "개", label: "설계 결정 기록" },
-		{ id: "weeks", value: "약 8", unit: "주", label: "2026-09-25 ~ 11-19" },
-	],
-	arch: {
-		visitor: "방문자",
-		owner: "소유자",
-		demo: "공개 데모",
-		demoNotes: ["음성 서비스 키 없음", "예시 데이터", "매일 초기화"],
-		own: "본인용",
-		ownNotes: ["허용한 계정 하나만", "한국 밖 접속 차단"],
-		services: "다섯 음성 서비스",
-		reuse: "저장된 결과 재사용",
-		label:
-			"방문자는 공개 데모로 들어와요. 소유자는 본인용 작업실로 들어와 다섯 음성 서비스를 부르고, 만든 결과는 저장해 두었다가 다시 써요.",
-	},
 } as const;
 
 // 4 드라마 장면 `#drama`(브리프 3·4절): Fish Audio s2.1-pro-free 한 번 요청으로 만든 두 사람 장면(10.83초). 줄 시각(초)은 생성 때 받은 단어 시각으로 정한 상수다.

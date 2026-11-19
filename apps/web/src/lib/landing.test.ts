@@ -5,7 +5,6 @@ import { atPageEnd, landingRedirect, splitTagline } from "./landing";
 import * as content from "./landing-content";
 import {
 	ACTING,
-	BUILT,
 	CHECK_REASON_TEXT,
 	COST,
 	CTA_REPLAY_TEXT,
@@ -132,7 +131,7 @@ describe("FAQ JSON-LD", () => {
 });
 
 describe("랜딩 내용(브리프 4·6·9절)", () => {
-	it("4판 구성: 작업 흐름 4단, 비용 점 셋, 숫자 띠 넷, 칩 다섯, 연기 넷, 화자 둘·대사 넷, 투어 탭 6개", () => {
+	it("4판 구성: 작업 흐름 4단, 비용 점 셋, 칩 다섯, 연기 넷, 화자 둘·대사 넷, 투어 탭 6개", () => {
 		expect(FLOW.steps.map((s) => s.id)).toEqual([
 			"casting",
 			"library",
@@ -141,12 +140,6 @@ describe("랜딩 내용(브리프 4·6·9절)", () => {
 		]);
 		expect(COST.points).toHaveLength(3);
 		expect(COST.paragraphs).toHaveLength(2);
-		expect(BUILT.stats.map((s) => s.id)).toEqual([
-			"code",
-			"tests",
-			"adr",
-			"weeks",
-		]);
 		expect(TRY.chips).toHaveLength(5);
 		expect(ACTING.takes.map((t) => t.label)).toEqual([
 			"기본",
@@ -322,17 +315,8 @@ describe("랜딩 내용(브리프 4·6·9절)", () => {
 			"응답이 늦어도 끝까지 받아 저장해요",
 		]);
 		expect(DRAMA.source).toBe("Fish Audio에 한 번 요청해 만든 장면");
-		expect(BUILT.arch.demoNotes).toContain("음성 서비스 키 없음");
-		expect(BUILT.arch.ownNotes).toContain("허용한 계정 하나만");
 		expect(TRY.summary(3, 0)).toBe("숫자 3곳을 한글로 읽었어요");
 		expect(TRY.summary(2, 1)).toBe("숫자 2곳을 한글로 읽었어요, 확인 필요 1곳");
-		expect(BUILT.title).toBe("혼자 8주 동안 만든 것");
-		expect(BUILT.stats.map((s) => `${s.value}${s.unit}`)).toEqual([
-			"약 5.8만줄",
-			"2,000여개",
-			"15개",
-			"약 8주",
-		]);
 	});
 	it("확인 필요 이유 문구는 11가지 이유를 모두 말한다", () => {
 		expect(Object.keys(CHECK_REASON_TEXT)).toHaveLength(11);
@@ -351,12 +335,11 @@ describe("랜딩 내용(브리프 4·6·9절)", () => {
 		const values = TOUR_TABS.map((tab) => tab.value);
 		expect(new Set(values).size).toBe(values.length);
 	});
-	it("막대 메뉴: 들어 보기 · 해 보기 · 드라마 · 만든 방법 · FAQ(섹션 앵커)", () => {
+	it("막대 메뉴: 들어 보기 · 해 보기 · 드라마 · FAQ(섹션 앵커)", () => {
 		expect(NAV_ITEMS.map((i) => [i.label, i.href])).toEqual([
 			["들어 보기", "#listen"],
 			["해 보기", "#try"],
 			["드라마", "#drama"],
-			["만든 방법", "#built"],
 			["FAQ", "#faq"],
 		]);
 	});
@@ -421,7 +404,6 @@ describe("랜딩 내용(브리프 4·6·9절)", () => {
 			ACTING,
 			FLOW,
 			COST,
-			BUILT,
 			DRAMA,
 			TOUR_TABS,
 			FAQ_ITEMS,
@@ -430,7 +412,7 @@ describe("랜딩 내용(브리프 4·6·9절)", () => {
 			expect(all, word).not.toContain(word);
 		}
 	});
-	it("용어: '다섯 목소리'류와 '공급자'는 본문·FAQ·만든 방법 어디에도 없다('음성 서비스'로 쓴다)", () => {
+	it("용어: '다섯 목소리'류와 '공급자'는 본문·FAQ 어디에도 없다('음성 서비스'로 쓴다)", () => {
 		const body = JSON.stringify([
 			FAQ_ITEMS,
 			HERO_TITLE,
@@ -440,7 +422,6 @@ describe("랜딩 내용(브리프 4·6·9절)", () => {
 			ACTING,
 			FLOW,
 			COST,
-			BUILT,
 			DRAMA,
 			TOUR_TABS,
 			CTA_TITLE,
