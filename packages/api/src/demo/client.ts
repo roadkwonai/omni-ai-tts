@@ -9,6 +9,7 @@ import type { Providers } from "../providers/index";
 
 // 공개 데모(APP_MODE=demo, T15-a2)의 공급자 클라이언트. 공급자를 부르지 않는다(fetch 없음).
 // 생성은 미리 둔 데모 샘플 바이트, 연결 상태는 no_key, 목록·억양·모델은 공급자 오류(라우터가 캐시 적중이면 캐시를 쓴다).
+// 목록의 캐시 미스는 voiceList 라우터가 빈 페이지로 바꾼다(T15-12). 여기서 빈 페이지를 주면 캐시에 행이 쓰인다.
 // 클론·자동 태그·단건 조회 메서드는 두지 않는다: 기존 라우터가 no_key로 닫거나 건너뛴다.
 export type DemoSample = ProviderId | "drama";
 export type LoadSample = (name: DemoSample) => Promise<Uint8Array>;

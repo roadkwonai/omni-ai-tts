@@ -67,8 +67,8 @@ export const PARAGRAPH_TEXT = {
 	shortcuts: "단축키",
 	summary: "작업 요약",
 	estimate: "새로 만들 문단 예상 사용량",
-	// 레일 묶음(aside) 이름
-	railLabel: "작업 설정과 요약",
+	// 작업 설정 aside 이름(작업 요약 aside는 summary를 쓴다)
+	settingsLabel: "작업 설정",
 	// 건너뛰기 링크
 	toList: "문단 목록으로",
 	toBar: "만들기와 받기로",

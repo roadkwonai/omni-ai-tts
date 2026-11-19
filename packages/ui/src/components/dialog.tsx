@@ -1,6 +1,7 @@
 "use client";
 
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
+import { trapTab } from "@tts-pilot-app/ui/lib/focus-wrap";
 import { cn } from "@tts-pilot-app/ui/lib/utils";
 import type * as React from "react";
 
@@ -39,7 +40,12 @@ function DialogOverlay({
 	);
 }
 
-function DialogContent({ className, ...props }: DialogPrimitive.Popup.Props) {
+// 끝에서의 Tab은 포커스 가드(rAF로 옮긴다)에 닿기 전에 trapTab이 바로 감싼다(lib/focus-wrap)
+function DialogContent({
+	className,
+	onKeyDown,
+	...props
+}: DialogPrimitive.Popup.Props) {
 	return (
 		<DialogPortal>
 			<DialogOverlay />
@@ -49,6 +55,10 @@ function DialogContent({ className, ...props }: DialogPrimitive.Popup.Props) {
 					"data-open:fade-in-0 data-closed:fade-out-0 fixed inset-x-0 bottom-0 z-50 grid max-h-dvh gap-4 overflow-y-auto overscroll-contain rounded-t-2xl bg-popover p-4 text-popover-foreground outline-none ring-1 ring-border duration-100 data-closed:animate-out data-open:animate-in md:inset-x-4 md:top-1/2 md:bottom-auto md:mx-auto md:w-auto md:max-w-md md:-translate-y-1/2 md:rounded-2xl",
 					className,
 				)}
+				onKeyDown={(event) => {
+					onKeyDown?.(event);
+					trapTab(event);
+				}}
 				{...props}
 			/>
 		</DialogPortal>
