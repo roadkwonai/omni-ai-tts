@@ -28,10 +28,10 @@ export function AccessDenied({ email }: { email: string }) {
 			<h2 className="break-keep font-bold text-lg">접근 권한 없음</h2>
 			<p className="text-muted-foreground text-sm">
 				<b className="break-all font-bold text-foreground">{email}</b> 계정은 이
-				작업실을 쓸 수 없어요.
+				작업실을 쓸 수 없어요
 			</p>
 			<p className="text-muted-foreground text-sm">
-				작업실 주인 계정으로 다시 로그인해 주세요.
+				작업실 주인 계정으로 다시 로그인해 주세요
 			</p>
 			{failed ? (
 				<p role="alert" className="text-sm text-warning">

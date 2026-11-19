@@ -1,23 +1,25 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { Benefits } from "@/components/landing/benefits";
-import { Built } from "@/components/landing/built";
+import { ActingSection } from "@/components/landing/acting-section";
+import { CostSection } from "@/components/landing/cost-section";
+import { DramaSection } from "@/components/landing/drama-section";
 import { FaqSection } from "@/components/landing/faq-section";
 import { FinalCta } from "@/components/landing/final-cta";
+import { FlowSection } from "@/components/landing/flow-section";
 import { Hero } from "@/components/landing/hero";
 import { LandingBar } from "@/components/landing/landing-bar";
 import { LandingFooter } from "@/components/landing/landing-footer";
-import { Steps } from "@/components/landing/steps";
-import { Tagline } from "@/components/landing/tagline";
 import { TourSection } from "@/components/landing/tour-section";
+import { TrySection } from "@/components/landing/try-section";
 import { getOwnerSession } from "@/context";
 import { ENV } from "@/env.server";
 import { landingRedirect } from "@/lib/landing";
-import { HERO_SUBTITLE, TAGLINE_LINES } from "@/lib/landing-content";
+import { HERO_SUBTITLE } from "@/lib/landing-content";
 import { FAQ_ITEMS, faqJsonLd, jsonLdText } from "@/lib/landing-faq";
 
-const TITLE = "Omni AI TTS · 다섯 공급자 성우로 만드는 한국어 음성 작업실";
+const TITLE =
+	"Omni AI TTS · 같은 문장을 다섯 성우에게 읽혀 보는 한국어 음성 작업실";
 const OG_IMAGE = {
 	url: "/brand/og-image.png",
 	width: 1200,
@@ -25,7 +27,7 @@ const OG_IMAGE = {
 	alt: "Omni AI TTS 로고 옆에서 헤드폰을 쓴 마이크 마스코트가 대본을 들고 손을 흔드는 모습",
 };
 
-// 색인하는 공개 페이지(브리프 10절). 제목은 루트 template(" · Omni AI TTS")에 걸리지 않게 absolute로 둔다.
+// 색인하는 공개 페이지(브리프 11절). 제목은 루트 template(" · Omni AI TTS")에 걸리지 않게 absolute로 둔다.
 // 이미지 주소는 metadataBase(배포 주소)로 절대 주소가 된다.
 export const metadata: Metadata = {
 	metadataBase: new URL(ENV.BETTER_AUTH_URL),
@@ -50,6 +52,7 @@ export const metadata: Metadata = {
 };
 
 // 소개 페이지(공개 데모에만 있다, T15-a2). 본인용은 소유자 → /studio, 아니면 /login. 세션만 읽고 db·공급자를 부르지 않는다. 세션 때문에 동적 경로다.
+// 4판(브리프 3절): 막대 → 1 오디션 무대 → 2 숫자 놀이터 → 3 연기(1단계 자리) → 4 드라마(1단계 자리) → 5 작업 흐름 → 6 비용 재현 → 투어 → FAQ → 마지막 행동 → 바닥.
 // 막대(banner)·바닥(contentinfo)은 `<main id="landing-content">` 밖에 둔다. 앱 틀은 (app)/layout에만 있다.
 export default async function Home() {
 	const owner = await getOwnerSession();
@@ -67,16 +70,12 @@ export default async function Home() {
 			<LandingBar />
 			<main id="landing-content" tabIndex={-1} className="outline-none">
 				<Hero />
-				<Benefits />
-				<section
-					aria-label="한 줄 소개"
-					className="px-4 py-section md:px-8 md:py-section-lg"
-				>
-					<Tagline lines={TAGLINE_LINES} />
-				</section>
-				<Steps />
+				<TrySection />
+				<ActingSection />
+				<DramaSection />
+				<FlowSection />
+				<CostSection />
 				<TourSection />
-				<Built />
 				<FaqSection />
 				<FinalCta />
 			</main>

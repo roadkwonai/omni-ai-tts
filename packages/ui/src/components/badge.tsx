@@ -11,6 +11,8 @@ const badgeVariants = cva(
 			variant: {
 				// 옅은 청록 바탕 + 청록 글자(성우 카드 '재생 중')
 				primary: "bg-primary-subtle text-primary",
+				// 채운 청록 + 글자색(고른 조건 수처럼 청록 칸 안의 개수 표식)
+				solid: "bg-primary text-primary-foreground",
 				// 회색(키 없음)
 				secondary: "bg-muted text-muted-foreground",
 				// DESIGN.md "연한 틴트 + 진한 동색 글자": 불투명 틴트 바탕(`*-subtle`) 위 같은 색 글자

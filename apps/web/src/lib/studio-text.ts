@@ -58,7 +58,7 @@ const geminiPerMinute = (model: GeminiModel, now: number) =>
 
 export const PARAGRAPH_TEXT = {
 	description:
-		"대본을 문단으로 나눠 다섯 공급자 성우로 음성을 만들고, 한 파일·문단별 파일·자막으로 받아요.",
+		"대본을 문단으로 나눠 다섯 서비스의 성우로 음성을 만들고, 한 파일·문단별 파일·자막으로 받아요",
 	paragraphN: (no: number) => `문단 ${n(no)}`,
 	// 레일 소제목
 	defaultVoice: "기본 성우",
@@ -72,7 +72,7 @@ export const PARAGRAPH_TEXT = {
 	// 건너뛰기 링크
 	toList: "문단 목록으로",
 	toBar: "만들기와 받기로",
-	placeholder: "대본을 써 주세요. 긴 대본은 '대본 붙여 넣기'로 한 번에 넣어요",
+	placeholder: "대본을 써 주세요. 긴 대본은 ‘대본 붙여 넣기’로 한 번에 넣어요.",
 	// 주 버튼
 	makeAll: (count: number, free: boolean) =>
 		`전체 만들기 · ${n(count)}개${free ? " · 무료" : ""}`,
@@ -159,7 +159,7 @@ export const PARAGRAPH_TEXT = {
 		{ key: "Alt+Enter", note: "커서에서 문단을 나눠요(macOS Option+Enter)" },
 		{
 			key: "Backspace",
-			note: "맨 앞에서 앞 문단과 합쳐요. 두 문단의 성우와 설정이 같을 때만이에요",
+			note: "맨 앞에서 앞 문단과 합쳐요. 두 문단의 성우와 설정이 같을 때만이에요.",
 		},
 	],
 	// 작업 요약(브리프 5.6). 예상 길이는 1초 5자 추정
@@ -179,7 +179,8 @@ export const PARAGRAPH_TEXT = {
 	// 아래 usageNote가 추정이라 Gemini 금액 앞 '추정'은 뺀다
 	usageRow: (count: number, usage: Usage | null) =>
 		`${n(count)}개${usage ? ` · ${usageText(usage).replace(/^추정 /, "")}` : ""}`,
-	usageNote: "추정이에요. 실제 사용량은 공급자 기록에서 확인해 주세요.",
+	usageNote:
+		"추정이에요. 실제 사용량은 음성 서비스의 사용 기록에서 확인해 주세요.",
 	// 1단 막대 요약 칩, 머리 오른쪽 끝(3단·2단)
 	summaryChip: (made: number, total: number, seconds: number) =>
 		`${n(made)}/${n(total)} · ${aboutLength(seconds)}`,
@@ -187,7 +188,7 @@ export const PARAGRAPH_TEXT = {
 		`문단 ${n(paragraphs)} · ${n(chars)}자`,
 	// 막대(브리프 4·5.7). 한 줄 칸의 공급자별 금액, 결과 칸 안내와 플레이어 캡션
 	barLabel: "만들기와 받기",
-	waitNote: "공급자 응답을 기다리고 있어요. 다시 누르지 않아도 돼요",
+	waitNote: "음성 서비스 응답을 기다리고 있어요. 다시 누르지 않아도 돼요.",
 	freeLine: "Fish Audio 무료 모델이라 확인 없이 만들어요",
 	pasteHint: "대본을 붙여 넣으면 문단으로 나눠요",
 	allMadeHint: "모든 문단을 만들었어요",
@@ -209,13 +210,13 @@ export const PARAGRAPH_TEXT = {
 	// 화자 성우(speakers)는 화자 이름은 남고 성우만 비운다. 그 화자의 문단은 기본 성우를 따른다
 	voicesDropped: (defaultVoice: boolean, paragraphs: number, speakers = 0) => {
 		if (!defaultVoice && paragraphs === 0 && speakers > 0)
-			return `보관함에 없는 화자 성우 ${n(speakers)}개를 비웠어요. 그 화자의 문단은 기본 성우를 따라요`;
+			return `보관함에 없는 화자 성우 ${n(speakers)}개를 비웠어요. 그 화자의 문단은 기본 성우를 따라요.`;
 		const base = !defaultVoice
 			? `보관함에 없는 성우를 쓰던 문단 ${n(paragraphs)}개는 기본 성우를 따라요`
 			: `${paragraphs > 0 ? `기본 성우와 문단 ${n(paragraphs)}개의 성우가` : "기본 성우가"} 보관함에 없어 비웠어요. 기본 성우를 다시 골라 주세요`;
-		return speakers > 0
-			? `${base}. 화자 성우 ${n(speakers)}개도 보관함에 없어 비웠어요`
-			: base;
+		if (speakers > 0)
+			return `${base}. 화자 성우 ${n(speakers)}개도 보관함에 없어 비웠어요.`;
+		return defaultVoice ? `${base}.` : base;
 	},
 	// 확인 중·불러오기
 	finding: "저장된 결과를 확인하고 있어요",
@@ -236,23 +237,24 @@ export const PARAGRAPH_TEXT = {
 		`요청 한도에 걸렸어요 · ${retryTime(iso)} 이후에 이어서 만들 수 있어요`,
 	// 시작하지 않음
 	nothingNew: "새로 만들 문단이 없어요",
-	notStarted: "저장된 결과를 확인하지 못해 시작하지 않았어요. 다시 눌러 주세요",
+	notStarted:
+		"저장된 결과를 확인하지 못해 시작하지 않았어요. 다시 눌러 주세요.",
 	// 멈춤
 	stoppedAt: (no: number, reason: string) =>
 		`문단 ${n(no)}에서 멈췄어요 · ${reason}`,
 	stoppedLeft: (count: number) => `멈췄어요 · 남은 문단 ${n(count)}개`,
 	stopping: "지금 문단이 끝나면 멈춰요",
-	inProgress: "다른 생성이 진행 중이에요. 끝난 뒤 이어서 만들어 주세요",
+	inProgress: "다른 음성을 만드는 중이에요. 끝난 뒤 이어서 만들어 주세요.",
 	voiceRejected:
-		"이 성우는 보관함에 없거나 ‘현재 이용 불가’ 상태예요. 성우를 다시 골라 주세요",
+		"이 성우는 보관함에 없거나 ‘현재 이용 불가’ 상태예요. 성우를 다시 골라 주세요.",
 	editedSkipped: (count: number) =>
 		`만드는 동안 고친 문단 ${n(count)}개는 만들지 않았어요`,
 	// 미확인
 	// Gemini는 크레딧이 아니라 요금이고 사용량은 Google AI Studio에서 본다(T5 계획 리뷰 R6-2, 브리프 9절보다 우선)
 	unknownOutcome: (provider: ProviderId) =>
 		provider === "gemini"
-			? "처리 여부를 확인하지 못했어요. 요금이 들었을 수 있으니 Google AI Studio 사용량을 확인한 뒤 이어서 만들어 주세요"
-			: `처리 여부를 확인하지 못했어요. 크레딧이 쓰였을 수 있으니 ${PROVIDER_LABEL[provider]} 사용 기록을 확인한 뒤 이어서 만들어 주세요`,
+			? "처리 여부를 확인하지 못했어요. 요금이 들었을 수 있으니 Google AI Studio 사용량을 확인한 뒤 이어서 만들어 주세요."
+			: `처리 여부를 확인하지 못했어요. 크레딧이 쓰였을 수 있으니 ${PROVIDER_LABEL[provider]} 사용 기록을 확인한 뒤 이어서 만들어 주세요.`,
 	// 받기
 	receiveWav: "한 파일로 받기 (WAV)",
 	receiveZip: "문단마다 받기 (zip)",
@@ -273,7 +275,7 @@ export const PARAGRAPH_TEXT = {
 	joinFailed: "한 파일로 잇지 못했어요. 문단마다 받기는 쓸 수 있어요.",
 	// 조각 받기 실패(T9 receiveFailed의 '이전 결과'는 이 화면에 없다). 공급자마다 크레딧·요금이 달라 '비용'
 	receiveFailed:
-		"결과를 받지 못했어요. 잠시 뒤 다시 받아 주세요. 다시 받아도 비용은 들지 않아요",
+		"결과를 받지 못했어요. 잠시 뒤 다시 받아 주세요. 다시 받아도 비용은 들지 않아요.",
 	// 붙여 넣기
 	paste: "대본 붙여 넣기",
 	replaceAll: "전체 바꾸기",
@@ -336,12 +338,12 @@ export const PARAGRAPH_TEXT = {
 	batchGapTitle: (count: number) => `고른 문단 ${n(count)}개의 문단 뒤 쉼`,
 	apply: "적용",
 	// 되돌리기 알림(브리프 16.5, 뒤에 undo)
-	batchVoiceDone: (count: number) => `문단 ${n(count)}개의 성우를 바꿨어요.`,
+	batchVoiceDone: (count: number) => `문단 ${n(count)}개의 성우를 바꿨어요`,
 	batchFollowDone: (count: number) =>
-		`문단 ${n(count)}개가 성우를 따르게 했어요.`,
-	batchSpeakerDone: (count: number) => `문단 ${n(count)}개의 화자를 바꿨어요.`,
-	batchGapDone: (count: number) => `문단 ${n(count)}개의 쉼을 바꿨어요.`,
-	batchRemoveDone: (count: number) => `문단 ${n(count)}개를 지웠어요.`,
+		`문단 ${n(count)}개가 성우를 따르게 했어요`,
+	batchSpeakerDone: (count: number) => `문단 ${n(count)}개의 화자를 바꿨어요`,
+	batchGapDone: (count: number) => `문단 ${n(count)}개의 쉼을 바꿨어요`,
+	batchRemoveDone: (count: number) => `문단 ${n(count)}개를 지웠어요`,
 	// 이어 듣기 강조(브리프 16.3). '마지막 문단이에요'는 lastOne
 	prevParagraph: "이전 문단",
 	nextParagraph: "다음 문단",
@@ -349,7 +351,7 @@ export const PARAGRAPH_TEXT = {
 	// 카드에 화자 한 줄을 붙여 넣어 화자만 정했다
 	speakerSet: (name: string) => `화자를 정했어요 · ${name}`,
 	overLimit: (extra: number) =>
-		`${n(PARAGRAPHS_MAX)}개까지만 넣어요. 나머지 ${n(extra)}개는 넣지 않아요`,
+		`${n(PARAGRAPHS_MAX)}개까지만 넣어요. 나머지 ${n(extra)}개는 넣지 않아요.`,
 	insert: "넣기",
 	// 붙여 넣기 창(브리프 5.8)
 	pasteDescription: (max: number) =>
@@ -360,17 +362,17 @@ export const PARAGRAPH_TEXT = {
 	pasteEmpty: "대본을 붙여 넣어 주세요",
 	cancel: "취소",
 	inserted: (count: number, extra: number) =>
-		`문단 ${n(count)}개를 넣었어요${extra > 0 ? `. 나머지 ${n(extra)}개는 넣지 않았어요` : ""}`,
+		`문단 ${n(count)}개를 넣었어요${extra > 0 ? `. 나머지 ${n(extra)}개는 넣지 않았어요.` : ""}`,
 	// 되돌리기 알림
-	removed: "문단을 지웠어요.",
-	merged: "문단을 합쳤어요.",
-	split: "문단을 나눴어요.",
+	removed: "문단을 지웠어요",
+	merged: "문단을 합쳤어요",
+	split: "문단을 나눴어요",
 	// 카드에 붙여 넣어 나눔. 200개를 넘으면 나머지를 알린다(스펙 3절 상한)
 	// 200개라 나누지 못하고 첫 덩어리만 지금 문단에 넣었다
 	pasteFull: (extra: number) =>
 		`문단은 ${n(PARAGRAPHS_MAX)}개까지예요. ${n(extra)}개는 넣지 않았어요.`,
 	splitInto: (count: number, extra = 0) =>
-		`문단 ${n(count)}개로 나눴어요.${extra > 0 ? ` 나머지 ${n(extra)}개는 넣지 않았어요.` : ""}`,
+		`문단 ${n(count)}개로 나눴어요${extra > 0 ? `. 나머지 ${n(extra)}개는 넣지 않았어요.` : ""}`,
 	undo: "되돌리기",
 	// 합치기 메뉴 둘째 줄
 	mergeNote: "앞 문단의 성우와 설정을 써요",
@@ -396,17 +398,17 @@ export const PARAGRAPH_TEXT = {
 				: models
 						.map((model) => `${model} ${geminiPerMinute(model, now)}`)
 						.join(", ")
-		} · 1초에 ${GEMINI_CHARS_PER_SECOND}글자 가정)`,
+		} · 1초에 ${GEMINI_CHARS_PER_SECOND}글자로 계산)`,
 	// 모두 무료인데 미확인 문단이 있어 창이 뜬다('스펙과 다른 점' 22). 크레딧·비용 말 없이 사실만
 	confirmFree: (count: number) => `문단 ${n(count)}개를 만들까요?`,
 	unknownFree:
-		"처리 여부를 확인하지 못한 문단이 있어요. 다시 만들어도 무료예요",
+		"처리 여부를 확인하지 못한 문단이 있어요. 다시 만들어도 무료예요.",
 	// T5 TrialConfirm과 같은 판정(typecastOverdrawn)·문구
 	typecastOverdrawn:
-		"남은 플랜 크레딧이 없어요. 플랜에 따라 추가 청구될 수 있어요",
+		"남은 플랜 크레딧이 없어요. 플랜에 따라 추가 청구될 수 있어요.",
 	// T9 unknownRetry. Gemini가 들면 크레딧이 아니라 요금이라 '비용'(제목 두 갈래와 같다)
 	unknownRetry: (cost: boolean) =>
-		`같은 대본·성우·설정의 앞 요청은 처리 여부를 아직 몰라요. 다시 만들면 ${cost ? "비용이 한 번 더 들" : "크레딧이 한 번 더 쓰일"} 수 있어요`,
+		`같은 대본·성우·설정의 앞 요청은 처리 여부를 아직 몰라요. 다시 만들면 ${cost ? "비용이 한 번 더 들" : "크레딧이 한 번 더 쓰일"} 수 있어요.`,
 	makeCredit: "크레딧 쓰고 만들기",
 	makeCost: "비용 내고 만들기",
 	rateUnknown: "배율을 확인하지 못했어요",
@@ -416,14 +418,14 @@ export const PARAGRAPH_TEXT = {
 	started: (count: number) => `문단 ${n(count)}개를 만들기 시작했어요`,
 	stopped: "멈췄어요",
 	// 끝(알림)
-	done: (count: number) => `문단 ${n(count)}개를 만들었어요.`,
+	done: (count: number) => `문단 ${n(count)}개를 만들었어요`,
 	// 태그 도구줄과 자동 태그(브리프 15.3). 알약·메뉴 알약 글은 두 작업실 공용 TAG_TEXT(tag-view)이고,
 	// 자동 태그 실패 문구는 아래 PARAGRAPH_AUTO_TAG_TEXT를 tag-view autoTagProblemText에 넘긴다
 	tagToolbarName: (no: number) => `문단 ${n(no)} 태그`,
-	tagsEmotionNote: "이 성우는 대본 태그를 읽지 않아요. 감정은 설정에서 바꿔요",
-	tagsStyleNote: "이 성우는 대본 태그를 읽지 않아요. 말투는 설정에서 바꿔요",
+	tagsEmotionNote: "이 성우는 대본 태그를 읽지 않아요. 감정은 설정에서 바꿔요.",
+	tagsStyleNote: "이 성우는 대본 태그를 읽지 않아요. 말투는 설정에서 바꿔요.",
 	tagsModelNote:
-		"이 모델은 대본 태그를 읽지 않아요. 태그는 Eleven v3·v4에서 써요",
+		"이 모델은 대본 태그를 읽지 않아요. 태그는 Eleven v3·v4에서 써요.",
 	tagsToSettings: "설정에서 바꾸기",
 	// 도구줄 메뉴 머리(문단은 분위기도 대본 커서 자리에 [값]으로 넣는다)
 	tagSoundGroup: "소리 · 커서 위치에",
@@ -437,7 +439,7 @@ export const PARAGRAPH_TEXT = {
 	// 버튼이 잠긴 이유(429 대기 시각이 1순위, 확인 창 실패 줄의 대기 시각과 같은 문구)
 	autoTagRetryAt: (iso: string) =>
 		`${retryTime(iso)} 이후에 다시 추천받을 수 있어요`,
-	autoTagNone: "태그를 받는 성우의 문단이 없어요",
+	autoTagNone: "태그를 읽는 성우의 문단이 없어요",
 	autoTagBusy: "전체 만들기가 끝난 뒤 추천받을 수 있어요",
 	// 확인 창 본문 세 줄(횟수, 금액, 회색 안내). 한 번은 OpenAI(실패하면 Gemini) 텍스트 호출 1회(약 $0.01)다
 	autoTagTitle: "대본을 보내 태그를 추천받을까요?",
@@ -455,13 +457,14 @@ export const PARAGRAPH_TEXT = {
 		"gpt-6-luna",
 		")을 써요. 3번 실패하면 Gemini(",
 		"gemini-3.8-flash",
-		")로 보내요. Gemini 키가 무료 등급이면 Google이 대본을 학습에 쓸 수 있어요",
+		")로 보내요. Gemini 키가 무료 등급이면 Google이 대본을 학습에 쓸 수 있어요.",
 	],
 	autoTagGo: "추천받기",
 	// 창을 연 뒤 보낼 문단·횟수가 늘었을 때. 보내지 않고 새 수를 보인다(승인한 횟수보다 많이 보내지 않는다, security low 1)
-	autoTagRecount: "보낼 문단이 바뀌었어요. 바뀐 수를 확인하고 다시 눌러 주세요",
+	autoTagRecount:
+		"보낼 문단이 바뀌었어요. 바뀐 수를 확인하고 다시 눌러 주세요.",
 	autoTagProgress: (done: number, total: number) =>
-		`추천 받는 중 ${n(done)}/${n(total)}`,
+		`추천받는 중 ${n(done)}/${n(total)}`,
 	// '멈추기'를 누른 뒤 지금 호출이 끝날 때까지 그 단추 글
 	autoTagStopping: "멈추는 중",
 	// 미리 보기 창
@@ -472,9 +475,9 @@ export const PARAGRAPH_TEXT = {
 	autoTagStoppedAt: (no: number, reason: string) =>
 		`문단 ${n(no)}부터 멈췄어요 · ${reason}`,
 	autoTagNotSent: (no: number) => `문단 ${n(no)}부터는 보내지 않았어요`,
-	autoTagMadeNote: "만든 결과가 있어요. 바꾸면 다시 만들어야 해요",
+	autoTagMadeNote: "만든 결과가 있어요. 바꾸면 다시 만들어야 해요.",
 	autoTagUnknownNote:
-		"처리 여부를 확인하지 못한 문단이에요. 바꾸면 다시 만들어야 해요",
+		"처리 여부를 확인하지 못한 문단이에요. 바꾸면 다시 만들어야 해요.",
 	// 기본 성우인지 화자 성우인지 가리지 않는다(브리프 16.5)
 	autoTagOwnNote: (count: number) =>
 		`감정·말투를 바꾼 문단 ${n(count)}개는 이제 자기 성우와 설정을 써요`,
@@ -501,8 +504,8 @@ export const PARAGRAPH_TEXT = {
 // 미확인 한 줄이 다시 받는 창(6분)을 지났을 때(unknownNoteOf의 expired). 그 공급자 사용 기록을 가리킨다(E5)
 export const unknownExpiredOf = (provider: ProviderId) =>
 	provider === "gemini"
-		? "확인 시간이 지났어요. 요금 발생 여부는 Google AI Studio 사용량에서 확인해 주세요"
-		: `확인 시간이 지났어요. 크레딧 사용 여부는 ${PROVIDER_LABEL[provider]} 사용 기록에서 확인해 주세요`;
+		? "확인 시간이 지났어요. 요금 발생 여부는 Google AI Studio 사용량에서 확인해 주세요."
+		: `확인 시간이 지났어요. 크레딧 사용 여부는 ${PROVIDER_LABEL[provider]} 사용 기록에서 확인해 주세요.`;
 
 // 생성 실패 한 줄(E5, 브리프 9절). 카드·막대가 함께 쓴다. 이 화면 문구가 따로 있는 사유만 여기서, 나머지는 그 공급자의 T5 문구다
 export function makeProblemText(
@@ -528,7 +531,7 @@ export function makeProblemText(
 			return { text: PARAGRAPH_TEXT.voiceRejected, connections: false };
 		case "storage":
 			return {
-				text: "지금은 음성을 만들 수 없어요. 잠시 뒤 다시 해 주세요",
+				text: "지금은 음성을 만들 수 없어요. 잠시 뒤 다시 해 주세요.",
 				connections: false,
 			};
 		case "provider_input":
@@ -547,7 +550,7 @@ export function makeProblemText(
 			break;
 		case "unexpected":
 			return {
-				text: "음성을 만들지 못했어요. 잠시 뒤 다시 해 주세요",
+				text: "음성을 만들지 못했어요. 잠시 뒤 다시 해 주세요.",
 				connections: false,
 			};
 	}
@@ -557,10 +560,10 @@ export function makeProblemText(
 // 문단 자동 태그 실패 한 줄의 문구 표(tag-view autoTagProblemText, 브리프 15.3, critique P2). '추천'으로 통일하고 비용이 들었을 수 있으면 다시 하라고 하지 않는다.
 // 키·계정·한도 등은 T5 Gemini 문구, 그 문구가 공통 대체 문구면 failed다
 export const PARAGRAPH_AUTO_TAG_TEXT = {
-	reply: "추천 답을 읽지 못했어요. 비용이 들었을 수 있어요",
+	reply: "추천 답을 읽지 못했어요. 비용이 들었을 수 있어요.",
 	retryAt: PARAGRAPH_TEXT.autoTagRetryAt,
-	failed: "추천을 받지 못했어요. 잠시 뒤 다시 해 주세요",
-	unknown: "추천 답을 받지 못했어요. 비용이 들었을 수 있어요",
+	failed: "추천을 받지 못했어요. 잠시 뒤 다시 해 주세요.",
+	unknown: "추천 답을 받지 못했어요. 비용이 들었을 수 있어요.",
 } as const;
 
 // 막는 이유 한 줄(브리프 9절). 막대(short false)는 blockedAt으로 번호를 붙이고 길이는 지금 글자 수까지, 카드(short)는 길이를 짧게.
@@ -591,7 +594,7 @@ export function failShortOf(
 		case "in_progress":
 			return "다른 생성 진행 중";
 		case "provider_error":
-			return "공급자 오류";
+			return "음성 서비스 오류";
 		default:
 			return PARAGRAPH_TEXT.failed;
 	}
@@ -692,7 +695,7 @@ export const NUMBER_TEXT = {
 	title: "숫자 검수",
 	summary: (open: number, total: number) =>
 		`검수 안 함 ${n(open)} · 모두 ${n(total)}`,
-	note: "원문은 그대로 두고, 고른 읽기는 발음용 대본에만 넣어요.",
+	note: "원문은 그대로 두고, 고른 읽기는 발음용 대본에만 넣어요",
 	paragraph: (no: number) => `문단 ${n(no)}`,
 	kindLine: (no: number, kind: string) => `문단 ${n(no)} · ${kind}`,
 	needsCheck: "확인 필요",
@@ -702,8 +705,8 @@ export const NUMBER_TEXT = {
 	keepOf: (original: string) => `원문 유지 · ${original}`,
 	manual: "직접 입력",
 	manualInput: "직접 입력할 읽을 글",
-	autoTag: "AutoTag 참고",
-	autoTagLoading: "AutoTag 참고 후보를 불러오는 중…",
+	autoTag: "자동 태그 참고",
+	autoTagLoading: "자동 태그 참고 후보를 불러오는 중…",
 	// 현재 위치 "5 / 12"(창 머리 설명, 목록이 숨는 767px 이하에서도 보인다)
 	position: (at: number, total: number) => `${n(at)} / ${n(total)}`,
 	appliedMark: "적용함",
@@ -725,7 +728,7 @@ export const NUMBER_TEXT = {
 	// 알림
 	applied: (count: number) => `숫자 ${n(count)}개를 적용했어요`,
 	copied: "발음용 대본을 복사했어요",
-	copyFailed: "복사하지 못했어요. 브라우저 권한을 확인해 주세요",
+	copyFailed: "복사하지 못했어요. 브라우저 권한을 확인해 주세요.",
 	// 만들기 확인 창
 	// "숫자 N개를 검수하지 않았어요(나열). 검수하지 않은 숫자는 원문대로 보내요."(나열은 화면이 translate="no"로 끼운다)
 	unreviewedHead: (count: number) => `숫자 ${n(count)}개를 검수하지 않았어요`,

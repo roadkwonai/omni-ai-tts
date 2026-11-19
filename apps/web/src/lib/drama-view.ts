@@ -98,7 +98,7 @@ const freeUntil = (end: number) => `${lastDayOf(end)}까지`;
 export const DRAMA_TEXT = {
 	// 머리·화자·성우 창
 	title: "드라마 작업실",
-	description: "화자마다 성우를 붙이고 대본을 연기시켜요.",
+	description: "화자마다 성우를 붙여 대본을 연기하게 해요",
 	sceneName: "장면 이름",
 	// 자리 표시이자 장면 이름이 비었을 때의 이름(스펙 2절 기본값 '장면')
 	scenePlaceholder: "장면",
@@ -130,7 +130,7 @@ export const DRAMA_TEXT = {
 	removeTip: "빼기",
 	removeLocked: (lines: number) =>
 		`이 화자의 줄이 ${n(lines)}개 있어요. 줄을 지우거나 다른 화자로 바꾼 뒤에 뺄 수 있어요.`,
-	removeLast: "화자는 1명 이상이어야 해요.",
+	removeLast: "화자는 1명 이상이어야 해요",
 	addSpeaker: "화자 추가",
 	speakersFull: "화자는 4명까지예요",
 	voicesFailed: "담은 성우를 불러오지 못했어요",
@@ -138,17 +138,17 @@ export const DRAMA_TEXT = {
 	pickerTitle: (name: string) => `화자 ‘${name}’의 성우 고르기`,
 	// 탭·설명은 브리프 14절 문구 표가 앞선다(Part 2)
 	pickerDescription:
-		"담은 성우나 프리셋, 공급자 전체에서 골라요. 전체에서 고르면 성우 보관함에도 담겨요.",
+		"담은 성우나 프리셋, 음성 서비스 전체에서 골라요. 전체에서 고르면 성우 보관함에도 담겨요.",
 	source: "성우 출처",
 	savedTab: "담은 성우",
 	presetTab: "프리셋",
 	allTab: "전체",
 	// '전체' 탭 공급자 메뉴의 이름표
-	providerPick: "공급자",
+	providerPick: "서비스",
 	toAll: "전체에서 고르기",
 	toCasting: "성우 캐스팅에서 담기",
 	usedBy: (name: string) => `${name}도 쓰는 중`,
-	savedToLibrary: "성우 보관함에도 담았어요.",
+	savedToLibrary: "성우 보관함에도 담았어요",
 	voiceUnusable: "이 성우는 지금 쓸 수 없어요. 다른 성우를 골라 주세요.",
 	close: "닫기",
 
@@ -169,7 +169,7 @@ export const DRAMA_TEXT = {
 	insertDirection: "연기 지시 넣기",
 	removeLine: "지우기",
 	lastLine: "줄은 1개 이상이어야 해요",
-	lineRemoved: (line: number) => `${line}번 줄을 지웠어요.`,
+	lineRemoved: (line: number) => `${line}번 줄을 지웠어요`,
 	undo: "실행 취소",
 	addLine: "줄 추가",
 	paste: "대본 붙여 넣기",
@@ -191,8 +191,8 @@ export const DRAMA_TEXT = {
 	pasteNoVoice: "성우 없음, 바꾼 뒤 골라 주세요",
 	pasteReplaceNote: (lines: number) =>
 		`바꾸면 지금 대본 ${n(lines)}줄이 이 글로 바뀌어요`,
-	pasteTooManySpeakers: "화자는 4명까지예요. 이름을 4개 이하로 줄여 주세요",
-	pasteTooManyLines: "줄은 50개까지예요. 50줄 이하로 줄여 주세요",
+	pasteTooManySpeakers: "화자는 4명까지예요. 이름을 4개 이하로 줄여 주세요.",
+	pasteTooManyLines: "줄은 50개까지예요. 50줄 이하로 줄여 주세요.",
 	pasteEmpty: "붙여 넣은 글에 대사가 없어요",
 	replace: "바꾸기",
 	cancel: "취소",
@@ -211,7 +211,7 @@ export const DRAMA_TEXT = {
 	howToSpan: "범위 태그: `약속해 <whisper>아무한테도 말 안 한다고</whisper>.`",
 	howToLine:
 		"줄 지시: 지시 칸에 `icy calm` 또는 `작게 한숨 쉬며`. 어떤 말로 써도 되고 소리로 읽지 않아요.",
-	howToNote: "한국어 지시와 영어 지시 중 무엇이 나은지는 들어 보고 정해요.",
+	howToNote: "한국어 지시와 영어 지시 중 무엇이 나은지는 들어 보고 정해요",
 
 	// 막대·샘플링·확인 창
 	barLabel: "장면 만들기",
@@ -221,7 +221,7 @@ export const DRAMA_TEXT = {
 	// 주 버튼 "연기하는 중 · 12초"(스펙 4절, 브리프 5.8)
 	makingFor: (seconds: number) => `연기하는 중 · ${n(seconds)}초`,
 	makingStatus: "장면을 연기하는 중이에요",
-	waitNote: "공급자 응답을 기다리고 있어요. 다시 누르지 않아도 돼요",
+	waitNote: "음성 서비스 응답을 기다리고 있어요. 다시 누르지 않아도 돼요.",
 	// 예상 줄. 무료면 끝에 무료 끝 날짜, 유료면 usageText가 이미 '추정 약'을 붙인다(브리프 5.8)
 	estimate: (chars: number, bytes: number, usage: Usage) =>
 		`${n(chars)}자 · ${n(bytes)}바이트 · ${usageText(usage)}${usage.unit === "free" ? ` · ${freeUntil(FISH_FREE_UNTIL)}` : ""}`,
@@ -248,16 +248,16 @@ export const DRAMA_TEXT = {
 	// 확인 창 예상 아래 근거 줄. 무료는 없다
 	basis: (model: DramaModel, now = Date.now()): string | null =>
 		model === "s2.1-pro"
-			? "S2.1 Pro 요금(100만 바이트당 $15)으로 셈한 추정이에요"
+			? "S2.1 Pro 요금(100만 바이트당 $15)으로 계산한 추정이에요"
 			: model === "drama-3"
 				? now < DRAMA_LAUNCH_UNTIL
-					? `Drama 3 출시가(100만 바이트당 $10, ${freeUntil(DRAMA_LAUNCH_UNTIL)})로 셈한 추정이에요`
-					: "Drama 3 정가(100만 바이트당 $50)로 셈한 추정이에요"
+					? `Drama 3 출시가(100만 바이트당 $10, ${freeUntil(DRAMA_LAUNCH_UNTIL)})로 계산한 추정이에요`
+					: "Drama 3 정가(100만 바이트당 $50)로 계산한 추정이에요"
 				: null,
 	drama3Warning:
-		"Drama 3는 대사별 시각 정보를 주지 않을 수 있어요. 그러면 대사별 파일 없이 장면 파일만 받아요",
+		"Drama 3는 대사별 시각 정보를 주지 않을 수 있어요. 그러면 대사별 파일 없이 장면 파일만 받아요.",
 	unknownRetry:
-		"같은 대본의 앞 요청은 처리 여부를 아직 몰라요. 다시 만들면 크레딧이 한 번 더 쓰일 수 있어요",
+		"같은 대본의 앞 요청은 처리 여부를 아직 몰라요. 다시 만들면 크레딧이 한 번 더 쓰일 수 있어요.",
 	confirmMake: "크레딧 쓰고 만들기",
 
 	// 막는 이유(dramaBlock, 이 순서)
@@ -280,13 +280,13 @@ export const DRAMA_TEXT = {
 			: `${n(limit)}자 이하로 줄여 주세요 (지금 ${n(count)}자)`,
 	// 나누지 못함 경고(splitWarning, 막지 않는다)
 	splitNoText:
-		"대사 없이 지시만 있는 줄이 있어요. 대사별 파일 없이 장면 파일만 나와요",
+		"대사 없이 지시만 있는 줄이 있어요. 대사별 파일 없이 장면 파일만 나와요.",
 	splitTagWord:
-		"대사의 영어 단어에 지시 이름(soft·fast 등)이 들어 있어요. 대사별 파일 없이 장면 파일만 나와요",
+		"대사의 영어 단어에 지시 이름(soft·fast 등)이 들어 있어요. 대사별 파일 없이 장면 파일만 나와요.",
 
 	// 오류(dramaProblemText)
 	fishCredit:
-		"Fish Audio API 크레딧이 부족해요. API 크레딧은 웹 플랜 크레딧과 따로예요",
+		"Fish Audio API 크레딧이 부족해요. API 크레딧은 웹 플랜 크레딧과 따로예요.",
 	fishCreditLink: "Fish Audio에서 API 크레딧 충전하기",
 	// Fish 공식 quickstart 문제 해결 표가 402를 Billing 충전으로 잇는다(2026-10-22 메인 확인)
 	fishCreditUrl: "https://fish.audio/app/billing",
@@ -294,18 +294,18 @@ export const DRAMA_TEXT = {
 	newWindow: "(새 창)",
 	toFreeModel: "무료 모델로 바꾸기",
 	// 막대 402 줄 '무료 모델로 바꾸기'와 무대 '대사 파일이 나오는 모델로 바꾸기'의 알림. label은 modelName
-	modelSwitched: (label: string) => `모델을 ${label}로 바꿨어요.`,
+	modelSwitched: (label: string) => `모델을 ${label}로 바꿨어요`,
 	voiceRejected: (name: string) =>
-		`화자 ‘${name}’의 성우를 쓸 수 없어요. 다시 골라 주세요`,
-	voiceRejectedUnknown: "성우를 쓸 수 없는 화자가 있어요. 다시 골라 주세요",
-	inProgress: "다른 생성이 진행 중이에요. 끝난 뒤 다시 눌러 주세요",
+		`화자 ‘${name}’의 성우를 쓸 수 없어요. 다시 골라 주세요.`,
+	voiceRejectedUnknown: "성우를 쓸 수 없는 화자가 있어요. 다시 골라 주세요.",
+	inProgress: "다른 음성을 만드는 중이에요. 끝난 뒤 다시 눌러 주세요.",
 	unknownOutcome:
-		"처리 여부를 확인하지 못했어요. 크레딧이 쓰였을 수 있으니 다시 누르기 전에 이전 테이크를 확인해 주세요",
+		"처리 여부를 확인하지 못했어요. 크레딧이 쓰였을 수 있으니 다시 누르기 전에 이전 테이크를 확인해 주세요.",
 	retryAfter: (time: string) => `${time} 이후에 다시 만들 수 있어요`,
-	freeEnded: "Fish Audio 무료 모델 기간이 끝났어요. 모델을 다시 골라 주세요",
-	audioTooLarge: "결과 오디오가 너무 커요. 대본을 줄이거나 속도를 올려 주세요",
-	storage: "지금은 장면을 만들 수 없어요. 잠시 뒤 다시 해 주세요",
-	unexpected: "장면을 만들지 못했어요. 잠시 뒤 다시 해 주세요",
+	freeEnded: "Fish Audio 무료 모델 기간이 끝났어요. 모델을 다시 골라 주세요.",
+	audioTooLarge: "결과 오디오가 너무 커요. 대본을 줄이거나 속도를 올려 주세요.",
+	storage: "지금은 장면을 만들 수 없어요. 잠시 뒤 다시 해 주세요.",
+	unexpected: "장면을 만들지 못했어요. 잠시 뒤 다시 해 주세요.",
 	// 키·인증·권한 오류 줄의 링크 버튼(→ /connections)
 	connections: "연결 상태 보기",
 
@@ -314,7 +314,7 @@ export const DRAMA_TEXT = {
 	stageGenerating: "새 테이크를 연기하는 중이에요",
 	receivingScene: "장면을 받는 중이에요",
 	sceneFailed:
-		"장면을 받지 못했어요. 잠시 뒤 다시 받아 주세요. 크레딧은 들지 않아요",
+		"장면을 받지 못했어요. 잠시 뒤 다시 받아 주세요. 크레딧은 들지 않아요.",
 	retryReceive: "다시 받기",
 	takeCaption: (
 		take: number,
@@ -338,14 +338,14 @@ export const DRAMA_TEXT = {
 		"받지 못했어요. 잠시 뒤 다시 해 주세요. 크레딧은 들지 않아요.",
 	otherScript: "지금 대본과 다른 테이크예요",
 	restoreScript: "이 테이크의 대본으로 되돌리기",
-	restored: "테이크의 대본으로 되돌렸어요.",
-	notSplit: "대사별로 나누지 못했어요. 장면 파일은 받을 수 있어요",
+	restored: "테이크의 대본으로 되돌렸어요",
+	notSplit: "대사별로 나누지 못했어요. 장면 파일은 받을 수 있어요.",
 	notSplitDrama3:
-		"Drama 3는 대사별 시각 정보를 주지 않을 수 있어요. 대사 파일이 필요하면 S2.1 Pro 계열 모델로 만들어 보세요",
+		"Drama 3는 대사별 시각 정보를 주지 않을 수 있어요. 대사 파일이 필요하면 S2.1 Pro 계열 모델로 만들어 보세요.",
 	notSplitNoText: "대사 없이 지시만 있는 줄이 있어서 나누지 않았어요",
 	notSplitTagWord: "대사의 영어 단어에 지시 이름이 들어 있어서 나누지 않았어요",
 	notSplitMismatch:
-		"읽은 글자가 대본과 맞지 않았어요. 지시나 숫자를 대본과 다르게 읽었을 수 있어요",
+		"읽은 글자가 대본과 맞지 않았어요. 지시나 숫자를 대본과 다르게 읽었을 수 있어요.",
 	// 나누지 못함 이유가 notSplitDrama3이고 지금 모델이 Drama 3일 때 안내 줄 셋째 행
 	toSplitModel: "대사 파일이 나오는 모델로 바꾸기",
 	// 대본 줄 ▶ · ■(스펙 17.3)
@@ -360,11 +360,11 @@ export const DRAMA_TEXT = {
 	// 고르지 않은 줄의 무대 테이크 칩: 칩 접근 이름 끝, 5개 이상 메뉴 값 글자("2 · 무대 따라감")와 그 접근 이름
 	follows: (label: string) => `${label} · 무대 따라감`,
 	followAll: "모든 줄을 이 테이크로",
-	followedAll: "모든 줄을 무대의 테이크로 맞췄어요.",
+	followedAll: "모든 줄을 무대의 테이크로 맞췄어요",
 	// 줄 듣기 플레이어 알림의 종류 말("3번 줄 지연 대사 재생 중"). '저장된 결과'는 테이크 대신 쓰지 않는다(GLOSSARY)
 	lineNoun: "대사",
-	made: "장면을 만들었어요.",
-	notFound: "이미 지워졌거나 찾을 수 없어요.",
+	made: "장면을 만들었어요",
+	notFound: "이미 지워졌거나 찾을 수 없어요",
 	takes: "이전 테이크",
 	takesFailed: "이전 테이크를 불러오지 못했어요",
 	toTakes: "이전 테이크 보기",
@@ -385,14 +385,14 @@ export const DRAMA_TEXT = {
 	unknownUsage: "사용 여부 미확인",
 	// 다시 받는 창(6분)이 지난 미확인 줄(studio-view unknownNoteOf의 만료 문구 인자)
 	unknownExpired:
-		"확인 시간이 지났어요. 크레딧 사용 여부는 Fish Audio 사용 기록에서 확인해 주세요",
+		"확인 시간이 지났어요. 크레딧 사용 여부는 Fish Audio 사용 기록에서 확인해 주세요.",
 	takesCap: "최근 20개까지 보여요",
 	remove: "지우기",
 	removeQuestion: "이 테이크를 지울까요?",
 	removeDetail:
-		"지우면 이 테이크를 다시 듣거나 받을 수 없어요. 공급자 사용 기록은 그대로예요.",
+		"지우면 이 테이크를 다시 듣거나 받을 수 없어요. 음성 서비스 사용 기록은 그대로예요.",
 	removing: "지우는 중이에요",
-	removed: "테이크를 지웠어요.",
+	removed: "테이크를 지웠어요",
 	removedPicked: (lines: number) =>
 		`테이크를 지웠어요. 이 테이크를 고른 줄 ${n(lines)}개는 무대의 테이크로 받아요.`,
 	removeFailed: "지우지 못했어요. 잠시 뒤 다시 해 주세요.",
@@ -424,7 +424,8 @@ export const DRAMA_TEXT = {
 
 	// Part 2(브리프 14절 문구 표). 감정·말투 값의 이름은 ACTING(drama-acting)에 있다
 	// 막는 이유(dramaBlock)의 첫 이유
-	mixedBlock: "다른 공급자 화자가 있어 장면은 만들 수 없어요. 읽기를 써 주세요",
+	mixedBlock:
+		"다른 음성 서비스 화자가 있어 장면은 만들 수 없어요. 읽기를 써 주세요.",
 	read: "읽기",
 	readStop: (done: number, total: number) => `멈춤 · ${n(done)}/${n(total)}줄`,
 	// 찾는 중(줄 수를 아직 모름)의 멈춤(수정 회차 1)
@@ -464,11 +465,11 @@ export const DRAMA_TEXT = {
 	autoTagName: "전체 자동 태그, 크레딧 사용",
 	autoTagLong: (count: number) =>
 		`대본이 ${n(DRAMA_SCENE_MAX)}자를 넘어 자동 태그를 쓸 수 없어요 (지금 ${n(count)}자)`,
-	autoTagTitle: "대본을 보내 연기 값을 제안받을까요?",
+	autoTagTitle: "대본을 보내 감정과 말투를 추천받을까요?",
 	autoTagBody:
-		"OpenAI 텍스트 모델(gpt-6-luna)로 대본을 보내요. 3번 실패하면 Gemini(gemini-3.8-flash)로 보내요. 예상 약 $0.01. Gemini 키가 무료 등급이면 Google이 보낸 대본을 학습에 쓸 수 있어요",
-	autoTagGo: "제안받기",
-	autoTagPreviewTitle: "자동 태그 제안",
+		"OpenAI 텍스트 모델(gpt-6-luna)로 대본을 보내요. 3번 실패하면 Gemini(gemini-3.8-flash)로 보내요. 예상 약 $0.01. Gemini 키가 무료 등급이면 Google이 보낸 대본을 학습에 쓸 수 있어요.",
+	autoTagGo: "추천받기",
+	autoTagPreviewTitle: "자동 태그 추천",
 	autoTagNone: "바꿀 값이 없어요",
 	autoTagSkipped: (count: number) =>
 		`연기 값을 받지 않는 성우의 줄 ${n(count)}개는 그대로 둬요`,
@@ -481,7 +482,7 @@ export const DRAMA_TEXT = {
 	autoTagBefore: "전",
 	autoTagAfter: "후",
 	// 줄 실패의 기본 문구(T5 '내 문장을 듣지 못했어요…' 대신)
-	readLineFailed: "이 줄을 듣지 못했어요. 잠시 뒤 다시 눌러 주세요",
+	readLineFailed: "이 줄을 듣지 못했어요. 잠시 뒤 다시 눌러 주세요.",
 
 	// Part 3(브리프 15절 문구 표). 쉼 값(seconds)은 gapText로 만든 소수 한 자리 글이다
 	gapDefault: "기본 쉼",
@@ -501,7 +502,7 @@ export const DRAMA_TEXT = {
 	// 이어 듣기의 재생 이름("대본 전체 대사 재생 중")
 	joinAnnounce: "대본 전체",
 	joining: "대본을 잇는 중",
-	joinFailed: "한 파일로 잇지 못했어요. ‘줄마다 받기’로 받아 주세요",
+	joinFailed: "한 파일로 잇지 못했어요. ‘줄마다 받기’로 받아 주세요.",
 
 	// Part 4(브리프 16절 문구 표): 읽지 않고 대본 전체를 받는 '받기' 메뉴
 	saveMenu: "받기",
@@ -520,7 +521,7 @@ export const DRAMA_TEXT = {
 	saveTakeJoin: "쉼 넣어 한 파일로 (WAV)",
 	saveTakeZip: "대사별 파일 (zip)",
 	readEstimate: (lines: number, chars: number, paid: boolean) =>
-		`${n(lines)}줄 · ${n(chars)}자${paid ? " · 유료 공급자 화자가 있어요 · 누르면 예상 사용량을 먼저 보여 드려요" : ""}`,
+		`${n(lines)}줄 · ${n(chars)}자${paid ? " · 유료 음성 서비스 화자가 있어요 · 누르면 예상 사용량을 먼저 보여 드려요" : ""}`,
 } as const;
 
 // 이 브라우저의 임시 작업(스펙 2절). 키에 판을 붙이고 필요한 칸만 둔다(client-localstorage-schema)
@@ -1021,16 +1022,6 @@ const LINE_CHECKS: Check<LineRow>[] = [
 		(row) => (row.text.includes("<|") ? "text" : "direction"),
 	],
 ];
-// 채운 '성우 고르기'를 붙일 화자: 줄이 쓰는 화자(줄 수 > 0) 중 성우 없는 첫 화자. 막는 이유(dramaBlock)가 가리키는 화자와 같다
-export const firstEmptySpeaker = (
-	speakers: readonly DraftSpeaker[],
-	lineCounts: readonly number[],
-): number | null => {
-	const at = speakers.findIndex(
-		(speaker, i) => speaker.voiceId === null && (lineCounts[i] ?? 0) > 0,
-	);
-	return at < 0 ? null : at;
-};
 // '장면 만들기'를 막는 이유(브리프 8절, 이 순서. 섞인 화자가 그 앞, 14절). 없으면 null. 글자는 서버와 같게 정리 뒤 코드 포인트로 세고,
 // 원문이 계약의 원문 상한을 넘어도 막는다(서버 BAD_REQUEST가 '다시 해 주세요'로 보이지 않게).
 // 다른 생성 진행 중·대기 시각은 서버 거절 뒤 오류 줄이다('스펙과 다른 점' 5)

@@ -37,13 +37,13 @@ type AutoTagTexts = {
 };
 
 // 드라마 문구 표. 처리 여부 미확인도 받지 못함과 같은 글이다(문단은 studio-text PARAGRAPH_AUTO_TAG_TEXT)
-const AUTO_TAG_FAILED = "제안을 받지 못했어요. 잠시 뒤 다시 해 주세요";
+const AUTO_TAG_FAILED = "추천을 받지 못했어요. 잠시 뒤 다시 해 주세요.";
 export const AUTO_TAG_ACCOUNT =
 	"OpenAI 키(OPENAI_API_KEY)나 결제·한도를 확인해 주세요";
 export const AUTO_TAG_TEXT = {
-	reply: "제안을 읽지 못했어요. 다시 해 주세요",
+	reply: "추천을 읽지 못했어요. 다시 해 주세요.",
 	// 수정 회차 1(코디네이터 판정): 맥락이 틀린 T5 문구만 바꾼다
-	retryAt: (iso: string) => `${retryTime(iso)} 이후에 다시 제안받을 수 있어요`,
+	retryAt: (iso: string) => `${retryTime(iso)} 이후에 다시 추천받을 수 있어요`,
 	failed: AUTO_TAG_FAILED,
 	unknown: AUTO_TAG_FAILED,
 } as const;

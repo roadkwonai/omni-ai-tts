@@ -17,7 +17,7 @@ import {
 	countLine,
 	PRESET_TEXT,
 	presetBadges,
-	presetSummary,
+	presetSummaryParts,
 	providerVoiceLine,
 	removeDefaultNote,
 	removedMessage,
@@ -30,7 +30,8 @@ import { OWNED_LIST, orpc } from "@/utils/orpc";
 
 import { boxClass, RowAction } from "./class-group";
 import { ConfirmDialog } from "./confirm-dialog";
-import { Notice, SignInNotice } from "./notice";
+import { EmptyState } from "./empty-state";
+import { SignInNotice } from "./notice";
 import { PresetFormDialog } from "./preset-form-dialog";
 import {
 	useDuplicatePreset,
@@ -98,17 +99,20 @@ export function PresetBoard() {
 		);
 	else if (sorted.length === 0)
 		body = (
-			<Notice title={PRESET_TEXT.empty} description={PRESET_TEXT.emptyDetail}>
-				{/* 링크 버튼은 <Link>에 cn(buttonVariants)다. cn 없이 쓰면 기본 border-transparent가 outline의 border-primary를 이겨 테두리가 사라지고(critique P2),
-				    Button(nativeButton={false})으로 감싸면 <a>에 role="button"이 붙는다 */}
+			<EmptyState
+				art="list"
+				title={PRESET_TEXT.empty}
+				description={PRESET_TEXT.emptyDetail}
+			>
+				{/* 링크 버튼은 <Link>에 cn(buttonVariants)다. Button(nativeButton={false})으로 감싸면 <a>에 role="button"이 붙는다 */}
 				<Link
 					href="/casting"
-					className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
+					className={cn(buttonVariants({ variant: "neutral", size: "lg" }))}
 				>
 					{PRESET_TEXT.toCasting}
 					<ArrowRight data-icon="inline-end" aria-hidden="true" />
 				</Link>
-			</Notice>
+			</EmptyState>
 		);
 	else
 		body = (
@@ -117,11 +121,8 @@ export function PresetBoard() {
 					const channel = channelName(preset.channelId);
 					const badges = presetBadges(preset);
 					return (
-						// 640px 미만은 글자 칸이 좁아(320px에서 약 112px) 동작 버튼을 아래 줄로 내린다(계획 리뷰 D8)
-						<li
-							key={preset.id}
-							className="flex flex-col gap-2 p-4 sm:flex-row sm:items-start sm:gap-3"
-						>
+						// 동작 버튼은 모든 너비에서 제목 줄 오른쪽 끝이다(R2 브리프 4절. 휴대폰도 아래 줄로 내리지 않는다)
+						<li key={preset.id} className="flex items-start gap-3 p-4">
 							<div className="min-w-0 flex-1">
 								{/* '기본' 배지는 이름 줄에 둔다. 채널 목록이 늦거나 실패해도 흔들리지 않는다(계획 리뷰 D4).
 								    이름은 flex 항목이라 min-w-0이 있어야 띄어쓰기 없는 긴 이름도 줄바꿈된다 */}
@@ -135,24 +136,31 @@ export function PresetBoard() {
 										</Badge>
 									) : null}
 								</p>
-								{/* 공급자·성우 이름은 기계 번역하지 않는다(보관함 조건 줄과 같다, audit P3-5) */}
+								{/* 둘째 줄: 서비스·성우·채널. 공급자·성우 이름은 기계 번역하지 않는다(보관함 조건 줄과 같다, audit P3-5) */}
 								<p
 									translate="no"
 									className="wrap-break-word mt-1 text-muted-foreground text-sm"
 								>
 									{providerVoiceLine(preset)}
+									{channel ? ` · ${PRESET_TEXT.channel} ${channel}` : null}
 								</p>
-								{channel ? (
-									<p className="wrap-break-word mt-1 text-sm">
-										<span className="text-muted-foreground">
-											{PRESET_TEXT.channel}
-										</span>{" "}
-										{channel}
-									</p>
-								) : null}
-								<p className="wrap-break-word mt-1 text-muted-foreground text-sm">
-									{presetSummary(preset)}
-								</p>
+								{/* 셋째 줄: 설정 값(모델·속도·표현력)을 작은 값 칩으로 */}
+								<ul
+									aria-label="설정 값"
+									className="mt-2 flex flex-wrap gap-1.5"
+								>
+									{presetSummaryParts(preset).map((value, index) => (
+										// 같은 값이 둘 올 수 있어 순서를 섞는다
+										<li key={`${index}-${value}`}>
+											<Badge
+												variant="secondary"
+												className="min-h-6 max-w-full font-normal text-xs"
+											>
+												{value}
+											</Badge>
+										</li>
+									))}
+								</ul>
 								{badges.length > 0 ? (
 									<div className="mt-2 flex flex-wrap gap-2">
 										{badges.map((badge) => (
@@ -171,8 +179,8 @@ export function PresetBoard() {
 									</div>
 								) : null}
 							</div>
-							{/* 고치기 → 복제 → 지우기(위험한 것이 맨 끝). 44px 가운데를 이름 첫 줄에 맞추는 보정은 가로 배치에서만 */}
-							<div className="flex shrink-0 self-end sm:-my-2.5 sm:self-auto">
+							{/* 고치기 → 복제 → 지우기(위험한 것이 맨 끝). 44px 가운데를 이름 첫 줄에 맞춘다 */}
+							<div className="-my-2.5 flex shrink-0">
 								<RowAction
 									id={editButtonId(preset.id)}
 									label={`${preset.name} 고치기`}
@@ -232,32 +240,21 @@ export function PresetBoard() {
 			aria-busy={!sorted && !presets.isError ? true : undefined}
 			className="flex max-w-3xl flex-col gap-3"
 		>
-			{/* 개수 줄은 목록을 받으면 늘 있다(마지막 줄을 지운 뒤 포커스가 갈 곳). 캐스팅 링크는 빈 상태가 따로 가진다(계획 리뷰 D18) */}
+			{/* 개수 줄은 목록을 받으면 늘 있다(마지막 줄을 지운 뒤 포커스가 갈 곳). 작게 둔다. 캐스팅 링크는 머리 설명 안에 있다(R2 브리프 4절) */}
 			{sorted ? (
-				<div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3">
-					<p
-						ref={(node) => {
-							countRef.current = node;
-							if (node && focusCountRef.current) {
-								focusCountRef.current = false;
-								node.focus();
-							}
-						}}
-						tabIndex={-1}
-						className="text-muted-foreground tabular-nums outline-none focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-solid focus-visible:outline-offset-2"
-					>
-						{countLine(sorted.length)}
-					</p>
-					{sorted.length > 0 ? (
-						<Link
-							href="/casting"
-							className={cn(buttonVariants({ variant: "link", size: "lg" }))}
-						>
-							{PRESET_TEXT.toCasting}
-							<ArrowRight data-icon="inline-end" aria-hidden="true" />
-						</Link>
-					) : null}
-				</div>
+				<p
+					ref={(node) => {
+						countRef.current = node;
+						if (node && focusCountRef.current) {
+							focusCountRef.current = false;
+							node.focus();
+						}
+					}}
+					tabIndex={-1}
+					className="text-muted-foreground text-sm tabular-nums outline-none focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-solid focus-visible:outline-offset-2"
+				>
+					{countLine(sorted.length)}
+				</p>
 			) : null}
 			{/* 채널 이름을 받지 못하면 줄의 채널 이름만 빠진다. 그 사실과 다시 받기를 한 번 보인다(계획 리뷰 F7) */}
 			{channels.isError && sorted && sorted.length > 0 ? (

@@ -242,7 +242,7 @@ function SavedFields({ voice }: { voice: Voice }) {
 				</div>
 				{/* focusableWhenDisabled는 disabled 속성 대신 aria-disabled라 Button 기본 비활성 모양이 붙지 않는다. 꺼지면 흐리게(critique P1) */}
 				<Button
-					variant="outline"
+					variant="neutral"
 					size="lg"
 					className="self-start aria-disabled:opacity-50"
 					focusableWhenDisabled

@@ -66,7 +66,7 @@ export default async function LoginPage({
 					) : (
 						<>
 							<p className="text-muted-foreground text-sm">
-								본인 계정으로 로그인해 주세요.
+								본인 계정으로 로그인해 주세요
 							</p>
 							<LoginForm
 								next={next}

@@ -63,10 +63,10 @@ const FIELD_MAX: Record<Field, number> = {
 };
 
 export function fieldMessage(field: Field, problem: FieldProblem): string {
-	if (problem === "empty") return "이름을 입력해 주세요.";
+	if (problem === "empty") return "이름을 입력해 주세요";
 	if (problem === "bad_url")
-		return "http:// 또는 https://로 시작하는 주소를 넣어 주세요.";
-	return `${FIELD_MAX[field]}자까지 쓸 수 있어요.`;
+		return "http:// 또는 https://로 시작하는 주소를 넣어 주세요";
+	return `${FIELD_MAX[field]}자까지 쓸 수 있어요`;
 }
 
 // 저장·삭제 실패의 종류. 같은 이름은 이름 칸에, 없어진 항목은 창을 닫고 알림으로, 나머지는 창 안에 보인다(스펙 5절)
@@ -90,13 +90,13 @@ export function neighborId(
 }
 
 export const MESSAGES = {
-	notFound: "이미 지워졌거나 찾을 수 없어요.",
+	notFound: "이미 지워졌거나 찾을 수 없어요",
 	saveFailed: "저장하지 못했어요. 잠시 뒤 다시 해 주세요.",
 	deleteFailed: "지우지 못했어요. 잠시 뒤 다시 해 주세요.",
 } as const;
 
 export function duplicateMessage(group: Group): string {
-	return `같은 이름의 ${GROUP_TEXT[group].subject} 이미 있어요.`;
+	return `같은 이름의 ${GROUP_TEXT[group].subject} 이미 있어요`;
 }
 
 const DONE = { create: "만들었어요", update: "고쳤어요", delete: "지웠어요" };
@@ -123,8 +123,8 @@ export function deleteQuestion(group: Group, name: string): string {
 
 export function deleteDetail(group: Group): string {
 	return group === "channel"
-		? "메모와 채널 주소도 함께 지워지고 되돌릴 수 없어요."
-		: "메모도 함께 지워지고 되돌릴 수 없어요.";
+		? "메모와 채널 주소도 함께 지워지고 되돌릴 수 없어요"
+		: "메모도 함께 지워지고 되돌릴 수 없어요";
 }
 
 // 양방향 제어문자(U+202A~202E, U+2066~2069)와 U+200B. 서버 규칙은 URL에서 이 글자를 거르지 않는다

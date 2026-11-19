@@ -12,6 +12,11 @@ import {
 	DropdownMenuTrigger,
 } from "@tts-pilot-app/ui/components/dropdown-menu";
 import { Spinner } from "@tts-pilot-app/ui/components/spinner";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@tts-pilot-app/ui/components/tooltip";
 import { cn } from "@tts-pilot-app/ui/lib/utils";
 import {
 	ChevronDown,
@@ -52,7 +57,12 @@ import { blockText, makeProblemText, PARAGRAPH_TEXT } from "@/lib/studio-text";
 import { STUDIO_TEXT } from "@/lib/studio-view";
 import { usageText } from "@/lib/trial-view";
 
-import { useBarHeight, useElapsed, WAIT_NOTE_AFTER } from "./bar-height";
+import {
+	ICON_ONLY_PHONE,
+	useBarHeight,
+	useElapsed,
+	WAIT_NOTE_AFTER,
+} from "./bar-height";
 import { DEMO_TEXT, useDemo } from "./demo";
 import { LockedIconButton } from "./locked-icon-button";
 import { ParagraphMakeConfirm } from "./paragraph-confirm";
@@ -93,17 +103,23 @@ function Line({
 	id,
 	warn = false,
 	alert = false,
+	soft = false,
 	text,
 	children,
 }: {
 	id: string;
 	warn?: boolean;
 	alert?: boolean;
+	// 버튼 글자가 같은 말을 하는 안내(무료 모델): 767px 이하에서는 줄째 접어 막대를 한 줄로 둔다(잇는 설명은 남는다)
+	soft?: boolean;
 	text: ReactNode;
 	children?: ReactNode;
 }) {
 	return (
-		<div className="flex flex-col items-start gap-1 md:items-end">
+		<div
+			data-soft={soft || undefined}
+			className="flex flex-col items-start gap-1 md:items-end"
+		>
 			<p
 				id={id}
 				role={alert ? "alert" : undefined}
@@ -306,18 +322,28 @@ function ReceiveMenu({
 	);
 	return (
 		<>
-			<Button
-				variant="neutral"
-				size="lg"
-				focusableWhenDisabled
-				disabled={off}
-				aria-describedby={reason ? reasonId : undefined}
-				className={cn("max-md:flex-1", lockedButton(true))}
-				onClick={() => onReceive("play")}
-			>
-				<Play data-icon="inline-start" aria-hidden="true" />
-				{PARAGRAPH_TEXT.playAll}
-			</Button>
+			{/* 767px 이하는 44px 아이콘 버튼이고 이름은 툴팁·접근 이름이다(R2 브리프 4절, 막대 한 줄) */}
+			<Tooltip>
+				<TooltipTrigger
+					render={
+						<Button
+							variant="neutral"
+							size="lg"
+							focusableWhenDisabled
+							disabled={off}
+							aria-describedby={reason ? reasonId : undefined}
+							className={cn(ICON_ONLY_PHONE, lockedButton(true))}
+							onClick={() => onReceive("play")}
+						/>
+					}
+				>
+					<Play data-icon="inline-start" aria-hidden="true" />
+					<span className="max-md:sr-only">{PARAGRAPH_TEXT.playAll}</span>
+				</TooltipTrigger>
+				<TooltipContent className="md:hidden">
+					{PARAGRAPH_TEXT.playAll}
+				</TooltipContent>
+			</Tooltip>
 			<DropdownMenu
 				onOpenChange={(open) => {
 					if (open) jump.current = null;
@@ -328,26 +354,39 @@ function ReceiveMenu({
 					if (!open && id) showParagraph(id);
 				}}
 			>
-				<DropdownMenuTrigger
-					render={
-						<Button
-							ref={triggerRef}
-							variant={filled ? "default" : "neutral"}
-							size="lg"
-							aria-busy={busy || undefined}
-							aria-describedby={reason ? reasonId : undefined}
-							className="max-md:flex-1"
+				<Tooltip>
+					<TooltipTrigger
+						render={
+							<DropdownMenuTrigger
+								render={
+									<Button
+										ref={triggerRef}
+										variant={filled ? "default" : "neutral"}
+										size="lg"
+										aria-busy={busy || undefined}
+										aria-describedby={reason ? reasonId : undefined}
+										className={ICON_ONLY_PHONE}
+									/>
+								}
+							/>
+						}
+					>
+						{busy ? (
+							<Spinner data-icon="inline-start" aria-hidden="true" />
+						) : (
+							<Download data-icon="inline-start" aria-hidden="true" />
+						)}
+						<span className="max-md:sr-only">{PARAGRAPH_TEXT.receive}</span>
+						<ChevronDown
+							data-icon="inline-end"
+							aria-hidden="true"
+							className="max-md:hidden"
 						/>
-					}
-				>
-					{busy ? (
-						<Spinner data-icon="inline-start" aria-hidden="true" />
-					) : (
-						<Download data-icon="inline-start" aria-hidden="true" />
-					)}
-					{PARAGRAPH_TEXT.receive}
-					<ChevronDown data-icon="inline-end" aria-hidden="true" />
-				</DropdownMenuTrigger>
+					</TooltipTrigger>
+					<TooltipContent className="md:hidden">
+						{PARAGRAPH_TEXT.receive}
+					</TooltipContent>
+				</Tooltip>
 				<DropdownMenuContent
 					align="end"
 					finalFocus={() => jump.current === null}
@@ -637,6 +676,7 @@ export function ParagraphBar({
 		return (
 			<Line
 				id={lineId}
+				soft={plan.free}
 				text={
 					plan.free ? (
 						PARAGRAPH_TEXT.freeLine
@@ -730,8 +770,9 @@ export function ParagraphBar({
 			id="paragraph-bar"
 			aria-label={PARAGRAPH_TEXT.barLabel}
 			tabIndex={-1}
-			// 767px 이하는 바닥에 붙은 판(카드색, 위 모서리만 둥글게, 본문 여백 밖까지), 768px 이상은 바탕색 띠 안에 뜬 카드. z-5는 앱 메뉴(z-10) 아래다
-			className="studio-bar-scroll sticky bottom-0 z-5 focus-visible:outline-2 focus-visible:outline-ring max-md:-mx-4 max-md:rounded-t-2xl max-md:bg-card max-md:px-4 max-md:pt-3 max-md:pb-4 max-md:ring-1 max-md:ring-border md:bg-background md:pt-3 md:pb-4"
+			// 767px 이하는 바닥에 붙은 판(카드색, 위 모서리만 둥글게, 본문 여백 밖까지), 768px 이상은 바탕색 띠 안에 뜬 카드. z-5는 앱 메뉴(z-10) 아래다.
+			// 대본이 비어 빈 상태가 보이는 동안(작업실 본문의 data-empty) 휴대폰에서는 접는다: 눌러도 아무것도 못 하는 '전체 만들기'가 빈 카드의 행동을 가리지 않게
+			className="studio-bar-scroll sticky bottom-0 z-5 focus-visible:outline-2 focus-visible:outline-ring max-md:-mx-4 max-md:rounded-t-2xl max-md:bg-card max-md:px-4 max-md:pt-3 max-md:pb-4 max-md:ring-1 max-md:ring-border group-data-empty/studio:max-md:hidden md:bg-background md:pt-3 md:pb-4"
 		>
 			<div className="flex flex-col gap-3 md:rounded-2xl md:bg-card md:p-4 md:ring-1 md:ring-border md:ring-inset">
 				<div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-x-6">
@@ -739,7 +780,7 @@ export function ParagraphBar({
 						// 767px 이하에서 대본 칸에 포커스가 있는 동안(소프트 키보드) 숨는다(studio-bar-result)
 						<div
 							className={cn(
-								"studio-bar-result flex min-w-0 flex-col gap-2 md:min-w-60 md:flex-1",
+								"studio-bar-result flex min-w-0 flex-col gap-2 md:flex-1 md:basis-60",
 								!progress && !shown && "max-md:hidden",
 							)}
 						>
@@ -764,14 +805,14 @@ export function ParagraphBar({
 						<div className="contents @4xl:hidden">
 							{restored ? <SummarySheet /> : null}
 						</div>
-						<div className="max-md:contents md:flex md:flex-row-reverse md:gap-2">
+						<div className="max-md:contents md:flex md:flex-row-reverse md:flex-wrap md:gap-2">
 							{mainShown ? (
 								<Button
 									ref={setMain}
 									variant={mainFilled ? "default" : "neutral"}
 									size="lg"
 									className={cn(
-										"tabular-nums max-md:flex-1",
+										"tabular-nums max-md:min-w-0 max-md:flex-1",
 										lockedButton(mainLocked),
 									)}
 									focusableWhenDisabled
@@ -795,7 +836,8 @@ export function ParagraphBar({
 											className={mainFilled ? undefined : "text-warning"}
 										/>
 									) : null}
-									{mainLabel}
+									{/* 767px 이하 한 줄: 좁으면 글자가 줄어든다(접근 이름은 그대로 전체 글) */}
+									<span className="min-w-0 truncate">{mainLabel}</span>
 								</Button>
 							) : null}
 							{/* 만드는 중 막대에는 '받기'가 없다(브리프 머리). 복원 전에도 없다 */}
@@ -814,7 +856,9 @@ export function ParagraphBar({
 						</div>
 					</div>
 				</div>
-				{line ? <div className="min-w-0">{line}</div> : null}
+				{line ? (
+					<div className="min-w-0 max-md:has-data-[soft]:hidden">{line}</div>
+				) : null}
 				{noScript && !line ? (
 					<span id={reasonId} className="sr-only">
 						{PARAGRAPH_TEXT.nothingToMake}

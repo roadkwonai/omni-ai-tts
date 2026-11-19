@@ -11,11 +11,12 @@ export const metadata: Metadata = {
 		"Typecast·ElevenLabs·Fish Audio·Airy·Gemini 성우로 한국어 음성을 만드는 개인 작업실",
 };
 
-// 주소창·상태 막대 색. 값은 globals.css의 --background(:root, .dark)와 같다.
+// 주소창·상태 막대 색. 브라우저 chrome은 oklch()를 읽지 못해 hex로 쓴다.
+// 값은 globals.css의 --background(:root oklch(0.976 0.001 286), .dark oklch(0.232 0.006 286))를 sRGB로 바꾼 것이다. 그 토큰을 바꾸면 여기도 바꾼다.
 export const viewport: Viewport = {
 	themeColor: [
-		{ media: "(prefers-color-scheme: light)", color: "oklch(0.976 0.001 286)" },
-		{ media: "(prefers-color-scheme: dark)", color: "oklch(0.232 0.006 286)" },
+		{ media: "(prefers-color-scheme: light)", color: "#f7f7f8" },
+		{ media: "(prefers-color-scheme: dark)", color: "#1d1d20" },
 	],
 };
 

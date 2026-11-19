@@ -203,7 +203,7 @@ export function TrialSection({ voice }: { voice: Voice }) {
 				{/* 같은 조합을 다시 만들기(유료). 결과 줄이 아니라 여기 하나만 둔다(사용자 결정 U4) */}
 				{saved && !playing ? (
 					<Button
-						variant="outline"
+						variant="neutral"
 						size="lg"
 						className={cn("w-full", lockedButton(block !== null))}
 						focusableWhenDisabled

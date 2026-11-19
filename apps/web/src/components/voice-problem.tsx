@@ -25,7 +25,7 @@ import { Notice } from "./notice";
 
 // 429 Retry-After로 정한 대기 시각(브리프 8절)
 export const cooldownText = (retryAt: string) =>
-	`요청이 많아 ${retryTime(retryAt)} 이후 다시 불러올 수 있어요.`;
+	`요청이 많아 ${retryTime(retryAt)} 이후 다시 불러올 수 있어요`;
 
 // 대기 시각이 지금보다 뒤인 동안 그 시각을, 아니면 null. 시각이 지나면 스스로 다시 그려 '다시 불러오기'가 풀린다.
 export function useCooldown(retryAt: string | null | undefined): string | null {
@@ -137,7 +137,7 @@ export function Problem({
 				// cn 없이 쓰면 기본 border-transparent가 outline 테두리를 지운다(critique P2)
 				<Link
 					href="/connections"
-					className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
+					className={cn(buttonVariants({ variant: "neutral", size: "lg" }))}
 				>
 					연결 상태 보기
 				</Link>
@@ -150,7 +150,7 @@ export function Problem({
 				/>
 			) : null}
 			{onClear ? (
-				<Button variant="outline" size="lg" onClick={onClear}>
+				<Button variant="neutral" size="lg" onClick={onClear}>
 					조건 모두 해제
 				</Button>
 			) : null}
@@ -223,9 +223,9 @@ export function NoMatches({ onClear }: { onClear: () => void }) {
 		<Notice
 			icon={SearchX}
 			title="조건에 맞는 성우가 없어요"
-			description="조건을 줄이거나 검색어를 바꿔 보세요."
+			description="조건을 줄이거나 검색어를 바꿔 보세요"
 		>
-			<Button size="lg" variant="outline" onClick={onClear}>
+			<Button size="lg" variant="neutral" onClick={onClear}>
 				조건 모두 해제
 			</Button>
 		</Notice>

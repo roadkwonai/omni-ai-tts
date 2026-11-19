@@ -403,7 +403,7 @@ export function optionText(
 }
 
 // 결과 줄·확인 창의 설정 요약: 모델 + 기본값에서 벗어난 옵션. Typecast 직접 감정은 늘 보인다(계획 '계획에서 정한 것')
-export function settingsSummary(request: TrialRequest): string {
+export function settingsParts(request: TrialRequest): string[] {
 	const used = usedSettings(request);
 	const defaults = DEFAULT_SETTINGS[request.provider] as Record<
 		string,
@@ -427,8 +427,11 @@ export function settingsSummary(request: TrialRequest): string {
 				: `${text.label} ${text.value}`,
 		);
 	}
-	return parts.join(" · ");
+	return parts;
 }
+
+export const settingsSummary = (request: TrialRequest): string =>
+	settingsParts(request).join(" · ");
 
 export const resultWhen = (createdAt: string, now: Date) => {
 	const ago = agoText(createdAt, now);
@@ -439,7 +442,7 @@ export const resultLine = (item: TrialItem, now: Date, withUsage = true) =>
 	`${resultWhen(item.createdAt, now)} · ${withUsage ? `${usageText(item.usage)} · ` : ""}${settingsSummary(item.request)}`;
 // 결과 줄 버튼의 대상 이름. 줄마다 다르게 문장 앞 20자를 넣는다(계획 리뷰 D6)
 export const resultSubject = (name: string, item: TrialItem) =>
-	`${name} 저장된 결과 '${[...normalizeText(item.request.text)].slice(0, 20).join("")}'`;
+	`${name} 저장된 결과 ‘${[...normalizeText(item.request.text)].slice(0, 20).join("")}’`;
 
 // Gemini 무료 등급 약관(research 10절). 키 등급을 알 API가 없어 늘 보인다(T7.6 스펙 2절). 패널 데이터 안내와 확인 창이 함께 쓴다
 export const GEMINI_DATA_NOTE =
@@ -499,21 +502,21 @@ export function trialProblemText(
 		case "provider_auth":
 		case "no_permission": {
 			const copy = problemCopy(provider, problem.reason);
-			return { text: `${copy.title}. ${copy.description}`, connections: true };
+			return { text: `${copy.title}. ${copy.description}.`, connections: true };
 		}
 		case "quota":
 			return {
 				text:
 					provider === "gemini"
-						? "Gemini 결제나 한도 조건에 걸렸어요. Google AI Studio에서 확인해 주세요"
-						: "크레딧이 부족해요. 기본 샘플은 무료로 들을 수 있어요",
+						? "Gemini 결제나 한도 조건에 걸렸어요. Google AI Studio에서 확인해 주세요."
+						: "크레딧이 부족해요. 기본 샘플은 무료로 들을 수 있어요.",
 				connections: false,
 			};
 		case "rate_limit":
 			return {
 				text: problem.retryAt
 					? `${retryTime(problem.retryAt)} 이후에 다시 들을 수 있어요`
-					: "요청이 많아 잠시 막혔어요. 잠시 뒤 다시 눌러 주세요",
+					: "요청이 많아 잠시 막혔어요. 잠시 뒤 다시 눌러 주세요.",
 				connections: false,
 			};
 		case "provider_input": {
@@ -523,8 +526,8 @@ export function trialProblemText(
 					// Gemini에는 속도 설정이 없다(계획 리뷰 R6-1)
 					text:
 						provider === "gemini"
-							? "결과 오디오가 너무 커요. 문장을 줄이거나 말투 지시를 바꿔 주세요"
-							: "결과 오디오가 너무 커요. 문장을 줄이거나 속도를 올려 주세요",
+							? "결과 오디오가 너무 커요. 문장을 줄이거나 말투 지시를 바꿔 주세요."
+							: "결과 오디오가 너무 커요. 문장을 줄이거나 속도를 올려 주세요.",
 					connections: false,
 				};
 			// Airy 입력 거절(400). 공급자 코드는 보이지 않는다(D7, 새 문구는 사용자 테스트에서 확인)
@@ -532,16 +535,16 @@ export function trialProblemText(
 				return {
 					text:
 						code === "unsupported_characters"
-							? "Airy가 읽지 못하는 글자가 있어요. 문장이나 언어 설정을 확인해 주세요"
+							? "Airy가 읽지 못하는 글자가 있어요. 문장이나 언어 설정을 확인해 주세요."
 							: code === "invalid_value"
-								? "Airy가 이 설정을 받지 않았어요. 언어와 말투를 확인해 주세요"
-								: "Airy가 이 문장을 받지 않았어요. 문장이나 언어 설정을 확인해 주세요",
+								? "Airy가 이 설정을 받지 않았어요. 언어와 말투를 확인해 주세요."
+								: "Airy가 이 문장을 받지 않았어요. 문장이나 언어 설정을 확인해 주세요.",
 					connections: false,
 				};
 			// Gemini 입력 거절(400·404·정책 차단). 공급자 코드는 보이지 않는다(새 문구, 사용자 테스트에서 확인)
 			if (provider === "gemini")
 				return {
-					text: "Gemini가 이 문장을 받지 않았어요. 문장이나 말투 지시를 확인해 주세요",
+					text: "Gemini가 이 문장을 받지 않았어요. 문장이나 말투 지시를 확인해 주세요.",
 					connections: false,
 				};
 			if (provider === "elevenlabs" && code && FREE_PLAN_CODES.has(code))
@@ -551,7 +554,7 @@ export function trialProblemText(
 				};
 			if (provider === "elevenlabs" && code && NOT_IN_ACCOUNT_CODES.has(code))
 				return {
-					text: "ElevenLabs 웹에서 내 계정에 추가한 뒤 '내 계정'에서 들어 보세요",
+					text: "ElevenLabs 웹에서 내 계정에 추가한 뒤 ‘내 계정’에서 들어 보세요",
 					connections: false,
 				};
 			return {
@@ -561,7 +564,7 @@ export function trialProblemText(
 		}
 		case "provider_error":
 			return {
-				text: "공급자 쪽 오류예요. 잠시 뒤 다시 눌러 주세요",
+				text: "음성 서비스 쪽 오류예요. 잠시 뒤 다시 눌러 주세요.",
 				connections: false,
 			};
 		case "unknown_outcome":
@@ -569,30 +572,30 @@ export function trialProblemText(
 				// Gemini는 크레딧이 아니라 요금이고 사용량은 Google AI Studio에서 본다(계획 리뷰 R6-2)
 				text:
 					provider === "gemini"
-						? "처리 여부를 확인하지 못했어요. 요금이 들었을 수 있으니 Google AI Studio 사용량을 확인한 뒤 다시 눌러 주세요"
-						: "처리 여부를 확인하지 못했어요. 크레딧이 쓰였을 수 있으니 공급자 사용 기록을 확인한 뒤 다시 눌러 주세요",
+						? "처리 여부를 확인하지 못했어요. 요금이 들었을 수 있으니 Google AI Studio 사용량을 확인한 뒤 다시 눌러 주세요."
+						: "처리 여부를 확인하지 못했어요. 크레딧이 쓰였을 수 있으니 음성 서비스 사용 기록을 확인한 뒤 다시 눌러 주세요.",
 				connections: false,
 			};
 		case "in_progress":
 			return {
-				text: "다른 문장을 만드는 중이에요. 끝난 뒤 다시 눌러 주세요",
+				text: "다른 문장을 만드는 중이에요. 끝난 뒤 다시 눌러 주세요.",
 				connections: false,
 			};
 		case "free_ended":
 			return {
-				text: "Fish Audio 무료 모델 기간이 끝났어요. 유료 모델로 바꿔 들어 주세요",
+				text: "Fish Audio 무료 모델 기간이 끝났어요. 유료 모델로 바꿔 들어 보세요.",
 				connections: false,
 			};
 		case "request_mismatch":
 			return { text: "다시 눌러 주세요", connections: false };
 		case "storage":
 			return {
-				text: "지금은 내 문장을 들을 수 없어요. 기본 샘플은 들을 수 있어요",
+				text: "지금은 내 문장을 들을 수 없어요. 기본 샘플은 들을 수 있어요.",
 				connections: false,
 			};
 		default:
 			return {
-				text: "내 문장을 듣지 못했어요. 잠시 뒤 다시 눌러 주세요",
+				text: "내 문장을 듣지 못했어요. 잠시 뒤 다시 눌러 주세요.",
 				connections: false,
 			};
 	}

@@ -41,25 +41,47 @@ import { signOutToLogin } from "@/lib/auth-client";
 import { DEMO_TEXT, useDemo } from "./demo";
 import { LockedIconButton } from "./locked-icon-button";
 import { ModeToggle } from "./mode-toggle";
+import { ProkitCredit } from "./prokit-credit";
 
-// 열린 화면. 767px 이하 위 막대는 4칸 그대로다(bar 셋 + 더보기, T6 스펙 2절 '휴대폰 위 막대'). bar가 아닌 화면은 더보기 안 '열린 화면' 줄에 둔다.
-// 768px 이상에서는 모두 사이드바 위쪽 목록에 보인다. 뒤 TASK가 여는 화면도 bar: false로 더한다
-const OPEN_ITEMS: {
+// 열린 화면. 배열 순서가 사이드바 순서이고 세 묶음(만들기 / 성우와 대본 / 설정)이다. startsGroup인 항목 앞만 24px 띄운다(묶음 이름 줄은 없다).
+// 767px 이하 위 막대는 4칸이다(R2 브리프 3절): bar가 1~3이면 그 순서의 막대 칸이고 막대 넷째는 더보기다. bar가 0인 화면은 더보기 안 '열린 화면' 줄에 둔다.
+// 위 막대는 사이드바와 순서가 달라 별도 목록으로 그려 DOM 순서가 보이는 순서와 같다(Tab 순서). 768px 이상에서는 모두 사이드바 목록에 배열 순서로 보인다.
+// 뒤 TASK가 여는 화면도 bar: 0으로 더한다
+type OpenItem = {
 	label: string;
 	icon: LucideIcon;
 	href: Route;
-	bar: boolean;
-}[] = [
-	{ label: "음성 작업실", icon: WandSparkles, href: "/studio", bar: true },
-	{ label: "드라마 작업실", icon: Drama, href: "/drama", bar: false },
-	{ label: "대본 보관함", icon: FileText, href: "/scripts", bar: false },
-	{ label: "성우 캐스팅", icon: AudioWaveform, href: "/casting", bar: true },
-	{ label: "성우 보관함", icon: UserRound, href: "/voices", bar: false },
-	{ label: "프리셋", icon: SlidersHorizontal, href: "/presets", bar: false },
-	{ label: "내 보이스", icon: Mic, href: "/my-voices", bar: false },
-	{ label: "연결 상태", icon: Link2, href: "/connections", bar: true },
-	{ label: "채널·분류", icon: Tag, href: "/classes", bar: false },
+	bar: 0 | 1 | 2 | 3;
+	startsGroup?: true;
+};
+const OPEN_ITEMS: OpenItem[] = [
+	{ label: "음성 작업실", icon: WandSparkles, href: "/studio", bar: 1 },
+	{ label: "드라마 작업실", icon: Drama, href: "/drama", bar: 3 },
+	{
+		label: "성우 캐스팅",
+		icon: AudioWaveform,
+		href: "/casting",
+		bar: 2,
+		startsGroup: true,
+	},
+	{ label: "성우 보관함", icon: UserRound, href: "/voices", bar: 0 },
+	{ label: "내 보이스", icon: Mic, href: "/my-voices", bar: 0 },
+	{ label: "프리셋", icon: SlidersHorizontal, href: "/presets", bar: 0 },
+	{ label: "대본 보관함", icon: FileText, href: "/scripts", bar: 0 },
+	{
+		label: "채널·분류",
+		icon: Tag,
+		href: "/classes",
+		bar: 0,
+		startsGroup: true,
+	},
+	{ label: "연결 상태", icon: Link2, href: "/connections", bar: 0 },
 ];
+
+// 휴대폰 위 막대 칸(bar 순서). 모듈 상수라 렌더마다 다시 만들지 않는다
+const BAR_ITEMS = OPEN_ITEMS.filter((item) => item.bar).sort(
+	(a, b) => a.bar - b.bar,
+);
 
 // 아직 만들지 않은 화면('준비 중', 사이트맵 "예외"). 그 화면을 여는 TASK가 OPEN_ITEMS로 옮긴다.
 const UPCOMING_ITEMS: { label: string; icon: LucideIcon }[] = [
@@ -96,6 +118,44 @@ function NavTip({
 				{label}
 			</TooltipContent>
 		</Tooltip>
+	);
+}
+
+// 위 막대 칸과 사이드바 줄이 같이 쓰는 메뉴 링크 한 칸
+function NavRow({
+	item,
+	active,
+	onNavigate,
+}: {
+	item: OpenItem;
+	active: boolean;
+	onNavigate: () => void;
+}) {
+	const Icon = item.icon;
+	return (
+		<NavTip
+			label={item.label}
+			trigger={
+				<Link
+					href={item.href}
+					aria-current={active ? "page" : undefined}
+					// 지금 페이지 링크는 경로가 같아 위의 경로 비교가 닫지 못한다.
+					onClick={onNavigate}
+					className={cn(
+						itemClass,
+						// 색만으로 구분하지 않는다. 활성은 굵기와 aria-current로도 알린다.
+						active
+							? "bg-sidebar-accent font-bold text-sidebar-accent-foreground"
+							: "text-foreground hover:bg-accent hover:text-accent-foreground",
+					)}
+				/>
+			}
+		>
+			<Icon aria-hidden="true" className="size-4.5 shrink-0" />
+			<span className={cn("text-xs xl:text-base", srOnlyAtIconNav)}>
+				{item.label}
+			</span>
+		</NavTip>
 	);
 }
 
@@ -150,8 +210,13 @@ function AccountRow({ email }: { email: string }) {
 
 export function AppNav({ email }: { email: string }) {
 	const pathname = usePathname();
+	const demo = useDemo();
 	const [moreOpen, setMoreOpen] = useState(false);
-	// 더보기 안 화면에 있으면 더보기 버튼이 활성 메뉴와 같은 표현이고 접근 이름에 현재 화면을 담는다(provider-status 브리프 96행, 계획 리뷰 D3)
+	// 공개 데모는 공급자 연결이 없어 '연결 상태'를 메뉴에서 뺀다(R2 정리). 주소는 그대로 열린다
+	const navItems = demo
+		? OPEN_ITEMS.filter((item) => item.href !== "/connections")
+		: OPEN_ITEMS;
+	// 더보기 안 화면에 있으면 더보기 버튼이 활성 메뉴와 같은 표현이고, 글자가 그 화면 이름이 되고 접근 이름에도 현재 화면을 담는다(provider-status 브리프 96행, 계획 리뷰 D3, R2 브리프 3절)
 	const moreCurrent = OPEN_ITEMS.find(
 		(item) => !item.bar && item.href === pathname,
 	);
@@ -245,43 +310,18 @@ export function AppNav({ email }: { email: string }) {
 					/>
 					<span className={srOnlyAtIconNav}>Omni AI TTS</span>
 				</Link>
-				<ul className="grid grid-cols-4 gap-0.5 px-2 py-1 md:flex md:flex-col md:gap-1 md:p-0">
-					{OPEN_ITEMS.map((item) => {
-						const Icon = item.icon;
-						// 하위 경로가 없다. 없는 주소(/connections/x)에서 '연결 상태'가 현재 페이지로 보이지 않게 같을 때만 활성이다.
-						const active = pathname === item.href;
-						return (
-							<li
-								key={item.href}
-								className={item.bar ? undefined : "hidden md:block"}
-							>
-								<NavTip
-									label={item.label}
-									trigger={
-										<Link
-											href={item.href}
-											aria-current={active ? "page" : undefined}
-											// 지금 페이지 링크는 경로가 같아 위의 경로 비교가 닫지 못한다.
-											onClick={() => setMoreOpen(false)}
-											className={cn(
-												itemClass,
-												// 색만으로 구분하지 않는다. 활성은 굵기와 aria-current로도 알린다.
-												active
-													? "bg-sidebar-accent font-bold text-sidebar-accent-foreground"
-													: "text-foreground hover:bg-accent hover:text-accent-foreground",
-											)}
-										/>
-									}
-								>
-									<Icon aria-hidden="true" className="size-4.5 shrink-0" />
-									<span className={cn("text-xs xl:text-lg", srOnlyAtIconNav)}>
-										{item.label}
-									</span>
-								</NavTip>
-							</li>
-						);
-					})}
-					<li className="md:hidden">
+				{/* 767px 이하 위 막대: 음성 작업실 · 성우 캐스팅 · 드라마 작업실 · 더보기(DOM 순서 = 보이는 순서) */}
+				<ul className="grid grid-cols-4 gap-0.5 px-2 py-1 md:hidden">
+					{BAR_ITEMS.map((item) => (
+						<li key={item.href}>
+							<NavRow
+								item={item}
+								active={pathname === item.href}
+								onNavigate={() => setMoreOpen(false)}
+							/>
+						</li>
+					))}
+					<li>
 						<button
 							ref={moreButtonRef}
 							type="button"
@@ -301,9 +341,28 @@ export function AppNav({ email }: { email: string }) {
 							)}
 						>
 							<Ellipsis aria-hidden="true" className="size-4.5 shrink-0" />
-							<span className="text-xs">더보기</span>
+							<span className="max-w-full truncate text-xs">
+								{moreCurrent?.label ?? "더보기"}
+							</span>
 						</button>
 					</li>
+				</ul>
+				{/* 768px 이상 사이드바(세 묶음). 연결 상태는 공개 데모에서 숨긴다(주소는 그대로 열린다) */}
+				<ul className="hidden md:flex md:flex-col md:gap-1">
+					{navItems.map((item) => (
+						// 하위 경로가 없다. 없는 주소(/connections/x)에서 '연결 상태'가 현재 페이지로 보이지 않게 같을 때만 활성이다.
+						<li
+							key={item.href}
+							// 묶음 사이 24px = 이 위 여백 20px + 목록 gap 4px
+							className={item.startsGroup ? "md:mt-5" : undefined}
+						>
+							<NavRow
+								item={item}
+								active={pathname === item.href}
+								onNavigate={() => setMoreOpen(false)}
+							/>
+						</li>
+					))}
 				</ul>
 				{/* 768px 이상에서는 감싸는 상자가 사라져(contents) 묶음과 바닥 줄이 nav 세로 흐름에 그대로 들어간다. */}
 				<div
@@ -316,97 +375,113 @@ export function AppNav({ email }: { email: string }) {
 				>
 					{/* 767px 이하: 위 막대에 없는 열린 화면(T6 스펙 2절). 768px 이상은 위 목록에 있다 */}
 					<ul aria-label="열린 화면" className="flex flex-col gap-1 md:hidden">
-						{OPEN_ITEMS.filter((item) => !item.bar).map((item) => {
-							const Icon = item.icon;
-							const active = pathname === item.href;
-							return (
-								<li key={item.href}>
-									<Link
-										href={item.href}
-										aria-current={active ? "page" : undefined}
-										onClick={() => {
-											setMoreOpen(false);
-											// 누른 링크는 닫히는 패널과 함께 숨는다. 포커스가 body로 빠지지 않게 더보기 버튼으로 옮긴다
-											moreButtonRef.current?.focus();
-										}}
-										className={cn(
-											rowClass,
-											active
-												? "bg-sidebar-accent font-bold text-sidebar-accent-foreground"
-												: "text-foreground hover:bg-accent hover:text-accent-foreground",
-										)}
-									>
-										<Icon aria-hidden="true" className="size-4.5 shrink-0" />
-										<span className="text-sm">{item.label}</span>
-									</Link>
-								</li>
-							);
-						})}
-					</ul>
-					<div className="md:mt-2">
-						<NavTip
-							label="다음에 열릴 화면"
-							trigger={
-								<button
-									type="button"
-									aria-expanded={upcomingOpen}
-									aria-controls="app-nav-upcoming"
-									onClick={() => setUpcomingOpen((open) => !open)}
-									className={cn(
-										rowClass,
-										"gap-1 text-muted-foreground text-sm hover:bg-accent hover:text-accent-foreground",
-									)}
-								/>
-							}
-						>
-							<span className={srOnlyAtIconNav}>다음에 열릴 화면</span>
-							<ChevronDown
-								aria-hidden="true"
-								className={cn("size-4 shrink-0", upcomingOpen && "rotate-180")}
-							/>
-						</NavTip>
-						<ul
-							id="app-nav-upcoming"
-							hidden={!upcomingOpen}
-							className="mt-1 flex flex-col gap-1"
-						>
-							{UPCOMING_ITEMS.map((item) => {
+						{navItems
+							.filter((item) => !item.bar)
+							.map((item) => {
 								const Icon = item.icon;
+								const active = pathname === item.href;
 								return (
-									<li key={item.label}>
-										{/* 링크가 아니라 누를 수 없다. '준비 중'은 글자(767px 이하·1200px 이상)와 툴팁·접근 이름(768~1199px)으로 알린다 */}
-										<NavTip
-											label={`${item.label} · 준비 중`}
-											trigger={
-												<span
-													className={cn(
-														rowClass,
-														"cursor-default text-muted-foreground",
-													)}
-												/>
-											}
+									<li key={item.href}>
+										<Link
+											href={item.href}
+											aria-current={active ? "page" : undefined}
+											onClick={() => {
+												setMoreOpen(false);
+												// 누른 링크는 닫히는 패널과 함께 숨는다. 포커스가 body로 빠지지 않게 더보기 버튼으로 옮긴다
+												moreButtonRef.current?.focus();
+											}}
+											className={cn(
+												rowClass,
+												active
+													? "bg-sidebar-accent font-bold text-sidebar-accent-foreground"
+													: "text-foreground hover:bg-accent hover:text-accent-foreground",
+											)}
 										>
 											<Icon aria-hidden="true" className="size-4.5 shrink-0" />
-											<span
-												className={cn("text-sm xl:text-lg", srOnlyAtIconNav)}
-											>
-												{item.label}
-											</span>{" "}
-											<span
-												className={cn(
-													"ml-auto text-xs xl:ml-auto",
-													srOnlyAtIconNav,
-												)}
-											>
-												준비 중
-											</span>
-										</NavTip>
+											<span className="text-sm">{item.label}</span>
+										</Link>
 									</li>
 								);
 							})}
-						</ul>
-					</div>
+					</ul>
+					{/* 공개 데모에는 아직 없는 화면을 보이지 않는다(R2 브리프 3절) */}
+					{demo ? null : (
+						<div className="md:mt-2">
+							<NavTip
+								label="다음에 열릴 화면"
+								trigger={
+									<button
+										type="button"
+										aria-expanded={upcomingOpen}
+										aria-controls="app-nav-upcoming"
+										onClick={() => setUpcomingOpen((open) => !open)}
+										className={cn(
+											rowClass,
+											"gap-1 text-muted-foreground text-sm hover:bg-accent hover:text-accent-foreground",
+										)}
+									/>
+								}
+							>
+								<span className={srOnlyAtIconNav}>다음에 열릴 화면</span>
+								<ChevronDown
+									aria-hidden="true"
+									className={cn(
+										"size-4 shrink-0",
+										upcomingOpen && "rotate-180",
+									)}
+								/>
+							</NavTip>
+							<ul
+								id="app-nav-upcoming"
+								hidden={!upcomingOpen}
+								className="mt-1 flex flex-col gap-1"
+							>
+								{UPCOMING_ITEMS.map((item) => {
+									const Icon = item.icon;
+									return (
+										<li key={item.label}>
+											{/* 링크가 아니라 누를 수 없다. '준비 중'은 글자(767px 이하·1200px 이상)와 툴팁·접근 이름(768~1199px)으로 알린다 */}
+											<NavTip
+												label={`${item.label} · 준비 중`}
+												trigger={
+													<span
+														className={cn(
+															rowClass,
+															"cursor-default text-muted-foreground",
+														)}
+													/>
+												}
+											>
+												<Icon
+													aria-hidden="true"
+													className="size-4.5 shrink-0"
+												/>
+												<span
+													className={cn(
+														"text-sm xl:text-base",
+														srOnlyAtIconNav,
+													)}
+												>
+													{item.label}
+												</span>{" "}
+												<span
+													className={cn(
+														"ml-auto text-xs xl:ml-auto",
+														srOnlyAtIconNav,
+													)}
+												>
+													준비 중
+												</span>
+											</NavTip>
+										</li>
+									);
+								})}
+							</ul>
+						</div>
+					)}
 					<AccountRow email={email} />
+					{/* 휴대폰 더보기 아래와 1200px 이상 사이드바에서만 보인다. 768~1199px 아이콘 사이드바에는 글자 자리가 없어 숨긴다 */}
+					<ProkitCredit className="px-3 text-muted-foreground text-xs md:hidden xl:flex" />
 				</div>
 			</nav>
 		</TooltipProvider>

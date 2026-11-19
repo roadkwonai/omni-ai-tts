@@ -135,7 +135,7 @@ export function TrialResults({ voice }: { voice: Voice }) {
 						<AlertDialogHeader>
 							<AlertDialogTitle>이 결과를 지울까요?</AlertDialogTitle>
 							<AlertDialogDescription>
-								지우면 이 결과는 다시 들을 수 없어요.
+								지우면 이 결과는 다시 들을 수 없어요
 							</AlertDialogDescription>
 						</AlertDialogHeader>
 						<AlertDialogFooter>

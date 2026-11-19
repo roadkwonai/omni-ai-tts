@@ -9,6 +9,7 @@ import {
 	comboSignature,
 	DEFAULT_SETTINGS,
 	PARAGRAPHS_MAX,
+	STUDIO_TEXT_MAX,
 } from "@tts-pilot-app/api/providers/trial-options";
 import { DropdownMenuItem } from "@tts-pilot-app/ui/components/dropdown-menu";
 import { Skeleton } from "@tts-pilot-app/ui/components/skeleton";
@@ -18,6 +19,7 @@ import Link from "next/link";
 import {
 	type RefObject,
 	useCallback,
+	useEffect,
 	useLayoutEffect,
 	useMemo,
 	useRef,
@@ -27,6 +29,12 @@ import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
 import { byName } from "@/lib/classes-view";
+import {
+	EXAMPLE_SCRIPT,
+	exampleVoiceSetup,
+	shouldFillExample,
+	shouldSetExampleVoice,
+} from "@/lib/demo-example";
 import type { ParagraphStatus } from "@/lib/make-all";
 import {
 	batchSpeaker,
@@ -41,6 +49,7 @@ import {
 	ownSettings,
 	type Paragraph,
 	pasteAt,
+	pasteToParts,
 	removeAt,
 	sameVoice,
 	setupRequest,
@@ -68,6 +77,7 @@ import { needsConfirm } from "@/lib/trial-view";
 import { failureOf } from "@/lib/voice-failure";
 import { OWNED_LIST, orpc } from "@/utils/orpc";
 
+import { useDemo } from "./demo";
 import { GAP_HELP_ID } from "./drama-gap";
 import { SignInNotice } from "./notice";
 import { NumberReview } from "./number-review";
@@ -75,6 +85,7 @@ import { PageHeader } from "./page-header";
 import { ParagraphAutoTag } from "./paragraph-autotag";
 import { ParagraphBar } from "./paragraph-bar";
 import { type CardActions, ParagraphCard } from "./paragraph-card";
+import { ParagraphEmpty } from "./paragraph-empty";
 import { focusText, paragraphTextId } from "./paragraph-focus";
 import { useParagraphs, useWork, WorkProvider } from "./paragraph-provider";
 import {
@@ -142,6 +153,8 @@ function ChannelPicker({ host }: { host: PresetHost }) {
 				value={value}
 				strong={value !== ""}
 				align="start"
+				// 글자 200%에서도 머리 줄을 넘지 않게 버튼이 줄고 채널 이름이 말줄임된다
+				className="max-w-full"
 				disabled={channels.isPending && !failed}
 				options={[
 					{ value: "", label: STUDIO_TEXT.noChannel },
@@ -421,7 +434,10 @@ function ParagraphList({
 	playingId,
 	selecting,
 	onEndSelecting,
+	onEmpty,
 }: {
+	// 빈 상태가 보이는지 본문(StudioBody)에 알린다. 본문이 data-empty로 휴대폰 레일·막대를 접는다(R2)
+	onEmpty: (empty: boolean) => void;
 	madeFrom: RefObject<string | null>;
 	// 이어 듣기가 지금 들려주는 문단 id. 값이 바뀔 때만 목록이 다시 그리고 그 카드 둘의 playing 프롭만 바뀐다
 	playingId: string | null;
@@ -450,6 +466,12 @@ function ParagraphList({
 			return next;
 		});
 	}, []);
+	// 빈 대본은 빈 상태로 시작한다(R2). 글이 생기거나 '직접 쓰기'를 누르면 그다음부터는 비워도 카드를 그대로 둔다(쓰다 비운 카드가 사라지지 않게)
+	const [typing, setTyping] = useState(false);
+	if (!typing && paragraphs.some((p) => p.text.trim() !== "")) setTyping(true);
+	const empty = work.restored && !typing;
+	// 그리기 전에 알려 빈 상태가 처음 그려질 때 레일이 한 프레임 보이지 않게 한다
+	useLayoutEffect(() => onEmpty(empty), [empty, onEmpty]);
 	const actions = useCardActions(setOpenId, madeFrom, setTagTarget, pick);
 	const { work: meta, voices, now, make, found, live } = work;
 	// 화자 이름들(목록이 바뀔 때만 바뀌는 같은 배열이라 카드 memo가 유지된다)
@@ -484,6 +506,17 @@ function ParagraphList({
 				<Skeleton className="h-28 w-full rounded-2xl" />
 				<Skeleton className="h-28 w-full rounded-2xl" />
 				<Skeleton className="h-28 w-full rounded-2xl" />
+			</div>
+		);
+	if (!typing)
+		return (
+			<div id="paragraph-list" tabIndex={-1} className="outline-none">
+				<ParagraphEmpty
+					onType={() => {
+						flushSync(() => setTyping(true));
+						if (paragraphs[0]) focusText(paragraphs[0].id);
+					}}
+				/>
 			</div>
 		);
 	const all = { ...meta, paragraphs };
@@ -618,11 +651,76 @@ function RailSkeleton() {
 	);
 }
 
+// 공개 데모의 /studio?example=1: 비어 있는 작업실에 예시 대본을 문단 카드로 한 번 채운다(랜딩 브리프 7절). 붙여넣기와 같은 pasteToParts로 나눈다.
+// 본인용에서는 useDemo()가 거짓이라 example을 무시한다
+function ExampleFill() {
+	const demo = useDemo();
+	const work = useWork();
+	const { paragraphs, edit } = useParagraphs();
+	const filled = useRef(false);
+	useEffect(() => {
+		if (filled.current) return;
+		const query = new URLSearchParams(window.location.search);
+		const example = query.get("example");
+		const fill = shouldFillExample({
+			demo,
+			example,
+			restored: work.restored,
+			paragraphs,
+		});
+		// 작업 복원이 끝나면(채우든 말든) 주소에서 example만 지운다. 새로고침으로 다시 채우지 않고 다른 파라미터는 둔다(ScriptOpener와 같은 방식)
+		if (work.restored && example !== null) {
+			query.delete("example");
+			const rest = query.toString();
+			window.history.replaceState(
+				null,
+				"",
+				rest ? `/studio?${rest}` : "/studio",
+			);
+		}
+		if (!fill) return;
+		filled.current = true;
+		const { parts } = pasteToParts(
+			EXAMPLE_SCRIPT,
+			() => STUDIO_TEXT_MAX,
+			PARAGRAPHS_MAX,
+		);
+		edit(() => parts.map(({ text }) => ({ id: crypto.randomUUID(), text })));
+	}, [demo, work.restored, paragraphs, edit]);
+	// 예시를 채웠으면 기본 성우도 정한다(태그를 읽는 Fish Audio '일반여성2'). 담은 성우 목록은 늦게 올 수 있어 따로 기다리고,
+	// 목록이 비었거나 실패하거나 그 성우가 없으면 성우 없이 둔다. 저장은 브라우저 저장소뿐이고, 평소 편집처럼 저장된 결과 찾기(무료 읽기)만 돈다
+	const voiced = useRef(false);
+	const { setDefaultVoice } = work;
+	useEffect(() => {
+		if (
+			voiced.current ||
+			!shouldSetExampleVoice({
+				filled: filled.current,
+				voicesLoad: work.voicesLoad,
+				hasDefaultVoice: work.work.defaultVoice !== null,
+			})
+		)
+			return;
+		voiced.current = true;
+		const setup = exampleVoiceSetup(work.voices);
+		if (setup) setDefaultVoice(setup);
+	}, [
+		work.voicesLoad,
+		work.voices,
+		work.work.defaultVoice,
+		setDefaultVoice,
+		paragraphs,
+	]);
+	return null;
+}
+
 function StudioBody() {
 	const work = useWork();
 	// 프리셋을 불러올 때마다(머리 메뉴·채널·성우 창) 올라 기본 성우 설정 칸을 다시 그린다(같은 프리셋을 다시 불러와도, T9 resetKey)
 	const [loads, setLoads] = useState(0);
 	const madeFrom = useRef<string | null>(null);
+	// 대본이 비어 빈 상태가 보이는 동안(R2 브리프 4절). 휴대폰에서 조건 줄·레일·하단 막대를 접고, 레일이 보이는 @4xl 이상에서 작업 요약을 접는다(CSS group-data-empty)
+	const [empty, setEmpty] = useState(false);
 	// 이어 듣기 재생 위치의 문단 id(막대 플레이어가 쓰고 목록이 읽는다). 작업 상태에 넣지 않는다(계획 2.5)
 	const [playingId, setPlayingId] = useState<string | null>(null);
 	// 고르기 모드: 머리·작업 띠의 '고르기'와 목록이 함께 읽는다(고른 문단 집합은 목록이 든다)
@@ -649,13 +747,18 @@ function StudioBody() {
 	};
 	return (
 		// 본문 래퍼: 앱 메뉴를 뺀 칸, 여백 바깥. 격자는 그 안쪽 요소다(컨테이너 쿼리는 자기 자신에 걸리지 않는다)
-		<div className="@container relative">
+		<div
+			className="@container group/studio relative"
+			data-empty={empty || undefined}
+		>
+			<ExampleFill />
 			<div className="studio-grid @6xl:px-6 px-4 md:px-11">
 				<div className="@4xl:col-start-1 @6xl:col-start-2 @4xl:row-start-1">
 					<PageHeader
 						flush
 						title={STUDIO_TEXT.title}
 						description={PARAGRAPH_TEXT.description}
+						actionsClassName="group-data-empty/studio:max-md:hidden"
 						actions={
 							<>
 								<ScriptMenu />
@@ -673,10 +776,13 @@ function StudioBody() {
 				<a href="#paragraph-list" className={SKIP_LINK}>
 					{PARAGRAPH_TEXT.toList}
 				</a>
-				<a href="#paragraph-bar" className={SKIP_LINK}>
+				<a
+					href="#paragraph-bar"
+					className={cn(SKIP_LINK, "group-data-empty/studio:max-md:hidden")}
+				>
 					{PARAGRAPH_TEXT.toBar}
 				</a>
-				<div className="@4xl:hidden">
+				<div className="@4xl:hidden group-data-empty/studio:max-md:hidden">
 					{work.restored ? (
 						<WorkBand host={host} settingsKey={loads} tail={toggle} />
 					) : (
@@ -705,6 +811,7 @@ function StudioBody() {
 						playingId={playingId}
 						selecting={selecting}
 						onEndSelecting={endSelecting}
+						onEmpty={setEmpty}
 					/>
 					<ParagraphBar madeFrom={madeFrom} onPlaying={setPlayingId} />
 				</div>
@@ -713,7 +820,7 @@ function StudioBody() {
 					aria-label={PARAGRAPH_TEXT.summary}
 					className={cn(
 						RAIL,
-						"@4xl:col-start-2 @6xl:col-start-3 @4xl:row-span-2 @6xl:row-span-3 @4xl:row-start-1 @4xl:mt-10 @4xl:mb-8 @6xl:mb-0",
+						"@4xl:col-start-2 @6xl:col-start-3 @4xl:row-span-2 @6xl:row-span-3 @4xl:row-start-1 @4xl:mt-10 @4xl:mb-8 @6xl:mb-0 group-data-empty/studio:hidden",
 						RAIL_STICKY,
 					)}
 				>

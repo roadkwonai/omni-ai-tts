@@ -263,7 +263,7 @@ function PasteBody({
 // '대본 붙여 넣기' 버튼과 창(레일·1단 작업 띠가 하나씩 그린다). filled는 채운 청록 우선순위(fillOf)가 이 버튼일 때다.
 // 열면 포커스는 글 칸, 넣으면 넣은 첫 문단의 대본 칸(가운데로 옮긴 뒤), 취소·닫기는 이 버튼(브리프 7절).
 // 글이 있는 동안은 바깥 누르기로 닫히지 않는다(DESIGN.md 입력 창)
-export function ParagraphPasteDialog({ filled }: { filled: boolean }) {
+export function ParagraphPasteDialog({ filled = false }: { filled?: boolean }) {
 	const [open, setOpen] = useState(false);
 	const [raw, setRaw] = useState("");
 	// 넣은 첫 문단 id. 창이 닫힌 뒤(문단이 그려진 뒤) 그 대본 칸으로 간다

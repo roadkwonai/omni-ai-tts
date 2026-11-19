@@ -13,15 +13,15 @@ test("데모 확인 창·버튼·자동 태그 이름은 크레딧·비용 말�
 	expect(DEMO_TEXT.autoTagDramaName).toBe("전체 자동 태그");
 	expect(DEMO_TEXT.sentenceHint).toBe("데모 샘플로 나와요.");
 	expect(DEMO_TEXT.voiceNote("기본 샘플")).toBe(
-		"성우 본래 목소리는 기본 샘플로 들어 보세요. 공급자가 공개한 파일이에요.",
+		"성우 본래 목소리는 기본 샘플로 들어 보세요. 음성 서비스가 공개한 파일이에요.",
 	);
 	expect(DEMO_TEXT.voiceNote("참고 음성")).toBe(
 		"비슷한 목소리는 참고 음성으로 들어 보세요. Google이 공개한 파일이에요.",
 	);
 	expect(DEMO_TEXT.connectionsDescription).toMatch(
-		/성우 기본 샘플과 참고 음성은 공급자가 공개한 파일을 브라우저가 공급자 서버에서 바로 받아요\.$/,
+		/성우 기본 샘플과 참고 음성은 음성 서비스가 공개한 파일을 브라우저가 음성 서비스 서버에서 바로 받아요\.$/,
 	);
-	expect(DEMO_TEXT.listenFree).toBe("공급자 없이");
+	expect(DEMO_TEXT.listenFree).toBe("음성 서비스 없이");
 	expect(DEMO_TEXT.listenName("민지")).toBe("민지 내 문장 듣기, 데모 샘플");
 	expect(DEMO_TEXT.regenerateName("민지")).toBe("민지 새로 만들기, 데모 샘플");
 	expect(DEMO_TEXT.savedFree).toBe("저장된 결과");

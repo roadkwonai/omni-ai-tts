@@ -47,7 +47,7 @@ export const STATUS_LABEL: Record<ConnectionStatus, string> = {
 	no_permission: "권한 부족",
 	quota: "한도 부족",
 	rate_limit: "요청 제한",
-	provider_error: "공급자 장애",
+	provider_error: "서비스 장애",
 	check_failed: "확인 실패",
 };
 
@@ -95,8 +95,8 @@ function reasonText(
 			return causeText(provider, result.status);
 		case "rate_limit":
 			return until !== null
-				? `${retryTime(until)} 이후 다시 확인할 수 있어요.`
-				: "잠시 뒤 다시 확인해 주세요.";
+				? `${retryTime(until)} 이후 다시 확인할 수 있어요`
+				: "잠시 뒤 다시 확인해 주세요";
 		case "provider_error":
 			return `${name} 서버에 문제가 생겼어요. 잠시 뒤 다시 확인해 주세요.`;
 		case "check_failed":
@@ -306,7 +306,7 @@ export function ProviderStatusCard({
 			<CardFooter className="mt-auto pt-0">
 				{/* 확인 중에도 포커스는 남기고(focusableWhenDisabled) 누르기만 막는다. 같은 공급자로 두 번째 호출이 나가지 않는다 */}
 				<Button
-					variant="outline"
+					variant="neutral"
 					size="lg"
 					className={cn("w-full", lockedButton(waiting))}
 					aria-label={`${name} ${checking ? "확인 중" : "다시 확인하기"}`}

@@ -52,7 +52,7 @@ function OtherScript({
 				{other ? DRAMA_TEXT.otherScript : ""}
 			</p>
 			{other ? (
-				<Button variant="outline" size="lg" onClick={onRestore}>
+				<Button variant="neutral" size="lg" onClick={onRestore}>
 					{DRAMA_TEXT.restoreScript}
 				</Button>
 			) : null}
@@ -241,7 +241,7 @@ function StageTake({ take }: { take: DramaItem }) {
 				    만들기는 사용자가 다시 누른다 */}
 				{toSplit ? (
 					<Button
-						variant="outline"
+						variant="neutral"
 						size="lg"
 						className="ml-6 self-start"
 						onClick={() => drama.switchModel(splitModelOf())}

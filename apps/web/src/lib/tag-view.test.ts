@@ -91,13 +91,13 @@ describe("TAG_TEXT·AUTO_TAG_TEXT", () => {
 		expect(TAG_TEXT).not.toHaveProperty("spanShort");
 	});
 	it("자동 태그 실패 문구(대기 시각은 ISO를 받아 앱 공통 retryTime으로, 미확인은 받지 못함과 같다)", () => {
-		expect(AUTO_TAG_TEXT.reply).toBe("제안을 읽지 못했어요. 다시 해 주세요");
+		expect(AUTO_TAG_TEXT.reply).toBe("추천을 읽지 못했어요. 다시 해 주세요.");
 		const at = "2026-10-22T03:04:30.000Z";
 		expect(AUTO_TAG_TEXT.retryAt(at)).toBe(
-			`${retryTime(at)} 이후에 다시 제안받을 수 있어요`,
+			`${retryTime(at)} 이후에 다시 추천받을 수 있어요`,
 		);
 		expect(AUTO_TAG_TEXT.failed).toBe(
-			"제안을 받지 못했어요. 잠시 뒤 다시 해 주세요",
+			"추천을 받지 못했어요. 잠시 뒤 다시 해 주세요.",
 		);
 		expect(AUTO_TAG_TEXT.unknown).toBe(AUTO_TAG_TEXT.failed);
 	});
@@ -118,10 +118,10 @@ describe("autoTagProblemText", () => {
 			autoTagProblemText(
 				problem("provider_input", { providerCode: "auto_tag_reply" }),
 			),
-		).toBe("제안을 읽지 못했어요. 다시 해 주세요");
+		).toBe("추천을 읽지 못했어요. 다시 해 주세요.");
 		const at = "2026-10-22T03:04:30.000Z";
 		expect(autoTagProblemText(problem("rate_limit", { retryAt: at }))).toBe(
-			`${retryTime(at)} 이후에 다시 제안받을 수 있어요`,
+			`${retryTime(at)} 이후에 다시 추천받을 수 있어요`,
 		);
 		for (const reason of [
 			"provider_error",
@@ -130,7 +130,7 @@ describe("autoTagProblemText", () => {
 			"odd_reason",
 		])
 			expect(autoTagProblemText(problem(reason))).toBe(
-				"제안을 받지 못했어요. 잠시 뒤 다시 해 주세요",
+				"추천을 받지 못했어요. 잠시 뒤 다시 해 주세요.",
 			);
 		for (const reason of ["no_key", "provider_auth", "quota", "no_permission"])
 			expect(autoTagProblemText(problem(reason))).toBe(

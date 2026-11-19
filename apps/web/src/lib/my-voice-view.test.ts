@@ -118,7 +118,7 @@ describe("reasonText", () => {
 	});
 	it("provider_auth는 공급자의 클론 거절로 안내한다", () => {
 		expect(text("provider_auth")).toBe(
-			"공급자가 이 계정의 클론 요청을 거절했어요. 연결 상태와 공급자 요금제·잔액을 확인해 주세요.",
+			"음성 서비스가 이 계정의 클론 요청을 거절했어요. 연결 상태와 음성 서비스 요금제·잔액을 확인해 주세요.",
 		);
 		expect(text("provider_auth")).not.toBe(text("no_key"));
 	});
@@ -178,7 +178,7 @@ describe("rowNoteOf", () => {
 		expect(note("sending")).toBeNull();
 		expect(note("deleting")).toContain("아직 지워지지 않았어요");
 		expect(note("unknown")).toBe(
-			"공급자 쪽에 만들어졌을 수 있어요. Gemini 웹에서 확인하고 필요하면 지워 주세요.",
+			"음성 서비스 쪽에 만들어졌을 수 있어요. Gemini 웹에서 확인하고 필요하면 지워 주세요.",
 		);
 		expect(note("failed", "quality")).toContain("다시 녹음");
 		expect(note("failed", null)).toBe(reasonText(null, "gemini"));
@@ -198,7 +198,7 @@ describe("recordingHintOf", () => {
 	});
 	it("최소를 넘으면 충분하다고 말한다", () => {
 		expect(recordingHintOf(10, 10)).toEqual({
-			text: "충분해요. 더 읽거나 멈춰도 돼요",
+			text: "충분해요. 더 읽거나 멈춰도 돼요.",
 			enough: true,
 		});
 		expect(recordingHintOf(1, 4).enough).toBe(true);

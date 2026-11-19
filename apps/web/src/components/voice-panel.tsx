@@ -159,7 +159,7 @@ export function VoicePanelContent({ voice }: { voice: Voice }) {
 					: ` · ${SOURCE[voice.source]}`}
 			</p>
 			{chips.length > 0 ? (
-				<ul className="flex flex-wrap gap-1.5" aria-label="공급자 분류">
+				<ul className="flex flex-wrap gap-1.5" aria-label="서비스 분류">
 					{chips.map((label) => (
 						// Gemini 페르소나와 대표 성우의 영어 억양은 공급자 원문이라 번역하지 않는다(조건 메뉴와 같은 값, audit N2)
 						<li

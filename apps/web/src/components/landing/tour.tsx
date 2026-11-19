@@ -15,8 +15,10 @@ import { TOUR_TABS, type TourTab } from "@/lib/landing-content";
 // 숨은 판은 lazy라 받지 않는다. 너비·높이 속성이 자리를 잡아 늦게 와도 흔들리지 않는다.
 function TourShot({ tab }: { tab: TourTab }) {
 	return (
-		<div className="rounded-2xl bg-card p-2 ring-1 ring-border">
-			<div className="mx-auto w-64 overflow-hidden rounded-lg md:hidden">
+		// 화면은 본문 선(max-w-5xl)보다 xl 이상에서 양옆 64px씩 넓게 서고, 제목·설명·탭은 본문 선에 둔다
+		// 포커스 링은 패널(본문 폭)이 아니라 이 틀에 건다(group-focus-visible)
+		<div className="rounded-2xl bg-background p-2 outline-offset-2 ring-1 ring-border group-focus-visible/panel:outline-2 group-focus-visible/panel:outline-ring xl:-mx-16">
+			<div className="mx-auto w-full max-w-64 overflow-hidden rounded-lg md:hidden">
 				<Image
 					src={tab.mobile}
 					alt={`${tab.label} 휴대폰 화면`}
@@ -40,7 +42,7 @@ function TourShot({ tab }: { tab: TourTab }) {
 					alt={tab.alt}
 					width={1440}
 					height={900}
-					sizes="(min-width: 1024px) 1008px, 100vw"
+					sizes="(min-width: 1024px) 1072px, 100vw"
 					className="h-auto w-full dark:hidden"
 				/>
 				<Image
@@ -48,7 +50,7 @@ function TourShot({ tab }: { tab: TourTab }) {
 					alt={tab.alt}
 					width={1440}
 					height={900}
-					sizes="(min-width: 1024px) 1008px, 100vw"
+					sizes="(min-width: 1024px) 1072px, 100vw"
 					className="hidden h-auto w-full dark:block"
 				/>
 			</div>
@@ -83,7 +85,7 @@ export function Tour() {
 					<TabsPanel
 						key={tab.value}
 						value={tab.value}
-						className="landing-tour-panel col-start-1 row-start-1 flex flex-col gap-4"
+						className="landing-tour-panel group/panel col-start-1 row-start-1 flex flex-col gap-4 rounded-lg outline-none"
 					>
 						<TourShot tab={tab} />
 						<p className="max-w-hero text-pretty break-keep text-muted-foreground">

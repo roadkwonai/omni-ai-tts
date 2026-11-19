@@ -20,6 +20,7 @@ export function LandingLogo({
 				translate="no"
 				sizes="120px"
 				loading={loading}
+				fetchPriority={eager ? "high" : undefined}
 				className={`${className} dark:hidden`}
 			/>
 			<Image
@@ -30,6 +31,7 @@ export function LandingLogo({
 				translate="no"
 				sizes="120px"
 				loading={loading}
+				fetchPriority={eager ? "high" : undefined}
 				className={`${className} hidden dark:block`}
 			/>
 		</>

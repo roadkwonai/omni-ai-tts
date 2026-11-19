@@ -159,7 +159,7 @@ function PasteBody({
 				<DialogClose
 					render={
 						<Button
-							variant="outline"
+							variant="neutral"
 							size="lg"
 							className="flex-1 md:flex-none"
 						/>
@@ -226,7 +226,7 @@ export function DramaPasteDialog({
 				render={
 					<Button
 						ref={triggerRef}
-						variant="outline"
+						variant="neutral"
 						size="lg"
 						aria-label={DRAMA_TEXT.paste}
 					/>

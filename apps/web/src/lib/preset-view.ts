@@ -10,7 +10,12 @@ import {
 
 import { PROVIDER_LABEL } from "./connection-view";
 import { LIBRARY_TEXT } from "./saved-voice-view";
-import { optionText, requestOf, settingsSummary } from "./trial-view";
+import {
+	optionText,
+	requestOf,
+	settingsParts,
+	settingsSummary,
+} from "./trial-view";
 
 // 프리셋 화면 문구와 계산(T8 스펙 4절). 화면 없이 테스트하는 순수 함수만 둔다.
 // 문구는 브리프(18행 docs/briefs/presets.md)가 정본이고 브리프가 이긴다. 이름 뒤에 조사를 붙이지 않는다(받침을 모른다).
@@ -21,9 +26,9 @@ type Values = Record<string, string | number | boolean>;
 
 export const PRESET_TEXT = {
 	menu: "프리셋",
-	loading: "프리셋 목록을 받고 있어요",
-	none: "이 공급자 프리셋이 아직 없어요",
-	listFailed: "프리셋 목록을 받지 못했어요",
+	loading: "프리셋 목록을 불러오고 있어요",
+	none: "이 음성 서비스 프리셋이 아직 없어요",
+	listFailed: "프리셋 목록을 불러오지 못했어요",
 	retry: "다시 받기",
 	saveNew: "지금 설정으로 새 프리셋 저장",
 	manage: "프리셋 관리",
@@ -33,8 +38,8 @@ export const PRESET_TEXT = {
 	channel: "채널",
 	noChannel: "채널 없음",
 	chosenChannel: "고른 채널",
-	noChannels: "채널은 '채널·분류' 화면에서 만들 수 있어요",
-	channelsFailed: "채널 목록을 받지 못했어요",
+	noChannels: "채널은 ‘채널·분류’ 화면에서 만들 수 있어요",
+	channelsFailed: "채널 목록을 불러오지 못했어요",
 	channelGone: "고른 채널이 지워졌어요. 채널을 다시 골라 주세요.",
 	channelDefault: "이 채널의 기본 프리셋으로",
 	defaultNeedsChannel: "채널을 고르면 켤 수 있어요",
@@ -49,29 +54,29 @@ export const PRESET_TEXT = {
 	fixedBadge: "처음 값으로 돌아간 값 있음",
 	changed: "바뀐 값 있음",
 	// T6 이름 중복 문구와 같은 꼴(duplicateMessage)
-	duplicate: "같은 이름의 프리셋이 이미 있어요.",
+	duplicate: "같은 이름의 프리셋이 이미 있어요",
 	empty: "아직 프리셋이 없어요",
 	emptyDetail:
-		"성우 캐스팅의 '내 문장 듣기'에서 지금 설정을 프리셋으로 저장할 수 있어요.",
+		"성우 캐스팅의 ‘내 문장 듣기’에서 지금 설정을 프리셋으로 저장할 수 있어요",
 	toCasting: "성우 캐스팅으로",
 	listLabel: "프리셋 목록",
-	removeDetail: "이미 만든 내 문장 결과는 그대로 남아요.",
+	removeDetail: "이미 만든 내 문장 결과는 그대로 남아요",
 	overwriting: "바꾸는 중이에요",
 	removing: "지우는 중이에요",
 	// 메뉴의 지금 불러온 항목 접근 이름 끝(", 불러옴")
 	loadedMark: "불러옴",
 	noPresetVoices: "아직 프리셋에 쓰는 성우가 없어요",
 	noPresetVoicesDetail:
-		"성우 캐스팅의 '내 문장 듣기'에서 프리셋을 저장하면 그 성우가 여기 보여요.",
+		"성우 캐스팅의 ‘내 문장 듣기’에서 프리셋을 저장하면 그 성우가 여기 보여요",
 } as const;
 
-export const savedMessage = (name: string) => `‘${name}’ 프리셋을 저장했어요.`;
-export const loadedMessage = (name: string) => `‘${name}’ 설정을 불러왔어요.`;
+export const savedMessage = (name: string) => `‘${name}’ 프리셋을 저장했어요`;
+export const loadedMessage = (name: string) => `‘${name}’ 설정을 불러왔어요`;
 export const overwrittenMessage = (name: string) =>
-	`‘${name}’ 프리셋을 지금 성우·설정으로 바꿨어요.`;
-export const updatedMessage = (name: string) => `‘${name}’ 프리셋을 고쳤어요.`;
-export const copiedMessage = (name: string) => `‘${name}’ 프리셋을 만들었어요.`;
-export const removedMessage = (name: string) => `‘${name}’ 프리셋을 지웠어요.`;
+	`‘${name}’ 프리셋을 지금 성우·설정으로 바꿨어요`;
+export const updatedMessage = (name: string) => `‘${name}’ 프리셋을 고쳤어요`;
+export const copiedMessage = (name: string) => `‘${name}’ 프리셋을 만들었어요`;
+export const removedMessage = (name: string) => `‘${name}’ 프리셋을 지웠어요`;
 export const loadQuestion = (name: string) => `‘${name}’ 프리셋을 불러올까요?`;
 // 성우 이름은 설명 줄('성우 A → B')로 옮겼다(계획 '스펙과 다른 점' 7)
 export const overwriteQuestion = (name: string) =>
@@ -86,12 +91,12 @@ export const savedVoiceLine = (preset: Pick<Preset, "voice">) =>
 	preset.voice ? `저장할 때 성우 ${preset.voice.name}` : PRESET_TEXT.pickVoice;
 // 불러오기 창 설명 첫 줄(지금 성우가 프리셋의 성우와 다를 때). 불러오기는 성우를 바꾸지 않는다(critique P1, 브리프 5절)
 export const settingsOnly = (name: string) =>
-	`지금 성우 ${name}에 설정만 불러와요.`;
-// 지우기 확인에 붙인다(앞 문장과 띄어 쓴다). 채널 기본이면 그 채널의 기본도 빈다(T9 자동 적용 대상, 계획 리뷰 D17)
+	`지금 성우 ${name}에 설정만 불러와요`;
+// 지우기 확인에 붙인다(앞 문장의 마침표를 이 조각이 가지고 온다). 채널 기본이면 그 채널의 기본도 빈다(T9 자동 적용 대상, 계획 리뷰 D17)
 export const removeDefaultNote = (channelName: string | null) =>
 	channelName
-		? ` 채널 ‘${channelName}’의 기본 프리셋도 비워져요.`
-		: " 고른 채널의 기본 프리셋도 비워져요.";
+		? `. 채널 ‘${channelName}’의 기본 프리셋도 비워져요.`
+		: ". 고른 채널의 기본 프리셋도 비워져요.";
 
 // 지금 성우에서 화면에 보이고 실제로 듣는 값(requestOf의 성우 맞춤 뒤 설정)을 프리셋 한 벌로 묶는다(사용자 결정 2026-10-14 '들은 값 그대로').
 // TS가 provider와 settings의 짝을 따라가지 못해 여기서 한 번 묶는다
@@ -230,6 +235,10 @@ export function castingLoadView(
 export const presetSummary = (preset: PresetValue) =>
 	settingsSummary(requestFor(preset.provider, preset.settings));
 
+// 같은 요약을 칩 하나씩 그리려고 조각으로 돌려준다(값에 ' · '가 들어가도 쪼개지지 않게 문자열을 다시 자르지 않는다)
+export const presetSummaryParts = (preset: PresetValue) =>
+	settingsParts(requestFor(preset.provider, preset.settings));
+
 export const providerVoiceLine = (preset: Pick<Preset, "provider" | "voice">) =>
 	`${PROVIDER_LABEL[preset.provider]} · ${preset.voice?.name ?? PRESET_TEXT.noVoice}`;
 
@@ -261,7 +270,7 @@ export const presetCountOf = (
 // 빼기 확인 창 설명 뒤에 붙인다(linkedNote와 같다). 프리셋 목록을 받지 못했으면 확인하지 못했다고 알린다(계획 리뷰 D10)
 export const presetRemoveNote = (count: number, unknown = false) =>
 	unknown
-		? " 프리셋에서 쓰는 성우인지 확인하지 못했어요."
+		? ". 프리셋에서 쓰는 성우인지 확인하지 못했어요."
 		: count > 0
-			? ` 이 성우를 쓰는 프리셋 ${count}개는 성우를 다시 골라야 해요.`
+			? `. 이 성우를 쓰는 프리셋 ${count}개는 성우를 다시 골라야 해요.`
 			: "";

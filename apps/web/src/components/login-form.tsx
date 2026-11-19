@@ -15,9 +15,9 @@ const LABEL = "font-bold text-sm";
 // 실패 상태 → 문구(스펙 5.1). 401·400은 계정이 있는지 드러내지 않는 같은 문구다.
 function problemOf(status: number | undefined, origin: string): string {
 	if (status === 401 || status === 400) {
-		return "이메일이나 비밀번호가 맞지 않아요.";
+		return "이메일이나 비밀번호가 맞지 않아요";
 	}
-	if (status === 429) return "잠시 뒤 다시 시도해 주세요.";
+	if (status === 429) return "잠시 뒤 다시 시도해 주세요";
 	if (status === 403) {
 		return `이 주소에서는 로그인할 수 없어요. ${origin}로 열어 주세요.`;
 	}

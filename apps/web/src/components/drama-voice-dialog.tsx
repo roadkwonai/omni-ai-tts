@@ -22,14 +22,13 @@ import {
 	TabsTrigger,
 } from "@tts-pilot-app/ui/components/tabs";
 import { cn } from "@tts-pilot-app/ui/lib/utils";
-import { ArrowRight, Check, TriangleAlert } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { type Ref, useId, useRef, useState } from "react";
 
 import { PROVIDER_IDS, PROVIDER_LABEL } from "@/lib/connection-view";
 import {
 	DRAMA_TEXT,
-	firstEmptySpeaker,
 	modelText,
 	speakerNameOf,
 	speakerVoice,
@@ -45,7 +44,7 @@ import { listLoad, savedOf, usageLine } from "@/lib/studio-view";
 import { metaLine, sampleKindOf, voiceKey } from "@/lib/voice-view";
 
 import { DialogCloseButton } from "./dialog-close-button";
-import { useDrama, useSpeakerLines } from "./drama-provider";
+import { useDrama } from "./drama-provider";
 import {
 	AiryVoiceList,
 	EMPTY_AIRY,
@@ -285,7 +284,6 @@ export function PresetOption({
 // 전체에서 담지 못했거나 쓸 수 없는 성우면(pickFromAll false) 창과 포커스가 그대로다. 창이 닫히면 창에서 튼 기본 샘플을 멈춘다
 export function DramaVoicePicker({ index }: { index: number }) {
 	const drama = useDrama();
-	const lineCounts = useSpeakerLines();
 	const player = usePlayer();
 	// 담은 목록을 다시 받는 중(실패 줄의 '다시 불러오기' 스피너). 같은 쿼리를 함께 쓴다
 	const savedList = useSavedList();
@@ -325,9 +323,6 @@ export function DramaVoicePicker({ index }: { index: number }) {
 	const chosenSaved = speaker.presetId
 		? null
 		: savedOf(savedVoices, speaker.voiceId, speaker.provider);
-	const firstEmpty = firstEmptySpeaker(speakers, lineCounts);
-	// 채운 청록은 하나다(브리프 3절): 대본에 쓰인 화자 중 성우 없는 첫 화자만. 목록을 받지 못하면 알림 줄의 '다시 불러오기'가 채운 버튼이다(T9와 같다)
-	const filled = !current && index === firstEmpty && voicesLoad !== "failed";
 	const name = speakerNameOf(speakers, index);
 	// 처음 탭: 프리셋 화자면 '프리셋', 담은 성우가 없다고 알 때만 '전체'(받는 중·실패는 '담은 성우'의 뼈대·실패 줄)
 	const startTab: Tab = speaker.presetId
@@ -403,13 +398,16 @@ export function DramaVoicePicker({ index }: { index: number }) {
 				render={
 					<Button
 						id={speakerFieldId(index, "voice")}
-						variant={current ? "ghost" : filled ? "default" : "outline"}
+						// 화자 띠는 이미 테두리 상자라 안의 버튼은 테두리 없는 ghost 값 버튼이다(상자 안 상자 없음, R2). 채운 청록은 막대의 장면 만들기 하나.
+						// 성우가 없으면 '성우 고르기' + ▾, 정해지면 그 자리를 성우 이름이 대신한다
+						variant="ghost"
 						size="lg"
 						className={cn(
-							"min-w-0 flex-1",
-							// 고른 성우는 띠 안 ghost 한 줄(브리프 17절 2): 굵은 이름 + 회색 '공급자 · 모델', 넘치면 자른다. 다른 '성우 고르기'는 그대로
+							// flex-auto: 기본 폭이 남는 자리에 안 들어가면 다음 줄로 쌓인다(글자 200%)
+							"min-w-0 flex-auto text-foreground",
+							// 고른 성우는 띠 안 한 줄(브리프 17절 2): 굵은 이름 + 회색 '공급자 · 모델', 넘치면 자른다
 							current &&
-								"max-w-65 flex-none justify-start gap-1.5 text-foreground hover:bg-muted aria-expanded:bg-muted max-md:max-w-none max-md:flex-1",
+								"max-w-65 flex-none justify-start gap-1.5 max-md:max-w-none max-md:flex-1",
 						)}
 					/>
 				}
@@ -430,7 +428,10 @@ export function DramaVoicePicker({ index }: { index: number }) {
 						</span>
 					</>
 				) : (
-					<span className="truncate">{DRAMA_TEXT.pickVoice}</span>
+					<>
+						<span className="truncate">{DRAMA_TEXT.pickVoice}</span>
+						<ChevronDown data-icon="inline-end" aria-hidden="true" />
+					</>
 				)}
 			</DialogTrigger>
 			<DialogContent initialFocus={firstFocus} className="md:max-w-2xl">
@@ -485,7 +486,7 @@ export function DramaVoicePicker({ index }: { index: number }) {
 								{/* 다섯 공급자를 담는 탭이라 성우 보관함의 빈 문구를 그대로 쓴다 */}
 								<p>{LIBRARY_TEXT.empty}</p>
 								<Button
-									variant="outline"
+									variant="neutral"
 									size="lg"
 									onClick={() => {
 										setTab("all");

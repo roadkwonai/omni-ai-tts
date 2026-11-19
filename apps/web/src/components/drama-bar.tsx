@@ -11,8 +11,14 @@ import {
 	DropdownMenuTrigger,
 } from "@tts-pilot-app/ui/components/dropdown-menu";
 import { Spinner } from "@tts-pilot-app/ui/components/spinner";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@tts-pilot-app/ui/components/tooltip";
 import { cn } from "@tts-pilot-app/ui/lib/utils";
 import {
+	ArrowRight,
 	AudioLines,
 	ChevronDown,
 	Coins,
@@ -46,7 +52,12 @@ import {
 	splitWarning,
 } from "@/lib/drama-view";
 
-import { useBarHeight, useElapsed, WAIT_NOTE_AFTER } from "./bar-height";
+import {
+	ICON_ONLY_PHONE,
+	useBarHeight,
+	useElapsed,
+	WAIT_NOTE_AFTER,
+} from "./bar-height";
 import { DEMO_TEXT, useDemo } from "./demo";
 import {
 	DRAMA_MAIN_ID,
@@ -97,32 +108,39 @@ function SaveMenu() {
 		: saveOffOf(drama, read);
 	return (
 		<DropdownMenu>
-			<DropdownMenuTrigger
-				render={
-					<Button
-						ref={triggerRef}
-						variant="outline"
-						size="lg"
-						aria-busy={busy}
-					/>
-				}
-			>
-				{busy ? (
-					<Spinner data-icon="inline-start" aria-hidden="true" />
-				) : (
-					<Download
-						data-icon="inline-start"
+			{/* 767px 이하는 44px 아이콘 버튼이고 이름은 툴팁·접근 이름이다(R2 브리프 4절, 막대 한 줄) */}
+			<Tooltip>
+				<TooltipTrigger
+					render={
+						<DropdownMenuTrigger
+							render={
+								<Button
+									ref={triggerRef}
+									variant="neutral"
+									size="lg"
+									aria-busy={busy}
+									className={ICON_ONLY_PHONE}
+								/>
+							}
+						/>
+					}
+				>
+					{busy ? (
+						<Spinner data-icon="inline-start" aria-hidden="true" />
+					) : (
+						<Download data-icon="inline-start" aria-hidden="true" />
+					)}
+					<span className="max-md:sr-only">{DRAMA_TEXT.saveMenu}</span>
+					<ChevronDown
+						data-icon="inline-end"
 						aria-hidden="true"
-						className="max-sm:hidden"
+						className="max-md:hidden"
 					/>
-				)}
-				{DRAMA_TEXT.saveMenu}
-				<ChevronDown
-					data-icon="inline-end"
-					aria-hidden="true"
-					className={busy ? "max-sm:hidden" : undefined}
-				/>
-			</DropdownMenuTrigger>
+				</TooltipTrigger>
+				<TooltipContent className="md:hidden">
+					{DRAMA_TEXT.saveMenu}
+				</TooltipContent>
+			</Tooltip>
 			<DropdownMenuContent className="w-auto min-w-48 p-1">
 				{shown ? (
 					<DropdownMenuGroup>
@@ -181,6 +199,28 @@ function SaveMenu() {
 	);
 }
 
+// 막는 이유의 이동 버튼('성우 고르기'·'이름으로'·'줄 N으로'). 768px 이상은 글자 링크, 767px 이하는 44px 아이콘 버튼이고 이름은 툴팁·접근 이름이다(한 줄 칸이 큰 글자에서도 한 줄이다)
+function GoButton({ label, onClick }: { label: string; onClick: () => void }) {
+	return (
+		<Tooltip>
+			<TooltipTrigger
+				render={
+					<Button
+						variant="link"
+						size="lg"
+						className="max-md:size-11 max-md:shrink-0"
+						onClick={onClick}
+					/>
+				}
+			>
+				<ArrowRight aria-hidden="true" className="md:hidden" />
+				<span className="max-md:sr-only">{label}</span>
+			</TooltipTrigger>
+			<TooltipContent className="md:hidden">{label}</TooltipContent>
+		</Tooltip>
+	);
+}
+
 // 혼합 대본 결과 칸의 '이어 듣기'(스펙 17.2 '혼합 이어 듣기'): 16절 이어 듣기 그대로(호출 없음, 페이지 플레이어, <audio>로 그리지 않는다).
 // 모든 줄 소리가 준비됐거나 이어 듣는 중이면 단추, 아니면 회색 안내다(듣는 사이 대본을 고쳐도 '이어 듣기 멈춤'이 사라지지 않게).
 // 꺼짐은 16절 받기와 같고 이어 듣는 중의 '이어 듣기 멈춤'만 늘 누를 수 있다. 잇는 중이면 잠그되 흐리지 않고 aria-busy와 Spinner다(P5-22).
@@ -204,29 +244,44 @@ function JoinButton({
 		);
 	return (
 		<div className={className}>
-			<Button
-				variant="outline"
-				size="lg"
-				className={lockedButton(off && !playing && !read.joining)}
-				focusableWhenDisabled
-				disabled={off && !playing}
-				aria-busy={read.joining || undefined}
-				onClick={(event) => {
-					read.save("play", event.currentTarget);
-					// 고친 대본을 이어 듣다 멈추면 이 단추가 회색 안내로 바뀌므로 포커스는 주 버튼으로
-					if (playing && !prepared)
-						document.getElementById(DRAMA_MAIN_ID)?.focus();
-				}}
-			>
-				{read.joining ? (
-					<Spinner data-icon="inline-start" aria-hidden="true" />
-				) : playing ? (
-					<Square data-icon="inline-start" aria-hidden="true" />
-				) : (
-					<Play data-icon="inline-start" aria-hidden="true" />
-				)}
-				{playing ? DRAMA_TEXT.joinStop : DRAMA_TEXT.joinPlay}
-			</Button>
+			{/* 767px 이하는 44px 아이콘 버튼이고 이름은 툴팁·접근 이름이다(막대 한 줄, R2 브리프 4절) */}
+			<Tooltip>
+				<TooltipTrigger
+					render={
+						<Button
+							variant="neutral"
+							size="lg"
+							className={cn(
+								ICON_ONLY_PHONE,
+								lockedButton(off && !playing && !read.joining),
+							)}
+							focusableWhenDisabled
+							disabled={off && !playing}
+							aria-busy={read.joining || undefined}
+							onClick={(event) => {
+								read.save("play", event.currentTarget);
+								// 고친 대본을 이어 듣다 멈추면 이 단추가 회색 안내로 바뀌므로 포커스는 주 버튼으로
+								if (playing && !prepared)
+									document.getElementById(DRAMA_MAIN_ID)?.focus();
+							}}
+						/>
+					}
+				>
+					{read.joining ? (
+						<Spinner data-icon="inline-start" aria-hidden="true" />
+					) : playing ? (
+						<Square data-icon="inline-start" aria-hidden="true" />
+					) : (
+						<Play data-icon="inline-start" aria-hidden="true" />
+					)}
+					<span className="max-md:sr-only">
+						{playing ? DRAMA_TEXT.joinStop : DRAMA_TEXT.joinPlay}
+					</span>
+				</TooltipTrigger>
+				<TooltipContent className="md:hidden">
+					{playing ? DRAMA_TEXT.joinStop : DRAMA_TEXT.joinPlay}
+				</TooltipContent>
+			</Tooltip>
 		</div>
 	);
 }
@@ -338,9 +393,8 @@ export function DramaBar() {
 			const empty =
 				target.kind === "voice" || speakers[target.index]?.voiceId === null;
 			return (
-				<Button
-					variant="link"
-					size="lg"
+				<GoButton
+					label={empty ? DRAMA_TEXT.pickVoice : DRAMA_TEXT.toName}
 					onClick={() => {
 						const field = document.getElementById(
 							speakerFieldId(target.index, empty ? "voice" : "name"),
@@ -348,25 +402,20 @@ export function DramaBar() {
 						if (empty) field?.click();
 						else field?.focus();
 					}}
-				>
-					{empty ? DRAMA_TEXT.pickVoice : DRAMA_TEXT.toName}
-				</Button>
+				/>
 			);
 		}
 		const n = shownLines.findIndex((line) => line.id === target.id) + 1;
 		if (n === 0) return null;
 		return (
-			<Button
-				variant="link"
-				size="lg"
+			<GoButton
+				label={DRAMA_TEXT.toLine(n)}
 				onClick={() =>
 					document
 						.getElementById(dramaFieldId(target.id, target.field))
 						?.focus()
 				}
-			>
-				{DRAMA_TEXT.toLine(n)}
-			</Button>
+			/>
 		);
 	}
 
@@ -422,7 +471,7 @@ export function DramaBar() {
 						{/* DN-7: 모델만 바꾸고 포커스는 주 버튼(switchModel). 다시 만들기는 사용자가 누른다 */}
 						{paid && dramaModelsOf().includes(FREE_MODEL) ? (
 							<Button
-								variant="outline"
+								variant="neutral"
 								size="lg"
 								onClick={() => drama.switchModel(FREE_MODEL)}
 							>
@@ -434,8 +483,13 @@ export function DramaBar() {
 			</div>
 		</div>
 	) : reason ? (
-		<div className="flex flex-wrap items-center gap-x-3 md:justify-end">
-			<p id={lineId} className="text-muted-foreground text-sm md:text-right">
+		// 767px 이하는 한 줄이다: 글은 줄어들고(잘리면 title·화면 밖 설명에 전체가 있다) 이동 버튼은 44px 아이콘 버튼이다
+		<div className="flex flex-wrap items-center gap-x-3 max-md:flex-nowrap md:justify-end">
+			<p
+				id={lineId}
+				title={reason.text}
+				className="text-muted-foreground text-sm max-md:min-w-0 max-md:flex-1 max-md:truncate md:text-right"
+			>
 				{reason.text}
 			</p>
 			{blockAction(reason.target)}
@@ -458,7 +512,7 @@ export function DramaBar() {
 			id={DRAMA_MAIN_ID}
 			size="lg"
 			className={cn(
-				"flex-1 rounded-r-none tabular-nums md:flex-none",
+				"flex-1 rounded-r-none tabular-nums max-md:min-w-0 max-md:px-3 md:flex-none",
 				// 막혔거나 복원 전이면 흐리게, 만드는 중은 잠그되 흐리지 않는다(5.8 표)
 				lockedButton(locked && !generating),
 			)}
@@ -490,7 +544,10 @@ export function DramaBar() {
 				// 채운 청록 버튼 안의 유료 표식은 글자색이다(DESIGN.md)
 				<Coins data-icon="inline-start" aria-hidden="true" />
 			) : null}
-			{generating ? DRAMA_TEXT.makingFor(elapsed) : DRAMA_TEXT.make}
+			{/* 767px 이하 한 줄: 좁으면 글자가 줄어든다(접근 이름은 aria-label 또는 전체 글) */}
+			<span className="min-w-0 truncate">
+				{generating ? DRAMA_TEXT.makingFor(elapsed) : DRAMA_TEXT.make}
+			</span>
 		</Button>
 	);
 	// '읽기'(혼합 대본, ▶ 또는 유료면 Coins)와 읽는 중 '멈춤 · N/M줄'·받는 중 '멈춤 · 받는 중 N/M줄'(■). 첫 줄부터 읽는다
@@ -500,7 +557,7 @@ export function DramaBar() {
 			id={DRAMA_MAIN_ID}
 			size="lg"
 			className={cn(
-				"flex-1 tabular-nums md:flex-none",
+				"flex-1 tabular-nums max-md:min-w-0 max-md:px-3 md:flex-none",
 				// 막혔거나 장면을 만드는 중이면 흐리게(서버 동시 1건). 멈춤은 늘 누를 수 있다
 				lockedButton(!reading && (readLocked || generating)),
 			)}
@@ -521,13 +578,15 @@ export function DramaBar() {
 				<Play data-icon="inline-start" aria-hidden="true" />
 			)}
 			{/* 찾는 중에는 줄 수를 아직 모른다(found 전 total 0) */}
-			{!reading
-				? DRAMA_TEXT.read
-				: total === 0
-					? DRAMA_TEXT.readStopOnly
-					: mode === "save"
-						? DRAMA_TEXT.saveStop(Math.min(done + 1, total), total)
-						: DRAMA_TEXT.readStop(Math.min(done + 1, total), total)}
+			<span className="min-w-0 truncate">
+				{!reading
+					? DRAMA_TEXT.read
+					: total === 0
+						? DRAMA_TEXT.readStopOnly
+						: mode === "save"
+							? DRAMA_TEXT.saveStop(Math.min(done + 1, total), total)
+							: DRAMA_TEXT.readStop(Math.min(done + 1, total), total)}
+			</span>
 		</Button>
 	);
 	const scene = fishOnly && !reading;
@@ -538,13 +597,14 @@ export function DramaBar() {
 		<section
 			ref={bandRef}
 			aria-label={DRAMA_TEXT.barLabel}
-			// 767px 이하는 바닥에 붙은 판(카드색, 위 모서리만 둥글게), 768px 이상은 페이지 바탕 띠 안에 뜬 카드. z-5는 앱 메뉴(z-10) 아래다(paragraph-bar와 같다)
-			className="studio-bar-scroll fixed inset-x-0 bottom-0 z-5 rounded-t-2xl bg-card px-4 pt-3 pb-4 ring-1 ring-border md:left-16 md:rounded-none md:bg-background md:px-11 md:ring-0 xl:left-64"
+			// 767px 이하는 바닥에 붙은 판(카드색, 위 모서리만 둥글게), 768px 이상은 편집 열 바닥에 붙는 sticky 띠 안의 카드다.
+			// sticky라 자기 자리(대본 바로 뒤)에 닿으면 흐름으로 돌아와 무대·이전 테이크를 가리지 않는다(R2 브리프 4절). z-5는 앱 메뉴(z-10) 아래다(paragraph-bar와 같다)
+			className="studio-bar-scroll fixed inset-x-0 bottom-0 z-5 rounded-t-2xl bg-card px-4 pt-3 pb-4 ring-1 ring-border md:sticky md:inset-x-auto md:rounded-none md:bg-background md:px-0 md:ring-0"
 		>
-			{/* 1024px 이상은 결과 칸과 동작 칸이 한 줄이고 한 줄 칸이 줄을 바꿔 가득 폭이다 */}
-			<div className="flex max-w-5xl flex-col gap-3 md:rounded-2xl md:bg-card md:p-4 md:ring-1 md:ring-border md:ring-inset lg:flex-row lg:flex-wrap lg:items-center lg:gap-x-6">
+			{/* 767px 이하는 [이어 듣기][받기][주 버튼] 한 줄(주 버튼이 남는 폭). 1024px 이상은 결과 칸과 동작 칸이 한 줄이고 한 줄 칸이 줄을 바꿔 가득 폭이다 */}
+			<div className="flex max-w-5xl flex-col gap-3 max-md:flex-row max-md:flex-wrap max-md:items-center max-md:gap-2 md:rounded-2xl md:bg-card md:p-4 md:ring-1 md:ring-border md:ring-inset lg:flex-row lg:flex-wrap lg:items-center lg:gap-x-6">
 				{take.mode ? (
-					<div className={RESULT_CLASS}>
+					<div className={cn(RESULT_CLASS, "max-md:basis-full")}>
 						<TakePlayer />
 					</div>
 				) : !fishOnly ? (
@@ -564,9 +624,9 @@ export function DramaBar() {
 					</div>
 				)}
 				{/* 좁으면 주 버튼이 남은 폭을 채운다. 주 버튼은 늘 첫 자리라 장면·읽기·멈춤이 같은 요소다 */}
-				<div className="flex flex-wrap gap-2 md:justify-end lg:shrink-0">
+				<div className="flex flex-wrap gap-2 max-md:min-w-0 max-md:flex-1 max-md:flex-nowrap md:justify-end lg:shrink-0">
 					<SaveMenu />
-					<div className="flex flex-1 md:flex-none">
+					<div className="flex flex-1 max-md:min-w-0 md:flex-none">
 						{scene ? sceneButton : readButton}
 						{scene ? (
 							<DropdownMenu>
@@ -616,7 +676,7 @@ export function DramaBar() {
 				</div>
 				{/* 한 줄 칸(가득 폭). 767px 이하에서 예상은 한 줄로 자르고, 768px 이상은 비용 글이 가려지지 않게 줄을 바꾼다(audit P2-4) */}
 				{slot || estimate ? (
-					<div className="min-w-0 lg:basis-full">
+					<div className="min-w-0 basis-full">
 						{slot ?? (
 							<p className="text-muted-foreground text-sm tabular-nums max-md:truncate md:break-keep md:text-right">
 								{estimate}

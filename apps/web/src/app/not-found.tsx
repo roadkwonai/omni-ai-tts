@@ -17,7 +17,7 @@ export default async function NotFound() {
 		<>
 			<PageHeader
 				title="페이지를 찾을 수 없어요"
-				description="주소가 바뀌었거나 아직 없는 화면이에요."
+				description="주소가 바뀌었거나 아직 없는 화면이에요"
 			/>
 			<div className="flex flex-col items-start gap-6 px-4 pb-10 md:px-11">
 				<Image

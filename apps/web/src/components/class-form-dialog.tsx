@@ -74,7 +74,7 @@ export function DialogButtons({
 			<Button
 				type="button"
 				size="lg"
-				variant="outline"
+				variant="neutral"
 				disabled={pending}
 				focusableWhenDisabled
 				className="flex-1 md:flex-none"

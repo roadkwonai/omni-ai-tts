@@ -281,7 +281,7 @@ describe("문구", () => {
 		expect(resultLine(item, now, false)).toBe("방금 · eleven_v4");
 		// 줄마다 다른 접근 이름(D6): 문장 앞 20자
 		expect(resultSubject("Jiyoung", item)).toBe(
-			"Jiyoung 저장된 결과 '오늘 소개할 제품은 30초 만에 끝나'",
+			"Jiyoung 저장된 결과 ‘오늘 소개할 제품은 30초 만에 끝나’",
 		);
 	});
 	it("데이터 안내는 약관 문구가 있는 공급자만", () => {
@@ -389,32 +389,32 @@ describe("오류", () => {
 			"ElevenLabs 키를 확인해 주세요. 키가 틀렸거나 쓸 수 없는 키예요.",
 		);
 		expect(text("quota")).toBe(
-			"크레딧이 부족해요. 기본 샘플은 무료로 들을 수 있어요",
+			"크레딧이 부족해요. 기본 샘플은 무료로 들을 수 있어요.",
 		);
 		expect(text("rate_limit")).toBe(
-			"요청이 많아 잠시 막혔어요. 잠시 뒤 다시 눌러 주세요",
+			"요청이 많아 잠시 막혔어요. 잠시 뒤 다시 눌러 주세요.",
 		);
 		expect(
 			text("provider_input", { providerCode: "subscription_required" }),
 		).toBe("무료 플랜은 라이브러리 성우를 API로 쓸 수 없어요");
 		expect(
 			text("provider_input", { providerCode: "voice_access_denied" }),
-		).toBe("ElevenLabs 웹에서 내 계정에 추가한 뒤 '내 계정'에서 들어 보세요");
+		).toBe("ElevenLabs 웹에서 내 계정에 추가한 뒤 ‘내 계정’에서 들어 보세요");
 		expect(text("provider_input", { providerCode: "audio_too_large" })).toBe(
-			"결과 오디오가 너무 커요. 문장을 줄이거나 속도를 올려 주세요",
+			"결과 오디오가 너무 커요. 문장을 줄이거나 속도를 올려 주세요.",
 		);
 		expect(text("unknown_outcome")).toMatch(/^처리 여부를 확인하지 못했어요/);
 		expect(text("storage")).toBe(
-			"지금은 내 문장을 들을 수 없어요. 기본 샘플은 들을 수 있어요",
+			"지금은 내 문장을 들을 수 없어요. 기본 샘플은 들을 수 있어요.",
 		);
 		// 모르는 사유 문자열(객체 기본 속성 이름 포함)은 switch의 default가 거른다
 		expect(text("constructor")).toBe(
-			"내 문장을 듣지 못했어요. 잠시 뒤 다시 눌러 주세요",
+			"내 문장을 듣지 못했어요. 잠시 뒤 다시 눌러 주세요.",
 		);
 	});
 	it("trialFallback은 그 공급자의 그 밖 사유 문구(맥락이 다른 화면이 이 문구만 바꾼다)", () => {
 		expect(trialFallback("elevenlabs")).toBe(
-			"내 문장을 듣지 못했어요. 잠시 뒤 다시 눌러 주세요",
+			"내 문장을 듣지 못했어요. 잠시 뒤 다시 눌러 주세요.",
 		);
 		expect(trialFallback("gemini")).toBe(
 			trialProblemText("gemini", {
@@ -431,16 +431,16 @@ describe("오류", () => {
 				trialFailureOf(error("provider_input", { providerCode })),
 			).text;
 		expect(text("unsupported_characters")).toBe(
-			"Airy가 읽지 못하는 글자가 있어요. 문장이나 언어 설정을 확인해 주세요",
+			"Airy가 읽지 못하는 글자가 있어요. 문장이나 언어 설정을 확인해 주세요.",
 		);
 		expect(text("invalid_value")).toBe(
-			"Airy가 이 설정을 받지 않았어요. 언어와 말투를 확인해 주세요",
+			"Airy가 이 설정을 받지 않았어요. 언어와 말투를 확인해 주세요.",
 		);
 		expect(text("not_found")).toBe(
-			"Airy가 이 문장을 받지 않았어요. 문장이나 언어 설정을 확인해 주세요",
+			"Airy가 이 문장을 받지 않았어요. 문장이나 언어 설정을 확인해 주세요.",
 		);
 		expect(text("audio_too_large")).toBe(
-			"결과 오디오가 너무 커요. 문장을 줄이거나 속도를 올려 주세요",
+			"결과 오디오가 너무 커요. 문장을 줄이거나 속도를 올려 주세요.",
 		);
 	});
 });
@@ -583,26 +583,26 @@ describe("Gemini 내 문장 듣기 문구(T7.6)", () => {
 		) =>
 			trialProblemText("gemini", { reason, retryAt: null, providerCode }).text;
 		expect(text("provider_input", "INVALID_ARGUMENT")).toBe(
-			"Gemini가 이 문장을 받지 않았어요. 문장이나 말투 지시를 확인해 주세요",
+			"Gemini가 이 문장을 받지 않았어요. 문장이나 말투 지시를 확인해 주세요.",
 		);
 		expect(text("quota")).toBe(
-			"Gemini 결제나 한도 조건에 걸렸어요. Google AI Studio에서 확인해 주세요",
+			"Gemini 결제나 한도 조건에 걸렸어요. Google AI Studio에서 확인해 주세요.",
 		);
 		expect(text("provider_input", "audio_too_large")).toBe(
-			"결과 오디오가 너무 커요. 문장을 줄이거나 말투 지시를 바꿔 주세요",
+			"결과 오디오가 너무 커요. 문장을 줄이거나 말투 지시를 바꿔 주세요.",
 		);
 		expect(text("unknown_outcome")).toBe(
-			"처리 여부를 확인하지 못했어요. 요금이 들었을 수 있으니 Google AI Studio 사용량을 확인한 뒤 다시 눌러 주세요",
+			"처리 여부를 확인하지 못했어요. 요금이 들었을 수 있으니 Google AI Studio 사용량을 확인한 뒤 다시 눌러 주세요.",
 		);
 		// 다른 공급자의 한도·미확인 문구는 그대로
 		const airy = (reason: TrialProblem["reason"]) =>
 			trialProblemText("airy", { reason, retryAt: null, providerCode: null })
 				.text;
 		expect(airy("quota")).toBe(
-			"크레딧이 부족해요. 기본 샘플은 무료로 들을 수 있어요",
+			"크레딧이 부족해요. 기본 샘플은 무료로 들을 수 있어요.",
 		);
 		expect(airy("unknown_outcome")).toBe(
-			"처리 여부를 확인하지 못했어요. 크레딧이 쓰였을 수 있으니 공급자 사용 기록을 확인한 뒤 다시 눌러 주세요",
+			"처리 여부를 확인하지 못했어요. 크레딧이 쓰였을 수 있으니 음성 서비스 사용 기록을 확인한 뒤 다시 눌러 주세요.",
 		);
 	});
 });

@@ -133,7 +133,7 @@ function TrialButton({
 			<TooltipTrigger
 				render={
 					<Button
-						variant={playing ? "default" : "outline"}
+						variant={playing ? "default" : "neutral"}
 						size="lg"
 						className={cn(
 							"relative z-10 @max-2xl:size-11 shrink-0 @max-2xl:px-0",
@@ -429,7 +429,7 @@ export function VoiceRow({
 						<span className="sr-only">
 							{saved?.frequent ? `, ${LIBRARY_TEXT.frequent}` : ""}
 							{pills.all.length > 0
-								? `, ${own ? "내 분류" : "공급자 분류"}: ${pills.all.join(", ")}`
+								? `, ${own ? "내 분류" : "서비스 분류"}: ${pills.all.join(", ")}`
 								: ""}
 							{secondary.length > 0 ? `, ${secondary.join(", ")}` : ""}
 							{tagline ? `, ${tagline}` : ""}

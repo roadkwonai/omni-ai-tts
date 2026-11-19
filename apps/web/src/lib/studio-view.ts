@@ -43,11 +43,16 @@ export const STUDIO_TEXT = {
 	palette: "감정",
 	connections: "연결 상태 보기",
 	unknownNote: "늦게 도착하면 여기서 완료로 바뀌어요",
-	presetVoiceUnusable: "프리셋의 성우를 쓸 수 없어요. 성우를 골라 주세요",
+	presetVoiceUnusable: "프리셋의 성우를 쓸 수 없어요. 성우를 골라 주세요.",
 	close: "닫기",
+	// 대본이 비었을 때 문단 목록 자리의 빈 상태
+	emptyTitle: "대본부터 시작해요",
+	emptyDescription: "붙여 넣거나 저장해 둔 대본을 열면 문단으로 나뉘어요",
+	openSaved: "저장한 대본 열기",
+	typeHere: "직접 쓰기",
 	emotionFixed: "이 성우는 감정을 바꿀 수 없어요",
 	// 작업실 불러오기 알림(캐스팅은 T8 loadedMessage 그대로)
-	presetLoaded: (name: string) => `‘${name}’ 프리셋을 불러왔어요.`,
+	presetLoaded: (name: string) => `‘${name}’ 프리셋을 불러왔어요`,
 } as const;
 
 // 감정 팔레트 뱃지 값: Typecast 자동 감정(v30만) 또는 요청 열거형의 감정

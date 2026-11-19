@@ -294,7 +294,7 @@ describe("패널 문구", () => {
 			},
 			{ tone: "info", text: "공유가 끝나도 730일 동안 계속 쓸 수 있어요" },
 			{ tone: "info", text: "실시간 검수 성우라 응답이 늦을 수 있어요" },
-			{ tone: "info", text: "크레딧 배율 1.5배(공급자 값)" },
+			{ tone: "info", text: "크레딧 배율 1.5배(음성 서비스 값)" },
 		]);
 	});
 
@@ -336,7 +336,7 @@ describe("패널 문구", () => {
 				kind: "licensed",
 				text: "Fish Audio가 권리를 확보한 보증 성우예요",
 			},
-			{ tone: "warning", text: "공급자가 공개를 끝내는 중이에요" },
+			{ tone: "warning", text: "음성 서비스가 공개를 끝내는 중이에요" },
 		]);
 	});
 

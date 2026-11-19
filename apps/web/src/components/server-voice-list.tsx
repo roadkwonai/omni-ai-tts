@@ -368,7 +368,7 @@ export function ServerVoiceList({
 						) : (
 							<Notice
 								title={`${label} 계정에 성우가 없어요`}
-								description={`${label} 웹에서 만들거나 저장한 성우가 여기에 보여요.`}
+								description={`${label} 웹에서 만들거나 저장한 성우가 여기에 보여요`}
 							/>
 						);
 					}
@@ -390,12 +390,12 @@ export function ServerVoiceList({
 									{nextFailure && !voices.isFetchingNextPage ? (
 										<p role="alert" className="text-sm text-warning">
 											다음 성우를 불러오지 못했어요.{" "}
-											{problemCopy(provider, nextFailure).description}
+											{problemCopy(provider, nextFailure).description}.
 										</p>
 									) : null}
 									<div className="flex flex-wrap items-center justify-center gap-3">
 										<Button
-											variant="outline"
+											variant="neutral"
 											size="lg"
 											// 받는 중에도 포커스를 지킨다(계획 리뷰 E13)
 											focusableWhenDisabled

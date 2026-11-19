@@ -36,7 +36,7 @@ describe("SCRIPT_TEXT.inserted", () => {
 	it("넣지 못한 문단과 비운 화자를 같은 알림에 붙인다", () => {
 		expect(SCRIPT_TEXT.inserted(3)).toBe("문단 3개를 넣었어요");
 		expect(SCRIPT_TEXT.inserted(3, 2, 1)).toBe(
-			"문단 3개를 넣었어요. 나머지 2개는 넣지 않았어요. 화자가 20명을 넘어 1개 문단의 화자를 비웠어요",
+			"문단 3개를 넣었어요. 나머지 2개는 넣지 않았어요. 화자가 20명을 넘어 1개 문단의 화자를 비웠어요.",
 		);
 	});
 });

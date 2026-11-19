@@ -289,7 +289,7 @@ function ConfirmBody({
 			</AlertDialogDescription>
 			{request.provider === "typecast" && typecastOverdrawn(quota) ? (
 				<p className="text-sm text-warning">
-					남은 플랜 크레딧이 없어요. 플랜에 따라 추가 청구될 수 있어요
+					남은 플랜 크레딧이 없어요. 플랜에 따라 추가 청구될 수 있어요.
 				</p>
 			) : null}
 			{regenerate ? (

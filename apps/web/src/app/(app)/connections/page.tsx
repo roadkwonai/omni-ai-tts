@@ -11,7 +11,7 @@ export default function ConnectionsPage() {
 		<>
 			<PageHeader
 				title="연결 상태"
-				description="공급자 키는 서버 환경변수에서 관리해요. 이 화면에서는 키를 입력하거나 보여 주지 않아요."
+				description="음성 서비스 키는 서버 환경변수에서 관리해요. 이 화면에서는 키를 입력하거나 보여 주지 않아요."
 			/>
 			<div className="px-4 pb-10 md:px-11">
 				<ConnectionStatus />

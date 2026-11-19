@@ -59,10 +59,11 @@ function SummaryBanner({
 	);
 }
 
-// 공개 데모는 카드 대신 안내 하나를 보인다(공급자를 부르지 않고, 조회도 하지 않는다)
+// 공개 데모는 카드 대신 머리 아래 한 줄 띠 하나를 보인다(공급자를 부르지 않고, 조회도 하지 않는다. R2 브리프 4절)
 export function ConnectionStatus() {
 	return useDemo() ? (
 		<Notice
+			compact
 			icon={Info}
 			title={DEMO_TEXT.connectionsTitle}
 			description={DEMO_TEXT.connectionsDescription}
@@ -101,10 +102,10 @@ function ProviderChecks() {
 	}));
 
 	return (
-		<div className="flex flex-col gap-7">
+		<div className="flex max-w-3xl flex-col gap-6">
 			<SummaryBanner views={views} />
-			{/* 카드 다섯: 1280px 이상 3열(3·2), 768~1279px 2열, 767px 이하 1열(T7.6 스펙 2절). 프로젝트 xl은 1200px이라 80rem을 직접 쓴다 */}
-			<div className="grid grid-cols-1 gap-4 md:grid-cols-2 min-[80rem]:grid-cols-3">
+			{/* 카드 다섯: 768px 한 열 안에서 1열(R2 브리프 2절 3, T7.6의 3열·2열을 대신한다) */}
+			<div className="flex flex-col gap-4">
 				{views.map(({ provider, view }, index) => {
 					const query = queries[index];
 					return (

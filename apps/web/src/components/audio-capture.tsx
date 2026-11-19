@@ -126,7 +126,7 @@ export function OriginalPlayer({
 			<Button
 				ref={button}
 				type="button"
-				variant={status === "playing" ? "default" : "outline"}
+				variant={status === "playing" ? "default" : "neutral"}
 				size="icon-lg"
 				className="shrink-0 rounded-full"
 				disabled={url === null}

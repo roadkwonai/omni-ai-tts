@@ -146,19 +146,20 @@ export function sameName<T extends { name: string }>(
 export const LIBRARY_TEXT = {
 	loading: "성우 보관함을 불러오고 있어요",
 	empty: "아직 담은 성우가 없어요",
-	toCasting: "성우 캐스팅에서 찾기",
+	emptyDetail: "성우 캐스팅에서 별을 누르면 여기에 담겨요",
+	toCasting: "성우 캐스팅으로",
 	listFailed: "성우 보관함을 불러오지 못했어요",
 	classesFailed: "채널·분류 목록을 불러오지 못했어요",
 	checking: "이용 가능 여부를 확인하고 있어요",
 	unavailable: "현재 이용 불가",
 	unavailableNotice:
-		"공급자 목록에서 찾을 수 없어요. 저장해 둔 정보로 보여요. 메모와 분류는 그대로 남아 있어요.",
-	notChecked: "공개 라이브러리 성우는 이용 가능 여부를 확인하지 않아요",
+		"음성 서비스 목록에서 찾을 수 없어요. 저장해 둔 정보로 보여요. 메모와 분류는 그대로 남아 있어요.",
+	notChecked: "공개 성우 라이브러리의 성우는 이용 가능 여부를 확인하지 않아요",
 	frequent: "자주 사용",
 	saving: "저장하는 중이에요",
-	memoSaved: "메모를 저장했어요.",
+	memoSaved: "메모를 저장했어요",
 	memoUnsaved: "저장하지 않은 변경이 있어요",
-	removeDetail: "즐겨찾기·자주 사용·메모·분류 연결도 함께 지워져요.",
+	removeDetail: "즐겨찾기·자주 사용·메모·분류 연결도 함께 지워져요",
 	removing: "빼는 중이에요",
 	removeFailed: "빼지 못했어요. 잠시 뒤 다시 해 주세요.",
 	pickerPlaceholder: "이름으로 찾거나 새로 만들기",
@@ -169,17 +170,17 @@ export const LIBRARY_TEXT = {
 export const voiceCountText = (count: number) =>
 	count > 0 ? `성우 ${count}명` : null;
 
-// 채널·분류 삭제 확인 창 설명 뒤에 붙인다(앞 문장과 띄어 쓴다). 사용자 걱정은 "성우가 지워지나"다(계획 리뷰 D18)
+// 채널·분류 삭제 확인 창 설명 뒤에 붙인다. 앞 문장은 한 문장일 때 마침표가 없어서 덧붙이는 조각이 앞 마침표를 가지고 온다. 사용자 걱정은 "성우가 지워지나"다(계획 리뷰 D18)
 export const linkedNote = (count: number, group: Group) =>
 	count > 0
-		? ` 연결된 성우 ${count}명은 보관함에 그대로 남고, 이 ${GROUP_TEXT[group].label} 연결만 풀려요.`
+		? `. 연결된 성우 ${count}명은 보관함에 그대로 남고, 이 ${GROUP_TEXT[group].label} 연결만 풀려요.`
 		: "";
 
 // 이름 뒤 조사는 받침을 몰라 붙이지 않는다('성우'를 사이에 둔다)
 export const removeQuestion = (name: string) =>
 	`‘${name}’ 성우를 보관함에서 뺄까요?`;
 export const removedMessage = (name: string) =>
-	`‘${name}’ 성우를 보관함에서 뺐어요.`;
+	`‘${name}’ 성우를 보관함에서 뺐어요`;
 
 // 칩 붙임·뗌 알림(화면 밖 role=status, 계획 리뷰 D5). 그룹 이름 뒤 조사는 GROUP_TEXT가 받침에 맞춘다
 export const linkMessage = (name: string, group: Group, on: boolean) =>

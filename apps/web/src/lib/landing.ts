@@ -18,12 +18,6 @@ export function atPageEnd(
 	return scrollY + viewportHeight >= scrollHeight - 2;
 }
 
-// 칩을 마우스·터치로 눌렀을 때의 뜻: 고른 칩이면 재생·멈춤, 다른 칩이면 고르고 바로 재생(사용자 제스처).
-// 방향키로 옮길 때는 이 함수를 거치지 않고 고르기(준비)만 한다.
-export function chipPress(pick: number, index: number): "toggle" | "play" {
-	return pick === index ? "toggle" : "play";
-}
-
 // 태그라인을 줄(디자인한 줄바꿈)과 어절로 나눈다. 어절마다 스크롤로 진해진다.
 export function splitTagline(lines: readonly string[]): string[][] {
 	return lines
