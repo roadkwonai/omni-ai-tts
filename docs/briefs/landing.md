@@ -61,7 +61,7 @@
   5. ~~`mascot-blueprint.png` — 설계도를 펼쳐 든 마스코트(장면 7)~~ 장면 7을 빼면서(2026-11-20) 그림도 지웠다
 - 기존 그림 재사용: `mascot-feature-clone.png`(장면 4 클론 카드), `mascot-cta.png`(장면 10), 크롭 4장(장면 5: casting, studio 문단 카드, 보관함, makebar).
 - 아키텍처 도해는 SVG(그림 생성 아님, 글자는 화면 글자).
-- og-image는 그대로.
+- og-image는 그대로. (2026-11-20 UX-02: 4판 첫 화면 1200x630, 막대 없이 촬영으로 교체)
 
 ## 7. 데모 쪽 보완
 - '데모 작업실 열기'(막대·장면 10)는 `/studio?example=1`. 공개 데모에서 이 주소로 들어오면 작업실이 비어 있을 때 **예시 대본(코드 상수, 숫자·연기 태그가 든 3문단)**을 문단 카드로 채워 연다. 사이드바로 들어오면 지금처럼 빈 상태. 본인용(데모 아님)에서는 `example`을 무시한다.
@@ -85,7 +85,7 @@
 - 카피·샘플 목록·파형 값·예시 대본은 `apps/web/src/lib/landing-content.ts`(필요하면 `landing-waveforms.ts`)에 상수로 둔다.
 - 숫자 놀이터는 `apps/web/src/lib/number-reading.ts`의 `readingItems`를 그대로 부른다. 엔진은 고치지 않는다. 발음용 글을 만드는 작업실 함수(`paragraph-script`의 `spokenPartsOf`)는 서버 통신·성우 모듈을 끌어와 랜딩 번들이 커지므로 규칙만 `try-reading.ts`에 옮기고, 두 결과가 같은지는 테스트가 지킨다(구현 2026-11-19, 코드 리뷰 반영). 확인 필요 항목은 작업실처럼 자동 적용하지 않고 원문과 이유 한 줄로 보인다.
 - 히어로 발음용 글('삼 분기' 등)은 샘플 소리를 만들 때 실제로 보낸 글이다. 엔진 결과('삼분기')와 띄어쓰기가 다를 수 있다.
-- 구현 결정(2026-11-19): 막대 '데모 써 보기'는 다른 세션 파일(`landing-bar.tsx`)이라 이번에는 `/studio` 그대로다. 히어로와 마지막 행동만 `/studio?example=1`로 간다(백로그). 연기 샘플 4개와 드라마 장면은 Fish Audio `s2.1-pro-free`로 사용자 승인 호출 5회에 만들었다(`public/samples/landing/`).
+- 구현 결정(2026-11-19): 막대 '데모 써 보기'는 다른 세션 파일(`landing-bar.tsx`)이라 이번에는 `/studio` 그대로다. 히어로와 마지막 행동만 `/studio?example=1`로 간다(백로그). 2026-11-20 UX-13으로 막대도 `/studio?example=1`·'데모 작업실 열기'로 맞췄다. 연기 샘플 4개와 드라마 장면은 Fish Audio `s2.1-pro-free`로 사용자 승인 호출 5회에 만들었다(`public/samples/landing/`).
 - 재생은 장면 1·3·4가 같은 작은 훅 하나를 쓴다(한 번에 하나 재생). 기존 `hero-card`의 오디오 로직이 있으면 그것을 옮겨 쓴다.
 - 비용 재현은 앱의 `ConfirmDialog`와 `Badge`를 쓴다.
 - 새 섹션은 `components/landing/`에, 기존 `Section`·`Reveal`·`Shot`을 쓴다. `landing.css`·`landing-bar.tsx`·`tagline.tsx`는 고치지 않는다.

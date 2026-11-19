@@ -351,23 +351,21 @@ critique 27/40, audit 18/20(접근성 3/4) 결과 가운데 브리프·스펙을
 - [ ] T15-15 (2026-11-19: 소개 페이지를 다시 만드는 ui-ux 브랜치 몫으로 넘김) 휴대폰 스크롤 측정에서 투어 탭 줄의 tabs-fade(ScrollTimeline)가 scrollMotions 1로 잡힌다. prokit-ui의 휴대폰 스크롤 타임라인 규칙에 맞는지 판단하고, 필요하면 휴대폰에서는 스크롤 타임라인 대신 정적 흐림으로 바꾼다. (테마 버튼 라운드 7행)
 - [ ] T15-16 (2026-11-19: 소개 페이지를 다시 만드는 ui-ux 브랜치 몫으로 넘김) 소개 페이지 테마 버튼: 터치에서는 툴팁이 없어 아이콘 뜻(모니터=시스템)을 알기 어렵고, 시스템 모드에서 지금 적용된 라이트/다크가 아이콘에 안 보인다(critique P2). 랜딩에는 TooltipProvider가 없어 툴팁 지연이 앱(0)과 다르고 막대의 누름 모션(landing-press)이 없다(리뷰 low). 사용자 지정 '시스템/다크/라이트 한 버튼'은 유지한다. (테마 버튼 라운드)
 - [ ] T15-06 공급자 실제 상태: ElevenLabs 연결 확인 실패, Airy 한도 부족(운영도 같은 키). 키·요금제를 확인한다. (스크린샷 준비 중 발견)
-- [ ] UX-01 공개 데모 대본 목록에 QA 잔재 제목("QA 재확인 대본5/3", "RT 점검 대본 T15a2")과 이어 붙은 본문이 보인다(로컬 데모 DB `tts-pilot-app_demo`, 3003 기준). 코드가 아니라 데이터라 시드·초기화 기준 데이터(Neon `seed` 브랜치 포함)를 확인해 지운다. (UI/UX 개선 진단 critique P1, 2026-11-19)
-- [ ] UX-02 랜딩 og-image(`public/brand/og-image.png`)는 2판 그림이다. 3판 헤드라인 "같은 문장을 다섯 성우에게 읽혀 보세요"와 어긋나면 새로 만든다. (R1 랜딩 3판)
 - [ ] UX-03 루트 `layout.tsx`의 Providers(TanStack Query·Toaster)가 공개 랜딩에도 실려 디코드 JS가 약 1MB다. production 빌드 분석으로 확인하고 랜딩·앱 Providers 분리를 검토한다. (진단 audit P2)
 - [ ] UX-05 320px 폭에서 루트 글자 200%로 키우면 히어로 문단 카드(`hero-card.tsx`) 안 문장·칩 줄이 카드 오른쪽 경계(288)를 넘어 334까지 나가 화면 끝에서 잘린다(바깥 overflow-x-clip이 가려 가로 스크롤은 없음). 2판부터 있던 카드 배치다. 카드 안 문장 줄바꿈(min-w-0, wrap-anywhere)과 칩 줄 flex-wrap을 확인한다. WCAG 1.4.4. (R1 11행 재확인)
 - [ ] UX-06 320px·글자 200%에서 `/drama` 대본 줄의 `.drama-line-take` 안 버튼이 오른쪽 368px까지 나가 부모 `overflow-clip`에 잘린다(가로 스크롤은 없음). 버튼 줄 줄바꿈 또는 아이콘화. (R2 후속 측정)
 - [ ] UX-07 `notice.tsx`의 `compact` 불리언이 다른 마크업(한 줄 띠)을 그리고 children을 버린다(소비자 연결 상태 데모 하나). 손댈 때 띠를 따로 두거나 `NoticeBand`로 분리. (R2 리뷰 low, ponytail Nice to have)
 - [ ] UX-08 `Button` 기본 크기(32px)와 제품 크기(44px) 불일치로 `size="lg"`가 156곳. 화면 단위로 나눠 기본 크기를 올린다(한 번에 바꾸면 높이·줄바꿈이 흔들림). (R2 브리프 8절에서 뺌)
-- [ ] UX-09 랜딩 투어 `/scripts` 스크린샷은 로컬 데모 DB의 QA 잔재 행을 촬영 때 DOM에서만 숨겼다. UX-01(데모 데이터 정리) 뒤 다시 찍으면 숨김 없이 같은 화면이 된다. (R2 재촬영)
 - [ ] UX-10 사이드바의 ProKit 제작 표시(`app-nav.tsx:484`)가 템플릿 `prokit-credit.tsx`의 기본 `text-sm`과 넘긴 `text-xs`를 cn 없이 함께 받아 1440에서 '· GitHub'가 둘째 줄로 내려간다. 템플릿 원본을 고칠 수 있으면 className을 cn()으로 합치거나, 사이드바에서 넘긴 크기를 정리한다. (R4 리뷰 low)
 - [ ] UX-11 연결 상태 데모 띠(`Notice compact`)는 굵은 제목과 본문이 같은 <p> 안이라 화면 낭독·복사에서 '부르지 않아요 연결 상태는…'처럼 이어진다. UX-07과 함께 정리(제목 끝 마침표 또는 요소 분리). (R4 재확인)
 - [ ] UX-12 R4 범위 밖에서 두 문장인데 끝 마침표가 없는 기존 문구(studio-text speakersMax·gapHelp, drama gapHelp '0~5초, 0.1초 단위. …'), 작업 요약 '안 만든 문단 1 보기'와 '만들지 않은 문단이 4개'의 숫자 의미를 확인한다. (R4 리뷰·런타임 관찰)
-- [ ] UX-13 랜딩 막대 '데모 써 보기'(`landing-bar.tsx:141`)를 4판 브리프대로 '데모 작업실 열기'·`/studio?example=1`로(상수 `DEMO_HREF`·`DEMO_LABEL`은 `landing-content.ts`에 있음). 같은 파일의 데스크톱 링크 32px 높이도 함께. 백로그 세션 파일. (랜딩 4판 런타임)
 - [ ] UX-14 비용 재현 확인 창의 '만들기'가 `ConfirmDialog` 고정 `destructive`(빨강)라 '안전한 설계' 장면과 어긋난다. 앱의 유료 확인 창과 같은 색이 맞는지(과금 표식 색)를 정하고, 필요하면 `ConfirmDialog`에 확인 버튼 variant를 받는다. (랜딩 4판 critique P3)
 - [ ] UX-15 랜딩 연기 칩·세그먼트 Toggle·놀이터 Textarea가 className으로 색·모양을 덮어쓴다. DESIGN.md의 세그먼트·칩 모양을 `packages/ui` Toggle/ToggleGroup cva variant로 옮긴다. 랜딩 눌림 시간은 `landing.css`의 `--landing-duration-press` 120ms(emil 권장 160ms와 차이)도 함께 본다. (랜딩 4판 web-design-guidelines low, 마감)
 - [ ] UX-16 랜딩 범위 밖 접근성: 투어 탭 패널(`tour.tsx`) Tab 정지점에 포커스 링 없음(WCAG 2.4.7), 푸터 ProKit 링크 20px 높이와 1px 50% 투명 포커스 링. (랜딩 4판 audit, 백로그 세션 파일)
 - [ ] UX-17 랜딩 드라마 줄 시작 재생(src 직후 currentTime)과 재생 훅 상태 전이를 Safari에서 확인한다. DOM 테스트 환경이 없어 재생 큐·blocked·failed 전이는 순수 함수만 테스트했다. (랜딩 4판 코드 리뷰 한계)
 - [ ] UX-18 랜딩 마지막 행동의 보조 버튼 '처음으로 돌아가 다시 듣기'가 주 행동 '데모 작업실 열기'와 같은 크기의 흰 버튼이라 시선이 나뉜다. 보조는 링크 모양으로 낮춘다(`final-cta.tsx`). (2026-11-20 critique P3)
+- [ ] UX-19 1440에서 랜딩 막대 로고 왼쪽 선(x=292)과 히어로 제목 왼쪽 선(x=144)이 약 150px 어긋난다(막대 컨테이너가 본문보다 좁다, 768에서는 맞음). 막대 안쪽 폭·패딩을 히어로 컨테이너와 같은 토큰으로 맞추거나 의도면 브리프에 적는다. (공개 데모 정리 critique P2, 2026-11-20)
+- [ ] UX-20 랜딩 막대 후속(critique P3, 2026-11-20): ① 막대 '데모 작업실 열기'(neutral 외곽선)와 히어로 CTA(채움)가 같은 행동인데 모양이 달라 잠깐 망설이게 한다(위치 위계 의도라 허용, 맞출지 결정). ② 768에서 링크 4개·테마·133px 버튼이 한 줄이라 여유가 작다(측정상 넘침 없음). ③ 휴대폰 메뉴의 데모 링크가 텍스트 링크 한 줄이라 메뉴 아래 빈 공간에서 약하다(풀폭 버튼 검토).
 - [ ] UX-04 막대 로고는 라이트·다크 PNG 두 장이라 즉시 로드 시 숨은 판도 받는다(shortcut). 로고를 SVG 한 장(currentColor)으로 바꾸면 없앤다. `landing.css:212` 메뉴 아이콘 1px 반경(detector advisory)은 백로그 세션 파일이라 그쪽에서 정리한다. (R1 랜딩 3판)
 
 ### P0 통합 검수 (T15-b에서 미룬 것, 2026-11-19)
@@ -386,8 +384,6 @@ critique 27/40, audit 18/20(접근성 3/4) 결과 가운데 브리프·스펙을
 - [ ] MG-02 (critique P2) 요약 링크 '안 만든 문단 1 보기'의 숫자가 개수처럼 읽힌다(실제는 첫 안 만든 문단 번호). '1번부터 안 만든 문단 보기'처럼 문구를 나눈다.
 - [ ] MG-03 (critique P2·P3) 채운 대본에서 카드마다 '만들기 무료' 버튼이 반복되고, 빈 상태에서도 막대의 받기·이어 듣기·전체 만들기 비활성 단추가 남는다. T15b-12·13·14와 함께 본다.
 - [ ] MG-04 (audit P3, web-design-guidelines) 랜딩 막대 로고는 라이트·다크 두 판 모두 eager·fetchPriority high로 받는다. 로고를 currentColor SVG 한 장으로 바꿀 때 없앤다(landing-logo.tsx shortcut 주석). 같은 때 landing.css:219 `border-radius: 1px`(DESIGN rounded 스케일 밖)도 본다.
-- [ ] MG-05 (실행 확인 관찰) 공개 데모 대본 보관함에 'QA 재확인 대본'·'RT 점검 대본 T15a2'(11-19) 행이 남아 있다. 매일 초기화로 지워지는지 다음 초기화 뒤 확인한다.
-
 ### 이번 문서 작업에서 확인한 기존 품질 항목
 
 - [ ] Q-01 기존 전체 Biome 오류 정리 라운드: 초기 `pnpm exec biome check .`가 100 errors / 68 warnings / 2 infos로 실패. 2026-09-26 재검사 103 errors / 68 warnings / 2 infos(기존 코드·도구 상태 파일 포함); 프로토타입 13파일 검사는 통과. 이번 문서 계획과 분리해서 원인·범위를 확인한다. 2026-09-29 재검사 73 errors / 70 warnings: turbo.json·tsconfig.json·package.json 포맷과 apps/web(theme-provider·loader·next.config)의 import 정리 등 대부분 `biome check --write`로 자동 수정 가능.
