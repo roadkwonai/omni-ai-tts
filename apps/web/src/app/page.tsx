@@ -1,14 +1,19 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { Benefits } from "@/components/landing/benefits";
 import { Built } from "@/components/landing/built";
+import { DeliverSection } from "@/components/landing/deliver-section";
+import { DramaSection } from "@/components/landing/drama-section";
 import { FaqSection } from "@/components/landing/faq-section";
 import { FinalCta } from "@/components/landing/final-cta";
 import { Hero } from "@/components/landing/hero";
 import { LandingBar } from "@/components/landing/landing-bar";
 import { LandingFooter } from "@/components/landing/landing-footer";
+import { ListenSection } from "@/components/landing/listen-section";
+import { NumbersSection } from "@/components/landing/numbers-section";
+import { ProofBand } from "@/components/landing/proof-band";
 import { Steps } from "@/components/landing/steps";
+import { StudioSection } from "@/components/landing/studio-section";
 import { Tagline } from "@/components/landing/tagline";
 import { TourSection } from "@/components/landing/tour-section";
 import { getOwnerSession } from "@/context";
@@ -17,7 +22,8 @@ import { landingRedirect } from "@/lib/landing";
 import { HERO_SUBTITLE, TAGLINE_LINES } from "@/lib/landing-content";
 import { FAQ_ITEMS, faqJsonLd, jsonLdText } from "@/lib/landing-faq";
 
-const TITLE = "Omni AI TTS · 다섯 공급자 성우로 만드는 한국어 음성 작업실";
+const TITLE =
+	"Omni AI TTS · 같은 문장을 다섯 성우에게 읽혀 보는 한국어 음성 작업실";
 const OG_IMAGE = {
 	url: "/brand/og-image.png",
 	width: 1200,
@@ -67,13 +73,18 @@ export default async function Home() {
 			<LandingBar />
 			<main id="landing-content" tabIndex={-1} className="outline-none">
 				<Hero />
-				<Benefits />
+				<ProofBand />
+				<ListenSection />
 				<section
 					aria-label="한 줄 소개"
-					className="px-4 py-section md:px-8 md:py-section-lg"
+					className="bg-card px-4 py-section md:px-8 md:py-section-lg"
 				>
 					<Tagline lines={TAGLINE_LINES} />
 				</section>
+				<StudioSection />
+				<NumbersSection />
+				<DramaSection />
+				<DeliverSection />
 				<Steps />
 				<TourSection />
 				<Built />

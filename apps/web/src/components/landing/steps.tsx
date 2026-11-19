@@ -5,7 +5,7 @@ import { STEPS } from "@/lib/landing-content";
 import { Reveal } from "./reveal";
 import { Section, SectionHeading } from "./section";
 
-// 작동 방식 3단계(브리프 3절 5번): 단계마다 마스코트 포즈. 순서가 뜻을 가지므로 번호를 쓴다
+// 작동 방식 3단계(브리프 3절 9번): 단계마다 마스코트 포즈. 순서가 뜻을 가지므로 번호를 쓴다
 export function Steps() {
 	return (
 		<Section id="how" labelledBy="how-title">
@@ -16,7 +16,7 @@ export function Steps() {
 						<li key={step.id} className="landing-item flex flex-col gap-4">
 							<Image
 								src={step.image}
-								alt={step.alt}
+								alt=""
 								width={658}
 								height={720}
 								sizes="(min-width: 768px) 224px, 144px"

@@ -34,12 +34,32 @@ vi.mock("next/navigation", async (original) => ({
 	},
 }));
 vi.mock(
-	"@/components/landing/benefits",
-	() => import("../components/landing/benefits"),
-);
-vi.mock(
 	"@/components/landing/built",
 	() => import("../components/landing/built"),
+);
+vi.mock(
+	"@/components/landing/deliver-section",
+	() => import("../components/landing/deliver-section"),
+);
+vi.mock(
+	"@/components/landing/drama-section",
+	() => import("../components/landing/drama-section"),
+);
+vi.mock(
+	"@/components/landing/listen-section",
+	() => import("../components/landing/listen-section"),
+);
+vi.mock(
+	"@/components/landing/numbers-section",
+	() => import("../components/landing/numbers-section"),
+);
+vi.mock(
+	"@/components/landing/proof-band",
+	() => import("../components/landing/proof-band"),
+);
+vi.mock(
+	"@/components/landing/studio-section",
+	() => import("../components/landing/studio-section"),
 );
 vi.mock(
 	"@/components/landing/faq-section",
@@ -114,6 +134,21 @@ test("공개 데모 `/`: 예시 소유자여도 소개 페이지를 그리고 �
 	// 막대(header)와 바닥(footer)은 main 밖: banner·contentinfo
 	expect(html.indexOf("</header>")).toBeLessThan(html.indexOf("<main"));
 	expect(html.indexOf("<footer")).toBeGreaterThan(html.indexOf("</main>"));
+	// 섹션 순서(브리프 3절): 앵커가 이 차례로 있고 막대 메뉴 앵커가 모두 실제 섹션 id다
+	const order = [
+		"listen",
+		"studio",
+		"drama",
+		"how",
+		"tour",
+		"built",
+		"faq",
+	].map((id) => html.indexOf(`id="${id}"`));
+	expect(order.every((at) => at > 0)).toBe(true);
+	expect([...order].sort((a, b) => a - b)).toEqual(order);
+	expect(html.indexOf('id="hero-card"')).toBeLessThan(order[0] ?? 0);
+	expect(html).toContain("같은 문장을 다섯 성우에게 읽혀 보세요");
+	expect(html).not.toContain("다섯 목소리");
 });
 
 test("본인용 `/`는 소개 페이지 없이 소유자는 /studio, 아니면 /login으로 보낸다", async () => {

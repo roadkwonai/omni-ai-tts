@@ -5,20 +5,20 @@ import Link from "next/link";
 
 import {
 	HERO_SOURCE_LEAD,
-	HERO_SOURCES,
 	HERO_SUBTITLE,
 	HERO_TITLE,
 } from "@/lib/landing-content";
 
 import { HeroCard } from "./hero-card";
+import { ServiceNames } from "./service-names";
 
-// 히어로(브리프 3절 1번 2판): 헤드라인 → 부제 → 작동하는 문단 카드 → 주·보조 버튼 → 출처 한 줄. 비등간격(0·60·210ms, 마스코트 마지막)으로 올라온다(landing.css).
+// 히어로(브리프 3절 1번): 헤드라인 → 부제 → 작동하는 문단 카드 → 주·보조 버튼 → 출처 한 줄. 비등간격(0·60·210ms, 마스코트 마지막)으로 올라온다(landing.css).
 // 카드와 버튼은 마지막 단계(4)에 함께 올라온다. 마스코트는 lg 이상에서 카드 옆에 작게 둔다(좁은 폭은 첫 화면에 카드와 버튼이 들어오게 뺀다).
 export function Hero() {
 	return (
 		<section
 			aria-labelledby="hero-title"
-			className="px-4 pt-24 md:px-8 md:pt-40"
+			className="px-4 pt-24 pb-12 md:px-8 md:pt-40 md:pb-16"
 		>
 			<div className="mx-auto flex max-w-hero flex-col items-center gap-4 text-center md:gap-6">
 				<h1
@@ -32,7 +32,7 @@ export function Hero() {
 					data-step="1"
 					className="landing-hero-in text-pretty break-keep text-lg text-muted-foreground"
 				>
-					{HERO_SUBTITLE}
+					<ServiceNames text={HERO_SUBTITLE} />
 				</p>
 			</div>
 			<div
@@ -45,7 +45,7 @@ export function Hero() {
 					</div>
 					<Image
 						src="/brand/mascot-hero.png"
-						alt="헤드폰을 쓴 마이크 마스코트가 대본을 들고 손을 흔드는 모습"
+						alt=""
 						width={658}
 						height={720}
 						sizes="144px"
@@ -60,7 +60,7 @@ export function Hero() {
 						데모 써 보기
 					</Link>
 					<a
-						href="#tour"
+						href="#listen"
 						className={cn(
 							buttonVariants({ variant: "outline", size: "lg" }),
 							"landing-press",
@@ -69,26 +69,9 @@ export function Hero() {
 						기능 둘러보기
 					</a>
 				</div>
-				{/* 항목(점 + 이름)은 nowrap 한 덩어리라 '· Gemini'만 줄 끝에 떨어지지 않는다. 번역 금지는 브랜드·도메인에만 */}
+				{/* 서비스 이름은 바로 아래 증명 띠가 말한다. 여기는 AI 음성 표기 한 줄이다 */}
 				<p className="max-w-180 text-pretty break-keep text-muted-foreground text-sm">
-					{HERO_SOURCE_LEAD}{" "}
-					{HERO_SOURCES.map((source) => (
-						<span key={source.name}>
-							<span className="whitespace-nowrap">
-								· <span translate="no">{source.name}</span>
-								{source.detail || source.domain ? (
-									<>
-										({source.detail}
-										{source.detail && source.domain ? ", " : null}
-										{source.domain ? (
-											<span translate="no">{source.domain}</span>
-										) : null}
-										)
-									</>
-								) : null}
-							</span>{" "}
-						</span>
-					))}
+					{HERO_SOURCE_LEAD}
 				</p>
 			</div>
 		</section>

@@ -14,12 +14,14 @@ import {
 	HERO_LISTEN_NOTE,
 	HERO_NUMBER_COUNT,
 	HERO_ORIGINAL,
+	HERO_PICK_HINT,
 	HERO_SAMPLES,
 	HERO_SPOKEN,
 	type HeroPart,
 	sampleName,
 	sampleNote,
 } from "@/lib/landing-content";
+import { ServiceNames } from "./service-names";
 
 // 히어로의 '작동하는 문단 카드'(브리프 3·5절). 앱 문단 카드(paragraph-card)의 토큰·반경·간격을 따르되, 앱 컴포넌트는 데이터·상태에 묶여 있어 랜딩 전용으로 작게 둔다.
 // 소리 요소는 마크업에 없다: 방문자가 칩을 고르거나 재생을 누를 때 만들고(지연 로드), 하나뿐이라 한 번에 하나만 난다. 자동 재생 없음.
@@ -29,6 +31,8 @@ const VIEWS: { value: View; label: string }[] = [
 	{ value: "original", label: "원문" },
 	{ value: "spoken", label: "발음용" },
 ];
+// 다른 문장을 읽은 샘플(Airy)의 이유. 어느 칩을 골랐든 칩 아래에 늘 보이고, 그 칩이 설명으로 가리킨다
+const OTHER_NOTE = HERO_SAMPLES.map(sampleNote).find(Boolean);
 
 // 숫자 부분만 강조 색(토큰). 같은 글이 겹쳐 있어 두 판 모두 그린다
 function Text({ parts }: { parts: readonly HeroPart[] }) {
@@ -59,7 +63,6 @@ export function HeroCard() {
 	const sample = HERO_SAMPLES[pick] ?? HERO_SAMPLES[0];
 	if (!sample) return null;
 	const name = sampleName(sample);
-	const note = sampleNote(sample);
 
 	function audio() {
 		if (audioRef.current) return audioRef.current;
@@ -147,7 +150,10 @@ export function HeroCard() {
 				: `${name} 재생`;
 
 	return (
-		<div className="flex flex-col gap-3 rounded-2xl bg-card px-4 py-3 text-left ring-1 ring-border ring-inset">
+		<div
+			id="hero-card"
+			className="flex flex-col gap-3 rounded-2xl bg-card px-4 py-3 text-left ring-1 ring-border ring-inset"
+		>
 			<div className="flex items-baseline gap-3">
 				<span className="min-w-6 font-bold text-muted-foreground text-sm tabular-nums">
 					<span className="sr-only">문단 </span>1
@@ -183,7 +189,7 @@ export function HeroCard() {
 						/>
 						숫자 {HERO_NUMBER_COUNT}개 검수함
 					</p>
-					<p className="text-pretty break-keep text-muted-foreground text-xs">
+					<p className="text-pretty break-keep text-muted-foreground text-sm">
 						{HERO_LISTEN_NOTE}
 					</p>
 				</div>
@@ -208,10 +214,18 @@ export function HeroCard() {
 					))}
 				</ToggleGroup>
 			</div>
+			{/* 안내는 재생한 뒤에도 그대로 둔다(상태에 따라 사라지지 않는다) */}
+			<p
+				id="hero-pick-hint"
+				className="border-border border-t pt-3 font-bold text-sm"
+			>
+				{HERO_PICK_HINT}
+			</p>
 			<div
 				role="radiogroup"
 				aria-label="목소리 고르기"
-				className="flex flex-wrap gap-2 border-border border-t pt-3"
+				aria-describedby="hero-pick-hint"
+				className="-mt-1 flex flex-wrap gap-2"
 			>
 				{HERO_SAMPLES.map((item, index) => {
 					const on = index === pick;
@@ -229,6 +243,7 @@ export function HeroCard() {
 								type="radio"
 								name="hero-voice"
 								className="peer sr-only"
+								aria-describedby={item.other ? "hero-other-note" : undefined}
 								checked={on}
 								// 방향키 이동은 고르고 받아 두기만 한다(자동 재생 없음)
 								onChange={() => select(index)}
@@ -261,9 +276,12 @@ export function HeroCard() {
 					);
 				})}
 			</div>
-			{note ? (
-				<p className="text-pretty break-keep text-muted-foreground text-sm">
-					{note}
+			{OTHER_NOTE ? (
+				<p
+					id="hero-other-note"
+					className="text-pretty break-keep text-muted-foreground text-sm"
+				>
+					<ServiceNames text={OTHER_NOTE} />
 				</p>
 			) : null}
 			<div className="flex items-center gap-3 rounded-lg bg-muted px-3 py-2">
@@ -293,7 +311,7 @@ export function HeroCard() {
 					/>
 				</div>
 				<span className="text-muted-foreground text-sm tabular-nums">
-					{clockText(time)} / {clockText(duration)}
+					{`${clockText(time)} / ${clockText(duration)}`}
 				</span>
 			</div>
 			<p role="status" className="sr-only">
