@@ -39,7 +39,7 @@ export function Built() {
 					))}
 				</dl>
 				<p className="landing-item mt-10 font-bold text-lg">
-					{TEST_COUNT_TEXT}가 코드가 바뀔 때마다 이 동작들을 확인합니다.
+					코드가 바뀔 때마다 {TEST_COUNT_TEXT}가 이 동작들을 확인합니다.
 				</p>
 				<p className="landing-item mt-4">
 					<a

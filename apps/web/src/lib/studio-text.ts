@@ -244,7 +244,7 @@ export const PARAGRAPH_TEXT = {
 	stopping: "지금 문단이 끝나면 멈춰요",
 	inProgress: "다른 생성이 진행 중이에요. 끝난 뒤 이어서 만들어 주세요",
 	voiceRejected:
-		"이 성우는 보관함에 없거나 현재 이용 불가예요. 성우를 다시 골라 주세요",
+		"이 성우는 보관함에 없거나 ‘현재 이용 불가’ 상태예요. 성우를 다시 골라 주세요",
 	editedSkipped: (count: number) =>
 		`만드는 동안 고친 문단 ${n(count)}개는 만들지 않았어요`,
 	// 미확인
@@ -457,7 +457,7 @@ export const PARAGRAPH_TEXT = {
 		"gemini-3.8-flash",
 		")로 보내요. Gemini 키가 무료 등급이면 Google이 대본을 학습에 쓸 수 있어요",
 	],
-	autoTagGo: "추천 받기",
+	autoTagGo: "추천받기",
 	// 창을 연 뒤 보낼 문단·횟수가 늘었을 때. 보내지 않고 새 수를 보인다(승인한 횟수보다 많이 보내지 않는다, security low 1)
 	autoTagRecount: "보낼 문단이 바뀌었어요. 바뀐 수를 확인하고 다시 눌러 주세요",
 	autoTagProgress: (done: number, total: number) =>

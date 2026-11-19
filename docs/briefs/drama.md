@@ -670,7 +670,7 @@
 **문구**
 | 키 | 글 |
 |---|---|
-| `mixedBlock` | 다른 공급자 화자가 있어 장면은 만들 수 없어요. 읽기를 쓰세요 |
+| `mixedBlock` | 다른 공급자 화자가 있어 장면은 만들 수 없어요. 읽기를 써 주세요 |
 | `read` · `readStop(done, total)` | 읽기 · 멈춤 · {done}/{total}줄 |
 | `readFrom` · `readAgainFrom` | 이 줄부터 읽기 · 이 줄부터 다시 읽기 |
 | `readingNow` · `makingNow` | 읽는 중 · 만드는 중 |
@@ -691,7 +691,7 @@
 | `autoTagLong(count)` | 대본이 2,000자를 넘어 자동 태그를 쓸 수 없어요 (지금 {count}자) |
 | `autoTagTitle` | 대본을 보내 연기 값을 제안받을까요? |
 | `autoTagBody` | OpenAI 텍스트 모델(gpt-6-luna)로 대본을 보내요. 3번 실패하면 Gemini(gemini-3.8-flash)로 보내요. 예상 약 $0.01. Gemini 키가 무료 등급이면 Google이 보낸 대본을 학습에 쓸 수 있어요 |
-| `autoTagGo` | 제안 받기 |
+| `autoTagGo` | 제안받기 |
 | `autoTagPreviewTitle` · `autoTagNone` | 자동 태그 제안 · 바꿀 값이 없어요 |
 | `autoTagSkipped(count)` | 연기 값을 받지 않는 성우의 줄 {count}개는 그대로 둬요 |
 | `autoTagApply` · `autoTagChanged(count)` | 모두 바꾸기 · 보낸 뒤 고친 줄 {count}개는 건너뛰었어요 |

@@ -30,7 +30,7 @@ export const MY_VOICE_TEXT = {
 	badgeDeleting: "삭제 대기",
 
 	// 줄 주 동작
-	listen: "내 문장으로 들어보기",
+	listen: "내 문장으로 들어 보기",
 	check: "상태 확인",
 	retryDelete: "다시 시도",
 
@@ -51,7 +51,7 @@ export const MY_VOICE_TEXT = {
 	emptyTitle: "아직 만든 내 보이스가 없어요",
 	emptyDescription:
 		"내 목소리를 10초 넘게 녹음하면 클론 성우를 만들 수 있어요.",
-	listError: "내 보이스 목록을 받지 못했어요",
+	listError: "내 보이스 목록을 불러오지 못했어요",
 	reload: "다시 불러오기",
 	noProviderTitle: "클론을 만들 수 있는 공급자가 연결되어 있지 않아요",
 	viewConnections: "연결 상태 보기",
@@ -126,7 +126,7 @@ export const MY_VOICE_TEXT = {
 	pickSourceAgain: "원본 다시 고르기",
 
 	// 들어보기 창
-	listenTitle: (name: string) => `${name} 내 문장으로 들어보기`,
+	listenTitle: (name: string) => `${name} 내 문장으로 들어 보기`,
 
 	// 지우기 확인
 	deleteTitle: (name: string) => `‘${name}’ 내 보이스를 지울까요?`,

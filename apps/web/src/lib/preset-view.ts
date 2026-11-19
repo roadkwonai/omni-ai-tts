@@ -46,7 +46,7 @@ export const PRESET_TEXT = {
 	noVoice: "성우 없음",
 	// 작업실에서 성우를 고르기 전 꺼진 '새 프리셋 저장'의 둘째 줄
 	needVoice: "성우를 먼저 골라 주세요",
-	fixedBadge: "처음 값으로 바뀐 값 있음",
+	fixedBadge: "처음 값으로 돌아간 값 있음",
 	changed: "바뀐 값 있음",
 	// T6 이름 중복 문구와 같은 꼴(duplicateMessage)
 	duplicate: "같은 이름의 프리셋이 이미 있어요.",

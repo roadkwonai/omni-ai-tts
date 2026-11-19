@@ -204,7 +204,7 @@ describe("프리셋 줄과 안내", () => {
 			presetBadges(
 				preset({ voice: null, savedVoiceId: null, fixed: ["model"] }),
 			),
-		).toEqual(["성우를 다시 골라 주세요", "처음 값으로 바뀐 값 있음"]);
+		).toEqual(["성우를 다시 골라 주세요", "처음 값으로 돌아간 값 있음"]);
 		expect(presetBadges(preset({ unavailable: true }))).toEqual([
 			"현재 이용 불가",
 		]);

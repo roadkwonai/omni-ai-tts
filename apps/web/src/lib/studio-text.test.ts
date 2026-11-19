@@ -95,11 +95,11 @@ describe("makeProblemText(공급자별 실패 문구, E5)", () => {
 	});
 	it("작업실 문구: 성우 거절·너무 큰 결과·저장소·알 수 없는 실패", () => {
 		expect(makeProblemText("typecast", problem("voice_unavailable"))).toEqual({
-			text: "이 성우는 보관함에 없거나 현재 이용 불가예요. 성우를 다시 골라 주세요",
+			text: "이 성우는 보관함에 없거나 ‘현재 이용 불가’ 상태예요. 성우를 다시 골라 주세요",
 			connections: false,
 		});
 		expect(PARAGRAPH_TEXT.voiceRejected).toBe(
-			"이 성우는 보관함에 없거나 현재 이용 불가예요. 성우를 다시 골라 주세요",
+			"이 성우는 보관함에 없거나 ‘현재 이용 불가’ 상태예요. 성우를 다시 골라 주세요",
 		);
 		expect(
 			makeProblemText(
@@ -521,7 +521,7 @@ describe("PARAGRAPH_TEXT 태그 도구줄·자동 태그(브리프 15.3)", () =>
 				"gemini-3.8-flash",
 				")로 보내요. Gemini 키가 무료 등급이면 Google이 대본을 학습에 쓸 수 있어요",
 			],
-			autoTagGo: "추천 받기",
+			autoTagGo: "추천받기",
 			// 창을 연 뒤 보낼 문단·횟수가 늘면 보내지 않고 새 수를 보인다(security low 1)
 			autoTagRecount:
 				"보낼 문단이 바뀌었어요. 바뀐 수를 확인하고 다시 눌러 주세요",

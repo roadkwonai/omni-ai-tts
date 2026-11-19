@@ -419,12 +419,12 @@ export const DRAMA_TEXT = {
 	receivingAll: "모두 받는 중이에요",
 	receivedAll: "모두 받았어요",
 	// '쉼 넣어 한 파일로' 받기 시작·끝 화면 밖 알림(스펙 17.2)
-	joinTakeSaving: "쉼 넣어 한 파일로 받는 중이에요",
-	joinTakeSaved: "쉼 넣어 한 파일로 받았어요",
+	joinTakeSaving: "쉼을 넣어 한 파일로 받는 중이에요",
+	joinTakeSaved: "쉼을 넣어 한 파일로 받았어요",
 
 	// Part 2(브리프 14절 문구 표). 감정·말투 값의 이름은 ACTING(drama-acting)에 있다
 	// 막는 이유(dramaBlock)의 첫 이유
-	mixedBlock: "다른 공급자 화자가 있어 장면은 만들 수 없어요. 읽기를 쓰세요",
+	mixedBlock: "다른 공급자 화자가 있어 장면은 만들 수 없어요. 읽기를 써 주세요",
 	read: "읽기",
 	readStop: (done: number, total: number) => `멈춤 · ${n(done)}/${n(total)}줄`,
 	// 찾는 중(줄 수를 아직 모름)의 멈춤(수정 회차 1)
@@ -467,7 +467,7 @@ export const DRAMA_TEXT = {
 	autoTagTitle: "대본을 보내 연기 값을 제안받을까요?",
 	autoTagBody:
 		"OpenAI 텍스트 모델(gpt-6-luna)로 대본을 보내요. 3번 실패하면 Gemini(gemini-3.8-flash)로 보내요. 예상 약 $0.01. Gemini 키가 무료 등급이면 Google이 보낸 대본을 학습에 쓸 수 있어요",
-	autoTagGo: "제안 받기",
+	autoTagGo: "제안받기",
 	autoTagPreviewTitle: "자동 태그 제안",
 	autoTagNone: "바꿀 값이 없어요",
 	autoTagSkipped: (count: number) =>

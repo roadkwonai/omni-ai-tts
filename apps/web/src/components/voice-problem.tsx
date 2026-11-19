@@ -203,7 +203,7 @@ export function EmptyList({
 	return (
 		<Notice
 			role="alert"
-			title={`${PROVIDER_LABEL[provider]}가 준 공개 성우가 없어요`}
+			title={`${PROVIDER_LABEL[provider]}에서 받은 공개 성우가 없어요`}
 			description={demo ? DEMO_TEXT.listDescription : undefined}
 		>
 			{demo ? null : (

@@ -840,7 +840,7 @@ describe("막는 이유(브리프 8절, 이 순서)", () => {
 				speed: 1,
 			}),
 		).toEqual({
-			text: "다른 공급자 화자가 있어 장면은 만들 수 없어요. 읽기를 쓰세요",
+			text: "다른 공급자 화자가 있어 장면은 만들 수 없어요. 읽기를 써 주세요",
 			target: null,
 		});
 		expect(
@@ -2202,7 +2202,7 @@ describe("드라마 문구(브리프 8절 정본)", () => {
 		const t = DRAMA_TEXT;
 		expect(t).toMatchObject({
 			mixedBlock:
-				"다른 공급자 화자가 있어 장면은 만들 수 없어요. 읽기를 쓰세요",
+				"다른 공급자 화자가 있어 장면은 만들 수 없어요. 읽기를 써 주세요",
 			read: "읽기",
 			readFrom: "이 줄부터 읽기",
 			readAgainFrom: "이 줄부터 다시 읽기",
@@ -2221,7 +2221,7 @@ describe("드라마 문구(브리프 8절 정본)", () => {
 			autoTagTitle: "대본을 보내 연기 값을 제안받을까요?",
 			autoTagBody:
 				"OpenAI 텍스트 모델(gpt-6-luna)로 대본을 보내요. 3번 실패하면 Gemini(gemini-3.8-flash)로 보내요. 예상 약 $0.01. Gemini 키가 무료 등급이면 Google이 보낸 대본을 학습에 쓸 수 있어요",
-			autoTagGo: "제안 받기",
+			autoTagGo: "제안받기",
 			autoTagPreviewTitle: "자동 태그 제안",
 			autoTagNone: "바꿀 값이 없어요",
 			autoTagApply: "모두 바꾸기",
@@ -2289,8 +2289,8 @@ describe("드라마 문구(브리프 8절 정본)", () => {
 		expect(t.zipNote(4)).toBe("대사별 파일: 장면 1 + 대사 4");
 		// 쉼 넣어 한 파일로 받기의 화면 밖 시작·끝 알림('모두 받기'와 따로)
 		expect(t).toMatchObject({
-			joinTakeSaving: "쉼 넣어 한 파일로 받는 중이에요",
-			joinTakeSaved: "쉼 넣어 한 파일로 받았어요",
+			joinTakeSaving: "쉼을 넣어 한 파일로 받는 중이에요",
+			joinTakeSaved: "쉼을 넣어 한 파일로 받았어요",
 		});
 		// 무대의 플레이어·줄 목록·받기 단추·빈 상태를 없앴다(스펙 17.2 '무대')
 		for (const key of [

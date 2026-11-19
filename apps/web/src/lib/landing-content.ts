@@ -114,7 +114,7 @@ export const NAV_ITEMS = [
 
 // 혜택 제목 아래 한 문장: 공급자 사이트를 오가던 일을 한 작업실에서 한다(문제/해결 섹션을 뺀 자리)
 export const BENEFITS_LEAD =
-	"공급자 사이트를 오가며 하던 일을 한 작업실에서 고르고, 검수하고, 한 파일로 받습니다.";
+	"공급자 사이트를 오가며 하던 고르기, 검수, 한 파일로 받기를 한 작업실에서 합니다.";
 
 export const BENEFITS = [
 	{
@@ -286,17 +286,17 @@ export const BUILD_POINTS = [
 	},
 	{
 		title: "늦은 결과 저장",
-		text: "공급자 응답이 늦어도 응답 뒤 작업으로 결과를 저장해, 다시 열었을 때 이어서 들을 수 있습니다.",
+		text: "공급자 응답이 늦어도 화면에 먼저 답한 뒤 결과를 마저 저장해서, 다시 열면 이어서 들을 수 있습니다.",
 	},
 	{
 		title: "Postgres 캐시",
-		text: "성우 목록은 24시간 Postgres에 두고, 서명이 같은 문단은 저장된 소리를 찾아 공급자를 부르지 않습니다.",
+		text: "성우 목록은 Postgres에 24시간 보관하고, 서명이 같은 문단은 저장된 소리를 찾아 공급자를 부르지 않습니다.",
 	},
 ] as const;
 
 export const REPO_URL = "https://github.com/roadkwonai/omni-ai-tts";
 export const REPO_LINK_TEXT = "에서 코드와 설계 문서 보기";
-export const CTA_TITLE = "성우 고르기부터 받기까지, 여기까지입니다";
+export const CTA_TITLE = "성우 고르기부터 받기까지 모두 둘러봤습니다";
 export const CTA_TEXT =
 	"가입 없이 공개 데모 작업실을 바로 써 볼 수 있고, 위로 올라가 화면을 다시 볼 수도 있습니다.";
 export const CTA_STACK_TEXT =
