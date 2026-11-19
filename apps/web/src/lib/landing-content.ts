@@ -89,7 +89,7 @@ export const AUDIO_FAILED_TEXT = "재생할 수 없어요";
 export const AUDIO_BLOCKED_TEXT = "다시 눌러 주세요";
 // 출처 줄(무대 아래) 한 줄
 export const HERO_SOURCE_LEAD = "모든 목소리는 AI로 만든 음성입니다";
-// '데모 작업실 열기'는 예시 대본이 열린 작업실로 간다(브리프 7절). 막대는 다른 세션 파일이라 이 상수를 아직 쓰지 않는다
+// '데모 작업실 열기'는 예시 대본이 열린 작업실로 간다(브리프 7절). 히어로·막대·마지막 행동이 함께 쓴다
 export const DEMO_HREF = "/studio?example=1";
 export const DEMO_LABEL = "데모 작업실 열기";
 

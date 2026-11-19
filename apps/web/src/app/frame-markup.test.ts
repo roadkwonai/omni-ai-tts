@@ -115,7 +115,7 @@ test("공개 데모 `/`: 예시 소유자여도 소개 페이지를 그리고 �
 	const html = await home();
 	expect(html).not.toContain('aria-label="주요 메뉴"');
 	expect(html).not.toContain("/login");
-	expect(html).toContain("데모 써 보기");
+	expect(html).toContain("데모 작업실 열기");
 	expect(count(html, /<main[ >]/g)).toBe(1);
 	// 막대(header)와 바닥(footer)은 main 밖: banner·contentinfo
 	expect(html.indexOf("</header>")).toBeLessThan(html.indexOf("<main"));

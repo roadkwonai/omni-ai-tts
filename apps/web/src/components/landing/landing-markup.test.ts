@@ -87,24 +87,24 @@ test("FAQ는 질문마다 aria-expanded 단추이고 첫 항목만 펼쳐져 있
 	for (const item of FAQ_ITEMS) expect(html).toContain(item.question);
 });
 
-test("막대는 같은 페이지 앵커와 /studio(데모 써 보기)만 걸고 /login은 없다, 메뉴 단추는 이름이 있다", () => {
+test("막대는 같은 페이지 앵커와 /studio?example=1(데모 작업실 열기)만 걸고 /login은 없다, 메뉴 단추는 이름이 있다", () => {
 	const html = renderToStaticMarkup(createElement(LandingBar));
 	expect(html).toContain('aria-label="메뉴"');
 	const hrefs = [...html.matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
 	for (const href of hrefs) {
-		expect(href, String(href)).toMatch(/^(#[a-z-]+|\/studio)$/);
+		expect(href, String(href)).toMatch(/^(#[a-z-]+|\/studio\?example=1)$/);
 	}
-	expect(hrefs).toContain("/studio");
-	expect(html).toContain("데모 써 보기");
+	expect(hrefs).toContain("/studio?example=1");
+	expect(html).toContain("데모 작업실 열기");
 	expect(html).not.toContain("/login");
 	expect(html).not.toContain("로그인");
 });
 
-test("막대 오른쪽 묶음에 테마 버튼이 데모 써 보기와 메뉴 단추 앞에 있다", () => {
+test("막대 오른쪽 묶음에 테마 버튼이 데모 작업실 열기와 메뉴 단추 앞에 있다", () => {
 	const html = renderToStaticMarkup(createElement(LandingBar));
 	const theme = html.indexOf('aria-label="테마 바꾸기"');
 	expect(theme).toBeGreaterThan(-1);
-	expect(theme).toBeLessThan(html.indexOf("데모 써 보기"));
+	expect(theme).toBeLessThan(html.indexOf("데모 작업실 열기"));
 	expect(theme).toBeLessThan(html.indexOf('aria-label="메뉴"'));
 });
 
@@ -480,11 +480,12 @@ test("막대 로고(첫 화면)는 loading=eager, 메뉴 패널 로고는 기본
 	);
 });
 
-test("막대의 로고 링크와 '데모 써 보기'는 눌림 영역이 44px 이상이다", () => {
+test("막대의 로고 링크와 '데모 작업실 열기'는 눌림 영역이 44px 이상이다", () => {
 	const html = renderToStaticMarkup(createElement(LandingBar));
 	expect(html).toMatch(/<a [^>]*href="#top"[^>]*class="[^"]*min-h-11/);
+	// 데스크톱 링크는 보이는 높이가 44px(buttonVariants size lg = h-11)라 눌림 영역을 따로 넓히지 않는다
 	expect(html).toMatch(
-		// 버튼 바탕의 1px 테두리 때문에 기준 상자가 30px다: 위아래 7px씩 넓혀 44px
-		/<a [^>]*class="[^"]*after:-inset-y-1\.75[^"]*"[^>]*href="\/studio"/,
+		/<a [^>]*class="[^"]*\bh-11\b[^"]*"[^>]*href="\/studio\?example=1"/,
 	);
+	expect(html).not.toContain("after:-inset-y-1.75");
 });

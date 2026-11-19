@@ -12,7 +12,7 @@ import {
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-import { NAV_ITEMS } from "@/lib/landing-content";
+import { DEMO_HREF, DEMO_LABEL, NAV_ITEMS } from "@/lib/landing-content";
 
 import { ModeToggle } from "../mode-toggle";
 import { LandingLogo } from "./landing-logo";
@@ -134,18 +134,18 @@ export function LandingBar() {
 							</li>
 						))}
 					</ul>
-					{/* 오른쪽 묶음: 테마 버튼(휴대폰에서도 보임) · 데모 써 보기(md~) · 메뉴 버튼(md 미만) */}
+					{/* 오른쪽 묶음: 테마 버튼(휴대폰에서도 보임) · 데모 작업실 열기(md~) · 메뉴 버튼(md 미만) */}
 					<div className="flex items-center gap-2">
 						<ModeToggle tooltipSide="bottom" />
 						<Link
-							href="/studio"
+							href={DEMO_HREF}
 							className={cn(
-								buttonVariants({ variant: "neutral" }),
-								// 보이는 높이(32px)는 그대로. 버튼 바탕의 1px 테두리로 after 기준 상자가 30px라 눌림 영역만 위아래 7px씩 넓혀 44px
-								"landing-press relative hidden after:absolute after:inset-x-0 after:-inset-y-1.75 md:inline-flex",
+								// lg(44px)는 테마 버튼(icon-lg)과 같은 높이라 눌림 영역을 따로 넓히지 않는다
+								buttonVariants({ variant: "neutral", size: "lg" }),
+								"landing-press hidden md:inline-flex",
 							)}
 						>
-							데모 써 보기
+							{DEMO_LABEL}
 						</Link>
 						<Dialog
 							open={menuOpen}
@@ -192,10 +192,10 @@ export function LandingBar() {
 									))}
 									<li className="landing-menu-link">
 										<DialogClose
-											render={<Link href="/studio" />}
+											render={<Link href={DEMO_HREF} />}
 											className={cn(MENU_LINK, "text-primary")}
 										>
-											데모 써 보기
+											{DEMO_LABEL}
 										</DialogClose>
 									</li>
 								</ul>

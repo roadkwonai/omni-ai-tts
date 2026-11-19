@@ -24,7 +24,7 @@ const OG_IMAGE = {
 	url: "/brand/og-image.png",
 	width: 1200,
 	height: 630,
-	alt: "Omni AI TTS 로고 옆에서 헤드폰을 쓴 마이크 마스코트가 대본을 들고 손을 흔드는 모습",
+	alt: "Omni AI TTS 첫 화면: ‘같은 문장을 다섯 성우에게 읽혀 보세요’ 제목과 다섯 성우 비교 카드",
 };
 
 // 색인하는 공개 페이지(브리프 11절). 제목은 루트 template(" · Omni AI TTS")에 걸리지 않게 absolute로 둔다.
