@@ -20,7 +20,12 @@ const THEMES = [
 // 고른 값은 브라우저(localStorage)에만 있다. 수화가 끝나기 전(서버 렌더와 첫 렌더)에는 false라 둘이 같다.
 const noSubscribe = () => () => {};
 
-export function ModeToggle() {
+// tooltipSide: 화면 맨 위 막대(랜딩)에서는 위쪽 툴팁이 잘려 bottom을 준다
+export function ModeToggle({
+	tooltipSide = "top",
+}: {
+	tooltipSide?: "top" | "bottom";
+}) {
 	const { theme, setTheme } = useTheme();
 	const hydrated = useSyncExternalStore(
 		noSubscribe,
@@ -63,7 +68,7 @@ export function ModeToggle() {
 					<span aria-hidden="true" className="size-4" />
 				)}
 			</TooltipTrigger>
-			<TooltipContent side="top">{label}</TooltipContent>
+			<TooltipContent side={tooltipSide}>{label}</TooltipContent>
 			<span role="status" className="sr-only">
 				{announcement}
 			</span>

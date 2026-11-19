@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { NAV_ITEMS } from "@/lib/landing-content";
 
+import { ModeToggle } from "../mode-toggle";
 import { LandingLogo } from "./landing-logo";
 
 // 줄 둘이 ☰ ↔ ✕로 모핑하는 아이콘(landing.css). open이면 ✕
@@ -133,69 +134,73 @@ export function LandingBar() {
 							</li>
 						))}
 					</ul>
-					<Link
-						href="/studio"
-						className={cn(
-							buttonVariants({ variant: "neutral" }),
-							"landing-press hidden md:inline-flex",
-						)}
-					>
-						데모 써 보기
-					</Link>
-					<Dialog
-						open={menuOpen}
-						onOpenChange={setMenuOpen}
-						onOpenChangeComplete={(open) => {
-							const hash = pendingHash.current;
-							pendingHash.current = null;
-							if (open || !hash) return;
-							// 이동한 섹션으로 스크롤하고 포커스도 옮긴다(안 옮기면 포커스가 body에 남는다, 7번)
-							const target = document.querySelector<HTMLElement>(hash);
-							target?.scrollIntoView();
-							target?.focus({ preventScroll: true });
-						}}
-					>
-						<DialogTrigger
-							aria-label="메뉴"
-							// 라이브러리 트리거는 aria-expanded를 주지 않아 열림 상태를 직접 단다(8번)
-							aria-expanded={menuOpen}
-							className={cn(MENU_BUTTON, "md:hidden")}
+					{/* 오른쪽 묶음: 테마 버튼(휴대폰에서도 보임) · 데모 써 보기(md~) · 메뉴 버튼(md 미만) */}
+					<div className="flex items-center gap-2">
+						<ModeToggle tooltipSide="bottom" />
+						<Link
+							href="/studio"
+							className={cn(
+								buttonVariants({ variant: "neutral" }),
+								"landing-press hidden md:inline-flex",
+							)}
 						>
-							{({ open }) => <MenuIcon open={open} />}
-						</DialogTrigger>
-						<DialogContent className="landing-menu-panel fixed inset-0 m-0 flex h-dvh max-h-none w-full max-w-none flex-col overflow-y-auto overscroll-contain border-0 bg-background p-0 text-foreground">
-							<DialogTitle className="sr-only">메뉴</DialogTitle>
-							<div className="mx-3 mt-3 flex h-14 shrink-0 items-center justify-between px-4">
-								<LandingLogo className="h-10 w-auto" />
-								<DialogClose aria-label="메뉴 닫기" className={MENU_BUTTON}>
-									<MenuIcon open />
-								</DialogClose>
-							</div>
-							<ul className="flex flex-col px-7 pt-6">
-								{NAV_ITEMS.map((item) => (
-									<li key={item.href} className="landing-menu-link">
+							데모 써 보기
+						</Link>
+						<Dialog
+							open={menuOpen}
+							onOpenChange={setMenuOpen}
+							onOpenChangeComplete={(open) => {
+								const hash = pendingHash.current;
+								pendingHash.current = null;
+								if (open || !hash) return;
+								// 이동한 섹션으로 스크롤하고 포커스도 옮긴다(안 옮기면 포커스가 body에 남는다, 7번)
+								const target = document.querySelector<HTMLElement>(hash);
+								target?.scrollIntoView();
+								target?.focus({ preventScroll: true });
+							}}
+						>
+							<DialogTrigger
+								aria-label="메뉴"
+								// 라이브러리 트리거는 aria-expanded를 주지 않아 열림 상태를 직접 단다(8번)
+								aria-expanded={menuOpen}
+								className={cn(MENU_BUTTON, "md:hidden")}
+							>
+								{({ open }) => <MenuIcon open={open} />}
+							</DialogTrigger>
+							<DialogContent className="landing-menu-panel fixed inset-0 m-0 flex h-dvh max-h-none w-full max-w-none flex-col overflow-y-auto overscroll-contain border-0 bg-background p-0 text-foreground">
+								<DialogTitle className="sr-only">메뉴</DialogTitle>
+								<div className="mx-3 mt-3 flex h-14 shrink-0 items-center justify-between px-4">
+									<LandingLogo className="h-10 w-auto" />
+									<DialogClose aria-label="메뉴 닫기" className={MENU_BUTTON}>
+										<MenuIcon open />
+									</DialogClose>
+								</div>
+								<ul className="flex flex-col px-7 pt-6">
+									{NAV_ITEMS.map((item) => (
+										<li key={item.href} className="landing-menu-link">
+											<DialogClose
+												render={<a href={item.href} />}
+												onClick={() => {
+													pendingHash.current = item.href;
+												}}
+												className={MENU_LINK}
+											>
+												{item.label}
+											</DialogClose>
+										</li>
+									))}
+									<li className="landing-menu-link">
 										<DialogClose
-											render={<a href={item.href} />}
-											onClick={() => {
-												pendingHash.current = item.href;
-											}}
-											className={MENU_LINK}
+											render={<Link href="/studio" />}
+											className={cn(MENU_LINK, "text-primary")}
 										>
-											{item.label}
+											데모 써 보기
 										</DialogClose>
 									</li>
-								))}
-								<li className="landing-menu-link">
-									<DialogClose
-										render={<Link href="/studio" />}
-										className={cn(MENU_LINK, "text-primary")}
-									>
-										데모 써 보기
-									</DialogClose>
-								</li>
-							</ul>
-						</DialogContent>
-					</Dialog>
+								</ul>
+							</DialogContent>
+						</Dialog>
+					</div>
 				</nav>
 			</header>
 		</>

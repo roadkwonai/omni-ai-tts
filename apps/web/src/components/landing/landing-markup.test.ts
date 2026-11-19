@@ -80,6 +80,14 @@ test("막대는 같은 페이지 앵커와 /studio(데모 써 보기)만 걸고 
 	expect(html).not.toContain("로그인");
 });
 
+test("막대 오른쪽 묶음에 테마 버튼이 데모 써 보기와 메뉴 단추 앞에 있다", () => {
+	const html = renderToStaticMarkup(createElement(LandingBar));
+	const theme = html.indexOf('aria-label="테마 바꾸기"');
+	expect(theme).toBeGreaterThan(-1);
+	expect(theme).toBeLessThan(html.indexOf("데모 써 보기"));
+	expect(theme).toBeLessThan(html.indexOf('aria-label="메뉴"'));
+});
+
 test("막대 링크: 지금 보는 섹션만 aria-current=location이고 처음엔 아무것도 아니다", () => {
 	const item = NAV_ITEMS[1];
 	if (!item) throw new Error("NAV_ITEMS");
