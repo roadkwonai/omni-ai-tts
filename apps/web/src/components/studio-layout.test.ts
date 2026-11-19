@@ -45,7 +45,7 @@ test("2단 행은 studio-grid가 머리 · 머리 아래 · 나머지(1fr) 셋�
 	expect(src).not.toMatch(/grid-rows-\[/);
 });
 
-test("2단: 머리 1행 · 요약 1~2행 · 목록 2~3행 · 설정 3행(오른쪽 열)", () => {
+test("2단: 머리 1행 · 설정 1~2행 · 목록 2~3행 · 요약 3행(오른쪽 열)", () => {
 	const summary = body.slice(body.indexOf("PARAGRAPH_TEXT.summary}") - 80);
 	const settings = body.slice(
 		body.indexOf("PARAGRAPH_TEXT.settingsLabel") - 80,
@@ -54,10 +54,19 @@ test("2단: 머리 1행 · 요약 1~2행 · 목록 2~3행 · 설정 3행(오른�
 	const list = body.slice(
 		body.indexOf("@4xl:col-start-1 @6xl:col-start-2 @4xl:row-span-2"),
 	);
-	expect(summary).toContain("@4xl:row-span-2");
-	expect(summary).toContain("@4xl:row-start-1");
-	expect(summary).toContain("@4xl:col-start-2");
-	expect(settings).toContain("@4xl:row-start-3");
+	expect(settings).toContain("@4xl:row-span-2");
+	expect(settings).toContain("@4xl:row-start-1");
 	expect(settings).toContain("@4xl:col-start-2");
+	expect(settings).not.toContain("@4xl:studio-rail-sticky");
+	expect(summary).toContain("@4xl:row-start-3");
+	expect(summary).toContain("@4xl:col-start-2");
+	expect(summary).toContain("@4xl:studio-rail-sticky");
 	expect(list).toContain("@4xl:row-start-2");
+	// 3단 값은 2단 값이 바뀌어도 움직이지 않는다
+	for (const c of ["@6xl:col-start-1", "@6xl:row-span-3", "@6xl:row-start-1"]) {
+		expect(settings).toContain(c);
+	}
+	for (const c of ["@6xl:col-start-3", "@6xl:row-start-1", "@6xl:row-span-3"]) {
+		expect(summary).toContain(c);
+	}
 });

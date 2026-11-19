@@ -115,9 +115,10 @@ import { menuItem, RadioMenu } from "./voice-conditions";
 // DOM은 폭과 상관없이 하나이고 JS는 배치를 바꾸지 않는다(폭마다 DOM을 바꾸면 작업 설정이 다시 마운트되어 열린 대화상자·입력·포커스를 잃는다).
 // 순서: 머리 → 건너뛰기 링크 둘 → 작업 띠(1단) → 작업 설정 aside → 문단 목록·막대 → 작업 요약 aside. CSS order는 쓰지 않고 격자 행·열로만 놓는다.
 // 3단(@6xl): 작업 설정 왼쪽 열 · 목록 가운데 · 작업 요약 오른쪽 열(포커스 순서 = 시각 순서).
-// 2단(@4xl): 목록이 왼쪽 열, 오른쪽 열에 작업 요약(위) → 작업 설정(아래)을 쌓는다. 한계: 시각 순서가 요약 위·설정 아래라 Tab은 설정 → 목록 → 요약이 된다
-// (요약을 위에 두는 것이 진행·사용량을 먼저 보이는 쪽이다. 순수 CSS로 DOM 순서를 어기지 않고 이 둘을 모두 만족하는 배치는 없다). 1단: aside 둘은 숨는다(작업 띠가 맡는다).
-// 행은 index.css의 studio-grid가 2단부터 머리 · 머리 아래 · 나머지(1fr) 셋으로 정한다. 2단 배치: 머리 c1·r1, 요약 c2·r1~2(머리 옆에서 시작), 목록·막대 c1·r2~3, 설정 c2·r3.
+// 2단(@4xl): 목록이 왼쪽 열, 오른쪽 열에 작업 설정(위) → 작업 요약(아래)을 쌓는다. 위에서 아래로 읽는 행 순서(머리·설정 → 목록 → 요약)가 DOM·Tab 순서와 같다(WCAG 2.4.3). 좌우 열을 오가는 것은 남는다.
+// 2단은 설정이 sticky가 아니고 아래 칸의 요약만 붙는다(MG-01 맞바꿈).
+// 1단: aside 둘은 숨는다(작업 띠가 맡는다).
+// 행은 index.css의 studio-grid가 2단부터 머리 · 머리 아래 · 나머지(1fr) 셋으로 정한다. 2단 배치: 머리 c1·r1, 설정 c2·r1~2(머리 옆에서 시작), 목록·막대 c1·r2~3, 요약 c2·r3(1fr 행이라 이것이 따라온다).
 // 3단은 두 레일이 r1~3을 덮어 행 높이에 끼어들지 않는다(1fr 행을 지나는 칸은 앞 행을 키우지 않는다)
 
 // 건너뛰기 링크(화면 밖, 포커스 때 보임). 본문 래퍼(relative)가 위치의 기준이다
@@ -789,13 +790,13 @@ function StudioBody() {
 						<Skeleton aria-hidden="true" className="mb-4 h-11 w-full" />
 					)}
 				</div>
-				{/* 작업 설정: 3단 왼쪽 열(세 행을 덮는다), 2단 오른쪽 열 셋째 행. DOM에서 목록 앞이다 */}
+				{/* 작업 설정: 3단 왼쪽 열(세 행을 덮는다), 2단 오른쪽 열 1~2행(요약 위). DOM에서 목록 앞이다 */}
 				<aside
 					aria-label={PARAGRAPH_TEXT.settingsLabel}
 					className={cn(
 						RAIL,
-						"@4xl:col-start-2 @6xl:col-start-1 @6xl:row-span-3 @4xl:row-start-3 @6xl:row-start-1",
-						"@4xl:studio-rail-sticky @6xl:mt-10",
+						"@4xl:col-start-2 @6xl:col-start-1 @4xl:row-span-2 @6xl:row-span-3 @4xl:row-start-1 @6xl:row-start-1 @4xl:mt-10 @4xl:mb-8 @6xl:mb-0",
+						RAIL_STICKY,
 					)}
 				>
 					{work.restored ? (
@@ -815,12 +816,12 @@ function StudioBody() {
 					/>
 					<ParagraphBar madeFrom={madeFrom} onPlaying={setPlayingId} />
 				</div>
-				{/* 작업 요약: 3단 오른쪽 열(세 행을 덮는다), 2단 오른쪽 열 1~2행(설정 위). DOM에서 목록 뒤다 */}
+				{/* 작업 요약: 3단 오른쪽 열(세 행을 덮는다), 2단 오른쪽 열 셋째 행(설정 아래, 1fr 행이라 따라온다). DOM에서 목록 뒤다 */}
 				<aside
 					aria-label={PARAGRAPH_TEXT.summary}
 					className={cn(
 						RAIL,
-						"@4xl:col-start-2 @6xl:col-start-3 @4xl:row-span-2 @6xl:row-span-3 @4xl:row-start-1 @4xl:mt-10 @4xl:mb-8 @6xl:mb-0 group-data-empty/studio:hidden",
+						"@4xl:studio-rail-sticky @4xl:col-start-2 @6xl:col-start-3 @6xl:row-span-3 @4xl:row-start-3 @6xl:row-start-1 group-data-empty/studio:hidden",
 						RAIL_STICKY,
 					)}
 				>
