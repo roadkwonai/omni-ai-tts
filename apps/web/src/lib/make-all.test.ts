@@ -38,6 +38,7 @@ import {
 	receivePlan,
 	requestIdFor,
 	runMakeAll,
+	summaryLinkOf,
 	summaryOf,
 	usageByProvider,
 } from "./make-all";
@@ -1240,6 +1241,56 @@ describe("summaryOf·firstLink", () => {
 			n: 2,
 		});
 		expect(firstLink(MAKE_IDLE, clear, statuses.slice(0, 1))).toBeNull();
+	});
+});
+
+describe("summaryLinkOf", () => {
+	it("멈춤 → 막힘 → 안 만듦 순서로 링크 하나를 고르고 성우 목록이 없으면 계획이 없다", () => {
+		const b = para("b", "둘");
+		const c = para("c", "셋", { voice: { ...typecast, voiceId: "gone" } });
+		const ps = [para("a", "하나"), b, c];
+		const statuses: Record<string, ParagraphStatus> = {
+			a: "made",
+			b: "unmade",
+			c: "blocked",
+		};
+		const statusOf = (p: { id: string }) => statuses[p.id] as ParagraphStatus;
+		const A = itemOf(b, 7);
+		const stopped = makeReducer(
+			makeReducer(makeReducer(MAKE_IDLE, { type: "start", run: 0 }), {
+				type: "planned",
+				run: 1,
+				queue: [A],
+				blocked: false,
+				unknown: 0,
+				unreviewed: 0,
+				free: true,
+			}),
+			{ type: "fail", run: 1, item: A, problem: problem("quota"), sent: true },
+		);
+		const link = (
+			make: typeof MAKE_IDLE,
+			ps2 = ps,
+			v: typeof VOICES | null = VOICES,
+		) => summaryLinkOf(ps2, work(), v, new Map(), NOW, make, statusOf).link;
+		expect(link(stopped)).toEqual({ kind: "stopped", id: "b", n: 2 });
+		expect(link(MAKE_IDLE)).toEqual({ kind: "blocked", id: "c", n: 3 });
+		expect(link(MAKE_IDLE, ps.slice(0, 2))).toEqual({
+			kind: "unmade",
+			id: "b",
+			n: 2,
+		});
+		const none = summaryLinkOf(
+			ps,
+			work(),
+			null,
+			new Map(),
+			NOW,
+			MAKE_IDLE,
+			statusOf,
+		);
+		expect(none.plan).toBeNull();
+		expect(none.link).toEqual({ kind: "unmade", id: "b", n: 2 });
 	});
 });
 

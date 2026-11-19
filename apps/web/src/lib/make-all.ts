@@ -623,6 +623,25 @@ export function firstLink(
 	return unmade ? { kind: "unmade", id: unmade.id, n: unmade.n } : null;
 }
 
+// 요약 레일·시트가 같이 쓰는 계획과 링크 하나. 성우 목록이 없으면 계획이 없고(plan null) 막힌 문단도 없다
+export function summaryLinkOf(
+	ps: readonly Paragraph[],
+	work: Work,
+	voices: readonly SavedVoice[] | null,
+	found: FoundMap,
+	now: number,
+	make: MakeState,
+	statusOf: (p: Paragraph) => ParagraphStatus,
+): { plan: MakePlan | null; link: ReturnType<typeof firstLink> } {
+	const plan = voices ? makePlan(ps, work, voices, found, now) : null;
+	const link = firstLink(
+		make,
+		plan ?? { firstBlocked: null },
+		ps.map((p, i) => ({ id: p.id, n: i + 1, status: statusOf(p) })),
+	);
+	return { plan, link };
+}
+
 // 요약 칩의 '확인할 문단' 표식: 요약 링크가 멈춘 문단이나 막힌 문단을 가리킬 때만이다(안 만든 문단뿐이면 평상시라 없다)
 export function needsCheck(link: ReturnType<typeof firstLink>): boolean {
 	return link?.kind === "stopped" || link?.kind === "blocked";

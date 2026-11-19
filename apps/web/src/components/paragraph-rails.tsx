@@ -29,9 +29,8 @@ import { PROVIDER_LABEL } from "@/lib/connection-view";
 import {
 	type FoundMap,
 	fillOf,
-	firstLink,
-	makePlan,
 	needsCheck,
+	summaryLinkOf,
 	summaryOf,
 	usageByProvider,
 } from "@/lib/make-all";
@@ -71,7 +70,7 @@ import { VoicePickerDialog } from "./voice-picker-dialog";
 import { lockedButton } from "./voice-problem";
 
 // 문단 작업실 레일(T10 브리프 5.3·5.6): '작업 설정'(기본 성우·문단 뒤 쉼·대본·단축키), 1단 '작업 띠', '작업 요약', 1단 요약 시트.
-// 요약·채운 청록은 늦춘 문단(useShownParagraphs)과 lib 순수 함수(summaryOf·makePlan·usageByProvider·firstLink·fillOf)만 읽는다(E10).
+// 요약·채운 청록은 늦춘 문단(useShownParagraphs)과 lib 순수 함수(summaryOf·summaryLinkOf·usageByProvider·fillOf)만 읽는다(E10).
 // 레일과 작업 띠는 같은 화면에 함께 그려지고 컨테이너 쿼리로 한쪽만 보인다(같은 칸이 둘, 숨은 쪽은 Tab·낭독기에 없다)
 
 const SUBHEAD = "font-bold text-muted-foreground text-sm";
@@ -750,14 +749,18 @@ function SummaryBody({ onShow }: { onShow: (id: string) => void }) {
 	const demo = useDemo();
 	const { summary, link, usage, blocked } = useMemo(() => {
 		const all = { ...work, paragraphs: ps };
-		const plan = voices ? makePlan(ps, all, voices, found, now) : null;
+		const { plan, link } = summaryLinkOf(
+			ps,
+			all,
+			voices,
+			found,
+			now,
+			make,
+			statusOf,
+		);
 		return {
 			summary: summaryOf(ps, all, voices, found, now),
-			link: firstLink(
-				make,
-				plan ?? { firstBlocked: null },
-				ps.map((p, i) => ({ id: p.id, n: i + 1, status: statusOf(p) })),
-			),
+			link,
 			usage: plan ? usageByProvider(plan.estimate, rates, now) : [],
 			blocked: plan?.blockedCount ?? 0,
 		};
@@ -928,14 +931,11 @@ export function SummarySheet() {
 	const ps = useShownParagraphs();
 	const [open, setOpen] = useState(false);
 	const jumping = useRef(false);
+	// 첫 포커스는 제목이다. 입력(문단 번호)으로 가면 확인만 하려는 사람이 방해받고 휴대폰 키보드가 시트를 가린다
+	const titleRef = useRef<HTMLHeadingElement>(null);
 	const { summary, check } = useMemo(() => {
 		const all = { ...work, paragraphs: ps };
-		const plan = voices ? makePlan(ps, all, voices, found, now) : null;
-		const link = firstLink(
-			make,
-			plan ?? { firstBlocked: null },
-			ps.map((p, i) => ({ id: p.id, n: i + 1, status: statusOf(p) })),
-		);
+		const { link } = summaryLinkOf(ps, all, voices, found, now, make, statusOf);
 		return {
 			summary: summaryOf(ps, all, voices, found, now),
 			check: needsCheck(link),
@@ -983,12 +983,19 @@ export function SummarySheet() {
 			</DialogTrigger>
 			{/* 2단·큰 화면에서는 막대 폭 밖까지 퍼지지 않게 가운데에 상한을 둔다 */}
 			<SheetContent
+				initialFocus={titleRef}
 				finalFocus={() => !jumping.current}
 				side="bottom"
 				className="md:mx-auto md:max-w-xl"
 			>
 				<SheetHeader>
-					<SheetTitle>{PARAGRAPH_TEXT.summary}</SheetTitle>
+					<SheetTitle
+						ref={titleRef}
+						tabIndex={-1}
+						className="rounded-md outline-offset-2 focus-visible:outline-2 focus-visible:outline-ring"
+					>
+						{PARAGRAPH_TEXT.summary}
+					</SheetTitle>
 				</SheetHeader>
 				<div className="px-4 pb-6">
 					<SummaryBody
