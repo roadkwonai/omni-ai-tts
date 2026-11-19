@@ -710,6 +710,7 @@ function JumpField({
 					min={1}
 					max={paragraphs.length}
 					step={1}
+					placeholder={PARAGRAPH_TEXT.jumpPlaceholder(paragraphs.length)}
 					autoComplete="off"
 					value={value}
 					onChange={(event) => {

@@ -149,6 +149,8 @@ export const PARAGRAPH_TEXT = {
 	jumpLabel: "문단 번호",
 	jump: "이동",
 	jumpRange: (total: number) => `1~${n(total)} 사이 번호를 넣어 주세요`,
+	// 문단 번호 칸의 범위 안내(placeholder)
+	jumpPlaceholder: (total: number) => `1~${n(total)}`,
 	// 작업 설정(브리프 5.3). 단축키 세 줄은 8절
 	pickDefaultVoice: "기본 성우 고르기",
 	defaultSettings: "기본 성우 설정",
