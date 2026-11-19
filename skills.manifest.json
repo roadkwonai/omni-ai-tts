@@ -104,6 +104,7 @@
 			"next-partial-prefetching-adoption": ["prokit-ui-builder"],
 			"next-partial-prefetching-optimizer": ["prokit-ui-builder"],
 			"web-design-guidelines": ["prokit-reviewer"],
+			"ui-sdk": ["prokit-ui-builder", "prokit-reviewer"],
 			"next-dev-loop": ["prokit-runtime-checker", "prokit-ui-builder"],
 			"agent-browser": ["prokit-runtime-checker"],
 			"better-auth-best-practices": ["prokit-api-builder", "prokit-reviewer"],
