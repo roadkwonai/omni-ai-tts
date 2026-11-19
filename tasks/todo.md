@@ -341,10 +341,7 @@ critique 27/40, audit 18/20(접근성 3/4) 결과 가운데 브리프·스펙을
 - [ ] T13-09 Gemini 클론 voice id 대소문자 구분 여부를 확인한다(구분하지 않으면 정확 일치 조회를 비켜 갈 수 있음). (보안 재리뷰 한계)
 
 ### 로그인 (T14에서 미룬 것, 2026-11-18)
-- [ ] T14-01 `app/global-error.tsx`가 ThemeProvider 밖이라 다크를 고른 사용자에게도 라이트로 보인다(DB가 멈췄을 때만 보이는 화면). html에 테마 class를 읽는 짧은 인라인 스크립트로 맞춘다. (code 리뷰 low, 감사 Theming)
 - [ ] T14-02 세션이 끝난 뒤 저장 등으로 목록을 다시 불러오면 화면 본문이 '로그인이 풀렸어요' 안내로 바뀌어 열려 있던 창과 입력이 사라진다(스펙 5.5 알려진 한계). 데이터가 이미 보이는 화면은 내용을 두고 안내만 위에 띄우도록 화면 9곳의 오류 표시를 바꾼다. (QA P2, 사용자 "백로그로")
-- [ ] T14-03 better-auth가 'column/relation/table/does not exist'가 든 오류 메시지를 문자열 메시지 자리로 넘기는 경로(api/index.mjs:205-207)에서 Drizzle 'Failed query … params'가 로그에 찍힐 수 있다. 지금 기본 표·열 이름에는 해당 쿼리가 없다. 플러그인을 더하거나 표 이름을 바꿀 때 logger에서 'params:' 뒤를 잘라 낸다. (security 리뷰 한계)
-- [ ] T14-05 `packages/db/src/schema/classification.ts:12` 주석('T14에서 owner_id를 실제 사용자 id로 옮기고 그때 정한다')을 ADR 0012 결정으로 고친다(DB 계층 행을 만들지 않으려고 미룸).
 - [ ] T14-06 `pnpm owner:create` TTY 입력은 여러 줄 붙여넣기에서 첫 줄만 받는다(`shortcut:` 주석). 필요해지면 남은 chunk를 다음 입력으로 넘긴다. (하네스 리뷰 low)
 
 ### 공개 랜딩·브랜드 (T15-a에서 미룬 것, 2026-11-19. T15-01~05·07은 T15-a2에서 한다)
@@ -357,9 +354,6 @@ critique 27/40, audit 18/20(접근성 3/4) 결과 가운데 브리프·스펙을
 - [ ] T15-06 공급자 실제 상태: ElevenLabs 연결 확인 실패, Airy 한도 부족(운영도 같은 키). 키·요금제를 확인한다. (스크린샷 준비 중 발견)
 
 ### P0 통합 검수 (T15-b에서 미룬 것, 2026-11-19)
-- [ ] T15b-01 `apps/web/src/context.ts:44` isDemoDb가 연결 문자열의 `?host=`·`hostaddr=`를 보지 않는다. `owner-setup.ts:23` isLocalDatabaseUrl처럼 쿼리에 host가 있으면 닫고 테스트를 더한다. (security 리뷰 low)
-- [ ] T15b-02 `packages/auth/src/index.ts:20` Better Auth 비밀번호 길이 기본(최소 8)이 `owner:create`의 12~128자와 다르다. `minPasswordLength: 12, maxPasswordLength: 128`로 맞춘다. (security 리뷰 low)
-- [ ] T15b-03 운영 비밀번호를 잊었을 때 `docs/owner-account.md` 마지막 줄 절차('로컬 절차를 운영 주소로')는 `owner:create`가 원격을 거부해 그대로 할 수 없다. T15-b에서 일회용 도구(새 비밀번호 숨김 입력 → Better Auth hashPassword → 로컬·운영 credential 해시만 갱신)로 해결했다. 문서에 이 절차를 적거나 `owner:reset-password` 스크립트로 만든다.
 - [ ] T15b-04 연결 상태 Fish Audio 웹 크레딧이 "남은 10,000 / 전체 8,000"으로 남은 값이 전체보다 크게 보인다. 공급자 응답 필드 매핑을 확인한다. (본인용 검수)
 - [ ] T15b-05 Fish Audio 담은 성우 '진우-기쁨-'으로 작업실 생성 시 400 provider_input("Fish Audio가 이 요청을 받지 않았어요"). 공개 성우는 같은 무료 모델로 성공. 그 성우의 모델 상태(비공개·삭제·학습 중 등)를 담기 확인(savedVoiceCheck)에서 잡을 수 있는지 본다. (본인용 검수)
 - [ ] T15b-06 클론 만들기에서 Fish Audio가 401·403을 주면(키는 TTS에 유효, 클론 권한·잔액 문제) 화면이 "연결 안 됨. 연결 상태에서 키를 확인해 주세요."로 보인다. 클론 실패의 provider_auth는 "이 계정은 클론을 만들 수 없거나 잔액이 없어요" 쪽 안내가 맞다. (본인용 검수)
@@ -370,6 +364,7 @@ critique 27/40, audit 18/20(접근성 3/4) 결과 가운데 브리프·스펙을
 - [ ] T15b-12 음성 작업실 390 첫 화면이 컨트롤 칩 8개 이상(3~4줄)으로 채워지고 카드는 반 장만 보인다(critique P1, 2026-11-19). 기본 성우·설정·문단 뒤 쉼·붙여 넣기·자동 태그를 '작업 설정' 시트 하나로 묶는 방안을 브리프(docs/briefs/studio.md)와 함께 다시 확인받는다.
 - [ ] T15b-13 음성 작업실 빈 상태: 요약 '—' 세 줄과 문단이 0~1개일 때도 보이는 '문단 번호 [ ] 이동'(critique P1). 0~1문단이면 숨기거나 흐리게, 빈 요약 한 줄 안내. 공개 데모 첫 화면에 예시 대본을 채울지도 함께 정한다.
 - [ ] T15b-14 critique P2·P3: 같은 '성우를 골라 주세요' 경고가 카드·요약·막대에 동시 노출, 저장 안 된 편집 경고 창(중첩 대화상자) 스크림·위치, 카드 머리 아이콘 둘 툴팁과 390 상태 문구 줄바꿈. (.impeccable/critique/2026-11-19T10-05-03Z__…paragraph-studio-tsx.md)
+- [ ] T15b-16 global-error는 대개 수화 뒤 클라이언트 오류로 그려지는데, next-themes가 그리는 script 태그 때문에 개발 모드에서 React가 'Encountered a script tag…' 경고를 한 번 찍을 수 있다(동작 문제 없음, code 리뷰 low). 개발 모드에서 global-error를 띄우는 QA는 이 경고를 알려진 라이브러리 경고로 분류한다.
 - [ ] T15b-15 데모 QA 관찰: 채널·카테고리 삭제 확인의 연결 수가 성우만 센다(대본·프리셋 미표시), voiceList가 끊기면 /casting 전체가 오류 경계로 바뀐다, ego-browser에서만 /drama 768 다크 ResizeObserver loop 콘솔 오류(5회 중 2회), 데모 결과 행을 지울 화면이 없음(매일 초기화로 정리). 스펙 9절 '저장 10,000자'는 문단당 상한이다.
 
 ### 이번 문서 작업에서 확인한 기존 품질 항목

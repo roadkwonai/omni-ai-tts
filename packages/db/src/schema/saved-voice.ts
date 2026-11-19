@@ -17,7 +17,7 @@ import { channel, classification } from "./classification";
 
 // 성우 보관함(T7 스펙 3절, GLOSSARY '성우 보관함'). 담기 = 이 표의 행 하나다. 즐겨찾기·자주 사용을 꺼도 남고 '보관함에서 빼기'로만 지운다.
 // voice는 담을 때(그리고 이용 가능 확인에 성공할 때) 받은 계약 Voice 그대로다. 읽을 때 api가 voiceSchema로 다시 검사한다.
-// user 외래 키는 걸지 않는다(ADR 0004와 같다, T14에서 정한다)
+// user 외래 키는 걸지 않는다(ADR 0012, 두 번째 소유자를 받을 때 다시 정한다)
 export const savedVoice = pgTable(
 	"saved_voice",
 	{

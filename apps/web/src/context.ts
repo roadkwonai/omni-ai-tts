@@ -41,10 +41,14 @@ const providerKeys = () => ({
 });
 
 // 공개 데모가 본인용 DB를 가리키면 닫는다. 읽지 못하는 주소나 빈 DEMO_DB_HOST도 닫힘이다
-const isDemoDb = () => {
+export const isDemoDb = () => {
 	if (!ENV.DEMO_DB_HOST) return false;
 	try {
-		return new URL(ENV.DATABASE_URL).hostname === ENV.DEMO_DB_HOST;
+		const u = new URL(ENV.DATABASE_URL);
+		// pg-connection-string은 쿼리의 host·hostaddr로 실제 접속 호스트를 바꾼다.
+		if (u.searchParams.has("host") || u.searchParams.has("hostaddr"))
+			return false;
+		return u.hostname === ENV.DEMO_DB_HOST;
 	} catch {
 		return false;
 	}

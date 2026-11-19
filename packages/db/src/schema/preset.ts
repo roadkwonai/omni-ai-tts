@@ -15,7 +15,7 @@ import { savedVoice } from "./saved-voice";
 
 // 프리셋(T8 스펙 3절, GLOSSARY '프리셋'). 한 공급자의 담은 성우·설정(모델 포함) 조합에 이름을 붙인 것.
 // 성우를 보관함에서 빼거나 채널을 지우면 그 칸만 비고 프리셋은 남는다(on delete set null).
-// user 외래 키는 걸지 않는다(ADR 0004와 같다, T14에서 정한다)
+// user 외래 키는 걸지 않는다(ADR 0012, 두 번째 소유자를 받을 때 다시 정한다)
 export const voicePreset = pgTable(
 	"voice_preset",
 	{
