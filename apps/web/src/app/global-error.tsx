@@ -23,7 +23,7 @@ export default function GlobalError({
 						화면을 그리다 문제가 생겼어요. 다시 시도해 주세요.
 					</p>
 					<Button size="lg" onClick={() => retry()}>
-						다시 시도
+						다시 시도하기
 					</Button>
 				</main>
 			</body>

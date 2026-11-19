@@ -225,7 +225,7 @@ describe("랜딩 내용(브리프 4·6·9절)", () => {
 		const cost = FAQ_ITEMS.find((i) => i.question === "비용은 어떻게 되나요?");
 		expect(own?.answer).toContain("로그인 없이");
 		expect(own?.answer).toContain("한국에서만");
-		expect(cost?.answer).toContain("음성 서비스를 부르지 않아");
+		expect(cost?.answer).toContain("만들기 요청을 보내지 않아");
 		expect(
 			BUILD_POINTS.some((p) =>
 				p.text.includes("음성 서비스 키가 없는 별도 배포"),

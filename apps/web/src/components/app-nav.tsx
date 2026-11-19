@@ -41,6 +41,7 @@ import { signOutToLogin } from "@/lib/auth-client";
 import { DEMO_TEXT, useDemo } from "./demo";
 import { LockedIconButton } from "./locked-icon-button";
 import { ModeToggle } from "./mode-toggle";
+import { ProkitCredit } from "./prokit-credit";
 
 // 열린 화면. 배열 순서가 사이드바 순서이고 세 묶음(만들기 / 성우와 대본 / 설정)이다. startsGroup인 항목 앞만 24px 띄운다(묶음 이름 줄은 없다).
 // 767px 이하 위 막대는 4칸이다(R2 브리프 3절): bar가 1~3이면 그 순서의 막대 칸이고 막대 넷째는 더보기다. bar가 0인 화면은 더보기 안 '열린 화면' 줄에 둔다.
@@ -479,6 +480,8 @@ export function AppNav({ email }: { email: string }) {
 						</div>
 					)}
 					<AccountRow email={email} />
+					{/* 휴대폰 더보기 아래와 1200px 이상 사이드바에서만 보인다. 768~1199px 아이콘 사이드바에는 글자 자리가 없어 숨긴다 */}
+					<ProkitCredit className="px-3 text-muted-foreground text-xs md:hidden xl:flex" />
 				</div>
 			</nav>
 		</TooltipProvider>

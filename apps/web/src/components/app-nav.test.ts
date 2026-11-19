@@ -105,6 +105,12 @@ test("더보기 안 화면에 있으면 더보기 칸의 글자가 그 화면 �
 	);
 });
 
+test("앱 틀에 프로킷 제작 표시가 있고 아이콘 사이드바(768~1199px)에서는 숨는다", () => {
+	const html = render();
+	expect(html).toContain("으로 만들었어요");
+	expect(html).toMatch(/class="[^"]*md:hidden xl:flex[^"]*"/);
+});
+
 test("'다음에 열릴 화면'은 공개 데모에서 지우고 본인용에는 남긴다", () => {
 	expect(render(false)).toContain("다음에 열릴 화면");
 	expect(render(true)).not.toContain("다음에 열릴 화면");

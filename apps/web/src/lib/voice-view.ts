@@ -331,7 +331,7 @@ export function termLines(voice: Voice): TermLine[] {
 	if (terms.creditRate !== null && terms.creditRate !== 1) {
 		lines.push({
 			tone: "info",
-			text: `크레딧 배율 ${terms.creditRate}배(공급자 값)`,
+			text: `크레딧 배율 ${terms.creditRate}배(음성 서비스 값)`,
 		});
 	}
 	if (terms.licensed) {
@@ -342,7 +342,10 @@ export function termLines(voice: Voice): TermLine[] {
 		});
 	}
 	if (terms.retiring) {
-		lines.push({ tone: "warning", text: "공급자가 공개를 끝내는 중이에요" });
+		lines.push({
+			tone: "warning",
+			text: "음성 서비스가 공개를 끝내는 중이에요",
+		});
 	}
 	return lines;
 }
@@ -475,7 +478,7 @@ export function listEnd(page: {
 export const samplesMissing = (voices: readonly Voice[]) =>
 	voices.length > 0 && voices.every((voice) => voice.samples.length === 0);
 export const SAMPLES_MISSING_TEXT =
-	"기본 샘플을 받지 못했어요. '목록 새로 고침'으로 다시 받아 보세요.";
+	"기본 샘플을 받지 못했어요. ‘목록 새로 고침’으로 다시 받아 보세요.";
 
 // 패널 샘플 칸의 Gemini 안내(T7.6 스펙 5절). 대표 성우는 참고 음성, 한국어 성우는 샘플이 없다.
 // 성우 보관함은 내 문장 듣기가 없어 캐스팅으로 안내한다(계획 리뷰 R4-4)

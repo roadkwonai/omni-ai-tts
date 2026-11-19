@@ -780,7 +780,7 @@ export function ParagraphBar({
 						// 767px 이하에서 대본 칸에 포커스가 있는 동안(소프트 키보드) 숨는다(studio-bar-result)
 						<div
 							className={cn(
-								"studio-bar-result flex min-w-0 flex-col gap-2 md:min-w-60 md:flex-1",
+								"studio-bar-result flex min-w-0 flex-col gap-2 md:flex-1 md:basis-60",
 								!progress && !shown && "max-md:hidden",
 							)}
 						>
@@ -805,7 +805,7 @@ export function ParagraphBar({
 						<div className="contents @4xl:hidden">
 							{restored ? <SummarySheet /> : null}
 						</div>
-						<div className="max-md:contents md:flex md:flex-row-reverse md:gap-2">
+						<div className="max-md:contents md:flex md:flex-row-reverse md:flex-wrap md:gap-2">
 							{mainShown ? (
 								<Button
 									ref={setMain}

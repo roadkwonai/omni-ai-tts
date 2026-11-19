@@ -79,7 +79,7 @@ export function LibraryFilters({
 	const axes: Choice[] = [
 		{
 			key: "provider",
-			label: "공급자",
+			label: "서비스",
 			kind: "single",
 			options: PROVIDER_OPTIONS,
 			selected: filters.provider ? [filters.provider] : [],

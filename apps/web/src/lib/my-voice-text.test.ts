@@ -10,7 +10,7 @@ import {
 
 describe("noSample", () => {
 	it("들어보기 비용은 말하지 않는다(요금은 모델별 표시가 맡는다)", () => {
-		expect(T.noSample).toBe("클론에는 기본 샘플이 없어요.");
+		expect(T.noSample).toBe("클론에는 기본 샘플이 없어요");
 	});
 });
 
@@ -46,8 +46,8 @@ describe("지우기 확인 문구", () => {
 describe("확인 단계 고지", () => {
 	it("되돌리는 법과 요금을 단정으로 말한다", () => {
 		expect(T.undoHow("Gemini")).toBe(
-			"내 보이스에서 지우면 Gemini 계정에서도 지워져요.",
+			"내 보이스에서 지우면 Gemini 계정에서도 지워져요",
 		);
-		expect(T.cloneCost).toBe("공급자 문서에 클론 요금 정보가 없어요.");
+		expect(T.cloneCost).toBe("음성 서비스 문서에 클론 요금 정보가 없어요");
 	});
 });

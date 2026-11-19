@@ -194,7 +194,7 @@ describe("칩·이름", () => {
 		expect(voiceCountText(3)).toBe("성우 3명");
 		expect(linkedNote(0, "category")).toBe("");
 		expect(linkedNote(2, "category")).toBe(
-			" 연결된 성우 2명은 보관함에 그대로 남고, 이 카테고리 연결만 풀려요.",
+			". 연결된 성우 2명은 보관함에 그대로 남고, 이 카테고리 연결만 풀려요.",
 		);
 	});
 	it("상태 줄과 알림 문구", () => {
@@ -205,7 +205,7 @@ describe("칩·이름", () => {
 		);
 		expect(linkMessage("경제", "channel", false)).toBe("‘경제’ 채널을 뗐어요.");
 		expect(removeQuestion("Alice")).toBe("‘Alice’ 성우를 보관함에서 뺄까요?");
-		expect(removedMessage("민지")).toBe("‘민지’ 성우를 보관함에서 뺐어요.");
+		expect(removedMessage("민지")).toBe("‘민지’ 성우를 보관함에서 뺐어요");
 	});
 });
 

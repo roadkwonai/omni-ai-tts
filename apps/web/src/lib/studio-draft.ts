@@ -385,7 +385,7 @@ export function workLoadView(
 		changes: [
 			...(current && !same
 				? [
-						`공급자 ${PROVIDER_LABEL[current.provider]} → ${PROVIDER_LABEL[preset.provider]}`,
+						`서비스 ${PROVIDER_LABEL[current.provider]} → ${PROVIDER_LABEL[preset.provider]}`,
 					]
 				: []),
 			...(same?.voiceId === target.voiceId

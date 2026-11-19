@@ -37,11 +37,11 @@ describe("byName", () => {
 
 describe("문구", () => {
 	it("그룹마다 받침에 맞는 조사를 쓴다", () => {
-		expect(duplicateMessage("channel")).toBe("같은 이름의 채널이 이미 있어요.");
+		expect(duplicateMessage("channel")).toBe("같은 이름의 채널이 이미 있어요");
 		expect(duplicateMessage("category")).toBe(
-			"같은 이름의 카테고리가 이미 있어요.",
+			"같은 이름의 카테고리가 이미 있어요",
 		);
-		expect(duplicateMessage("type")).toBe("같은 이름의 타입이 이미 있어요.");
+		expect(duplicateMessage("type")).toBe("같은 이름의 타입이 이미 있어요");
 		expect(doneMessage("category", "뉴스", "update")).toBe(
 			"‘뉴스’ 카테고리를 고쳤어요.",
 		);
@@ -51,17 +51,17 @@ describe("문구", () => {
 	});
 	it("채널 삭제 설명은 '채널 주소'라고 쓴다(브리프 B5)", () => {
 		expect(deleteDetail("channel")).toBe(
-			"메모와 채널 주소도 함께 지워지고 되돌릴 수 없어요.",
+			"메모와 채널 주소도 함께 지워지고 되돌릴 수 없어요",
 		);
-		expect(deleteDetail("type")).toBe("메모도 함께 지워지고 되돌릴 수 없어요.");
+		expect(deleteDetail("type")).toBe("메모도 함께 지워지고 되돌릴 수 없어요");
 	});
 	it("칸 문제마다 이유를 알려 준다(스펙 9절)", () => {
-		expect(fieldMessage("name", "empty")).toBe("이름을 입력해 주세요.");
-		expect(fieldMessage("name", "too_long")).toBe("40자까지 쓸 수 있어요.");
-		expect(fieldMessage("memo", "too_long")).toBe("200자까지 쓸 수 있어요.");
-		expect(fieldMessage("url", "too_long")).toBe("500자까지 쓸 수 있어요.");
+		expect(fieldMessage("name", "empty")).toBe("이름을 입력해 주세요");
+		expect(fieldMessage("name", "too_long")).toBe("40자까지 쓸 수 있어요");
+		expect(fieldMessage("memo", "too_long")).toBe("200자까지 쓸 수 있어요");
+		expect(fieldMessage("url", "too_long")).toBe("500자까지 쓸 수 있어요");
 		expect(fieldMessage("url", "bad_url")).toBe(
-			"http:// 또는 https://로 시작하는 주소를 넣어 주세요.",
+			"http:// 또는 https://로 시작하는 주소를 넣어 주세요",
 		);
 	});
 });

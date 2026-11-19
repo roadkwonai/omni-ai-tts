@@ -252,7 +252,7 @@ export function StaleNotice({
 	const cooldown = useCooldown(retryAt);
 	const text = cooldown
 		? cooldownText(cooldown)
-		: `${PROVIDER_LABEL[provider]}에 연결하지 못해 ${agoText(fetchedAt, new Date())} 전에 받은 목록을 보여 드려요. ${problemCopy(provider, reason).description}`;
+		: `${PROVIDER_LABEL[provider]}에 연결하지 못해 ${agoText(fetchedAt, new Date())} 전에 받은 목록을 보여 드려요. ${problemCopy(provider, reason).description}.`;
 	return (
 		<div
 			role="status"

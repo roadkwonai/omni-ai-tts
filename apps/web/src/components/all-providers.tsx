@@ -241,7 +241,7 @@ export function AllProviders({
 				search={{
 					value: draft.draft,
 					placeholder: "이름으로 찾기",
-					label: "다섯 공급자 성우 이름으로 찾기",
+					label: "모든 음성 서비스의 성우 이름으로 찾기",
 					onChange: draft.setDraft,
 					onSubmit: draft.submit,
 				}}

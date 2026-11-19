@@ -18,7 +18,7 @@ test("데모 확인 창·버튼·자동 태그 이름은 크레딧·비용 말�
 	expect(DEMO_TEXT.voiceNote("참고 음성")).toBe(
 		"비슷한 목소리는 참고 음성으로 들어 보세요",
 	);
-	expect(DEMO_TEXT.listenFree).toBe("공급자 없이");
+	expect(DEMO_TEXT.listenFree).toBe("음성 서비스 없이");
 	expect(DEMO_TEXT.listenName("민지")).toBe("민지 내 문장 듣기, 데모 샘플");
 	expect(DEMO_TEXT.regenerateName("민지")).toBe("민지 새로 만들기, 데모 샘플");
 	expect(DEMO_TEXT.savedFree).toBe("저장된 결과");

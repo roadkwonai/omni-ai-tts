@@ -458,7 +458,7 @@ describe("작업실 문구(브리프 8절 정본)", () => {
 			emotionFixed: "이 성우는 감정을 바꿀 수 없어요",
 		});
 		expect(STUDIO_TEXT.presetLoaded("경제 내레이션")).toBe(
-			"‘경제 내레이션’ 프리셋을 불러왔어요.",
+			"‘경제 내레이션’ 프리셋을 불러왔어요",
 		);
 		// 금액은 주 버튼으로(DN-7), 이전 결과 0개면 구역을 숨긴다(DN-10)
 		expect(STUDIO_TEXT).not.toHaveProperty("costPrefix");

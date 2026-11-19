@@ -825,7 +825,7 @@ describe("막는 이유(브리프 8절, 이 순서)", () => {
 				speed: 1,
 			}),
 		).toEqual({
-			text: "다른 공급자 화자가 있어 장면은 만들 수 없어요. 읽기를 써 주세요",
+			text: "다른 음성 서비스 화자가 있어 장면은 만들 수 없어요. 읽기를 써 주세요.",
 			target: null,
 		});
 		expect(
@@ -972,22 +972,22 @@ describe("예상(글자·바이트·사용량)", () => {
 	});
 	it("확인 창 근거 줄: drama-3는 출시가 기간(11월 11일까지)과 그 뒤, s2.1-pro는 요금표, 무료는 없음", () => {
 		expect(DRAMA_TEXT.basis("drama-3", NOW)).toBe(
-			"Drama 3 출시가(100만 바이트당 $10, 11월 11일까지)로 셈한 추정이에요",
+			"Drama 3 출시가(100만 바이트당 $10, 11월 11일까지)로 계산한 추정이에요",
 		);
 		expect(DRAMA_TEXT.basis("drama-3", LATER)).toBe(
-			"Drama 3 정가(100만 바이트당 $50)로 셈한 추정이에요",
+			"Drama 3 정가(100만 바이트당 $50)로 계산한 추정이에요",
 		);
 		expect(DRAMA_TEXT.basis("s2.1-pro", NOW)).toBe(
-			"S2.1 Pro 요금(100만 바이트당 $15)으로 셈한 추정이에요",
+			"S2.1 Pro 요금(100만 바이트당 $15)으로 계산한 추정이에요",
 		);
 		expect(DRAMA_TEXT.basis("s2.1-pro-free", NOW)).toBeNull();
 	});
 	it("나누지 못함 경고('스펙과 다른 점' 13): 지시뿐인 줄, 태그 이름 단어, 보통 대본은 없음", () => {
 		expect(splitWarning([{ text: "안녕" }, { text: "[sighs]" }])).toBe(
-			"대사 없이 지시만 있는 줄이 있어요. 대사별 파일 없이 장면 파일만 나와요",
+			"대사 없이 지시만 있는 줄이 있어요. 대사별 파일 없이 장면 파일만 나와요.",
 		);
 		expect(splitWarning([{ text: "Go slow" }])).toBe(
-			"대사의 영어 단어에 지시 이름(soft·fast 등)이 들어 있어요. 대사별 파일 없이 장면 파일만 나와요",
+			"대사의 영어 단어에 지시 이름(soft·fast 등)이 들어 있어요. 대사별 파일 없이 장면 파일만 나와요.",
 		);
 		expect(
 			splitWarning([
@@ -1869,7 +1869,7 @@ describe("오류 문구(브리프 8절)", () => {
 		}) as Parameters<typeof dramaProblemText>[0];
 	it("402: API 크레딧 문구와 바깥 링크", () => {
 		expect(dramaProblemText(problem("quota"), null)).toEqual({
-			text: "Fish Audio API 크레딧이 부족해요. API 크레딧은 웹 플랜 크레딧과 따로예요",
+			text: "Fish Audio API 크레딧이 부족해요. API 크레딧은 웹 플랜 크레딧과 따로예요.",
 			connections: false,
 			fishCredit: true,
 		});
@@ -1880,16 +1880,16 @@ describe("오류 문구(브리프 8절)", () => {
 	});
 	it("쓸 수 없는 성우: 화면이 찾은 화자 이름, 못 찾으면 이름 없이('스펙과 다른 점' 7)", () => {
 		expect(dramaProblemText(problem("voice_unavailable"), "민수").text).toBe(
-			"화자 ‘민수’의 성우를 쓸 수 없어요. 다시 골라 주세요",
+			"화자 ‘민수’의 성우를 쓸 수 없어요. 다시 골라 주세요.",
 		);
 		expect(dramaProblemText(problem("voice_unavailable"), null).text).toBe(
-			"성우를 쓸 수 없는 화자가 있어요. 다시 골라 주세요",
+			"성우를 쓸 수 없는 화자가 있어요. 다시 골라 주세요.",
 		);
 	});
 	it("처리 여부 미확인은 '이전 테이크 보기'를 붙이고 다시 누르라고 하지 않는다", () => {
 		const view = dramaProblemText(problem("unknown_outcome"), null);
 		expect(view).toEqual({
-			text: "처리 여부를 확인하지 못했어요. 크레딧이 쓰였을 수 있으니 다시 누르기 전에 이전 테이크를 확인해 주세요",
+			text: "처리 여부를 확인하지 못했어요. 크레딧이 쓰였을 수 있으니 다시 누르기 전에 이전 테이크를 확인해 주세요.",
 			connections: false,
 			takes: true,
 		});
@@ -1899,7 +1899,7 @@ describe("오류 문구(브리프 8절)", () => {
 	});
 	it("드라마 문구: 진행 중·대기 시각·무료 끝·너무 큰 결과·저장소·알 수 없는 실패", () => {
 		expect(dramaProblemText(problem("in_progress"), null).text).toBe(
-			"다른 생성이 진행 중이에요. 끝난 뒤 다시 눌러 주세요",
+			"다른 음성을 만드는 중이에요. 끝난 뒤 다시 눌러 주세요.",
 		);
 		expect(
 			dramaProblemText(
@@ -1910,7 +1910,7 @@ describe("오류 문구(브리프 8절)", () => {
 			).text,
 		).toMatch(/이후에 다시 만들 수 있어요$/);
 		expect(dramaProblemText(problem("free_ended"), null)).toEqual({
-			text: "Fish Audio 무료 모델 기간이 끝났어요. 모델을 다시 골라 주세요",
+			text: "Fish Audio 무료 모델 기간이 끝났어요. 모델을 다시 골라 주세요.",
 			connections: false,
 		});
 		expect(
@@ -1918,12 +1918,12 @@ describe("오류 문구(브리프 8절)", () => {
 				problem("provider_input", { providerCode: "audio_too_large" }),
 				null,
 			).text,
-		).toBe("결과 오디오가 너무 커요. 대본을 줄이거나 속도를 올려 주세요");
+		).toBe("결과 오디오가 너무 커요. 대본을 줄이거나 속도를 올려 주세요.");
 		expect(dramaProblemText(problem("storage"), null).text).toBe(
-			"지금은 장면을 만들 수 없어요. 잠시 뒤 다시 해 주세요",
+			"지금은 장면을 만들 수 없어요. 잠시 뒤 다시 해 주세요.",
 		);
 		expect(dramaProblemText(problem("unexpected"), null).text).toBe(
-			"장면을 만들지 못했어요. 잠시 뒤 다시 해 주세요",
+			"장면을 만들지 못했어요. 잠시 뒤 다시 해 주세요.",
 		);
 	});
 	it("나머지는 T5 Fish Audio 문구(키 문제는 '연결 상태 보기', 계획 리뷰 P2)", () => {
@@ -1958,7 +1958,7 @@ describe("드라마 문구(브리프 8절 정본)", () => {
 	it("글 키는 8절 표 그대로", () => {
 		expect(DRAMA_TEXT).toMatchObject({
 			title: "드라마 작업실",
-			description: "화자마다 성우를 붙이고 대본을 연기시켜요.",
+			description: "화자마다 성우를 붙여 대본을 연기하게 해요",
 			sceneName: "장면 이름",
 			scenePlaceholder: "장면",
 			model: "모델",
@@ -1971,19 +1971,19 @@ describe("드라마 문구(브리프 8절 정본)", () => {
 			speakersHelp: "대본에 나오는 화자만 장면에 들어가요 · 최대 4명",
 			pickVoice: "성우 고르기",
 			removeTip: "빼기",
-			removeLast: "화자는 1명 이상이어야 해요.",
+			removeLast: "화자는 1명 이상이어야 해요",
 			addSpeaker: "화자 추가",
 			speakersFull: "화자는 4명까지예요",
 			voicesFailed: "담은 성우를 불러오지 못했어요",
 			reload: "다시 불러오기",
 			pickerDescription:
-				"담은 성우나 프리셋, 공급자 전체에서 골라요. 전체에서 고르면 성우 보관함에도 담겨요.",
+				"담은 성우나 프리셋, 음성 서비스 전체에서 골라요. 전체에서 고르면 성우 보관함에도 담겨요.",
 			source: "성우 출처",
 			savedTab: "담은 성우",
 			allTab: "전체",
 			toAll: "전체에서 고르기",
 			toCasting: "성우 캐스팅에서 담기",
-			savedToLibrary: "성우 보관함에도 담았어요.",
+			savedToLibrary: "성우 보관함에도 담았어요",
 			voiceUnusable: "이 성우는 지금 쓸 수 없어요. 다른 성우를 골라 주세요.",
 			close: "닫기",
 			script: "대본",
@@ -2007,8 +2007,9 @@ describe("드라마 문구(브리프 8절 정본)", () => {
 			pastePlaceholder:
 				"지연: 또 늦었네. 삼십 분이나 기다렸어.\n민수: 미안, 미안! 지하철이 갑자기 멈춰 버렸어.",
 			pasteNoVoice: "성우 없음, 바꾼 뒤 골라 주세요",
-			pasteTooManySpeakers: "화자는 4명까지예요. 이름을 4개 이하로 줄여 주세요",
-			pasteTooManyLines: "줄은 50개까지예요. 50줄 이하로 줄여 주세요",
+			pasteTooManySpeakers:
+				"화자는 4명까지예요. 이름을 4개 이하로 줄여 주세요.",
+			pasteTooManyLines: "줄은 50개까지예요. 50줄 이하로 줄여 주세요.",
 			pasteEmpty: "붙여 넣은 글에 대사가 없어요",
 			replace: "바꾸기",
 			cancel: "취소",
@@ -2022,13 +2023,13 @@ describe("드라마 문구(브리프 8절 정본)", () => {
 				"범위 태그: `약속해 <whisper>아무한테도 말 안 한다고</whisper>.`",
 			howToLine:
 				"줄 지시: 지시 칸에 `icy calm` 또는 `작게 한숨 쉬며`. 어떤 말로 써도 되고 소리로 읽지 않아요.",
-			howToNote: "한국어 지시와 영어 지시 중 무엇이 나은지는 들어 보고 정해요.",
+			howToNote: "한국어 지시와 영어 지시 중 무엇이 나은지는 들어 보고 정해요",
 			barLabel: "장면 만들기",
 			make: "장면 만들기",
 			makePaid: "장면 만들기, 크레딧 사용",
 			makeFree: "장면 만들기, 무료",
 			makingStatus: "장면을 연기하는 중이에요",
-			waitNote: "공급자 응답을 기다리고 있어요. 다시 누르지 않아도 돼요",
+			waitNote: "음성 서비스 응답을 기다리고 있어요. 다시 누르지 않아도 돼요.",
 			sampling: "샘플링",
 			samplingDescription:
 				"테이크마다 연기가 달라져요. 바꾼 값은 다음에 만드는 테이크부터 써요.",
@@ -2046,9 +2047,9 @@ describe("드라마 문구(브리프 8절 정본)", () => {
 			confirmModel: "모델",
 			confirmEstimate: "예상",
 			drama3Warning:
-				"Drama 3는 대사별 시각 정보를 주지 않을 수 있어요. 그러면 대사별 파일 없이 장면 파일만 받아요",
+				"Drama 3는 대사별 시각 정보를 주지 않을 수 있어요. 그러면 대사별 파일 없이 장면 파일만 받아요.",
 			unknownRetry:
-				"같은 대본의 앞 요청은 처리 여부를 아직 몰라요. 다시 만들면 크레딧이 한 번 더 쓰일 수 있어요",
+				"같은 대본의 앞 요청은 처리 여부를 아직 몰라요. 다시 만들면 크레딧이 한 번 더 쓰일 수 있어요.",
 			confirmMake: "크레딧 쓰고 만들기",
 			fishCreditLink: "Fish Audio에서 API 크레딧 충전하기",
 			fishCreditUrl: "https://fish.audio/app/billing",
@@ -2061,13 +2062,13 @@ describe("드라마 문구(브리프 8절 정본)", () => {
 			newWindow: "(새 창)",
 			toSplitModel: "대사 파일이 나오는 모델로 바꾸기",
 			followAll: "모든 줄을 이 테이크로",
-			followedAll: "모든 줄을 무대의 테이크로 맞췄어요.",
+			followedAll: "모든 줄을 무대의 테이크로 맞췄어요",
 			lineNoun: "대사",
 			stage: "무대",
 			stageGenerating: "새 테이크를 연기하는 중이에요",
 			receivingScene: "장면을 받는 중이에요",
 			sceneFailed:
-				"장면을 받지 못했어요. 잠시 뒤 다시 받아 주세요. 크레딧은 들지 않아요",
+				"장면을 받지 못했어요. 잠시 뒤 다시 받아 주세요. 크레딧은 들지 않아요.",
 			retryReceive: "다시 받기",
 			prevTake: "앞 테이크",
 			nextTake: "다음 테이크",
@@ -2076,17 +2077,17 @@ describe("드라마 문구(브리프 8절 정본)", () => {
 				"받지 못했어요. 잠시 뒤 다시 해 주세요. 크레딧은 들지 않아요.",
 			otherScript: "지금 대본과 다른 테이크예요",
 			restoreScript: "이 테이크의 대본으로 되돌리기",
-			restored: "테이크의 대본으로 되돌렸어요.",
-			notSplit: "대사별로 나누지 못했어요. 장면 파일은 받을 수 있어요",
+			restored: "테이크의 대본으로 되돌렸어요",
+			notSplit: "대사별로 나누지 못했어요. 장면 파일은 받을 수 있어요.",
 			notSplitDrama3:
-				"Drama 3는 대사별 시각 정보를 주지 않을 수 있어요. 대사 파일이 필요하면 S2.1 Pro 계열 모델로 만들어 보세요",
+				"Drama 3는 대사별 시각 정보를 주지 않을 수 있어요. 대사 파일이 필요하면 S2.1 Pro 계열 모델로 만들어 보세요.",
 			notSplitNoText: "대사 없이 지시만 있는 줄이 있어서 나누지 않았어요",
 			notSplitTagWord:
 				"대사의 영어 단어에 지시 이름이 들어 있어서 나누지 않았어요",
 			notSplitMismatch:
-				"읽은 글자가 대본과 맞지 않았어요. 지시나 숫자를 대본과 다르게 읽었을 수 있어요",
-			made: "장면을 만들었어요.",
-			notFound: "이미 지워졌거나 찾을 수 없어요.",
+				"읽은 글자가 대본과 맞지 않았어요. 지시나 숫자를 대본과 다르게 읽었을 수 있어요.",
+			made: "장면을 만들었어요",
+			notFound: "이미 지워졌거나 찾을 수 없어요",
 			takes: "이전 테이크",
 			takesFailed: "이전 테이크를 불러오지 못했어요",
 			toTakes: "이전 테이크 보기",
@@ -2097,14 +2098,14 @@ describe("드라마 문구(브리프 8절 정본)", () => {
 			unknownBadge: "처리 여부 미확인",
 			unknownUsage: "사용 여부 미확인",
 			unknownExpired:
-				"확인 시간이 지났어요. 크레딧 사용 여부는 Fish Audio 사용 기록에서 확인해 주세요",
+				"확인 시간이 지났어요. 크레딧 사용 여부는 Fish Audio 사용 기록에서 확인해 주세요.",
 			takesCap: "최근 20개까지 보여요",
 			remove: "지우기",
 			removeQuestion: "이 테이크를 지울까요?",
 			removeDetail:
-				"지우면 이 테이크를 다시 듣거나 받을 수 없어요. 공급자 사용 기록은 그대로예요.",
+				"지우면 이 테이크를 다시 듣거나 받을 수 없어요. 음성 서비스 사용 기록은 그대로예요.",
 			removing: "지우는 중이에요",
-			removed: "테이크를 지웠어요.",
+			removed: "테이크를 지웠어요",
 			removeFailed: "지우지 못했어요. 잠시 뒤 다시 해 주세요.",
 		});
 		// 767px 이하 '지시' 버튼을 없앴다(칩 줄에 지시 칸이 늘 있다)
@@ -2163,7 +2164,7 @@ describe("드라마 문구(브리프 8절 정본)", () => {
 			"3번 줄 대사",
 			"251 / 300자",
 			"3번 줄 메뉴",
-			"3번 줄을 지웠어요.",
+			"3번 줄을 지웠어요",
 			"6줄 · 화자 2명",
 			"성우 이어 씀 · 효정2",
 			"바꾸면 지금 대본 6줄이 이 글로 바뀌어요",
@@ -2180,14 +2181,14 @@ describe("드라마 문구(브리프 8절 정본)", () => {
 			"S03_약속장소 · 또 늦었네.",
 			"3분 전 · Drama 3 · 지연·민수 · 18.3초 · 추정 약 $0.0032",
 			"테이크를 지웠어요. 이 테이크를 고른 줄 2개는 무대의 테이크로 받아요.",
-			"모델을 S2.1 Pro Free로 바꿨어요.",
+			"모델을 S2.1 Pro Free로 바꿨어요",
 		]);
 	});
 	it("Part 2 문구는 14절 표 그대로(글 키와 자리 값 키)", () => {
 		const t = DRAMA_TEXT;
 		expect(t).toMatchObject({
 			mixedBlock:
-				"다른 공급자 화자가 있어 장면은 만들 수 없어요. 읽기를 써 주세요",
+				"다른 음성 서비스 화자가 있어 장면은 만들 수 없어요. 읽기를 써 주세요.",
 			read: "읽기",
 			readFrom: "이 줄부터 읽기",
 			readAgainFrom: "이 줄부터 다시 읽기",
@@ -2199,15 +2200,15 @@ describe("드라마 문구(브리프 8절 정본)", () => {
 			intensityAuto: "감정이 자동이면 강도는 쓰지 않아요",
 			styleLabel: "말투",
 			presetTab: "프리셋",
-			providerPick: "공급자",
+			providerPick: "서비스",
 			readConfirmTitle: "새로 만들 줄이 있어요",
 			readConfirmGo: "읽기",
 			autoTag: "전체 자동 태그",
-			autoTagTitle: "대본을 보내 연기 값을 제안받을까요?",
+			autoTagTitle: "대본을 보내 감정과 말투를 추천받을까요?",
 			autoTagBody:
-				"OpenAI 텍스트 모델(gpt-6-luna)로 대본을 보내요. 3번 실패하면 Gemini(gemini-3.8-flash)로 보내요. 예상 약 $0.01. Gemini 키가 무료 등급이면 Google이 보낸 대본을 학습에 쓸 수 있어요",
-			autoTagGo: "제안받기",
-			autoTagPreviewTitle: "자동 태그 제안",
+				"OpenAI 텍스트 모델(gpt-6-luna)로 대본을 보내요. 3번 실패하면 Gemini(gemini-3.8-flash)로 보내요. 예상 약 $0.01. Gemini 키가 무료 등급이면 Google이 보낸 대본을 학습에 쓸 수 있어요.",
+			autoTagGo: "추천받기",
+			autoTagPreviewTitle: "자동 태그 추천",
 			autoTagNone: "바꿀 값이 없어요",
 			autoTagApply: "모두 바꾸기",
 		});
@@ -2249,7 +2250,7 @@ describe("드라마 문구(브리프 8절 정본)", () => {
 			readZip: "줄마다 받기 (zip)",
 			joinAnnounce: "대본 전체",
 			joining: "대본을 잇는 중",
-			joinFailed: "한 파일로 잇지 못했어요. ‘줄마다 받기’로 받아 주세요",
+			joinFailed: "한 파일로 잇지 못했어요. ‘줄마다 받기’로 받아 주세요.",
 		});
 		expect([t.gapResetLine(3), t.gapLineHelp("0.3")]).toEqual([
 			"기본으로, 3번 줄 뒤 쉼",
@@ -2303,7 +2304,7 @@ describe("드라마 문구(브리프 8절 정본)", () => {
 			saveTakeZip: "대사별 파일 (zip)",
 		});
 		expect(t.readEstimate(4, 49, true)).toBe(
-			"4줄 · 49자 · 유료 공급자 화자가 있어요 · 누르면 예상 사용량을 먼저 보여 드려요",
+			"4줄 · 49자 · 유료 음성 서비스 화자가 있어요 · 누르면 예상 사용량을 먼저 보여 드려요",
 		);
 		expect(t.readEstimate(4, 49, false)).toBe("4줄 · 49자");
 		expect(t.readEstimate(1200, 1500, false)).toBe("1,200줄 · 1,500자");
@@ -2699,11 +2700,11 @@ describe("읽기를 막는 이유와 막대 이유 줄(브리프 14절 배치 5)
 				typeof readLineProblemText
 			>[1];
 		expect(readLineProblemText("typecast", problem("unexpected"))).toEqual({
-			text: "이 줄을 듣지 못했어요. 잠시 뒤 다시 눌러 주세요",
+			text: "이 줄을 듣지 못했어요. 잠시 뒤 다시 눌러 주세요.",
 			connections: false,
 		});
 		expect(readLineProblemText("typecast", problem("odd_reason")).text).toBe(
-			"이 줄을 듣지 못했어요. 잠시 뒤 다시 눌러 주세요",
+			"이 줄을 듣지 못했어요. 잠시 뒤 다시 눌러 주세요.",
 		);
 		for (const reason of ["quota", "no_key", "in_progress", "provider_error"])
 			expect(readLineProblemText("airy", problem(reason))).toEqual(

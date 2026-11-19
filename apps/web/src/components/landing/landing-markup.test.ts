@@ -343,7 +343,7 @@ test("안내 제목은 한글 단어가 쪼개지지 않게 break-keep이다", (
 });
 
 test("데모 목록 없음 안내는 다음 행동을 한 줄로 알린다", () => {
-	expect(DEMO_TEXT.listDescription).toContain("다른 공급자를 골라 보세요");
+	expect(DEMO_TEXT.listDescription).toContain("다른 음성 서비스를 골라 보세요");
 });
 
 test("데모 표시는 크기를 덮어쓰지 않고 Badge 기본 크기를 쓴다", () => {
@@ -356,6 +356,12 @@ test("데모 표시는 크기를 덮어쓰지 않고 Badge 기본 크기를 쓴�
 	expect(html).toContain("데모 샘플");
 	expect(html).not.toMatch(/min-h-6|text-xs|px-2[^.]/);
 	expect(html).toContain("shrink-0");
+});
+
+test("바닥에 프로킷 제작 표시가 있다", () => {
+	expect(renderToStaticMarkup(createElement(LandingFooter))).toContain(
+		"으로 만들었어요",
+	);
 });
 
 test("바닥 글·스택 배지는 번역하지 않는다", () => {

@@ -792,7 +792,7 @@ describe("기본 성우 불러오기", () => {
 		expect(workLoadView(el, work(), voices, NOW)).toEqual({
 			lead: null,
 			changes: [
-				"공급자 Typecast → ElevenLabs",
+				"서비스 Typecast → ElevenLabs",
 				"성우 민지 → Rachel",
 				"모델 eleven_v4 → eleven_v3",
 				"안정성 0.50 → 0.30",

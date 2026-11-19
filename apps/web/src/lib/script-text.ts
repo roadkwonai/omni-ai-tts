@@ -29,15 +29,15 @@ export const SCRIPT_TEXT = {
 	remove: "지우기",
 	saveToLibrary: "보관함에 저장",
 	more: "더 보기",
-	edited: (title: string) => `‘${title}’ 대본을 고쳤어요.`,
-	created: (title: string) => `‘${title}’ 대본을 만들었어요.`,
-	removed: (title: string) => `‘${title}’ 대본을 지웠어요.`,
-	removedRecent: "최근 대본을 지웠어요.",
-	savedAs: (title: string) => `‘${title}’ 대본으로 저장했어요.`,
+	edited: (title: string) => `‘${title}’ 대본을 고쳤어요`,
+	created: (title: string) => `‘${title}’ 대본을 만들었어요`,
+	removed: (title: string) => `‘${title}’ 대본을 지웠어요`,
+	removedRecent: "최근 대본을 지웠어요",
+	savedAs: (title: string) => `‘${title}’ 대본으로 저장했어요`,
 
 	// 보관함 화면의 머리·상태·창(scripts.md 5절)
 	description:
-		"음성 작업실에서 저장한 대본과 최근 만든 대본을 찾아 다시 열어요.",
+		"음성 작업실에서 저장한 대본과 최근 만든 대본을 찾아 다시 열어요",
 	searchLabel: "대본 찾기",
 	channelLabel: "채널",
 	categoryLabel: "카테고리",
@@ -46,13 +46,13 @@ export const SCRIPT_TEXT = {
 	channelChip: (name: string) => `채널 ${name}`,
 	openLabel: (title: string) => `${title} 작업실에서 열기`,
 	actionsLabel: (title: string) => `${title} 동작`,
-	shown: (n: number) => `대본 ${n}개를 보여요`,
-	recentNote: "만들기를 누른 작업이 최근 20개까지 남아요.",
+	shown: (n: number) => `대본 ${n}개가 보여요`,
+	recentNote: "만들기를 누른 작업이 최근 20개까지 남아요",
 	emptySaved: "아직 저장한 대본이 없어요",
 	emptySavedDetail:
-		"음성 작업실 위쪽 '대본' 메뉴에서 지금 작업을 새 대본으로 저장할 수 있어요.",
+		"음성 작업실 위쪽 ‘대본’ 메뉴에서 지금 작업을 새 대본으로 저장할 수 있어요",
 	emptyRecent: "아직 만든 대본이 없어요",
-	emptyRecentDetail: "음성 작업실에서 만들기를 누르면 그 작업이 여기에 남아요.",
+	emptyRecentDetail: "음성 작업실에서 만들기를 누르면 그 작업이 여기에 남아요",
 	toStudio: "음성 작업실로",
 	noMatches: "조건에 맞는 대본이 없어요",
 	listFailed: "대본 목록을 불러오지 못했어요",
@@ -61,16 +61,16 @@ export const SCRIPT_TEXT = {
 	classesFailed: "채널·분류 목록을 불러오지 못했어요",
 	reload: "다시 불러오기",
 	editTitle: "대본 고치기",
-	editNote: "대본 글은 음성 작업실에서 열어 고쳐요.",
+	editNote: "대본 글은 음성 작업실에서 열어 고쳐요",
 	saveToLibraryTitle: "보관함에 저장",
 	removeQuestion: (title: string) => `‘${title}’ 대본을 지울까요?`,
 	removeRecentQuestion: "이 최근 대본을 지울까요?",
 	removeDetail:
 		"이미 만든 음성 결과는 그대로 남아요. 작업실에서 열어 둔 작업도 그대로지만, 다음 저장은 새 대본으로 해요.",
-	removeRecentDetail: "이미 만든 음성 결과는 그대로 남아요.",
+	removeRecentDetail: "이미 만든 음성 결과는 그대로 남아요",
 	removing: "대본을 지우는 중이에요",
 	removeFailed: "지우지 못했어요. 잠시 뒤 다시 해 주세요.",
-	gone: "이미 지워졌거나 찾을 수 없어요.",
+	gone: "이미 지워졌거나 찾을 수 없어요",
 	duplicateFailed: "복제하지 못했어요. 잠시 뒤 다시 해 주세요.",
 
 	// 작업실 '대본' 메뉴(studio.md 18.1)
@@ -92,14 +92,14 @@ export const SCRIPT_TEXT = {
 		nul: "저장할 수 없는 글자가 들어 있어요",
 		encoding: "저장할 수 없는 글자가 들어 있어요",
 	},
-	savedIn: (title: string) => `‘${title}’ 대본에 저장했어요.`,
+	savedIn: (title: string) => `‘${title}’ 대본에 저장했어요`,
 	saving: "저장하는 중이에요",
 	saveFailed: "저장하지 못했어요. 잠시 뒤 다시 해 주세요.",
 
 	// '새 대본으로 저장' 창(18.2)
 	saveTitle: "새 대본으로 저장",
 	saveDescription: (paragraphs: number, chars: number) =>
-		`지금 작업(문단 ${paragraphs}개 · ${count(chars)}자)을 보관함에 저장해요.`,
+		`지금 작업(문단 ${paragraphs}개 · ${count(chars)}자)을 보관함에 저장해요`,
 	fieldTitle: "제목",
 	fieldChannel: "채널",
 	channelNote: "채널을 바꾸면 작업 채널도 바뀌어요",
@@ -109,12 +109,12 @@ export const SCRIPT_TEXT = {
 	duplicateName: "같은 이름의 대본이 있어요",
 	titleEmpty: "제목을 입력해 주세요",
 	titleTooLong: "제목은 100자까지 쓸 수 있어요",
-	channelGone: "고른 채널이나 분류가 지워졌어요. 다시 골라 주세요",
+	channelGone: "고른 채널이나 분류가 지워졌어요. 다시 골라 주세요.",
 	copyTitle: (title: string) => `${title} 사본`,
 
 	// '보관함에서 넣기' 창(18.3)
 	insertTitle: "보관함에서 넣기",
-	insertDescription: "대본을 골라 지금 작업에 이어 넣거나 바꿔 넣어요.",
+	insertDescription: "대본을 골라 지금 작업에 이어 넣거나 바꿔 넣어요",
 	pickLabel: "넣을 대본",
 	openFailed: "대본을 불러오지 못했어요",
 	preview: (paragraphs: number, chars: number) =>
@@ -124,22 +124,22 @@ export const SCRIPT_TEXT = {
 	warnFollowDefault: (n: number) =>
 		`성우를 따로 고르지 않은 문단 ${n}개는 지금 기본 성우로 읽어요`,
 	warnOverLimit: (n: number) =>
-		`200개까지만 넣어요. 나머지 ${n}개는 넣지 않아요`,
+		`200개까지만 넣어요. 나머지 ${n}개는 넣지 않아요.`,
 	warnSpeakers: (n: number) => `화자가 20명을 넘어 ${n}개 문단의 화자를 비워요`,
 	warnReplace: (n: number) => `지금 문단 ${n}개를 모두 바꿔요`,
 	insertNow: "넣기",
 	// extra: 200개 상한으로 넣지 못한 수, cleared: 화자 20명 상한으로 화자를 비운 문단 수(붙여 넣기 창과 같은 말)
 	inserted: (n: number, extra = 0, cleared = 0) =>
-		`문단 ${n}개를 넣었어요${extra > 0 ? `. 나머지 ${extra}개는 넣지 않았어요` : ""}${cleared > 0 ? `. 화자가 20명을 넘어 ${cleared}개 문단의 화자를 비웠어요` : ""}`,
+		`문단 ${n}개를 넣었어요${extra > 0 ? `. 나머지 ${extra}개는 넣지 않았어요` : ""}${cleared > 0 ? `. 화자가 20명을 넘어 ${cleared}개 문단의 화자를 비웠어요` : ""}${extra > 0 || cleared > 0 ? "." : ""}`,
 	noRoom: "문단이 이미 200개라 더 넣을 수 없어요",
 	replaceUndoNote:
-		"바꾼 뒤 10초 동안 되돌릴 수 있고, 만들기를 누른 작업은 최근 만든 대본에 남아요.",
+		"바꾼 뒤 10초 동안 되돌릴 수 있고, 만들기를 누른 작업은 최근 만든 대본에 남아요",
 	replaced: (title: string) => `‘${title}’${particle(title, "으로")} 바꿨어요`,
 	undo: "되돌리기",
 
 	// 미저장 경고 창(18.4)
 	dirtyTitle: (title: string) => `‘${title}’에 저장하지 않은 변경이 있어요`,
-	dirtyDescription: "바꾸면 이 작업의 변경은 되돌리기 10초 뒤 사라져요.",
+	dirtyDescription: "바꾸면 이 작업의 변경은 되돌리기 10초 뒤 사라져요",
 	saveThenReplace: "저장하고 바꾸기",
 	replaceWithoutSaving: "저장하지 않고 바꾸기",
 

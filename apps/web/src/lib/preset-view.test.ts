@@ -154,7 +154,7 @@ describe("불러오기 창 알림 줄", () => {
 		]);
 	});
 	it("불러오기는 설정만: 성우가 다를 때 창 설명 첫 줄(브리프 5·8절)", () => {
-		expect(settingsOnly("민지")).toBe("지금 성우 민지에 설정만 불러와요.");
+		expect(settingsOnly("민지")).toBe("지금 성우 민지에 설정만 불러와요");
 	});
 	it("처음 값으로 바꾼 칸 알림은 따로도 만든다(작업실이 쓴다)", () => {
 		expect(fixedNote(preset({}))).toBeNull();
@@ -221,10 +221,10 @@ describe("프리셋 줄과 안내", () => {
 		// 작업실에서 성우를 고르기 전 꺼진 '새 프리셋 저장'의 둘째 줄
 		expect(PRESET_TEXT.needVoice).toBe("성우를 먼저 골라 주세요");
 		expect(removeDefaultNote("주말")).toBe(
-			" 채널 ‘주말’의 기본 프리셋도 비워져요.",
+			". 채널 ‘주말’의 기본 프리셋도 비워져요.",
 		);
 		expect(removeDefaultNote(null)).toBe(
-			" 고른 채널의 기본 프리셋도 비워져요.",
+			". 고른 채널의 기본 프리셋도 비워져요.",
 		);
 	});
 	it("보관함: 프리셋 성우 집합, 성우별 프리셋 수, 빼기 문구", () => {
@@ -236,11 +236,11 @@ describe("프리셋 줄과 안내", () => {
 		expect([...presetVoiceIds(list)]).toEqual(["s1"]);
 		expect(presetCountOf(list, "s1")).toBe(2);
 		expect(presetRemoveNote(2)).toBe(
-			" 이 성우를 쓰는 프리셋 2개는 성우를 다시 골라야 해요.",
+			". 이 성우를 쓰는 프리셋 2개는 성우를 다시 골라야 해요.",
 		);
 		expect(presetRemoveNote(0)).toBe("");
 		expect(presetRemoveNote(0, true)).toBe(
-			" 프리셋에서 쓰는 성우인지 확인하지 못했어요.",
+			". 프리셋에서 쓰는 성우인지 확인하지 못했어요.",
 		);
 	});
 });

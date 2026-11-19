@@ -85,7 +85,7 @@ export function SignInNotice() {
 		<Notice
 			icon={LogIn}
 			title="로그인이 풀렸어요"
-			description="다시 로그인하면 이 화면으로 돌아와요."
+			description="다시 로그인하면 이 화면으로 돌아와요"
 		>
 			{/* 일반 <a>: 전체 이동이어야 루트 layout이 다시 그려져 앱 틀이 남지 않는다 */}
 			<a

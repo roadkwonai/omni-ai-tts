@@ -23,29 +23,30 @@ export const DEMO_TEXT = {
 	band: "공개 데모 · 예시 데이터는 매일 처음 상태로 돌아가요",
 	account: "공개 데모",
 	sample: "데모 샘플",
-	connectionsTitle: "공개 데모에서는 공급자를 부르지 않아요",
+	connectionsTitle: "공개 데모에서는 음성 서비스를 부르지 않아요",
 	connectionsDescription:
 		"연결 상태는 본인용 작업실에서만 확인해요. 여기서는 만들기 결과로 데모 샘플이 나와요.",
 	myVoicesTitle: "공개 데모에서는 내 보이스를 만들 수 없어요",
 	myVoicesAction: "성우 캐스팅 둘러보기",
 	myVoicesDescription:
-		"클론은 공급자 계정이 있어야 해서 데모에서는 막아 두었어요.",
+		"클론 보이스는 음성 서비스 계정이 있어야 해서 데모에서는 막아 두었어요",
 	listTitle: "공개 데모는 저장해 둔 목록만 보여요",
 	listDescription:
-		"이 성우 목록은 데모에 담겨 있지 않아요. 다른 공급자를 골라 보세요.",
-	autoTag: "공개 데모에서는 자동 태그를 쓸 수 없어요. 공급자를 부르지 않아요.",
+		"데모에는 이 성우 목록이 없어요. 다른 음성 서비스를 골라 보세요.",
+	autoTag:
+		"공개 데모에서는 자동 태그를 쓸 수 없어요. 음성 서비스를 부르지 않아요.",
 	// 확인 창·버튼 문구. 데모는 미리 만든 샘플을 돌려줘 비용이 없다
 	listenTitle: "데모 샘플로 들어 볼까요?",
 	listenAction: "데모 샘플 듣기",
 	makeTitle: "데모 샘플로 만들까요?",
 	makeAction: "데모 샘플로 만들기",
-	makeNote: "공급자를 부르지 않고 미리 만든 데모 샘플이 나와요.",
+	makeNote: "음성 서비스를 부르지 않고 미리 만든 데모 샘플이 나와요",
 	makeName: "장면 만들기, 데모 샘플",
-	listenFree: "공급자 없이",
+	listenFree: "음성 서비스 없이",
 	sentenceHint: "데모 샘플로 나와요.",
 	savedFree: "저장된 결과",
 	savedCount: (count: number) => `저장된 결과 ${count.toLocaleString()}개`,
-	receiveFree: "받기는 공급자를 부르지 않아요",
+	receiveFree: "받기는 음성 서비스를 부르지 않아요",
 	// sampleName은 '기본 샘플'(받침 없음, 로)과 '참고 음성'(받침 있음, 으로) 둘뿐이다
 	voiceNote: (sampleName: string) =>
 		sampleName === "참고 음성"
