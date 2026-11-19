@@ -45,9 +45,10 @@ const keepFocus = (event: MouseEvent) => event.preventDefault();
 // 위아래 4px는 알약의 눌림 영역과 포커스 링이 넘김 칸에 잘리지 않게 둔다(767px 이하는 양옆도). 바뀐 줄 사이 8px라 눌림 영역이 겹치지 않는다
 export const TAG_ROW =
 	"flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-2 py-1 max-md:basis-full max-md:flex-nowrap max-md:overflow-x-auto max-md:px-1 max-md:tabs-overflow-fade";
-// 알약(시안 .pill): 높이 36px에 after로 위아래 4px를 더해 눌림 영역 44px, 한 글자 알약(헉·쉼)도 너비 44px. 메뉴 알약은 회색 글과 ▾(시안 .pill.menu)
+// 알약(시안 .pill): 높이 36px. 버튼의 1px 투명 테두리 때문에 after의 기준 상자가 34px라 위아래 5px·양옆 1px를 더해 눌림 영역 44px, 한 글자 알약(헉·쉼)도 너비 44px. 메뉴 알약은 회색 글과 ▾(시안 .pill.menu)
+// 눌림 영역은 알약 바깥으로 위아래 4px씩이고 바뀐 줄 사이는 8px(TAG_ROW gap-y-2)라 겹치지 않는다
 const TAG_PILL =
-	"relative h-9 min-w-11 gap-1 rounded-full bg-card px-3 font-normal ring-1 ring-border ring-inset after:absolute after:inset-x-0 after:-inset-y-1";
+	"relative h-9 min-w-11 gap-1 rounded-full bg-card px-3 font-normal ring-1 ring-border ring-inset after:absolute after:-inset-x-px after:-inset-y-1.25";
 
 // 묶음 하나를 담은 메뉴 알약. 항목을 고르면 넣기를 미뤄 두고 메뉴가 닫힌 뒤(onOpenChangeComplete) 넣는다:
 // 칸에 포커스가 있어야 execCommand로 넣어 Ctrl+Z가 남는다. 미룬 넣기가 있으면 닫을 때 포커스를 이 알약으로 돌리지 않는다(넣기가 칸으로 옮긴다)

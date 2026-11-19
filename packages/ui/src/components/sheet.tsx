@@ -2,6 +2,7 @@
 
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog";
 import { Button } from "@tts-pilot-app/ui/components/button";
+import { trapTab } from "@tts-pilot-app/ui/lib/focus-wrap";
 import { cn } from "@tts-pilot-app/ui/lib/utils";
 import { XIcon } from "lucide-react";
 import type * as React from "react";
@@ -41,6 +42,7 @@ function SheetContent({
 	className,
 	children,
 	side = "right",
+	onKeyDown,
 	...props
 }: SheetPrimitive.Popup.Props & { side?: keyof typeof SIDE }) {
 	return (
@@ -54,6 +56,10 @@ function SheetContent({
 					SIDE[side],
 					className,
 				)}
+				onKeyDown={(event) => {
+					onKeyDown?.(event);
+					trapTab(event);
+				}}
 				{...props}
 			>
 				{children}

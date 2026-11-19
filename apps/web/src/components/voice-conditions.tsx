@@ -380,7 +380,8 @@ export function SearchField({
 }) {
 	return (
 		// 포커스 표시는 다른 컨트롤과 같은 바깥 2px 윤곽선이다. 그림자는 쓰지 않는다(DESIGN)
-		<InputGroup className="h-11 flex-1 rounded-lg bg-card shadow-none has-[[data-slot=input-group-control]:focus-visible]:outline-2 has-[[data-slot=input-group-control]:focus-visible]:outline-ring has-[[data-slot=input-group-control]:focus-visible]:outline-solid has-[[data-slot=input-group-control]:focus-visible]:outline-offset-2 has-[[data-slot=input-group-control]:focus-visible]:ring-0 dark:bg-card">
+		// 테두리는 레이아웃을 차지하지 않는 안쪽 링으로 그려 입력이 상자 44px를 모두 채운다(border면 42px)
+		<InputGroup className="h-11 flex-1 rounded-lg border-0 bg-card shadow-none ring-1 ring-input ring-inset has-[[data-slot=input-group-control]:focus-visible]:outline-2 has-[[data-slot=input-group-control]:focus-visible]:outline-ring has-[[data-slot=input-group-control]:focus-visible]:outline-solid has-[[data-slot=input-group-control]:focus-visible]:outline-offset-2 dark:bg-card">
 			<InputGroupAddon>
 				<Search aria-hidden="true" />
 			</InputGroupAddon>

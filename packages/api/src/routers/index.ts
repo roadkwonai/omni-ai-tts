@@ -1,4 +1,4 @@
-import type { RouterClient } from "@orpc/server";
+import { ORPCError, type RouterClient } from "@orpc/server";
 import { z } from "zod";
 
 import { protectedProcedure, publicProcedure } from "../index";
@@ -52,7 +52,8 @@ export const appRouter = {
 		.output(voiceListResultSchema)
 		.handler(async ({ input, context }) => {
 			// 입력의 공급자로 그 공급자의 클라이언트를 고른다(공급자 구현은 자기 입력 모양만 받는다)
-			const listVoices = context.providers?.[input.provider]?.listVoices;
+			const client = context.providers?.[input.provider];
+			const listVoices = client?.listVoices;
 			// 키가 없으면 공급자와 DB를 부르지 않는다.
 			if (!listVoices) throw providerError(input.provider, "no_key");
 			// Typecast·Airy는 출처가 공개 하나라 입력에 출처가 없다
@@ -70,7 +71,21 @@ export const appRouter = {
 				input,
 				voiceListPageSchema,
 				() => listVoices(input),
-			);
+			).catch((error: unknown) => {
+				// 공개 데모의 캐시 미스는 502(브라우저 콘솔 오류 줄) 대신 빈 페이지다. 실패는 캐시에 쓰지 않으므로 방문자 조합마다 행이 늘지 않는다(T15-12)
+				if (!client?.demo || !(error instanceof ORPCError)) throw error;
+				return {
+					value: {
+						voices: [],
+						next: null,
+						total: 0,
+						totalExact: true,
+						windowLimited: false,
+					},
+					fetchedAt: new Date().toISOString(),
+					stale: null,
+				};
+			});
 			return { provider: input.provider, source, ...value, fetchedAt, stale };
 		}),
 	// ElevenLabs 억양 목록(억양 조건의 선택지). 공개 캐시를 쓴다.

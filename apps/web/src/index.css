@@ -20,13 +20,13 @@
 
 /* 문단 작업실 격자(T10 브리프 5.1). 본문 래퍼(@container) 안쪽 요소라 래퍼 폭으로 단을 바꾼다. 가운데 열은 48rem까지, 남는 폭은 묶음 오른쪽.
    1단: 가운데 한 열. 2단(@4xl): 가운데 · 오른쪽 레일 16rem. 3단(@6xl): 왼쪽 레일 14rem · 가운데 · 오른쪽 레일 16rem.
-   2단부터 행은 머리(auto) · 본문(1fr)이다. 두 행을 덮는 레일이 본문보다 길면 늘어난 높이가 본문 행으로 가고 머리 아래가 벌어지지 않는다 */
+   2단부터 행은 머리(auto) · 머리 아래(auto) · 나머지(1fr)다. 머리 c1·r1, 요약 c2·r1~2, 목록 c1·r2~3, 설정 c2·r3. 3단은 두 레일이 r1~3을 덮는다 */
 @utility studio-grid {
 	display: grid;
 	grid-template-columns: minmax(0, --spacing(192));
 	@variant @4xl {
 		grid-template-columns: minmax(0, --spacing(192)) --spacing(64);
-		grid-template-rows: auto 1fr;
+		grid-template-rows: auto auto 1fr;
 		column-gap: --spacing(4);
 	}
 	@variant @6xl {

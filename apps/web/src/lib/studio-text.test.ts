@@ -244,7 +244,6 @@ describe("PARAGRAPH_TEXT(브리프 9절)", () => {
 		// 접근 이름은 보이는 글('만들기', 무료면 '무료' 배지까지)을 담는다(2.5.3)
 		expect(PARAGRAPH_TEXT.makeOf(3)).toBe("문단 3 만들기");
 		expect(PARAGRAPH_TEXT.makeOf(3, true)).toBe("문단 3 만들기 무료");
-		expect(PARAGRAPH_TEXT.railLabel).toBe("작업 설정과 요약");
 		expect(PARAGRAPH_TEXT.playAll).toBe("이어 듣기");
 	});
 	it("받기 메뉴 항목 둘째 줄(브리프 5.7)", () => {

@@ -12,7 +12,7 @@ import {
 
 // 내 보이스(T13 계획 2.1, GLOSSARY '내 보이스'). 앱에서 만든 공급자 클론 하나가 한 행이다.
 // 보관함과의 연결 칸은 두지 않는다. 보관함 행은 saved_voice의 (owner_id, provider, voice_id = provider_voice_id)로 찾는다.
-// user 외래 키는 걸지 않는다(ADR 0004와 같다, T14에서 정한다)
+// user 외래 키는 걸지 않는다(ADR 0012, 두 번째 소유자를 받을 때 다시 정한다)
 export const myVoice = pgTable(
 	"my_voice",
 	{

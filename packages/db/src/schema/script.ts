@@ -15,7 +15,7 @@ import {
 import { channel, classification } from "./classification";
 
 // 대본 보관함(T12 계획 2.1, ADR 0010, GLOSSARY '대본'). 저장한 대본(saved)과 최근 대본(recent)을 한 표에 둔다.
-// 채널을 지우면 그 칸만 빈다(on delete set null). user 외래 키는 걸지 않는다(ADR 0004와 같다, T14에서 정한다)
+// 채널을 지우면 그 칸만 빈다(on delete set null). user 외래 키는 걸지 않는다(ADR 0012, 두 번째 소유자를 받을 때 다시 정한다)
 export const script = pgTable(
 	"script",
 	{

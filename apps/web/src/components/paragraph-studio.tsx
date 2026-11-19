@@ -101,15 +101,20 @@ import { ScriptMenu } from "./script-menu";
 import { menuItem, RadioMenu } from "./voice-conditions";
 
 // 문단 작업실(T10 스펙 5.1, 브리프 docs/briefs/studio.md 5·6·7절). 본문 래퍼가 컨테이너이고 안쪽 격자(studio-grid)가 3·2·1단을 바꾼다.
-// DOM 순서는 모든 폭에서 하나다: 머리 → 건너뛰기 링크 둘 → 작업 띠(1단) → 레일 묶음 aside(작업 요약 → 작업 설정) → 문단 목록 → 막대.
-// 3단은 aside를 풀어(contents) 작업 설정을 왼쪽 열, 요약을 오른쪽 열에 둔다. 2단은 aside가 오른쪽 열 하나다. CSS order는 쓰지 않는다
+// DOM은 폭과 상관없이 하나이고 JS는 배치를 바꾸지 않는다(폭마다 DOM을 바꾸면 작업 설정이 다시 마운트되어 열린 대화상자·입력·포커스를 잃는다).
+// 순서: 머리 → 건너뛰기 링크 둘 → 작업 띠(1단) → 작업 설정 aside → 문단 목록·막대 → 작업 요약 aside. CSS order는 쓰지 않고 격자 행·열로만 놓는다.
+// 3단(@6xl): 작업 설정 왼쪽 열 · 목록 가운데 · 작업 요약 오른쪽 열(포커스 순서 = 시각 순서).
+// 2단(@4xl): 목록이 왼쪽 열, 오른쪽 열에 작업 요약(위) → 작업 설정(아래)을 쌓는다. 한계: 시각 순서가 요약 위·설정 아래라 Tab은 설정 → 목록 → 요약이 된다
+// (요약을 위에 두는 것이 진행·사용량을 먼저 보이는 쪽이다. 순수 CSS로 DOM 순서를 어기지 않고 이 둘을 모두 만족하는 배치는 없다). 1단: aside 둘은 숨는다(작업 띠가 맡는다).
+// 행은 index.css의 studio-grid가 2단부터 머리 · 머리 아래 · 나머지(1fr) 셋으로 정한다. 2단 배치: 머리 c1·r1, 요약 c2·r1~2(머리 옆에서 시작), 목록·막대 c1·r2~3, 설정 c2·r3.
+// 3단은 두 레일이 r1~3을 덮어 행 높이에 끼어들지 않는다(1fr 행을 지나는 칸은 앞 행을 키우지 않는다)
 
 // 건너뛰기 링크(화면 밖, 포커스 때 보임). 본문 래퍼(relative)가 위치의 기준이다
 const SKIP_LINK =
 	"absolute top-2 left-4 z-50 rounded-lg bg-card px-4 py-3 outline-ring not-focus:sr-only focus:outline-2";
-// 레일 칸: 머리 제목과 위를 맞추고(44px) 위에 붙어 따라온다. 스크롤 칸이 포커스 윤곽을 자르지 않게 4px 여백
-const RAIL_2 = "@4xl:studio-rail-sticky @4xl:-mx-1 @4xl:mt-10 @4xl:p-1";
-const RAIL_3 = "@6xl:studio-rail-sticky @6xl:-mx-1 @6xl:mt-10 @6xl:p-1";
+// 레일 칸: 3단은 머리 제목과 위를 맞추고(44px) 위에 붙어 따라온다. 스크롤 칸이 포커스 윤곽을 자르지 않게 4px 여백
+const RAIL = "hidden @4xl:block @4xl:-mx-1 @4xl:p-1";
+const RAIL_STICKY = "@6xl:studio-rail-sticky @6xl:mt-10";
 
 // 채널 고르기(브리프 5.2). 고른 채널에 기본 프리셋이 있으면 T8 불러오기 창으로 기본 성우에 적용한다(공급자 제한 없음).
 // 메뉴 끝: 채널이 없으면 '채널·분류에서 만들기', 받지 못하면 경고색 줄(누르면 다시 받는다). 첫 받기 실패는 실패 횟수로 본다(교훈 2026-10-21)
@@ -678,36 +683,23 @@ function StudioBody() {
 						<Skeleton aria-hidden="true" className="mb-4 h-11 w-full" />
 					)}
 				</div>
+				{/* 작업 설정: 3단 왼쪽 열(세 행을 덮는다), 2단 오른쪽 열 셋째 행. DOM에서 목록 앞이다 */}
 				<aside
-					aria-label={PARAGRAPH_TEXT.railLabel}
+					aria-label={PARAGRAPH_TEXT.settingsLabel}
 					className={cn(
-						"@4xl:col-start-2 @4xl:row-span-2 @4xl:row-start-1 @4xl:flex @6xl:contents hidden @4xl:flex-col @4xl:gap-8",
-						RAIL_2,
+						RAIL,
+						"@4xl:col-start-2 @6xl:col-start-1 @6xl:row-span-3 @4xl:row-start-3 @6xl:row-start-1",
+						"@4xl:studio-rail-sticky @6xl:mt-10",
 					)}
 				>
-					<div
-						className={cn(
-							"@6xl:col-start-3 @6xl:row-span-2 @6xl:row-start-1",
-							RAIL_3,
-						)}
-					>
-						{work.restored ? <WorkSummary /> : <RailSkeleton />}
-					</div>
-					<div
-						className={cn(
-							"@6xl:col-start-1 @6xl:row-span-2 @6xl:row-start-1",
-							RAIL_3,
-						)}
-					>
-						{work.restored ? (
-							<WorkSettings host={host} settingsKey={loads} />
-						) : (
-							<RailSkeleton />
-						)}
-					</div>
+					{work.restored ? (
+						<WorkSettings host={host} settingsKey={loads} />
+					) : (
+						<RailSkeleton />
+					)}
 				</aside>
-				{/* 목록과 막대를 한 래퍼(가운데 열 둘째 행)에 두어 막대의 sticky bottom-0이 이 안에서 움직인다 */}
-				<div className="@4xl:col-start-1 @6xl:col-start-2 @4xl:row-start-2 flex flex-col">
+				{/* 목록과 막대를 한 래퍼(왼쪽·가운데 열, 둘째 행부터 끝까지)에 두어 막대의 sticky bottom-0이 이 안에서 움직인다 */}
+				<div className="@4xl:col-start-1 @6xl:col-start-2 @4xl:row-span-2 @4xl:row-start-2 flex flex-col">
 					<ParagraphList
 						madeFrom={madeFrom}
 						playingId={playingId}
@@ -716,6 +708,17 @@ function StudioBody() {
 					/>
 					<ParagraphBar madeFrom={madeFrom} onPlaying={setPlayingId} />
 				</div>
+				{/* 작업 요약: 3단 오른쪽 열(세 행을 덮는다), 2단 오른쪽 열 1~2행(설정 위). DOM에서 목록 뒤다 */}
+				<aside
+					aria-label={PARAGRAPH_TEXT.summary}
+					className={cn(
+						RAIL,
+						"@4xl:col-start-2 @6xl:col-start-3 @4xl:row-span-2 @6xl:row-span-3 @4xl:row-start-1 @4xl:mt-10 @4xl:mb-8 @6xl:mb-0",
+						RAIL_STICKY,
+					)}
+				>
+					{work.restored ? <WorkSummary /> : <RailSkeleton />}
+				</aside>
 			</div>
 			{/* 숫자 검수 창은 작업실에 하나다. 버튼(레일·작업 띠)과 카드 숫자 줄·만들기 확인 창이 work.openReview로 연다. 전체 만들기가 도는 중에는 결정을 잠근다 */}
 			<NumberReview

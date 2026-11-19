@@ -9,7 +9,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 // 공급자 성우 목록 캐시(ADR 0003, T4 스펙 5절). 조건별로 24시간 보관하고, 공급자가 실패하면 만료 뒤 7일까지 지난 목록으로 쓴다.
-// 지워도 되는 데이터라 user 외래 키를 걸지 않는다(T4 스펙 2절). 지속 소유 데이터의 외래 키는 T6에서 정한다.
+// 지워도 되는 데이터라 user 외래 키를 걸지 않는다(T4 스펙 2절, ADR 0012). owner_id는 서버가 세션에서만 넣는 문자열이고, 공개 목록 행은 null이다. 두 번째 소유자를 받을 때 외래 키를 다시 정한다.
 export const providerListCache = pgTable(
 	"provider_list_cache",
 	{

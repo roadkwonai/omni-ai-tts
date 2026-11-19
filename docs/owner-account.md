@@ -64,4 +64,31 @@ unset PROD_URL
 
 5. 표마다 행 수를 로컬과 운영에서 비교한다.
 
-운영에서 비밀번호를 잊었을 때는 위 '비밀번호를 잊었을 때'의 절차를 운영 direct 주소로 한다(Neon CLI로 셸 변수에만 받는다).
+## 운영 비밀번호를 다시 정할 때
+
+위 '비밀번호를 잊었을 때'는 `pnpm owner:create`(로컬 전용)를 써서 운영에 그대로 할 수 없다. 운영은 계정 행을 지우지 않고 비밀번호 해시만 바꾼다. 사용자 id와 데이터는 그대로다. 로컬과 운영을 같은 비밀번호로 맞춘다(T15-b 2026-11-19, 실제로 이 방법으로 바꿨다).
+
+1. 두 DB에서 로그인 정보 행이 하나뿐인지 본다: `select count(*) from account where provider_id = 'credential'` → 둘 다 1이어야 한다. 아니면 멈춘다.
+2. 새 비밀번호(12~128자)를 화면에 보이지 않게 두 번 받아, Better Auth와 같은 함수(`better-auth/crypto`의 `hashPassword`)로 해시하고 `verifyPassword`로 맞는지 확인한다. 비밀번호는 명령 인자·환경 변수·파일에 두지 않는다. 저장소의 `packages/auth` 폴더에서 Node를 열면 그 패키지의 `better-auth`를 불러올 수 있다(스크립트 파일은 두지 않는다: 로컬 CLI는 운영을 거부한다는 규칙).
+   ```bash
+   unset NEW_HASH; cd packages/auth && node --input-type=module -e '
+   import { hashPassword, verifyPassword } from "better-auth/crypto";
+   const ask = (q) => new Promise((ok) => { process.stderr.write(q); const i = process.stdin; i.setRawMode(true); i.resume(); let v = "";
+     const on = (s) => { for (const c of s.toString()) { if (c === "\r" || c === "\n") { i.setRawMode(false); i.pause(); i.off("data", on); process.stderr.write("\n"); return ok(v); } if (c === "\u0003") process.exit(130); v = c === "\u007f" ? v.slice(0, -1) : v + c; } }; i.on("data", on); });
+   const a = await ask("새 비밀번호: "), b = await ask("한 번 더: ");
+   if (a !== b || a.length < 12 || a.length > 128) { console.error("다르거나 12~128자가 아니에요"); process.exit(1); }
+   const h = await hashPassword(a); if (!(await verifyPassword({ hash: h, password: a }))) process.exit(1);
+   process.stderr.write("해시를 만들었어요\n"); process.stdout.write(h);' > "$TMPDIR/owner-hash" && export NEW_HASH="$(cat "$TMPDIR/owner-hash")"; rm -f "$TMPDIR/owner-hash"
+   case "$NEW_HASH" in *[!0-9a-f:]* | "" ) echo "해시 형식이 아니에요. 멈춰요"; unset NEW_HASH ;; *:*) echo "해시 준비됨" ;; *) echo "해시 형식이 아니에요. 멈춰요"; unset NEW_HASH ;; esac
+   ```
+   질문은 stderr로만 나가고 stdout에는 해시 한 줄(`<salt>:<key>`, 16진수)만 남는다. 해시 파일은 성공·실패 모두 바로 지운다. 해시는 화면에 찍지 않는다. "해시 준비됨"이 아니면 3단계로 가지 않는다.
+3. 해시는 출력하지 않고 컨테이너 환경 변수로만 넘긴다. psql 15 이상의 `\getenv`로 표준 입력에서 읽어 명령 인자(ps에 보이는 자리)에 두지 않는다. 조건에 행이 하나뿐일 때만 바꾸게 넣는다.
+   ```bash
+   printf '%s\n' '\getenv h NEW_HASH' "update account set password = :'h', updated_at = now() where provider_id = 'credential' and (select count(*) from account where provider_id = 'credential') = 1" \
+     | psql <대상> -v ON_ERROR_STOP=1
+   ```
+   2단계와 같은 셸에서 실행한다(`NEW_HASH`가 export되어 있어야 한다. 없으면 psql이 `:'h'` 근처 문법 오류로 멈추고 아무것도 바뀌지 않는다). 출력이 `UPDATE 1`인지 확인한다(`UPDATE 0`이면 행이 하나가 아니라 아무것도 바뀌지 않았다). 로컬은 위 `printf … |` 뒤에 `podman exec -i -e NEW_HASH tts-pilot-app-postgres psql -U postgres -d tts-pilot-app -v ON_ERROR_STOP=1`, 운영은 `export PROD_URL="$(neon cs --project-id <운영 Neon 프로젝트 id>)"`로 받은 direct 주소를 같은 컨테이너에 `-e PROD_URL`로 넘겨 `psql "$PROD_URL"`로 붙는다(`sslmode=require` 확인. 접속 문자열은 컨테이너 안 psql 인자에 잠깐 보인다). 끝나면 `unset PROD_URL NEW_HASH`.
+4. 비밀번호가 새어 나간 것이 의심되면 두 DB 모두에서(3단계와 같은 방법으로) 옛 세션도 지운다(해시만 바꾸면 옛 세션 쿠키가 만료까지 통한다): `delete from session where user_id = (select user_id from account where provider_id = 'credential')`.
+5. 새 비밀번호로 로그인한다. 운영 DB 쓰기라 실행은 소유자 본인이 한다.
+
+로그인이 계속 401(이메일이나 비밀번호가 맞지 않아요)이면 먼저 두 DB의 해시가 같은지(값을 찍지 않고 `md5(password)` 비교)와 시도 제한(60초 5회)을 본다. 403이면 비밀번호가 아니라 출처(`BETTER_AUTH_URL`) 문제다.

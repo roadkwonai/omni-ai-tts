@@ -4,15 +4,20 @@ import { useEffect, useRef } from "react";
 
 import { atPageEnd, splitTagline } from "@/lib/landing";
 
-// 태그라인 단어 등장(B11): 어절마다 트리거 선(화면 아래에서 35%)을 넘을 때 30% → 100%로 진해진다. 페이지 끝에 닿으면 남은 어절도 모두 켠다.
+// 태그라인 단어 등장(B11): 어절마다 트리거 선(화면 아래에서 35%)을 넘을 때 opacity 0.71 → 1로 진해진다. 페이지 끝에 닿으면 남은 어절도 모두 켠다.
 // 화면 아래에 있을 때만 data-armed로 흐리게 만들고(JS가 없거나 이미 지나갔으면 처음부터 진하다), 어절은 한 번만 켠다.
 // 읽는 쪽은 어절 span이 이어진 한 문장으로 듣는다.
+// 휴대폰·터치·움직임 줄이기에서는 스크롤 연동 모션을 쓰지 않는다(landing.css의 @media와 같은 조건).
+const SCROLL_FILL =
+	"(min-width: 768px) and (pointer: fine) and (prefers-reduced-motion: no-preference)";
+
 export function Tagline({ lines }: { lines: readonly string[] }) {
 	const ref = useRef<HTMLParagraphElement>(null);
 
 	useEffect(() => {
 		const root = ref.current;
-		if (!root || root.getBoundingClientRect().top < window.innerHeight) return;
+		if (!root || !window.matchMedia(SCROLL_FILL).matches) return;
+		if (root.getBoundingClientRect().top < window.innerHeight) return;
 		root.dataset.armed = "";
 		const observer = new IntersectionObserver(
 			(entries) => {

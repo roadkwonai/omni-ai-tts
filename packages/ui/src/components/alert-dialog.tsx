@@ -2,6 +2,7 @@
 
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
 import { Button } from "@tts-pilot-app/ui/components/button";
+import { trapTab } from "@tts-pilot-app/ui/lib/focus-wrap";
 import { cn } from "@tts-pilot-app/ui/lib/utils";
 import type * as React from "react";
 
@@ -40,6 +41,7 @@ function AlertDialogOverlay({
 function AlertDialogContent({
 	className,
 	size = "default",
+	onKeyDown,
 	...props
 }: AlertDialogPrimitive.Popup.Props & {
 	size?: "default" | "sm";
@@ -54,6 +56,10 @@ function AlertDialogContent({
 					"group/alert-dialog-content data-open:fade-in-0 data-closed:fade-out-0 fixed inset-x-4 top-1/2 z-50 mx-auto grid max-h-dvh w-auto -translate-y-1/2 gap-4 overflow-y-auto rounded-2xl bg-popover p-4 text-popover-foreground outline-none ring-1 ring-border duration-100 data-[size=default]:max-w-md data-[size=sm]:max-w-xs data-closed:animate-out data-open:animate-in",
 					className,
 				)}
+				onKeyDown={(event) => {
+					onKeyDown?.(event);
+					trapTab(event);
+				}}
 				{...props}
 			/>
 		</AlertDialogPortal>

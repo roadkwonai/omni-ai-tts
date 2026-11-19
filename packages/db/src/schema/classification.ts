@@ -9,7 +9,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 // 채널·분류(T6 스펙 3절, ADR 0004). 채널은 프리셋(T8)·저장 대본(T12)이 하나만 가리키는 제작 단위라 분류와 따로 둔다.
-// user 외래 키는 걸지 않는다: 소유자가 아직 'local-admin' 고정 문자열이다. T14에서 owner_id를 실제 사용자 id로 옮기고 그때 정한다.
+// user 외래 키는 걸지 않는다(ADR 0012): owner_id는 서버가 세션에서만 넣는 문자열이다. 두 번째 소유자를 받을 때 외래 키를 다시 정한다.
 export const channel = pgTable(
 	"channel",
 	{

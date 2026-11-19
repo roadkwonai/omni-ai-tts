@@ -17,7 +17,11 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import type { Context } from "../context";
 import { DRAMA_SETTINGS, wavHeader } from "../drama-script";
-import { type ProviderId, providerIdSchema } from "../providers/contract";
+import {
+	type ProviderId,
+	providerIdSchema,
+	type VoiceListInput,
+} from "../providers/contract";
 import { emptyVoice } from "../providers/list";
 import { fetchMock, useFetchMock } from "../providers/test-utils";
 import { DEFAULT_SETTINGS } from "../providers/trial-options";
@@ -252,15 +256,44 @@ describe.skipIf(!url)("데모 Context로 모든 프로시저(T15-a2 Task 1b)", (
 			});
 	});
 
-	it("voiceList: 캐시 적중이면 그대로, 캐시에 없으면 공급자 오류", async () => {
+	it("voiceList: 캐시 적중이면 그대로, 캐시에 없으면 오류 없이 빈 목록이고 캐시에 쓰지 않는다", async () => {
+		const rows = () => db.$count(providerListCache);
+		const before = await rows();
 		expect(await demo.voiceList(CACHED)).toMatchObject({
 			provider: "typecast",
 			voices: [],
 			stale: null,
 		});
-		await expect(demo.voiceList({ provider: "airy" })).rejects.toMatchObject(
-			rejects("BAD_GATEWAY", { provider: "airy", reason: "provider_error" }),
-		);
+		const inputs: VoiceListInput[] = [
+			{ provider: "airy" },
+			{
+				provider: "elevenlabs",
+				source: "public",
+				page: 0,
+				query: {
+					search: "",
+					language: null,
+					accent: null,
+					gender: null,
+					age: null,
+					category: null,
+					useCases: [],
+					descriptives: [],
+					featured: false,
+					sort: "trending",
+				},
+			},
+		];
+		for (const input of inputs)
+			expect(await demo.voiceList(input)).toMatchObject({
+				provider: input.provider,
+				voices: [],
+				next: null,
+				total: 0,
+				stale: null,
+			});
+		// 익명 방문자의 검색어·페이지 조합마다 행이 늘지 않는다(리뷰 T15-b)
+		expect(await rows()).toBe(before);
 	});
 
 	it("voiceAccents·trialModels: 공급자 오류", async () => {

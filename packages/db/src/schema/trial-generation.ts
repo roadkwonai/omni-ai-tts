@@ -16,7 +16,7 @@ import {
 // 생성 기록(GLOSSARY): 시험 생성(T5, kind 'trial')과 음성 생성(T9, kind 'studio')의 요청 id를 공급자 호출 전에 선점하고,
 // 완료되면 오디오(MP3, Gemini는 WAV, audio_type)를 담아 30일 보관한다. 작업실 오디오는 32MiB까지이고 조각으로 읽는다(저장 방식 EXTERNAL, 마이그레이션 studio_audio_storage).
 // 드라마 작업실(T9.5, kind 'drama')의 테이크도 같은 표에 쌓는다. 드라마 행은 script·segments를 더 쓴다.
-// user 외래 키는 걸지 않는다(T4와 같다, 지속 소유 데이터의 외래 키는 T6에서 정한다).
+// user 외래 키는 걸지 않는다(ADR 0012, 두 번째 소유자를 받을 때 다시 정한다).
 export const trialGeneration = pgTable(
 	"trial_generation",
 	{

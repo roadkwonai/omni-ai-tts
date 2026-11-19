@@ -123,9 +123,9 @@ export function LandingBar() {
 					/>
 					<a
 						href="#top"
-						className="rounded-lg outline-offset-2 transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-ring"
+						className="flex min-h-11 items-center rounded-lg outline-offset-2 transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-ring"
 					>
-						<LandingLogo className="h-10 w-auto" />
+						<LandingLogo eager className="h-10 w-auto" />
 					</a>
 					<ul className="hidden items-center gap-1 md:flex">
 						{NAV_ITEMS.map((item) => (
@@ -141,7 +141,8 @@ export function LandingBar() {
 							href="/studio"
 							className={cn(
 								buttonVariants({ variant: "neutral" }),
-								"landing-press hidden md:inline-flex",
+								// 보이는 높이(32px)는 그대로. 버튼 바탕의 1px 테두리로 after 기준 상자가 30px라 눌림 영역만 위아래 7px씩 넓혀 44px
+								"landing-press relative hidden after:absolute after:inset-x-0 after:-inset-y-1.75 md:inline-flex",
 							)}
 						>
 							데모 써 보기

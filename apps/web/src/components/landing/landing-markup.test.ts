@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, test, vi } from "vitest";
@@ -262,4 +263,42 @@ test("태그라인은 서버 그림에서 모든 어절이 진하다(JS 없이�
 	expect(count(html, /landing-word/g)).toBe(6);
 	expect(html).not.toContain("data-armed");
 	expect(html).not.toContain("data-on");
+});
+
+test("태그라인 스크롤 채움은 큰 화면·정밀 포인터·움직임 허용일 때만 걸리고, 안 채운 어절은 opacity 0.71(muted 수준, 3:1 이상)이고 opacity만 전환한다", () => {
+	const css = readFileSync(new URL("./landing.css", import.meta.url), "utf8");
+	const armed = css.slice(css.indexOf(".landing-tagline[data-armed]"));
+	// 포매터가 조건을 여러 줄로 나눌 수 있어 공백을 하나로 모은다
+	const guard = css
+		.slice(
+			css.lastIndexOf("@media", css.indexOf(".landing-tagline[data-armed]")),
+			css.indexOf(".landing-tagline[data-armed]"),
+		)
+		.replace(/\s+/g, "");
+	// 공백을 지웠으므로 아래 기대도 공백 없이 쓴다
+	expect(guard).toContain("(min-width:768px)");
+	expect(guard).toContain("(pointer:fine)");
+	expect(guard).toContain("(prefers-reduced-motion:no-preference)");
+	const block = armed.slice(0, armed.indexOf("/* 누름"));
+	// 안 채운 어절은 opacity 0.71(foreground 알파 0.85 × 0.71 ≈ muted-foreground 0.6)이고 opacity만 전환한다(color 전환은 단어마다 다시 칠한다)
+	expect(block).toMatch(/opacity:\s*0\.71/);
+	expect(block).toMatch(/transition:\s*opacity 300ms/);
+	expect(block).not.toMatch(/transition:\s*color/);
+	expect(block).not.toMatch(/opacity:\s*0\.3\b/);
+});
+
+test("막대 로고(첫 화면)는 loading=eager, 메뉴 패널 로고는 기본(lazy)이다", () => {
+	const html = renderToStaticMarkup(createElement(LandingBar));
+	expect(count(html, /<img [^>]*alt="Omni AI TTS"[^>]*loading="eager"/g)).toBe(
+		2,
+	);
+});
+
+test("막대의 로고 링크와 '데모 써 보기'는 눌림 영역이 44px 이상이다", () => {
+	const html = renderToStaticMarkup(createElement(LandingBar));
+	expect(html).toMatch(/<a [^>]*href="#top"[^>]*class="[^"]*min-h-11/);
+	expect(html).toMatch(
+		// 버튼 바탕의 1px 테두리 때문에 기준 상자가 30px다: 위아래 7px씩 넓혀 44px
+		/<a [^>]*class="[^"]*after:-inset-y-1\.75[^"]*"[^>]*href="\/studio"/,
+	);
 });
