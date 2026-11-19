@@ -65,8 +65,8 @@ const REASON: Record<string, (provider: string) => string> = {
 	no_key: () => T.reasonNoKey,
 	quota: () => T.reasonNoPlan,
 	no_permission: () => T.reasonNoPlan,
-	// 키가 틀렸을 때도 계정 문제로 안내한다
-	provider_auth: () => T.reasonNoKey,
+	// 공급자가 401·403으로 클론을 거절한 경우. 같은 키로 생성은 될 수 있어 '연결 안 됨'이 아니라 거절로 안내한다
+	provider_auth: () => T.reasonProviderAuth,
 	rate_limit: () => T.reasonRateLimit,
 	in_progress: () => T.reasonInProgress,
 	quality: () => T.reasonQuality,

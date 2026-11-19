@@ -116,6 +116,12 @@ describe("reasonText", () => {
 		expect(text("zzz")).toBe(text(null));
 		expect(text(null)).not.toBe("");
 	});
+	it("provider_auth는 공급자의 클론 거절로 안내한다", () => {
+		expect(text("provider_auth")).toBe(
+			"공급자가 이 계정의 클론 요청을 거절했어요. 연결 상태와 공급자 요금제·잔액을 확인해 주세요.",
+		);
+		expect(text("provider_auth")).not.toBe(text("no_key"));
+	});
 	it("객체 기본 속성 이름에 속지 않는다", () => {
 		expect(text("constructor")).toBe(text(null));
 	});
