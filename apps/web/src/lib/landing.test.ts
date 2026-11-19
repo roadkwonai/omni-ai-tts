@@ -1,41 +1,44 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { atPageEnd, chipPress, landingRedirect, splitTagline } from "./landing";
+import { atPageEnd, landingRedirect, splitTagline } from "./landing";
 import * as content from "./landing-content";
 import {
-	BUILD_POINTS,
+	ACTING,
+	BUILT,
+	CHECK_REASON_TEXT,
+	COST,
 	CTA_REPLAY_TEXT,
 	CTA_TEXT,
 	CTA_TITLE,
 	clockText,
-	DELIVER,
-	DRAMA_SECTION,
+	DEMO_HREF,
+	DEMO_LABEL,
+	DRAMA,
+	dramaLineAt,
+	FLOW,
 	HERO_LISTEN_NOTE,
 	HERO_NUMBER_COUNT,
 	HERO_ORIGINAL,
 	HERO_PICK_HINT,
+	HERO_PLAY_ALL,
 	HERO_SAMPLES,
 	HERO_SOURCE_LEAD,
 	HERO_SPOKEN,
 	HERO_SUBTITLE,
 	HERO_TITLE,
 	type HeroPart,
-	LISTEN,
+	MASCOTS,
 	NAV_ITEMS,
-	NUMBERS,
-	PROOF_TEXT,
+	OTHER_SAMPLE_LABEL,
 	PROVIDERS,
-	SPEAKER_CHIPS,
-	STEPS,
-	STUDIO,
 	sampleName,
-	sampleNote,
 	TAGLINE_LINES,
-	TEST_COUNT_TEXT,
 	TOUR_TABS,
+	TRY,
 } from "./landing-content";
 import { FAQ_ITEMS, faqJsonLd, jsonLdText } from "./landing-faq";
+import { WAVEFORMS } from "./landing-waveforms";
 
 const PUBLIC = join(__dirname, "../../public");
 
@@ -129,29 +132,44 @@ describe("FAQ JSON-LD", () => {
 });
 
 describe("랜딩 내용(브리프 4·6·9절)", () => {
-	it("3판 구성: 작업실 크롭 셋, 드라마·내 보이스 짝 카드, 받기와 안심 셋, 화자 칩 넷, 3단계, 투어 탭 6개", () => {
-		expect(STUDIO.items).toHaveLength(3);
-		expect(DRAMA_SECTION.cards.map((c) => c.id)).toEqual(["drama", "clone"]);
-		expect(DELIVER.items).toHaveLength(3);
-		expect(SPEAKER_CHIPS).toHaveLength(4);
-		expect(STEPS).toHaveLength(3);
+	it("4판 구성: 작업 흐름 4단, 비용 점 셋, 숫자 띠 넷, 칩 다섯, 연기 넷, 화자 둘·대사 넷, 투어 탭 6개", () => {
+		expect(FLOW.steps.map((s) => s.id)).toEqual([
+			"casting",
+			"library",
+			"studio",
+			"export",
+		]);
+		expect(COST.points).toHaveLength(3);
+		expect(COST.paragraphs).toHaveLength(2);
+		expect(BUILT.stats.map((s) => s.id)).toEqual([
+			"code",
+			"tests",
+			"adr",
+			"weeks",
+		]);
+		expect(TRY.chips).toHaveLength(5);
+		expect(ACTING.takes.map((t) => t.label)).toEqual([
+			"기본",
+			"속삭이며",
+			"웃으며",
+			"한숨 쉬며",
+		]);
+		expect(DRAMA.speakers.map((s) => s.name)).toEqual(["민수", "지연"]);
+		expect(DRAMA.lines).toHaveLength(4);
 		expect(TOUR_TABS).toHaveLength(6);
 	});
-	it("쓰는 이미지가 모두 public에 있다(크롭은 라이트·다크 쌍)", () => {
-		const shots = [
-			LISTEN.shot,
-			...STUDIO.items.map((item) => item.shot),
-			NUMBERS.shot,
-		];
+	it("쓰는 이미지·소리가 모두 public에 있다(크롭은 라이트·다크 쌍, 마스코트 크기는 파일 픽셀)", () => {
+		const shots = FLOW.steps.map((step) => step.shot);
 		const files = [
-			...STEPS.map((step) => step.image),
 			...TOUR_TABS.flatMap((tab) => [tab.light, tab.mobile]),
 			...TOUR_TABS.flatMap((tab) => [tab.dark, tab.mobileDark]),
 			...HERO_SAMPLES.map((sample) => sample.src),
+			...ACTING.takes.flatMap((take) => [take.src, take.face]),
+			DRAMA.src,
+			DRAMA.clone.mascot.src,
 			...shots.flatMap((shot) => [shot.light, shot.dark]),
 			...shots.flatMap((shot) => [shot.mobile.light, shot.mobile.dark]),
-			STUDIO.mascot.src,
-			...DRAMA_SECTION.cards.map((card) => card.mascot.src),
+			...Object.values(MASCOTS).map((mascot) => mascot.src),
 		].filter((src): src is string => Boolean(src));
 		for (const shot of shots) {
 			expect(shot.dark).toBe(shot.light.replace(".png", "-dark.png"));
@@ -164,6 +182,72 @@ describe("랜딩 내용(브리프 4·6·9절)", () => {
 		for (const src of files) {
 			expect(existsSync(join(PUBLIC, src)), src).toBe(true);
 		}
+	});
+	it("파형: 소리마다(히어로 다섯·연기 넷·드라마 장면) 막대 64개(0~1, 소수 2자리)와 길이가 있고 소리가 난다", () => {
+		const ids = [
+			...HERO_SAMPLES.map((s) => s.id),
+			...ACTING.takes.map((t) => t.id),
+			DRAMA.id,
+		];
+		for (const id of ids) {
+			const wave = WAVEFORMS[id];
+			expect(wave?.bars, id).toHaveLength(64);
+			expect(wave?.seconds, id).toBeGreaterThan(0);
+			for (const value of wave?.bars ?? []) {
+				expect(value).toBeGreaterThanOrEqual(0);
+				expect(value).toBeLessThanOrEqual(1);
+				expect(Math.round(value * 100) / 100).toBe(value);
+			}
+			expect(Math.max(...(wave?.bars ?? [])), id).toBe(1);
+		}
+		expect(Object.keys(WAVEFORMS).sort()).toEqual([...ids].sort());
+		// 장면 길이 상수는 파형 길이(0.1초 단위)와 같다
+		expect(WAVEFORMS[DRAMA.id]?.seconds).toBeCloseTo(DRAMA.total, 1);
+	});
+	it("드라마 줄: 0초에서 끝까지 빈틈없이 이어지고 화자·지시·대사가 브리프 그대로다", () => {
+		const { lines } = DRAMA;
+		expect(lines[0]?.start).toBe(0);
+		expect(lines.at(-1)?.end).toBe(DRAMA.total);
+		lines.forEach((line, index) => {
+			expect(line.end, `줄 ${index + 1}`).toBeGreaterThan(line.start);
+			if (index > 0) expect(line.start).toBe(lines[index - 1]?.end);
+		});
+		expect(lines.map((l) => [l.speaker, l.direction])).toEqual([
+			[1, "놀라며"],
+			[2, "웃으며"],
+			[1, null],
+			[2, "속삭이며"],
+		]);
+		expect(lines[2]?.text).toBe("숫자는요? 1,523억 달러 같은 거요.");
+	});
+	it("dramaLineAt: 줄 경계(0, 1.76, 5.68, 8.38)에서 다음 줄로 넘어가고 장면 밖은 null이다", () => {
+		expect(dramaLineAt(0)).toBe(0);
+		expect(dramaLineAt(1.75)).toBe(0);
+		expect(dramaLineAt(1.76)).toBe(1);
+		expect(dramaLineAt(5.67)).toBe(1);
+		expect(dramaLineAt(5.68)).toBe(2);
+		expect(dramaLineAt(8.38)).toBe(3);
+		expect(dramaLineAt(10.82)).toBe(3);
+		expect(dramaLineAt(10.83)).toBeNull();
+		expect(dramaLineAt(30)).toBeNull();
+		expect(dramaLineAt(-0.1)).toBeNull();
+	});
+	it("연기 비교: 같은 문장에 태그만 다르고(기본은 태그 없음) 샘플 경로·표정 그림 이름이 짝이다", () => {
+		expect(ACTING.takes.map((t) => t.tag)).toEqual([
+			null,
+			"[속삭이며]",
+			"[웃으며]",
+			"[한숨 쉬며]",
+		]);
+		for (const take of ACTING.takes) {
+			expect(take.src).toBe(
+				`/samples/landing/${take.id.replace("_", "-")}.mp3`,
+			);
+			expect(take.face).toMatch(/^\/brand\/mascot-face-[a-z]+\.png$/);
+		}
+		expect(ACTING.source).toBe(
+			"Fish Audio 효정2 · 같은 문장에 태그만 바꿨어요",
+		);
 	});
 	it("투어 다크 판은 `<이름>-dark.png` 경로로 연결한다(파일은 따로 넣는다)", () => {
 		const dark = TOUR_TABS.filter((tab) => tab.dark);
@@ -203,22 +287,55 @@ describe("랜딩 내용(브리프 4·6·9절)", () => {
 	it("헤드라인·부제·안내·마지막 행동은 브리프 4절 문구다", () => {
 		expect(HERO_TITLE).toBe("같은 문장을 다섯 성우에게 읽혀 보세요");
 		expect(HERO_SUBTITLE).toBe(
-			"Typecast, ElevenLabs, Fish Audio, Airy, Gemini의 한국어 성우를 한 작업실에서 들어 보고, 숫자 읽기까지 다듬어 음성 파일로 받습니다.",
+			"Typecast, ElevenLabs, Fish Audio, Airy, Gemini의 한국어 성우를 한 작업실에서 들어 보고, 숫자 읽기까지 다듬어 음성 파일로 받아요.",
 		);
-		expect(HERO_PICK_HINT).toBe("성우를 눌러 들어 보세요");
+		expect(HERO_PICK_HINT).toBe("줄을 누르면 하나만 들어요");
+		expect(HERO_PLAY_ALL).toBe("모두 이어 듣기");
+		expect(OTHER_SAMPLE_LABEL).toBe("다른 문장으로 만든 샘플");
 		expect(HERO_SOURCE_LEAD).toBe("모든 목소리는 AI로 만든 음성입니다");
-		expect(PROOF_TEXT).toBe(
-			"한 대본으로 한 파일 WAV, 문단별 zip, 자막 SRT까지",
-		);
+		expect(DEMO_LABEL).toBe("데모 작업실 열기");
+		expect(DEMO_HREF).toBe("/studio?example=1");
 		expect(CTA_TITLE).toBe("이제 직접 들어 보세요");
 		expect(CTA_TEXT).toBe(
-			"가입 없이 공개 데모 작업실을 바로 써 볼 수 있습니다. 예시 데이터로 채워져 있고, 만들기는 미리 준비한 샘플을 들려줍니다.",
+			"가입 없이 공개 데모 작업실을 바로 써 볼 수 있어요. 예시 데이터로 채워져 있고, 만들기는 미리 준비한 샘플을 들려줘요.",
 		);
 		expect(CTA_REPLAY_TEXT).toBe("처음으로 돌아가 다시 듣기");
-		expect(LISTEN.title).toBe("성우 고르는 시간을 줄여 줍니다");
-		expect(STUDIO.title).toBe("문단마다 성우와 연기를 따로 붙입니다");
-		expect(NUMBERS.title).toBe("“1,523억 달러”도 제대로 읽습니다");
-		expect(LISTEN.note).toBe("기본 샘플은 무료로 들어요");
+		expect(TRY.title).toBe("숫자가 든 문장을 넣어 보세요");
+		expect(TRY.resultHead).toBe("이렇게 읽어요");
+		expect(TRY.checkHead).toBe("확인 필요:");
+		expect(TRY.chips).toEqual([
+			"2026년 3분기",
+			"1,523억 달러",
+			"3.5%",
+			"오전 10:30",
+			"010-1234-5678",
+		]);
+		expect(ACTING.title).toBe("태그 하나로 연기가 바뀌어요");
+		expect(FLOW.title).toBe("고르고, 나누고, 다듬고, 받기");
+		expect(COST.title).toBe("크레딧은 확인한 뒤에만 써요");
+		expect(COST.confirmTitle).toBe("크레딧이 들어요. 만들까요?");
+		expect(COST.reused).toBe("저장된 결과");
+		expect(COST.ledgerIdle).toBe("크레딧 0");
+		expect(COST.points).toEqual([
+			"유료 호출은 늘 확인 창을 거쳐요",
+			"같은 문단은 다시 만들지 않아요",
+			"응답이 늦어도 끝까지 받아 저장해요",
+		]);
+		expect(DRAMA.source).toBe("Fish Audio에 한 번 요청해 만든 장면");
+		expect(BUILT.arch.demoNotes).toContain("음성 서비스 키 없음");
+		expect(BUILT.arch.ownNotes).toContain("허용한 계정 하나만");
+		expect(TRY.summary(3, 0)).toBe("숫자 3곳을 한글로 읽었어요");
+		expect(TRY.summary(2, 1)).toBe("숫자 2곳을 한글로 읽었어요, 확인 필요 1곳");
+		expect(BUILT.title).toBe("혼자 8주 동안 만든 것");
+		expect(BUILT.stats.map((s) => `${s.value}${s.unit}`)).toEqual([
+			"약 5.8만줄",
+			"2,000여개",
+			"15개",
+			"약 8주",
+		]);
+	});
+	it("확인 필요 이유 문구는 11가지 이유를 모두 말한다", () => {
+		expect(Object.keys(CHECK_REASON_TEXT)).toHaveLength(11);
 	});
 	it("공개 데모 FAQ는 로그인 없는 데모와 음성 서비스를 부르지 않는 비용을 말한다", () => {
 		const own = FAQ_ITEMS.find((i) => i.question === "직접 써 볼 수 있나요?");
@@ -226,11 +343,6 @@ describe("랜딩 내용(브리프 4·6·9절)", () => {
 		expect(own?.answer).toContain("로그인 없이");
 		expect(own?.answer).toContain("한국에서만");
 		expect(cost?.answer).toContain("만들기 요청을 보내지 않아");
-		expect(
-			BUILD_POINTS.some((p) =>
-				p.text.includes("음성 서비스 키가 없는 별도 배포"),
-			),
-		).toBe(true);
 	});
 	it("화면 이미지마다 대체 글이 있다(장식 마스코트는 alt를 비운다)", () => {
 		for (const tab of TOUR_TABS) expect(tab.alt.length).toBeGreaterThan(5);
@@ -239,10 +351,10 @@ describe("랜딩 내용(브리프 4·6·9절)", () => {
 		const values = TOUR_TABS.map((tab) => tab.value);
 		expect(new Set(values).size).toBe(values.length);
 	});
-	it("막대 메뉴: 들어 보기 · 작업실 · 드라마 · 만든 방법 · FAQ(섹션 앵커)", () => {
+	it("막대 메뉴: 들어 보기 · 해 보기 · 드라마 · 만든 방법 · FAQ(섹션 앵커)", () => {
 		expect(NAV_ITEMS.map((i) => [i.label, i.href])).toEqual([
 			["들어 보기", "#listen"],
-			["작업실", "#studio"],
+			["해 보기", "#try"],
 			["드라마", "#drama"],
 			["만든 방법", "#built"],
 			["FAQ", "#faq"],
@@ -278,20 +390,12 @@ describe("랜딩 내용(브리프 4·6·9절)", () => {
 			);
 		}
 	});
-	it("칩 누름: 고른 칩은 재생·멈춤, 다른 칩은 고르고 재생한다", () => {
-		expect(chipPress(2, 2)).toBe("toggle");
-		expect(chipPress(0, 3)).toBe("play");
-	});
-	it("샘플 이름: Airy는 성우 이름이 없어 'Airy 샘플', 다른 문장 한 줄은 Airy만", () => {
+	it("샘플 이름: Airy는 성우 이름이 없어 'Airy 샘플'이고 다른 문장 표시도 Airy만", () => {
 		const names = HERO_SAMPLES.map(sampleName);
 		expect(names[0]).toBe("Typecast 포세이돈");
 		expect(names[3]).toBe("Airy 샘플");
-		expect(HERO_SAMPLES.map(sampleNote)).toEqual([
-			null,
-			null,
-			null,
-			"Airy는 다른 문장을 읽은 샘플이에요",
-			null,
+		expect(HERO_SAMPLES.filter((s) => s.other).map((s) => s.id)).toEqual([
+			"airy",
 		]);
 		expect(HERO_LISTEN_NOTE).toBe("듣기는 발음용 대본으로 만든 소리예요");
 	});
@@ -307,25 +411,19 @@ describe("랜딩 내용(브리프 4·6·9절)", () => {
 		expect(faqJsonLd(FAQ_ITEMS).mainEntity[index]?.acceptedAnswer.text).toBe(
 			first?.answer,
 		);
-		expect(BUILD_POINTS[0]?.text).toContain("공개 데모");
 	});
 	it("막대 링크는 같은 페이지 앵커뿐이다(만들지 않는 페이지로 가지 않는다)", () => {
 		for (const item of NAV_ITEMS) expect(item.href).toMatch(/^#[a-z-]+$/);
 	});
-	it("증거 한 줄의 테스트 수는 어림수로 적는다", () => {
-		expect(TEST_COUNT_TEXT).toBe("자동 테스트 1,900여 개");
-		expect(BUILD_POINTS.length).toBeGreaterThanOrEqual(3);
-	});
 	it("금지어와 꾸민 수치가 없다(브리프 4절)", () => {
 		const all = JSON.stringify([
-			LISTEN,
-			STUDIO,
-			NUMBERS,
-			DRAMA_SECTION,
-			DELIVER,
-			STEPS,
+			TRY,
+			ACTING,
+			FLOW,
+			COST,
+			BUILT,
+			DRAMA,
 			TOUR_TABS,
-			BUILD_POINTS,
 			FAQ_ITEMS,
 		]);
 		for (const word of ["혁신", "강력한", "손쉽게", "획기적", "최고의"]) {
@@ -335,16 +433,15 @@ describe("랜딩 내용(브리프 4·6·9절)", () => {
 	it("용어: '다섯 목소리'류와 '공급자'는 본문·FAQ·만든 방법 어디에도 없다('음성 서비스'로 쓴다)", () => {
 		const body = JSON.stringify([
 			FAQ_ITEMS,
-			BUILD_POINTS,
 			HERO_TITLE,
 			HERO_SUBTITLE,
 			TAGLINE_LINES,
-			LISTEN,
-			STUDIO,
-			NUMBERS,
-			DRAMA_SECTION,
-			DELIVER,
-			STEPS,
+			TRY,
+			ACTING,
+			FLOW,
+			COST,
+			BUILT,
+			DRAMA,
 			TOUR_TABS,
 			CTA_TITLE,
 			CTA_TEXT,

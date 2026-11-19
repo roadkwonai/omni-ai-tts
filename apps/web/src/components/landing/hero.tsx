@@ -1,79 +1,66 @@
 import { buttonVariants } from "@tts-pilot-app/ui/components/button";
 import { cn } from "@tts-pilot-app/ui/lib/utils";
-import Image from "next/image";
 import Link from "next/link";
 
 import {
-	HERO_SOURCE_LEAD,
+	DEMO_HREF,
+	DEMO_LABEL,
+	HERO_BUILT_HREF,
+	HERO_BUILT_TEXT,
 	HERO_SUBTITLE,
 	HERO_TITLE,
 } from "@/lib/landing-content";
 
-import { HeroCard } from "./hero-card";
+import { HeroStage } from "./hero-stage";
 import { ServiceNames } from "./service-names";
 
-// 히어로(브리프 3절 1번): 헤드라인 → 부제 → 작동하는 문단 카드 → 주·보조 버튼 → 출처 한 줄. 비등간격(0·60·210ms, 마스코트 마지막)으로 올라온다(landing.css).
-// 카드와 버튼은 마지막 단계(4)에 함께 올라온다. 마스코트는 lg 이상에서 카드 옆에 작게 둔다(좁은 폭은 첫 화면에 카드와 버튼이 들어오게 뺀다).
+// 장면 1 히어로 `#listen`(브리프 3절 1번): 헤드라인 → 부제 → '데모 작업실 열기'(주 행동) → 작은 '만든 방법 보기' 링크 → 감독 마스코트, 옆에 오디션 무대 → 출처 한 줄.
+// 비등간격(0·60·210ms, 마스코트 마지막)으로 올라온다(landing.css). lg 이상은 왼쪽 소개·오른쪽 무대 두 열이라 1440×900 첫 화면에 마스코트와 무대 다섯 줄이 함께 보인다(HeroStage).
+// 데모 버튼은 부제 바로 아래라 휴대폰 첫 화면에서도 '모두 이어 듣기'(무대 첫 줄)와 함께 보인다
 export function Hero() {
 	return (
 		<section
+			id="listen"
 			aria-labelledby="hero-title"
-			className="px-4 pt-24 pb-12 md:px-8 md:pt-40 md:pb-16"
+			tabIndex={-1}
+			className="px-4 pt-24 pb-12 outline-none md:px-8 md:pt-40 md:pb-16 lg:pt-28 lg:pb-12"
 		>
-			<div className="mx-auto flex max-w-hero flex-col items-center gap-4 text-center md:gap-6">
-				<h1
-					id="hero-title"
-					data-step="0"
-					className="landing-hero-in text-balance break-keep font-bold text-3xl tracking-tight md:text-5xl"
-				>
-					{HERO_TITLE}
-				</h1>
-				<p
-					data-step="1"
-					className="landing-hero-in text-pretty break-keep text-lg text-muted-foreground"
-				>
-					<ServiceNames text={HERO_SUBTITLE} />
-				</p>
-			</div>
-			<div
-				data-step="4"
-				className="landing-hero-in mx-auto mt-8 flex max-w-234 flex-col items-center gap-6 md:mt-10"
-			>
-				<div className="flex w-full items-end justify-center gap-6">
-					<div className="w-full max-w-180">
-						<HeroCard />
-					</div>
-					<Image
-						src="/brand/mascot-hero.png"
-						alt=""
-						width={658}
-						height={720}
-						sizes="144px"
-						className="landing-mascot-in hidden h-auto w-36 lg:block"
-					/>
-				</div>
-				<div className="flex flex-wrap items-center justify-center gap-3">
-					<Link
-						href="/studio"
-						className={cn(buttonVariants({ size: "lg" }), "landing-press")}
-					>
-						데모 써 보기
-					</Link>
-					<a
-						href="#listen"
-						className={cn(
-							buttonVariants({ variant: "outline", size: "lg" }),
-							"landing-press",
-						)}
-					>
-						기능 둘러보기
-					</a>
-				</div>
-				{/* 서비스 이름은 바로 아래 증명 띠가 말한다. 여기는 AI 음성 표기 한 줄이다 */}
-				<p className="max-w-180 text-pretty break-keep text-muted-foreground text-sm">
-					{HERO_SOURCE_LEAD}
-				</p>
-			</div>
+			<HeroStage
+				intro={
+					<>
+						<h1
+							id="hero-title"
+							data-step="0"
+							className="landing-hero-in text-balance break-keep font-bold text-3xl tracking-tight md:text-5xl lg:text-4xl xl:text-5xl"
+						>
+							{HERO_TITLE}
+						</h1>
+						<p
+							data-step="1"
+							className="landing-hero-in text-pretty break-keep text-lg text-muted-foreground"
+						>
+							<ServiceNames text={HERO_SUBTITLE} />
+						</p>
+						<Link
+							href={DEMO_HREF}
+							data-step="1"
+							className={cn(
+								buttonVariants({ size: "lg" }),
+								"landing-hero-in landing-press",
+							)}
+						>
+							{DEMO_LABEL}
+						</Link>
+						<a
+							href={HERO_BUILT_HREF}
+							data-step="1"
+							className="landing-hero-in inline-flex min-h-11 items-center text-pretty break-keep rounded-sm text-muted-foreground text-sm underline underline-offset-4 outline-offset-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+						>
+							{HERO_BUILT_TEXT}
+						</a>
+					</>
+				}
+			/>
 		</section>
 	);
 }

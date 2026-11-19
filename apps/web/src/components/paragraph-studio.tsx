@@ -9,6 +9,7 @@ import {
 	comboSignature,
 	DEFAULT_SETTINGS,
 	PARAGRAPHS_MAX,
+	STUDIO_TEXT_MAX,
 } from "@tts-pilot-app/api/providers/trial-options";
 import { DropdownMenuItem } from "@tts-pilot-app/ui/components/dropdown-menu";
 import { Skeleton } from "@tts-pilot-app/ui/components/skeleton";
@@ -18,6 +19,7 @@ import Link from "next/link";
 import {
 	type RefObject,
 	useCallback,
+	useEffect,
 	useLayoutEffect,
 	useMemo,
 	useRef,
@@ -27,6 +29,7 @@ import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
 import { byName } from "@/lib/classes-view";
+import { EXAMPLE_SCRIPT, shouldFillExample } from "@/lib/demo-example";
 import type { ParagraphStatus } from "@/lib/make-all";
 import {
 	batchSpeaker,
@@ -41,6 +44,7 @@ import {
 	ownSettings,
 	type Paragraph,
 	pasteAt,
+	pasteToParts,
 	removeAt,
 	sameVoice,
 	setupRequest,
@@ -68,6 +72,7 @@ import { needsConfirm } from "@/lib/trial-view";
 import { failureOf } from "@/lib/voice-failure";
 import { OWNED_LIST, orpc } from "@/utils/orpc";
 
+import { useDemo } from "./demo";
 import { GAP_HELP_ID } from "./drama-gap";
 import { SignInNotice } from "./notice";
 import { NumberReview } from "./number-review";
@@ -636,6 +641,45 @@ function RailSkeleton() {
 	);
 }
 
+// 공개 데모의 /studio?example=1: 비어 있는 작업실에 예시 대본을 문단 카드로 한 번 채운다(랜딩 브리프 7절). 붙여넣기와 같은 pasteToParts로 나눈다.
+// 본인용에서는 useDemo()가 거짓이라 example을 무시한다
+function ExampleFill() {
+	const demo = useDemo();
+	const work = useWork();
+	const { paragraphs, edit } = useParagraphs();
+	const filled = useRef(false);
+	useEffect(() => {
+		if (filled.current) return;
+		const query = new URLSearchParams(window.location.search);
+		const example = query.get("example");
+		const fill = shouldFillExample({
+			demo,
+			example,
+			restored: work.restored,
+			paragraphs,
+		});
+		// 작업 복원이 끝나면(채우든 말든) 주소에서 example만 지운다. 새로고침으로 다시 채우지 않고 다른 파라미터는 둔다(ScriptOpener와 같은 방식)
+		if (work.restored && example !== null) {
+			query.delete("example");
+			const rest = query.toString();
+			window.history.replaceState(
+				null,
+				"",
+				rest ? `/studio?${rest}` : "/studio",
+			);
+		}
+		if (!fill) return;
+		filled.current = true;
+		const { parts } = pasteToParts(
+			EXAMPLE_SCRIPT,
+			() => STUDIO_TEXT_MAX,
+			PARAGRAPHS_MAX,
+		);
+		edit(() => parts.map(({ text }) => ({ id: crypto.randomUUID(), text })));
+	}, [demo, work.restored, paragraphs, edit]);
+	return null;
+}
+
 function StudioBody() {
 	const work = useWork();
 	// 프리셋을 불러올 때마다(머리 메뉴·채널·성우 창) 올라 기본 성우 설정 칸을 다시 그린다(같은 프리셋을 다시 불러와도, T9 resetKey)
@@ -673,6 +717,7 @@ function StudioBody() {
 			className="@container group/studio relative"
 			data-empty={empty || undefined}
 		>
+			<ExampleFill />
 			<div className="studio-grid @6xl:px-6 px-4 md:px-11">
 				<div className="@4xl:col-start-1 @6xl:col-start-2 @4xl:row-start-1">
 					<PageHeader

@@ -43,10 +43,13 @@ export function Shot({
 	shot,
 	sizes,
 	className,
+	mobileCrop,
 }: {
 	shot: ShotData;
 	sizes: string;
 	className?: string;
+	// 넓은 화면에서도 휴대폰 판(글자가 읽히게 핵심만 찍은 크롭)을 쓴다. 칸이 좁아 전체 화면 판은 글자가 읽히지 않을 때
+	mobileCrop?: boolean;
 }) {
 	return (
 		<div
@@ -55,12 +58,18 @@ export function Shot({
 				className,
 			)}
 		>
-			<div className="md:hidden">
-				<Pair file={shot.mobile} alt={shot.alt} sizes="100vw" />
+			<div className={cn(!mobileCrop && "md:hidden")}>
+				<Pair
+					file={shot.mobile}
+					alt={shot.alt}
+					sizes={mobileCrop ? sizes : "100vw"}
+				/>
 			</div>
-			<div className="hidden md:block">
-				<Pair file={shot} alt={shot.alt} sizes={sizes} />
-			</div>
+			{mobileCrop ? null : (
+				<div className="hidden md:block">
+					<Pair file={shot} alt={shot.alt} sizes={sizes} />
+				</div>
+			)}
 		</div>
 	);
 }

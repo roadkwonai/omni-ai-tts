@@ -375,6 +375,11 @@ critique 27/40, audit 18/20(접근성 3/4) 결과 가운데 브리프·스펙을
 - [ ] UX-10 사이드바의 ProKit 제작 표시(`app-nav.tsx:484`)가 템플릿 `prokit-credit.tsx`의 기본 `text-sm`과 넘긴 `text-xs`를 cn 없이 함께 받아 1440에서 '· GitHub'가 둘째 줄로 내려간다. 템플릿 원본을 고칠 수 있으면 className을 cn()으로 합치거나, 사이드바에서 넘긴 크기를 정리한다. (R4 리뷰 low)
 - [ ] UX-11 연결 상태 데모 띠(`Notice compact`)는 굵은 제목과 본문이 같은 <p> 안이라 화면 낭독·복사에서 '부르지 않아요 연결 상태는…'처럼 이어진다. UX-07과 함께 정리(제목 끝 마침표 또는 요소 분리). (R4 재확인)
 - [ ] UX-12 R4 범위 밖에서 두 문장인데 끝 마침표가 없는 기존 문구(studio-text speakersMax·gapHelp, drama gapHelp '0~5초, 0.1초 단위. …'), 작업 요약 '안 만든 문단 1 보기'와 '만들지 않은 문단이 4개'의 숫자 의미를 확인한다. (R4 리뷰·런타임 관찰)
+- [ ] UX-13 랜딩 막대 '데모 써 보기'(`landing-bar.tsx:141`)를 4판 브리프대로 '데모 작업실 열기'·`/studio?example=1`로(상수 `DEMO_HREF`·`DEMO_LABEL`은 `landing-content.ts`에 있음). 같은 파일의 데스크톱 링크 32px 높이도 함께. 백로그 세션 파일. (랜딩 4판 런타임)
+- [ ] UX-14 비용 재현 확인 창의 '만들기'가 `ConfirmDialog` 고정 `destructive`(빨강)라 '안전한 설계' 장면과 어긋난다. 앱의 유료 확인 창과 같은 색이 맞는지(과금 표식 색)를 정하고, 필요하면 `ConfirmDialog`에 확인 버튼 variant를 받는다. (랜딩 4판 critique P3)
+- [ ] UX-15 랜딩 연기 칩·세그먼트 Toggle·놀이터 Textarea가 className으로 색·모양을 덮어쓴다. DESIGN.md의 세그먼트·칩 모양을 `packages/ui` Toggle/ToggleGroup cva variant로 옮긴다. 랜딩 눌림 시간은 `landing.css`의 `--landing-duration-press` 120ms(emil 권장 160ms와 차이)도 함께 본다. (랜딩 4판 web-design-guidelines low, 마감)
+- [ ] UX-16 랜딩 범위 밖 접근성: 투어 탭 패널(`tour.tsx`) Tab 정지점에 포커스 링 없음(WCAG 2.4.7), 푸터 ProKit 링크 20px 높이와 1px 50% 투명 포커스 링. (랜딩 4판 audit, 백로그 세션 파일)
+- [ ] UX-17 랜딩 드라마 줄 시작 재생(src 직후 currentTime)과 재생 훅 상태 전이를 Safari에서 확인한다. DOM 테스트 환경이 없어 재생 큐·blocked·failed 전이는 순수 함수만 테스트했다. (랜딩 4판 코드 리뷰 한계)
 - [ ] UX-04 막대 로고는 라이트·다크 PNG 두 장이라 즉시 로드 시 숨은 판도 받는다(shortcut). 로고를 SVG 한 장(currentColor)으로 바꾸면 없앤다. `landing.css:212` 메뉴 아이콘 1px 반경(detector advisory)은 백로그 세션 파일이라 그쪽에서 정리한다. (R1 랜딩 3판)
 
 ### 이번 문서 작업에서 확인한 기존 품질 항목
