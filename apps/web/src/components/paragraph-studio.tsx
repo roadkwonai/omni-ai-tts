@@ -115,18 +115,17 @@ import { menuItem, RadioMenu } from "./voice-conditions";
 // DOM은 폭과 상관없이 하나이고 JS는 배치를 바꾸지 않는다(폭마다 DOM을 바꾸면 작업 설정이 다시 마운트되어 열린 대화상자·입력·포커스를 잃는다).
 // 순서: 머리 → 건너뛰기 링크 둘 → 작업 띠(1단) → 작업 설정 aside → 문단 목록·막대 → 작업 요약 aside. CSS order는 쓰지 않고 격자 행·열로만 놓는다.
 // 3단(@6xl): 작업 설정 왼쪽 열 · 목록 가운데 · 작업 요약 오른쪽 열(포커스 순서 = 시각 순서).
-// 2단(@4xl): 목록이 왼쪽 열, 오른쪽 열에 작업 설정(위) → 작업 요약(아래)을 쌓는다. 위에서 아래로 읽는 행 순서(머리·설정 → 목록 → 요약)가 DOM·Tab 순서와 같다(WCAG 2.4.3). 좌우 열을 오가는 것은 남는다.
-// 2단은 설정이 sticky가 아니고 아래 칸의 요약만 붙는다(MG-01 맞바꿈).
-// 1단: aside 둘은 숨는다(작업 띠가 맡는다).
-// 행은 index.css의 studio-grid가 2단부터 머리 · 머리 아래 · 나머지(1fr) 셋으로 정한다. 2단 배치: 머리 c1·r1, 설정 c2·r1~2(머리 옆에서 시작), 목록·막대 c1·r2~3, 요약 c2·r3(1fr 행이라 이것이 따라온다).
+// 2단(@4xl): 목록이 왼쪽 열, 오른쪽 열에는 작업 설정만 둔다(머리 옆부터 끝까지, sticky). 작업 요약 aside는 숨고 하단 막대의 요약 칩(SummarySheet)이 맡는다(MG-06).
+// 1단: aside 둘은 숨는다(작업 띠와 막대 칩이 맡는다).
+// 행은 index.css의 studio-grid가 2단부터 머리 · 머리 아래 · 나머지(1fr) 셋으로 정한다. 2단 배치: 머리 c1·r1, 설정 c2·r1~3(머리 옆에서 시작), 목록·막대 c1·r2~3.
 // 3단은 두 레일이 r1~3을 덮어 행 높이에 끼어들지 않는다(1fr 행을 지나는 칸은 앞 행을 키우지 않는다)
 
 // 건너뛰기 링크(화면 밖, 포커스 때 보임). 본문 래퍼(relative)가 위치의 기준이다
 const SKIP_LINK =
 	"absolute top-2 left-4 z-50 rounded-lg bg-card px-4 py-3 outline-ring not-focus:sr-only focus:outline-2";
-// 레일 칸: 3단은 머리 제목과 위를 맞추고(44px) 위에 붙어 따라온다. 스크롤 칸이 포커스 윤곽을 자르지 않게 4px 여백
-const RAIL = "hidden @4xl:block @4xl:-mx-1 @4xl:p-1";
-const RAIL_STICKY = "@6xl:studio-rail-sticky @6xl:mt-10";
+// 레일 칸: 머리 제목과 위를 맞추고(44px) 위에 붙어 따라온다. 스크롤 칸이 포커스 윤곽을 자르지 않게 4px 여백.
+// 보이는 단은 칸마다 다르다(설정은 2단부터, 요약은 3단부터)
+const RAIL = "hidden @4xl:-mx-1 @4xl:p-1";
 
 // 채널 고르기(브리프 5.2). 고른 채널에 기본 프리셋이 있으면 T8 불러오기 창으로 기본 성우에 적용한다(공급자 제한 없음).
 // 메뉴 끝: 채널이 없으면 '채널·분류에서 만들기', 받지 못하면 경고색 줄(누르면 다시 받는다). 첫 받기 실패는 실패 횟수로 본다(교훈 2026-10-21)
@@ -720,7 +719,7 @@ function StudioBody() {
 	// 프리셋을 불러올 때마다(머리 메뉴·채널·성우 창) 올라 기본 성우 설정 칸을 다시 그린다(같은 프리셋을 다시 불러와도, T9 resetKey)
 	const [loads, setLoads] = useState(0);
 	const madeFrom = useRef<string | null>(null);
-	// 대본이 비어 빈 상태가 보이는 동안(R2 브리프 4절). 휴대폰에서 조건 줄·레일·하단 막대를 접고, 레일이 보이는 @4xl 이상에서 작업 요약을 접는다(CSS group-data-empty)
+	// 대본이 비어 빈 상태가 보이는 동안(R2 브리프 4절). 휴대폰에서 조건 줄·레일·하단 막대를 접고, 3단은 작업 요약 aside를, 1·2단의 md 이상은 막대의 요약 칩을 접는다(CSS group-data-empty)
 	const [empty, setEmpty] = useState(false);
 	// 이어 듣기 재생 위치의 문단 id(막대 플레이어가 쓰고 목록이 읽는다). 작업 상태에 넣지 않는다(계획 2.5)
 	const [playingId, setPlayingId] = useState<string | null>(null);
@@ -790,13 +789,12 @@ function StudioBody() {
 						<Skeleton aria-hidden="true" className="mb-4 h-11 w-full" />
 					)}
 				</div>
-				{/* 작업 설정: 3단 왼쪽 열(세 행을 덮는다), 2단 오른쪽 열 1~2행(요약 위). DOM에서 목록 앞이다 */}
+				{/* 작업 설정: 3단 왼쪽 열, 2단 오른쪽 열(둘 다 세 행을 덮고 위에 붙는다). DOM에서 목록 앞이다 */}
 				<aside
 					aria-label={PARAGRAPH_TEXT.settingsLabel}
 					className={cn(
 						RAIL,
-						"@4xl:col-start-2 @6xl:col-start-1 @4xl:row-span-2 @6xl:row-span-3 @4xl:row-start-1 @6xl:row-start-1 @4xl:mt-10 @4xl:mb-8 @6xl:mb-0",
-						RAIL_STICKY,
+						"@4xl:studio-rail-sticky @4xl:col-start-2 @6xl:col-start-1 @4xl:row-span-3 @6xl:row-span-3 @4xl:row-start-1 @6xl:row-start-1 @4xl:mt-10 @4xl:mb-8 @6xl:mb-0 @4xl:block",
 					)}
 				>
 					{work.restored ? (
@@ -816,13 +814,12 @@ function StudioBody() {
 					/>
 					<ParagraphBar madeFrom={madeFrom} onPlaying={setPlayingId} />
 				</div>
-				{/* 작업 요약: 3단 오른쪽 열(세 행을 덮는다), 2단 오른쪽 열 셋째 행(설정 아래, 1fr 행이라 따라온다). DOM에서 목록 뒤다 */}
+				{/* 작업 요약: 3단 오른쪽 열(세 행을 덮는다)에서만 보인다. 2단·1단은 막대의 요약 칩이 맡는다. DOM에서 목록 뒤다 */}
 				<aside
 					aria-label={PARAGRAPH_TEXT.summary}
 					className={cn(
 						RAIL,
-						"@4xl:studio-rail-sticky @4xl:col-start-2 @6xl:col-start-3 @6xl:row-span-3 @4xl:row-start-3 @6xl:row-start-1 group-data-empty/studio:hidden",
-						RAIL_STICKY,
+						"@6xl:studio-rail-sticky @6xl:col-start-3 @6xl:row-span-3 @6xl:row-start-1 @6xl:mt-10 @6xl:block group-data-empty/studio:hidden",
 					)}
 				>
 					{work.restored ? <WorkSummary /> : <RailSkeleton />}

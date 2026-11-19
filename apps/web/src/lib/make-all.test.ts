@@ -31,6 +31,7 @@ import {
 	makePlan,
 	makeReducer,
 	mergeFound,
+	needsCheck,
 	type ParagraphStatus,
 	paragraphStatus,
 	pruneFound,
@@ -1239,6 +1240,15 @@ describe("summaryOf·firstLink", () => {
 			n: 2,
 		});
 		expect(firstLink(MAKE_IDLE, clear, statuses.slice(0, 1))).toBeNull();
+	});
+});
+
+describe("needsCheck", () => {
+	it("멈춘 문단·막힌 문단 링크만 확인할 문단이고 안 만든 문단뿐이거나 링크가 없으면 아니다", () => {
+		expect(needsCheck({ kind: "stopped", id: "a", n: 1 })).toBe(true);
+		expect(needsCheck({ kind: "blocked", id: "a", n: 1 })).toBe(true);
+		expect(needsCheck({ kind: "unmade", id: "a", n: 1 })).toBe(false);
+		expect(needsCheck(null)).toBe(false);
 	});
 });
 

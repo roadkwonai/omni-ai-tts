@@ -181,9 +181,11 @@ export const PARAGRAPH_TEXT = {
 		`${n(count)}개${usage ? ` · ${usageText(usage).replace(/^추정 /, "")}` : ""}`,
 	usageNote:
 		"추정이에요. 실제 사용량은 음성 서비스의 사용 기록에서 확인해 주세요.",
-	// 1단 막대 요약 칩, 머리 오른쪽 끝(3단·2단)
+	// 1단·2단 막대 요약 칩(3단은 요약 레일), 머리 오른쪽 끝(3단·2단)은 headerCount
 	summaryChip: (made: number, total: number, seconds: number) =>
 		`${n(made)}/${n(total)} · ${aboutLength(seconds)}`,
+	// 칩의 접근 이름 끝. 멈춘 문단이나 막힌 문단이 있을 때만 붙고 칩에 경고 점이 함께 보인다
+	summaryChipCheck: "확인할 문단 있음",
 	headerCount: (paragraphs: number, chars: number) =>
 		`문단 ${n(paragraphs)} · ${n(chars)}자`,
 	// 막대(브리프 4·5.7). 한 줄 칸의 공급자별 금액, 결과 칸 안내와 플레이어 캡션

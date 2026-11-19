@@ -45,8 +45,9 @@ test("2단 행은 studio-grid가 머리 · 머리 아래 · 나머지(1fr) 셋�
 	expect(src).not.toMatch(/grid-rows-\[/);
 });
 
-test("2단: 머리 1행 · 설정 1~2행 · 목록 2~3행 · 요약 3행(오른쪽 열)", () => {
-	const summary = body.slice(body.indexOf("PARAGRAPH_TEXT.summary}") - 80);
+test("2단: 머리 1행 · 설정 1~3행(오른쪽 열, sticky) · 목록 2~3행 · 요약 aside는 3단에서만 보인다", () => {
+	const from = body.indexOf("PARAGRAPH_TEXT.summary}") - 80;
+	const summary = body.slice(from, body.indexOf("</aside>", from));
 	const settings = body.slice(
 		body.indexOf("PARAGRAPH_TEXT.settingsLabel") - 80,
 		body.indexOf("<ParagraphList"),
@@ -54,19 +55,45 @@ test("2단: 머리 1행 · 설정 1~2행 · 목록 2~3행 · 요약 3행(오른�
 	const list = body.slice(
 		body.indexOf("@4xl:col-start-1 @6xl:col-start-2 @4xl:row-span-2"),
 	);
-	expect(settings).toContain("@4xl:row-span-2");
-	expect(settings).toContain("@4xl:row-start-1");
-	expect(settings).toContain("@4xl:col-start-2");
-	expect(settings).not.toContain("@4xl:studio-rail-sticky");
-	expect(summary).toContain("@4xl:row-start-3");
-	expect(summary).toContain("@4xl:col-start-2");
-	expect(summary).toContain("@4xl:studio-rail-sticky");
+	for (const c of [
+		"@4xl:block",
+		"@4xl:studio-rail-sticky",
+		"@4xl:mt-10",
+		"@4xl:row-span-3",
+		"@4xl:row-start-1",
+		"@4xl:col-start-2",
+	]) {
+		expect(settings).toContain(c);
+	}
 	expect(list).toContain("@4xl:row-start-2");
+	// 요약 aside는 2단에서 숨고(RAIL의 hidden) 3단(@6xl)에서만 보인다. 2단 배치 클래스가 없다
+	expect(summary).toContain("@6xl:block");
+	expect(summary).not.toContain("@4xl:");
 	// 3단 값은 2단 값이 바뀌어도 움직이지 않는다
 	for (const c of ["@6xl:col-start-1", "@6xl:row-span-3", "@6xl:row-start-1"]) {
 		expect(settings).toContain(c);
 	}
-	for (const c of ["@6xl:col-start-3", "@6xl:row-start-1", "@6xl:row-span-3"]) {
+	for (const c of [
+		"@6xl:col-start-3",
+		"@6xl:row-start-1",
+		"@6xl:row-span-3",
+		"@6xl:studio-rail-sticky",
+		"@6xl:mt-10",
+	]) {
 		expect(summary).toContain(c);
 	}
+});
+
+test("레일 칸의 기본은 hidden이고 막대의 요약 칩은 2단까지 보인다(@6xl에서 숨는다)", () => {
+	expect(src).toMatch(/const RAIL =\s*"hidden /);
+	expect(src).not.toContain("RAIL_STICKY");
+	const bar = readFileSync(
+		new URL("./paragraph-bar.tsx", import.meta.url),
+		"utf8",
+	);
+	// 빈 상태(md 이상)에서는 칩도 접는다. md 미만은 막대 자체가 접힌다
+	expect(bar).toContain(
+		'className="contents @6xl:hidden group-data-empty/studio:hidden"',
+	);
+	expect(bar).not.toContain("@4xl:hidden");
 });

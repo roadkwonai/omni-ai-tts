@@ -623,6 +623,11 @@ export function firstLink(
 	return unmade ? { kind: "unmade", id: unmade.id, n: unmade.n } : null;
 }
 
+// 요약 칩의 '확인할 문단' 표식: 요약 링크가 멈춘 문단이나 막힌 문단을 가리킬 때만이다(안 만든 문단뿐이면 평상시라 없다)
+export function needsCheck(link: ReturnType<typeof firstLink>): boolean {
+	return link?.kind === "stopped" || link?.kind === "blocked";
+}
+
 // 채운 청록 버튼 하나(브리프 4절 우선순위, DN-5)
 export function fillOf(
 	ps: readonly Paragraph[],

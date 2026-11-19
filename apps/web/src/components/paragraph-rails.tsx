@@ -31,6 +31,7 @@ import {
 	fillOf,
 	firstLink,
 	makePlan,
+	needsCheck,
 	summaryOf,
 	usageByProvider,
 } from "@/lib/make-all";
@@ -906,7 +907,7 @@ function SummaryBody({ onShow }: { onShow: (id: string) => void }) {
 	);
 }
 
-// 레일 '작업 요약'(브리프 5.6, 3단 오른쪽·2단 오른쪽 맨 위, DN-3)
+// 레일 '작업 요약'(브리프 5.6, 3단 오른쪽에서만 보인다. 2단·1단은 막대의 SummarySheet, MG-06)
 export function WorkSummary() {
 	const headId = useId();
 	return (
@@ -919,17 +920,27 @@ export function WorkSummary() {
 	);
 }
 
-// 1단 막대의 요약 칩("12/40 · 약 31분", neutral lg)과 아래 시트(브리프 5.6). 시트의 링크·'이동'은 시트를 먼저 닫고
-// 다음 프레임에 카드 숨은 제목으로 간다. 그때는 시트가 칩으로 포커스를 돌려주지 않는다(D21)
+// 1단·2단 막대의 요약 칩("12/40 · 약 31분", neutral lg)과 아래 시트(브리프 5.6). 시트의 링크·'이동'은 시트를 먼저 닫고
+// 다음 프레임에 카드 숨은 제목으로 간다. 그때는 시트가 칩으로 포커스를 돌려주지 않는다(D21).
+// 멈춘 문단이나 막힌 문단이 있으면 칩에 경고 점과 접근 이름 '확인할 문단 있음'이 붙는다(요약 레일의 링크와 같은 판정)
 export function SummarySheet() {
-	const { work, voices, found, now } = useWork();
+	const { work, voices, found, now, make, statusOf } = useWork();
 	const ps = useShownParagraphs();
 	const [open, setOpen] = useState(false);
 	const jumping = useRef(false);
-	const summary = useMemo(
-		() => summaryOf(ps, { ...work, paragraphs: ps }, voices, found, now),
-		[ps, work, voices, found, now],
-	);
+	const { summary, check } = useMemo(() => {
+		const all = { ...work, paragraphs: ps };
+		const plan = voices ? makePlan(ps, all, voices, found, now) : null;
+		const link = firstLink(
+			make,
+			plan ?? { firstBlocked: null },
+			ps.map((p, i) => ({ id: p.id, n: i + 1, status: statusOf(p) })),
+		);
+		return {
+			summary: summaryOf(ps, all, voices, found, now),
+			check: needsCheck(link),
+		};
+	}, [ps, work, voices, found, now, make, statusOf]);
 	const chip =
 		summary.paragraphs === 0
 			? PARAGRAPH_TEXT.none
@@ -955,7 +966,7 @@ export function SummarySheet() {
 					<Button
 						variant="neutral"
 						size="lg"
-						aria-label={`${PARAGRAPH_TEXT.summary} · ${chip}`}
+						aria-label={`${PARAGRAPH_TEXT.summary} · ${chip}${check ? ` · ${PARAGRAPH_TEXT.summaryChipCheck}` : ""}`}
 						className="tabular-nums max-md:px-3"
 					/>
 				}
@@ -963,8 +974,19 @@ export function SummarySheet() {
 				{/* 767px 이하는 막대가 한 줄이라 '12/40'만 보인다(예상 길이는 시트에 있고 접근 이름에는 전체가 있다) */}
 				{chipFraction}
 				{chipRest ? <span className="max-md:hidden">{chipRest}</span> : null}
+				{check ? (
+					<span
+						aria-hidden="true"
+						className="size-2 shrink-0 rounded-full bg-warning"
+					/>
+				) : null}
 			</DialogTrigger>
-			<SheetContent finalFocus={() => !jumping.current} side="bottom">
+			{/* 2단·큰 화면에서는 막대 폭 밖까지 퍼지지 않게 가운데에 상한을 둔다 */}
+			<SheetContent
+				finalFocus={() => !jumping.current}
+				side="bottom"
+				className="md:mx-auto md:max-w-xl"
+			>
 				<SheetHeader>
 					<SheetTitle>{PARAGRAPH_TEXT.summary}</SheetTitle>
 				</SheetHeader>

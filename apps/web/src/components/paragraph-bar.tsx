@@ -80,7 +80,7 @@ import { menuItem } from "./voice-conditions";
 import { lockedButton } from "./voice-problem";
 
 // 문단 작업실 막대(T10 브리프 4·5.7·6.3). 가운데 열 바닥에 붙는다(sticky). DOM은 카드 목록 바로 뒤다.
-// 결과 칸(진행·받는 중·플레이어·안내) | 동작 칸 [요약 칩(1단)][주 버튼][이어 듣기][받기 ▾] 그 아래 한 줄 칸 하나(오류 → 막는 이유 → 20초 안내 → 도움 줄).
+// 결과 칸(진행·받는 중·플레이어·안내) | 동작 칸 [요약 칩(1단·2단)][주 버튼][이어 듣기][받기 ▾] 그 아래 한 줄 칸 하나(오류 → 막는 이유 → 20초 안내 → 도움 줄).
 // 주 버튼 자리는 '전체 만들기'·'이어서 만들기'·'멈추기'가 같은 요소라 만들기를 시작하거나 멈춰도 포커스와 확인 창 복귀 자리가 남는다.
 // 늦춘 문단으로 셈하고(E10) 판단은 lib 순수 함수(makePlan·receivePlan·usageByProvider·fillOf·makeProblemText·blockText)만 부른다.
 // 띠 높이를 <html>의 --studio-bar-height(px)로 알려 scroll-padding·알림 간격이 쓴다
@@ -799,10 +799,10 @@ export function ParagraphBar({
 							) : null}
 						</div>
 					) : null}
-					{/* DOM은 요약 칩 → 주 버튼 → 받기(브리프 7절). 767px 이하는 한 줄로 흐르고(320에서 안 들어가면 칩이 위 줄, D22),
+					{/* DOM은 요약 칩 → 주 버튼 → 받기(브리프 7절). 칩은 요약 레일이 안 보이는 1단·2단에만 나오고, 빈 상태에는 접는다(눌러도 볼 것이 없다). 767px 이하는 한 줄로 흐르고(320에서 안 들어가면 칩이 위 줄, D22),
 					    768px 이상은 주 버튼을 오른쪽 끝에 둔다 */}
 					<div className="flex flex-wrap items-center gap-2 md:ml-auto md:justify-end">
-						<div className="contents @4xl:hidden">
+						<div className="contents @6xl:hidden group-data-empty/studio:hidden">
 							{restored ? <SummarySheet /> : null}
 						</div>
 						<div className="max-md:contents md:flex md:flex-row-reverse md:flex-wrap md:gap-2">
