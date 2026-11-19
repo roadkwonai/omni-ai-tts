@@ -70,7 +70,7 @@ production은 릴리스한 커밋만 배포한다. 배포 스크립트가 `origi
 - **버전**: SemVer이고 정본은 git 태그 `vX.Y.Z`다. 마지막 태그 이후 커밋으로 정한다. 첫 릴리스 `0.1.0`, 기본은 patch(`feat:`, `fix:`, `docs:`, `chore:` … 모두). `--minor`를 줄 때만 minor이고, 큰 묶음(새 화면 묶음, 독자가 따로 반영해야 하는 구조 변경)이면 에이전트가 보고에 "minor 추천"을 적고 사용자가 정한다. 제목에 느낌표(`feat!:`)가 붙거나 본문에 `BREAKING CHANGE:`가 있으면 0.x 동안은 minor(`0.<minor+1>.0`), 1.0 이상이면 major. 1.0.0은 사용자가 정할 때만 만든다(자동으로 만들지 않는다). 루트와 `apps/web`의 `package.json` `version`은 릴리스 커밋에서 태그를 따라간다. 손으로 고치지 않는다.
 - **노트**: 커밋이 종류별 절(Features, Fixes, Docs, Maintenance 등)로 모이고, 커밋 본문의 `- ` 항목이 함께 옮겨진다. 그래서 커밋 제목은 Conventional Commits 접두어로, 변경 요약은 본문 bullet로 쓴다.
 
-1. `pnpm release --title "<영어 제목>"`(사용자가 minor로 정했으면 `--minor`를 더한다): 다음 버전을 정하고 `release/<YYYYMMDD-HHmm>-<제목>.md`에 노트를 쓴다. 커밋하지 않는다. "릴리스할 커밋이 없다"가 나오면 HEAD가 이미 릴리스한 커밋이므로 4번으로 간다.
+1. `pnpm release --title "<영어 제목>"`(사용자가 minor로 정했으면 `--minor`를 더한다): 다음 버전을 정하고 `release/<YYYY-MM-DD>-<제목>.md`에 노트를 쓴다. 커밋하지 않는다. "릴리스할 커밋이 없다"가 나오면 HEAD가 이미 릴리스한 커밋이므로 4번으로 간다.
 2. 노트를 검수한다. 사용자가 읽을 변경 설명으로 다듬고 어색한 한국어를 바로잡는다(korean-skills가 있으면 `humanizer` → `style-guide` → `grammar-checker` 순서). 첫 줄(버전과 제목), 커밋 해시, 링크는 바꾸지 않는다.
 3. 버전과 노트를 사용자에게 보여 주고 동의를 받은 뒤(큰 묶음이면 "minor 추천"을 함께 적는다. minor로 정하면 노트를 지우고 `--minor`로 다시 만든다) `pnpm release --publish <노트>`를 실행한다. `--publish`는 기본 브랜치를 push하므로, 그 전에 `pnpm vercel:deploy production --check` 출력에 `Git 자동 배포`가 없어야 한다(있으면 push가 곧 검사와 "DB 먼저" 없는 production 배포다. 연결을 끊거나 확인할 수 있게 한 뒤 발행한다). 기본 브랜치에서 노트와 `package.json` version을 `chore(release): vX.Y.Z`로 커밋하고, 태그를 달아 기본 브랜치와 함께 push한 뒤 GitHub Release(본문 = 노트)를 만든다.
    - GitHub 원격이 없거나, `gh` 로그인이 안 됐거나, 같은 버전 태그가 이미 있으면(다른 곳에서 먼저 릴리스했다. `git pull` 뒤 노트를 다시 만든다) 커밋하기 전에 멈춘다. 스크립트가 시작할 때 `origin`의 태그를 받는다.

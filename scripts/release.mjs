@@ -3,7 +3,7 @@
 // production 배포는 릴리스한 커밋(HEAD의 vX.Y.Z 태그와 그 GitHub Release)만 한다. scripts/vercel-deploy.mjs가 검사하고, 절차는 prokit-deploy 스킬의 릴리스 절에 있다.
 // 지난 태그 뒤의 코드·하네스 변경에 닫은 dev-cycle 라운드 기록이 없으면 노트도 발행도 멈춘다(dev-cycle guard --since).
 // 사용법:
-//   node scripts/release.mjs [--title "<영어 제목>"] [--minor]  마지막 vX.Y.Z 태그 이후 커밋으로 다음 버전을 정하고(기본 patch, --minor면 minor) release/<YYYYMMDD-HHmm>-<제목>.md를 쓴다. 커밋하지 않는다.
+//   node scripts/release.mjs [--title "<영어 제목>"] [--minor]  마지막 vX.Y.Z 태그 이후 커밋으로 다음 버전을 정하고(기본 patch, --minor면 minor) release/<YYYY-MM-DD>-<제목>.md를 쓴다. 커밋하지 않는다.
 //   node scripts/release.mjs --publish <노트 파일>    기본 브랜치에서 package.json version을 올려 노트와 함께 커밋하고, 태그를 달아 push한 뒤 GitHub Release를 만든다.
 // 버전(SemVer, 정본은 git 태그): 첫 릴리스 0.1.0, 기본 patch(feat 포함), --minor를 주면 minor(큰 묶음일 때 사용자가 정한다), `!`나 본문의 BREAKING CHANGE:는 0.x 동안 minor, 1.0 이상이면 major. 1.0.0은 사용자가 정할 때만 만든다.
 // exit: 0 정상, 1 준비 안 됨·사용법 오류·커밋이나 push 실패(되돌림), 2 GitHub Release 실패(태그는 push됨. 출력한 명령으로 다시 만든다)
@@ -127,6 +127,10 @@ export function stamp(date) {
 	return `${p.year}${p.month}${p.day}-${p.hour}${p.minute}`;
 }
 
+// 노트 파일 이름 머리(KST 날짜). 예: 2026-11-19
+export const noteDate = (date) =>
+	stamp(date).replace(/^(\d{4})(\d{2})(\d{2}).*/, "$1-$2-$3");
+
 export function renderNote({ version, prevTag, title, date, commits, repo }) {
 	const s = stamp(date);
 	const lines = [
@@ -229,7 +233,7 @@ export function main(argv, root = process.cwd()) {
 	if (!slug(title)) return fail(`--title은 영어로 쓴다 (${title})`);
 	const version = nextVersion(prevTag, commits, { minor: values.minor });
 	const date = new Date();
-	let file = join("release", `${stamp(date)}-${slug(title)}.md`);
+	let file = join("release", `${noteDate(date)}-${slug(title)}.md`);
 	if (existsSync(join(root, file)))
 		file = file.replace(/\.md$/, `-v${version}.md`);
 	mkdirSync(join(root, "release"), { recursive: true });

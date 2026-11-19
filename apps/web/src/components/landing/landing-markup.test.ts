@@ -216,7 +216,7 @@ test("마지막 만든 방법 항목은 2열 격자의 빈 칸을 채우려 두 
 test("만든 방법 끝에 GitHub 저장소 외부 링크가 새 창 안내와 함께 있다", () => {
 	const html = renderToStaticMarkup(createElement(Built));
 	const link = html.match(/<a [^>]*>[\s\S]*?<\/a>/)?.[0] ?? "";
-	expect(link).toContain('href="https://github.com/freelife1191/omni-ai-tts"');
+	expect(link).toContain('href="https://github.com/roadkwonai/omni-ai-tts"');
 	expect(link).toContain('target="_blank"');
 	expect(link).toContain('rel="noopener noreferrer"');
 	expect(link).toContain('<span translate="no">GitHub</span>');

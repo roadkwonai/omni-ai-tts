@@ -294,7 +294,7 @@ export const BUILD_POINTS = [
 	},
 ] as const;
 
-export const REPO_URL = "https://github.com/freelife1191/omni-ai-tts";
+export const REPO_URL = "https://github.com/roadkwonai/omni-ai-tts";
 export const REPO_LINK_TEXT = "에서 코드와 설계 문서 보기";
 export const CTA_TITLE = "성우 고르기부터 받기까지, 여기까지입니다";
 export const CTA_TEXT =
