@@ -8,6 +8,14 @@
             "command": "node \"$CLAUDE_PROJECT_DIR/scripts/load-keys.mjs\""
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/dev-cycle.mjs\" compact-log"
+          }
+        ]
       }
     ],
     "PostToolUse": [
