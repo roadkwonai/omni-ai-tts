@@ -231,6 +231,12 @@ describe("PARAGRAPH_TEXT(브리프 9절)", () => {
 		expect(PARAGRAPH_TEXT.joinCaption(1872.4)).toBe("이어 듣기 · 31분 12초");
 		expect(PARAGRAPH_TEXT.joinCaption(42.6)).toBe("이어 듣기 · 43초");
 	});
+	it("요약 링크는 개수로 읽히지 않게 'N번부터'(MG-02), 문단 이동은 그대로", () => {
+		expect(PARAGRAPH_TEXT.showUnmade(1)).toBe("안 만든 문단 보기 · 1번부터");
+		expect(PARAGRAPH_TEXT.showStopped(12)).toBe("멈춘 문단 보기 · 12번부터");
+		expect(PARAGRAPH_TEXT.showBlocked(3)).toBe("막힌 문단 보기 · 3번부터");
+		expect(PARAGRAPH_TEXT.show(3)).toBe("문단 3 보기");
+	});
 	it("critique·audit 반영(대조표 24행): 막힌 문단 제외 사용량, 붙여 넣기 경고, 카드 '만들기' 이름, 레일 이름", () => {
 		expect(PARAGRAPH_TEXT.blockedExcluded(3)).toBe("막힌 문단 3개 제외");
 		expect(PARAGRAPH_TEXT.estimateNeedsVoice).toBe("성우를 고르면 셈해요");

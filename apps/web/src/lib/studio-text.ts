@@ -148,9 +148,10 @@ export const PARAGRAPH_TEXT = {
 	unknown: "처리 여부 미확인",
 	// 이동
 	show: (no: number) => `문단 ${n(no)} 보기`,
-	showStopped: (no: number) => `멈춘 문단 ${n(no)} 보기`,
-	showBlocked: (no: number) => `막힌 문단 ${n(no)} 보기`,
-	showUnmade: (no: number) => `안 만든 문단 ${n(no)} 보기`,
+	// 요약 링크(MG-02): 숫자는 개수가 아니라 첫 문단 번호라 'N번부터'
+	showStopped: (no: number) => `멈춘 문단 보기 · ${n(no)}번부터`,
+	showBlocked: (no: number) => `막힌 문단 보기 · ${n(no)}번부터`,
+	showUnmade: (no: number) => `안 만든 문단 보기 · ${n(no)}번부터`,
 	jumpLabel: "문단 번호",
 	jump: "이동",
 	jumpRange: (total: number) => `1~${n(total)} 사이 번호를 넣어 주세요`,
