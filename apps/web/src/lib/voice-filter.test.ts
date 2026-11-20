@@ -2,6 +2,7 @@ import type { Voice } from "@tts-pilot-app/api/providers/contract";
 import { describe, expect, it } from "vitest";
 
 import {
+	ageKeyOf,
 	EMPTY_FILTERS,
 	EMPTY_GEMINI_FILTERS,
 	filterByNameOrId,
@@ -10,8 +11,13 @@ import {
 	filterVoices,
 	type GeminiFilters,
 	geminiOptions,
+	genderKeyOf,
 	groupByUseCase,
 	hasConditions,
+	oneListFound,
+	providerValue,
+	TYPECAST_AGE_KEY,
+	typecastPeople,
 } from "./voice-filter";
 import { bundleOf } from "./voice-view";
 
@@ -405,5 +411,101 @@ describe("Gemini 탭 거르기(T7.6 스펙 2·5절)", () => {
 			"High-Trust Advisor",
 			"Storyteller & Narrator",
 		]);
+	});
+});
+
+describe("공통 성별·연령 키('전체' 탭, 보관함)", () => {
+	it("Typecast·ElevenLabs는 공급자 값을 공통 키로 바꾼다", () => {
+		expect(genderKeyOf(voice("t"))).toBe("female");
+		expect(ageKeyOf(voice("t"))).toBe("young");
+		expect(ageKeyOf(voice("t", { age: "middle_age" }))).toBe("middle");
+		expect(ageKeyOf(voice("t", { age: "elder" }))).toBe("old");
+		expect(ageKeyOf(voice("t", { age: "child" }))).toBe("child");
+		const el = (age: string) =>
+			ageKeyOf(voice("e", { provider: "elevenlabs", age }));
+		expect(el("young")).toBe("young");
+		expect(el("middle_aged")).toBe("middle");
+		expect(el("middle-aged")).toBe("middle");
+		expect(el("old")).toBe("old");
+		expect(
+			genderKeyOf(voice("e", { provider: "elevenlabs", gender: "neutral" })),
+		).toBe("neutral");
+	});
+	it("Fish Audio는 태그에서, 표에 없는 태그는 무시한다", () => {
+		const fish = voice("f", {
+			provider: "fish_audio",
+			gender: null,
+			age: null,
+			tags: ["neutral", "calm", "male", "middle-aged"],
+		});
+		expect(genderKeyOf(fish)).toBe("male");
+		expect(ageKeyOf(fish)).toBe("middle");
+		expect(genderKeyOf({ ...fish, tags: ["calm"] })).toBeNull();
+	});
+	it("Airy·Gemini는 연령이 없고, 모르는 값과 값 없음은 null이다", () => {
+		expect(ageKeyOf(voice("a", { provider: "airy", age: "young" }))).toBeNull();
+		expect(ageKeyOf(voice("g", { provider: "gemini" }))).toBeNull();
+		expect(genderKeyOf(voice("g", { provider: "gemini" }))).toBe("female");
+		expect(genderKeyOf(voice("t", { gender: null }))).toBeNull();
+		expect(ageKeyOf(voice("t", { age: "baby" }))).toBeNull();
+	});
+	it("공통 키 → 공급자 값은 표의 첫 값이다", () => {
+		expect(providerValue(TYPECAST_AGE_KEY, "middle")).toBe("middle_age");
+		expect(providerValue(TYPECAST_AGE_KEY, null)).toBeNull();
+	});
+	it("typecastPeople은 Typecast 탭에서 같은 성별·연령을 고른 조건이다", () => {
+		expect(typecastPeople("female", "old")).toEqual({
+			...EMPTY_FILTERS,
+			genders: ["female"],
+			ages: ["elder"],
+		});
+		expect(typecastPeople(null, null)).toEqual(EMPTY_FILTERS);
+	});
+});
+
+describe("oneListFound('전체' 탭 한 목록 묶음 = 그 탭의 거르기)", () => {
+	const airyVoices = [
+		voice("a1", { provider: "airy", gender: "female", age: null }),
+		voice("a2", { provider: "airy", gender: "male", age: null }),
+	];
+	const geminiVoices = [
+		voice("g1", { provider: "gemini", gender: "female", age: null }),
+		voice("g2", { provider: "gemini", gender: "neutral", age: null }),
+	];
+	const state = (gender: string | null, age: string | null) => ({
+		search: "",
+		gender,
+		age,
+	});
+	it("Airy·Gemini는 연령이 걸리면 0명이다", () => {
+		expect(oneListFound("airy", airyVoices, state(null, "young"))).toEqual([]);
+		expect(
+			oneListFound("gemini", geminiVoices, state("female", "old")),
+		).toEqual([]);
+	});
+	it("Airy·Gemini는 성별만이면 그 탭 함수와 같다", () => {
+		expect(oneListFound("airy", airyVoices, state("male", null))).toEqual(
+			filterByNameOrId(airyVoices, "", ["male"]),
+		);
+		expect(oneListFound("gemini", geminiVoices, state("female", null))).toEqual(
+			filterGemini(geminiVoices, "", {
+				...EMPTY_GEMINI_FILTERS,
+				genders: ["female"],
+			}),
+		);
+		expect(ids(oneListFound("airy", airyVoices, state("male", null)))).toEqual([
+			"a2",
+		]);
+	});
+	it("Typecast는 typecastPeople로 filterVoices와 같다", () => {
+		const found = oneListFound("typecast", all, {
+			search: "민",
+			gender: "female",
+			age: "young",
+		});
+		expect(found).toEqual(
+			filterVoices(all, "민", typecastPeople("female", "young")),
+		);
+		expect(ids(found)).toEqual(["a"]);
 	});
 });

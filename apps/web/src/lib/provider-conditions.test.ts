@@ -12,6 +12,7 @@ import {
 	isInitial,
 	type ServerList,
 	sortOf,
+	withPeople,
 	withSearch,
 } from "./provider-conditions";
 
@@ -287,5 +288,38 @@ describe("조건 수와 시작값(더)", () => {
 		expect(conditionCount(sortedByNew)).toBe(0);
 		expect(isInitial(sortedByNew)).toBe(false);
 		expect(isInitial(sortOf(sortedByNew).apply("trending"))).toBe(true);
+	});
+});
+
+describe("withPeople('전체' 탭 공통 성별·연령 → 공급자 조회 인자)", () => {
+	it("ElevenLabs는 gender·age(공급자 값)이고 탭에서 같은 조건을 고른 입력과 같다", () => {
+		const list = withPeople(withSearch(elPublic, "민"), "female", "middle");
+		expect(list.query).toMatchObject({
+			search: "민",
+			gender: "female",
+			age: "middle_aged",
+		});
+		const picked = byKey(
+			byKey(withSearch(elPublic, "민"), "gender").apply(["female"]),
+			"age",
+		).apply(["middle_aged"]);
+		expect(inputOf(list, 0)).toEqual(inputOf(picked, 0));
+	});
+	it("Fish Audio는 성별·연령 태그이고 탭의 태그 드롭다운과 같은 입력이다", () => {
+		const fish = initialList("fish_audio", "public");
+		const list = withPeople(fish, "male", "young");
+		expect(list.query).toMatchObject({ tags: ["male", "young"] });
+		const picked = byKey(byKey(fish, "gender").apply(["male"]), "age").apply([
+			"young",
+		]);
+		expect(inputOf(list, 1)).toEqual(inputOf(picked, 1));
+		expect(withPeople(fish, null, "middle").query).toMatchObject({
+			tags: ["middle-aged"],
+		});
+	});
+	it("조건이 없으면 시작 조건 그대로다(같은 키)", () => {
+		expect(withPeople(elPublic, null, null)).toEqual(elPublic);
+		const fish = initialList("fish_audio", "public");
+		expect(withPeople(fish, null, null)).toEqual(fish);
 	});
 });

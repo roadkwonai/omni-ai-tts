@@ -40,7 +40,24 @@
 - 펼침 전체 최대 높이 약 20rem, 넘치면 펼침 안에서 스크롤(패널 스크롤과 따로). 검색 결과 수는 화면 밖 `role="status"`.
 - 분류 목록 로딩·실패는 펼침 안 회색 한 줄("채널·분류 목록을 불러오지 못했어요" + '다시 불러오기').
 
-**B4 `/voices` 조건 줄(D6).** 캐스팅 조건 줄 문법 그대로(casting.md 5절, `VoiceConditions` 재사용): 검색 칸(자리표시 '이름·메모로 찾기', critique 반영) → 보기 네 칸(전체·즐겨찾기·자주 사용·프리셋, 토글 그룹. T8 개정: '프리셋'은 프리셋에 쓰는 담은 성우만, 주소 `view=preset`, 칸 안쪽 `px-3`(768px 이상 `px-4`). 상태 줄과 상세는 [프리셋 브리프](presets.md) 7절) → '공급자' 드롭다운(하나) → '채널'·'카테고리'·'타입' 드롭다운(여러 개 체크). 고르면 '카테고리 · 2'로 쓰고 옅은 청록, 접근 이름 '카테고리, 2개 선택됨'. 그룹에 항목이 없으면 그 드롭다운은 열리고 "아직 카테고리가 없어요" 한 줄과 '채널·분류에서 만들기' 링크. 767px 이하는 검색 칸 + '조건' 버튼으로 접는다(캐스팅과 같다). 상태 줄은 스펙 4절 그대로, 16px 회색 `tabular-nums`, '조건 모두 해제' 링크는 인원 글자 옆.
+**B4 `/voices` 조건 줄(D6).** 캐스팅 조건 줄 문법 그대로(casting.md 5절, `VoiceConditions` 재사용): 검색 칸(자리표시 '이름·메모로 찾기', critique 반영) → 보기 네 칸(전체·즐겨찾기·자주 사용·프리셋, 토글 그룹. T8 개정: '프리셋'은 프리셋에 쓰는 담은 성우만, 주소 `view=preset`, 칸 안쪽 `px-3`(768px 이상 `px-4`). 상태 줄과 상세는 [프리셋 브리프](presets.md) 7절) → '공급자' 드롭다운(하나) → '채널'·'카테고리'·'타입' 드롭다운(여러 개 체크) → '성별'·'연령' 드롭다운(각각 하나만 고른다. 캐스팅 '전체' 탭과 같은 단일 선택, 사용자 요청·결정 2026-11-20). 성별·연령은 담을 때 저장한 성우 정보로 메타 줄과 같은 한국어 이름(여성·남성·중성, 어린이·청소년·청년·중년·노년. Fish Audio는 태그)으로 거르고, 선택지는 담은 성우에 있는 값만 보인다. 값이 없는 성우는 그 축을 고르면 빠진다. 주소 쿼리는 `gender`·`age`(한국어 이름이 아닌 `female`·`young` 같은 공통 키). 고르면 '카테고리 · 2'로 쓰고 옅은 청록, 접근 이름 '카테고리, 2개 선택됨'. 그룹에 항목이 없으면 그 드롭다운은 열리고 "아직 카테고리가 없어요" 한 줄과 '채널·분류에서 만들기' 링크. 767px 이하는 검색 칸 + '조건' 버튼으로 접는다(캐스팅과 같다). 상태 줄은 스펙 4절 그대로, 16px 회색 `tabular-nums`, '조건 모두 해제' 링크는 인원 글자 옆.
+
+**B4-2 정렬과 공통 태그(사용자 결정 2026-11-20).**
+- **정렬:** 상태 줄 오른쪽에 공급자 탭과 같은 정렬 선택(`SortMenu` 재사용, 버튼 '정렬: 최근 담은 순', 메뉴 하나 고르기, 담은 성우가 0명이면 잠김). 값 다섯, 주소 `sort`(기본값이면 쓰지 않는다): `recent` 최근 담은 순(기본, 서버가 준 담은 순서), `used` 최근 쓴 순(`lastUsedAt` 큰 순, 쓴 적 없으면 뒤, 같으면 담은 순서), `count` 사용 횟수순(`useCount` 큰 순, 같으면 담은 순서), `name` 이름순(한글 이름 가나다 → 그 밖 ABC, 같은 무리 안은 `Intl.Collator('ko')`), `popular` 서비스 인기순(화면 글은 GLOSSARY대로 '서비스', critique 뒤 이름 다듬기 2026-11-20. 이 정렬일 때만 목록에 묶음 머리 줄 'ElevenLabs · 최근 1년 글자 수', 'Fish Audio · 사용 횟수', '인기 수치 없음'을 회색 작은 글자로 넣는다(행이 있는 묶음만, 접근성 트리에도 읽힌다). 공급사가 준 수치 `voice.usage`가 있는 성우만 위로, ElevenLabs(최근 1년 글자 수) 묶음 → Fish Audio(사용 횟수) 묶음, 묶음 안은 큰 순. 수치 없는 성우는 뒤에 담은 순서. 단위가 달라 공급사끼리 섞지 않는다). 정렬은 거른 뒤 보이는 목록에만 걸고 인원 글자는 바꾸지 않는다. '조건 모두 해제'는 정렬을 풀지 않는다(조건이 아니다).
+- **공통 태그:** 타입·성별·연령 뒤 '콘텐츠'·'분위기' 드롭다운(여러 개 체크, 같은 축 OR·다른 축 AND, 주소 `content`·`mood` 공통 키). 공급사마다 다른 태그를 한국어 공통 묶음 하나로 합친다. 표에 없는 태그는 필터에 나오지 않는다(메타 줄·알약은 그대로). 선택지는 담은 성우에 있는 묶음만 표 순서로. 태그가 없는 성우(Airy, 예전에 담아 태그가 빈 성우)는 그 축을 고르면 빠지고, 그동안 상태 줄 아래에 회색 한 줄 "태그 정보가 없는 성우 N명은 빠졌어요"를 보인다(N은 다른 조건을 통과했지만 고른 태그 축에 값이 없어 빠진 수, 0이면 숨김). 조건 펼침 안 드롭다운은 '서비스·채널·카테고리·타입'(내 분류)과 '성별·연령·콘텐츠·분위기'(성우 속성) 두 무리로, 무리 사이 간격을 무리 안 간격보다 넓게 둔다(critique P2). 빈 태그는 새 보강 호출 없이 기존 이용 가능 확인이 성우 정보를 다시 쓸 때 채워진다.
+  - 콘텐츠(출처: Typecast `use_cases`, ElevenLabs `use_cases`, Fish Audio 콘텐츠 태그, Gemini 쓰임새):
+    | 키 | 이름 | Typecast | ElevenLabs | Fish Audio | Gemini |
+    |---|---|---|---|---|---|
+    | `narration` | 내레이션·오디오북 | Audiobook/Storytelling, Documentary | narrative_story | narration, storytelling, documentary | — |
+    | `conversation` | 대화·상담 | Conversational, Voicemail/Voice Assistant | conversational | conversational | Conversational / Edu, Enterprise Agent |
+    | `education` | 교육·설명 | E-learning/Explainer | informative_educational | educational | Conversational / Edu |
+    | `ads` | 광고·홍보 | Ads/Promotion | advertisement | advertisement | Growth & Marketing |
+    | `social` | 소셜 미디어·쇼츠 | TikTok/Reels/Shorts | social_media | social-media | Content & Media |
+    | `entertainment` | 엔터테인먼트·게임 | Game, Rapper | entertainment_tv | entertainment, gaming | Entertainment & Gaming |
+    | `character` | 캐릭터·애니메이션 | Anime | characters_animation | character-voice, anime | — |
+    | `news` | 뉴스·아나운서 | Announcer, News Reporter | — | announcer | — |
+    | `podcast` | 라디오·팟캐스트 | Radio/Podcast | — | podcast | — |
+  - 분위기(출처: ElevenLabs `descriptives`, Fish Audio 분위기 태그. Typecast·Airy는 없음, Gemini 페르소나는 영어 자유 문장이라 넣지 않는다): 두 공급사 이름표(`EL_DESCRIPTIVE`·`FISH_MOOD`)의 같은 한국어 이름을 한 묶음으로 합친다(예: 차분함 = calm, 또렷함 = crisp·clear). 밝음·명랑함·활기참·경쾌함은 '밝고 경쾌함' 하나로 합친다. 순서는 ElevenLabs 표 순서 뒤에 Fish Audio에만 있는 이름.
 
 **B5 문구.** 스펙 4절과 `apps/web/src/lib/saved-voice-view.ts` `LIBRARY_TEXT`가 정본이다. 여기서 정하는 것:
 - 페이지 설명(사용자 결정): **"담은 성우를 즐겨찾기·자주 사용·채널·분류로 다시 찾아요. 성우 캐스팅에서 별을 누르면 여기에 담겨요."**

@@ -16,9 +16,16 @@ import {
 	filtersFromQuery,
 	hasLibraryFilters,
 	knownOnly,
+	LIBRARY_SORTS,
 	LIBRARY_TEXT,
 	type LibraryFilters,
+	type LibrarySort,
+	peopleOptions,
+	popularGroups,
 	queryFromFilters,
+	sortSaved,
+	tagMissingCount,
+	tagOptions,
 } from "@/lib/saved-voice-view";
 import { failureOf } from "@/lib/voice-failure";
 import { voiceKey } from "@/lib/voice-view";
@@ -31,11 +38,13 @@ import { Notice, SignInNotice } from "./notice";
 import { usePresetList } from "./presets";
 import { SamplePlayerProvider } from "./sample-player";
 import { savedListKey, useClassLists, useSavedList } from "./saved-voices";
+import { SortMenu } from "./voice-conditions";
 import { RowSkeleton } from "./voice-list-parts";
 import { NoMatches, ReloadRow } from "./voice-problem";
 import { RowList } from "./voice-row";
 
 const SEARCH_DELAY_MS = 500;
+const SORT_OPTIONS = [...LIBRARY_SORTS];
 
 // 성우 보관함(T7 스펙 4절). TrialProvider로 감싸지 않으므로 행·패널에 내 문장 듣기가 없다(스펙 2절 '보관함 패널').
 // 목록은 저장한 정보로 먼저 보이고, 처음 한 번 이용 가능 확인을 부른 뒤 그 결과 목록으로 바꾼다(확인이 실패해도 목록은 그대로)
@@ -62,7 +71,7 @@ function Library() {
 	const presetVoices = presetVoiceIds(presets.data ?? []);
 	const searchRef = useRef<HTMLInputElement>(null);
 	const statusRef = useRef<HTMLParagraphElement>(null);
-	const listRef = useRef<HTMLUListElement>(null);
+	const listRef = useRef<HTMLDivElement>(null);
 	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const raw = filtersFromQuery(new URLSearchParams(params.toString()));
 	const [query, setQuery] = useState(raw.q);
@@ -96,7 +105,12 @@ function Library() {
 	const known = new Set([...channels, ...classes].map((entry) => entry.id));
 	const filters = { ...(loaded ? knownOnly(raw, known) : raw), q: query };
 	const items = list.data ?? [];
-	const shown = filterSaved(items, filters, presetVoices);
+	// 정렬은 거른 뒤 보이는 목록에만(인원은 그대로, 브리프 B4-2)
+	const shown = sortSaved(
+		filterSaved(items, filters, presetVoices),
+		filters.sort,
+	);
+	const tagMissing = tagMissingCount(items, filters, presetVoices);
 	const voices = shown.map((item) => item.voice);
 	const keys = voices.map(voiceKey);
 	const unavailable = items.filter((item) => item.unavailable).length;
@@ -150,10 +164,13 @@ function Library() {
 	// 주소에 쓰고, 바뀐 결과 인원을 검색과 같은 문구로 화면 밖 status에 알린다(audit P1-2). 목록을 받기 전·실패면 알리지 않는다('0명'이 아니다)
 	function commit(next: LibraryFilters) {
 		writeQuery(next);
-		if (list.data)
-			setAnnounced(
-				countLine(items.length, filterSaved(items, next, presetVoices).length),
-			);
+		if (!list.data) return;
+		// 태그 정보가 없어 빠진 성우 안내 줄도 함께 읽는다(보이는 줄은 role이 없다)
+		const missing = tagMissingCount(items, next, presetVoices);
+		setAnnounced(
+			countLine(items.length, filterSaved(items, next, presetVoices).length) +
+				(missing > 0 ? ` · ${LIBRARY_TEXT.tagMissing(missing)}` : ""),
+		);
 	}
 	// 대기 중인 검색 타이머는 지운다(누른 때의 조건으로 주소를 덮지 않게). 최신 검색어를 함께 쓴다
 	function setFilters(next: LibraryFilters) {
@@ -171,7 +188,8 @@ function Library() {
 	function clearAll() {
 		if (timerRef.current) clearTimeout(timerRef.current);
 		setQuery("");
-		commit(EMPTY_LIBRARY_FILTERS);
+		// 정렬은 조건이 아니라 풀지 않는다(브리프 B4-2)
+		commit({ ...EMPTY_LIBRARY_FILTERS, sort: filters.sort });
 		searchRef.current?.focus();
 	}
 
@@ -187,6 +205,8 @@ function Library() {
 				loaded={loaded}
 				failed={failed}
 				searchRef={searchRef}
+				people={peopleOptions(items, filters)}
+				tags={tagOptions(items, filters)}
 			/>
 			{/* 보이는 줄에는 role을 두지 않는다. 개수는 검색어 0.5초 뒤·조건을 바꾼 바로 뒤 화면 밖 status가 알린다(계획 리뷰 D19, audit P1-2) */}
 			<div className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1">
@@ -215,6 +235,24 @@ function Library() {
 				<p role="status" className="sr-only">
 					{announced}
 				</p>
+				{/* 상태 줄 오른쪽(공급자 탭 ListStatusBar와 같은 자리). 좁으면 다음 줄로 내려간다 */}
+				<div className="ml-auto">
+					<SortMenu
+						sort={{
+							options: SORT_OPTIONS,
+							value: filters.sort,
+							onChange: (sort) =>
+								setFilters({ ...filters, sort: sort as LibrarySort }),
+						}}
+						disabled={items.length === 0}
+					/>
+				</div>
+				{/* 상태 줄 아래 한 줄(w-full로 줄을 바꾼다). 콘텐츠·분위기를 고르면 태그가 없는 성우가 빠진다는 것을 알린다(브리프 B4-2, 0명이면 숨김) */}
+				{tagMissing > 0 ? (
+					<p className="w-full text-muted-foreground text-sm tabular-nums">
+						{LIBRARY_TEXT.tagMissing(tagMissing)}
+					</p>
+				) : null}
 			</div>
 			<CastingWorkspace
 				voices={voices}
@@ -253,15 +291,37 @@ function Library() {
 							</Link>
 						</EmptyState>
 					) : shown.length > 0 ? (
-						<RowList
-							ref={listRef}
-							voices={voices}
-							label="담은 성우"
-							selectedKey={selectedKey}
-							select={select}
-							panelId={panelId}
-							refreshing={false}
-						/>
+						<div ref={listRef}>
+							{filters.sort === "popular" ? (
+								// 서비스 인기순만 묶음 머리를 둔다(브리프 B4-2). 묶음마다 행 목록 하나(Typecast 선반과 같은 구조)
+								<div className="flex flex-col gap-6">
+									{popularGroups(shown).map((group) => (
+										<section key={group.label} className="flex flex-col gap-2">
+											<h2 className="text-muted-foreground text-sm">
+												{group.label}
+											</h2>
+											<RowList
+												voices={group.items.map((item) => item.voice)}
+												label={group.label}
+												selectedKey={selectedKey}
+												select={select}
+												panelId={panelId}
+												refreshing={false}
+											/>
+										</section>
+									))}
+								</div>
+							) : (
+								<RowList
+									voices={voices}
+									label="담은 성우"
+									selectedKey={selectedKey}
+									select={select}
+									panelId={panelId}
+									refreshing={false}
+								/>
+							)}
+						</div>
 					) : presetEmpty === "failed" ? (
 						<ReloadRow
 							text={PRESET_TEXT.listFailed}
