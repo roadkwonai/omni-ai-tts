@@ -62,6 +62,7 @@ import {
 	voiceOfSpeaker,
 	withoutPicks,
 } from "@/lib/drama-view";
+import { unlessModal } from "@/lib/modal-action";
 import { GAP_DEFAULT } from "@/lib/sound-join";
 import {
 	createFailureOf,
@@ -692,9 +693,13 @@ export function DramaProvider({ children }: { children: ReactNode }) {
 			});
 			await refreshTakes();
 			setShownId(result.id);
+			// '무대로'는 모달이 열려 있으면 창 뒤 무대로 포커스를 빼지 않고 알림을 남긴다(MG-11)
 			if (mounted.current)
 				toast.success(DRAMA_TEXT.made, {
-					action: { label: DRAMA_TEXT.toStage, onClick: () => focusStage() },
+					action: {
+						label: DRAMA_TEXT.toStage,
+						onClick: unlessModal(focusStage),
+					},
 				});
 		} catch (error) {
 			// 사유 없는 실패는 크레딧이 쓰였을 수 있어 처리 여부 미확인이다(createFailureOf)

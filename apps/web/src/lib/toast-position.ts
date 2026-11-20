@@ -16,6 +16,14 @@ export function hasOpenModal(root: Pick<ParentNode, "querySelector">) {
 	return root.querySelector(MODAL_OPEN_SELECTOR) !== null;
 }
 
+// 알림 자리를 옮기기 전 흐리는 시간(ms). token은 기본 전환 시간 토큰 값(globals.css --default-transition-duration).
+// 개발은 "150ms", production CSS 압축은 ".15s"로 내보내 단위를 보고 초면 ms로 바꾼다. 못 읽거나 움직임 줄이기면 0(즉시 옮긴다)
+export function toastMoveDelay(token: string, reducedMotion: boolean) {
+	if (reducedMotion) return 0;
+	const value = Number.parseFloat(token) || 0;
+	return token.trim().endsWith("ms") ? value : Math.round(value * 1000);
+}
+
 // 모달 팝업 안에서 포커스를 받을 제목(없으면 팝업 자체). 시트·대화상자·알림창 제목 슬롯이다
 export const MODAL_TITLE_SELECTOR = [
 	"sheet-title",
@@ -86,12 +94,14 @@ export function planToastHold<T extends HoldableToast>(
 
 const BAR_BOTTOM = "var(--studio-bar-height, 0px)";
 
-// 아래 간격은 설치본 sonner 2.0.8 기본값(24px·휴대폰 16px)이다. 위 간격은 sonner 기본값과 같은 24px이고, 휴대폰에서 모달이 열린 동안만 72px이다. 휴대폰 상단 막대는 59px(app-nav.tsx 297·315행: 칸 50px + py-1 8px + 아래 선 1px)이라 막대 아래 13px 떨어지고, 오른쪽 시트 닫기 버튼(top-3 + 44px = 56px)과도 겹치지 않는다
+// 아래 간격은 설치본 sonner 2.0.8 기본값(24px·휴대폰 16px)이다. 위 간격은 모달이 열린 동안만 쓰며 8px, 휴대폰은 72px이다.
+// 8px(MG-11): 가운데 대화상자는 위아래 여백이 같아 1024×768의 키 큰 성우 창은 위 여백이 66px이고, 두 줄 알림(72px)을 24px에 두면 제목(y≈86)을 덮었다. 8px이면 알림 끝이 80px이다.
+// shortcut: 세 줄 알림이나 위 여백이 더 좁은 창은 여전히 겹칠 수 있다, 그런 창이 생기면 대화상자 최대 높이에 알림 자리를 남긴다. 휴대폰 상단 막대는 59px(app-nav.tsx 297·315행: 칸 50px + py-1 8px + 아래 선 1px)이라 막대 아래 13px 떨어지고, 오른쪽 시트 닫기 버튼(top-3 + 44px = 56px)과도 겹치지 않는다
 export function toastPlacement(modalOpen: boolean) {
 	return modalOpen
 		? {
 				position: "top-center" as const,
-				offset: { top: 24, bottom: 24 },
+				offset: { top: 8, bottom: 24 },
 				// 휴대폰은 상단 막대(59px) 아래 8px 이상, 오른쪽 시트의 닫기 버튼(top-3, 44px) 아래로 내린다(72px = 4.5rem)
 				mobileOffset: { top: 72, bottom: 16 },
 			}

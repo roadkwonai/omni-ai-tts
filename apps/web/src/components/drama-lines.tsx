@@ -51,7 +51,7 @@ import {
 	useState,
 } from "react";
 import { flushSync } from "react-dom";
-import { toast } from "sonner";
+import { type Action, toast } from "sonner";
 import { readKey } from "@/lib/drama-read";
 import {
 	DRAMA_TEXT,
@@ -64,6 +64,7 @@ import {
 	speakerNameOf,
 	tagSpans,
 } from "@/lib/drama-view";
+import { unlessModal } from "@/lib/modal-action";
 import { gapText } from "@/lib/sound-join";
 import type { TrialProblem } from "@/lib/trial-view";
 
@@ -140,7 +141,7 @@ function useOwnToast() {
 		},
 		[],
 	);
-	return (message: string, action: { label: string; onClick: () => void }) => {
+	return (message: string, action: Action) => {
 		if (id.current !== null) toast.dismiss(id.current);
 		id.current = toast(message, { action });
 	};
@@ -792,10 +793,11 @@ export function DramaLines() {
 		if (next) focusText(next);
 		showScriptUndo(DRAMA_TEXT.lineRemoved(n), undo, () => focusText(id));
 	}
+	// '붙여 넣기'는 붙여 넣기 창을 연다. 모달이 열려 있으면 창 위에 창을 겹치지 않고 알림을 남긴다(MG-11)
 	const onMultiLine = (text: string) =>
 		showPasted(DRAMA_TEXT.multiLinePasted, {
 			label: DRAMA_TEXT.paste,
-			onClick: () => pasteRef.current?.(text),
+			onClick: unlessModal(() => pasteRef.current?.(text)),
 		});
 
 	return (

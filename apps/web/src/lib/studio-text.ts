@@ -56,6 +56,11 @@ const geminiPerMinute = (model: GeminiModel, now: number) =>
 			1_000_000,
 	);
 
+// 작업실 알림 공통 문구. closeModalFirst: 창이 열린 채 알림의 이동 행동(…번 줄로·무대로 등)을 눌렀을 때의 안내(MG-11, modal-action)
+export const TOAST_TEXT = {
+	closeModalFirst: "창을 닫은 뒤 다시 눌러요",
+};
+
 export const PARAGRAPH_TEXT = {
 	description:
 		"대본을 문단으로 나눠 다섯 서비스의 성우로 음성을 만들고, 한 파일·문단별 파일·자막으로 받아요",
@@ -151,7 +156,7 @@ export const PARAGRAPH_TEXT = {
 	jumpRange: (total: number) => `1~${n(total)} 사이 번호를 넣어 주세요`,
 	// 문단 번호 칸의 범위 안내(placeholder)
 	jumpPlaceholder: (total: number) => `1~${n(total)}`,
-	// 작업 설정(브리프 5.3). 단축키 세 줄은 8절
+	// 작업 설정(브리프 5.3). 단축키 네 줄은 8절
 	pickDefaultVoice: "기본 성우 고르기",
 	defaultSettings: "기본 성우 설정",
 	gapUnit: "초",
@@ -162,6 +167,11 @@ export const PARAGRAPH_TEXT = {
 		{
 			key: "Backspace",
 			note: "맨 앞에서 앞 문단과 합쳐요. 두 문단의 성우와 설정이 같을 때만이에요.",
+		},
+		// sonner 알림 목록 단축키(Toaster hotkey 기본값 altKey+KeyT). 창이 열려 있어도 닿는다(MG-11)
+		{
+			key: "Alt+T",
+			note: "알림으로 포커스를 옮겨요. Tab으로 '되돌리기' 같은 버튼에 닿아요(macOS Option+T).",
 		},
 	],
 	// 작업 요약(브리프 5.6). 예상 길이는 1초 5자 추정

@@ -7,8 +7,20 @@ import {
 	planToastHold,
 	shouldReturnFocusToModal,
 	TOAST_RESUME_MS,
+	toastMoveDelay,
 	toastPlacement,
 } from "./toast-position";
+
+test("알림 자리 옮김은 기본 전환 시간(ms)만큼 흐린 뒤, 움직임 줄이기면 즉시", () => {
+	expect(toastMoveDelay("150ms", false)).toBe(150);
+	expect(toastMoveDelay(" 150ms", false)).toBe(150);
+	// production CSS 압축은 150ms를 .15s로 바꾼다
+	expect(toastMoveDelay(".15s", false)).toBe(150);
+	expect(toastMoveDelay("0.15s", false)).toBe(150);
+	expect(toastMoveDelay("150ms", true)).toBe(0);
+	// 토큰을 못 읽으면(빈 값) 즉시 옮긴다
+	expect(toastMoveDelay("", false)).toBe(0);
+});
 
 test("평소에는 아래(작업실 막대 위), 모달이 열리면 위 가운데", () => {
 	const normal = toastPlacement(false);
@@ -16,7 +28,8 @@ test("평소에는 아래(작업실 막대 위), 모달이 열리면 위 가운�
 	expect(normal.offset.bottom).toContain("--studio-bar-height");
 	const open = toastPlacement(true);
 	expect(open.position).toBe("top-center");
-	expect(open.offset.top).toBe(24);
+	// 1024×768에서 키 큰 대화상자의 위 여백(66px)에 두 줄 알림(72px)이 제목을 덮지 않게 8px
+	expect(open.offset.top).toBe(8);
 	// 휴대폰 상단 막대 59px + 8px 이상
 	expect(open.mobileOffset.top).toBe(72);
 	expect(open.mobileOffset.top).toBeGreaterThanOrEqual(59 + 8);

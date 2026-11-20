@@ -52,6 +52,7 @@ import {
 	readBlockOf,
 	zipFileName,
 } from "@/lib/drama-view";
+import { unlessModal } from "@/lib/modal-action";
 import type { Current } from "@/lib/sample-state";
 import { joinSounds } from "@/lib/sound-join";
 import { listLoad } from "@/lib/studio-view";
@@ -134,7 +135,8 @@ const PLAY_FAILED = {
 // ElevenLabs 배율은 무료 목록 조회다. 한 시간 기억한다(trial-confirm useRate와 같다)
 const RATES_STALE = 60 * 60 * 1000;
 
-// 읽기를 막는 이유의 알림 버튼. 막대의 이동 버튼과 같다: 성우 없음 → 그 화자의 성우 창, 줄 → 그 줄의 문제 칸('…번 줄로')
+// 읽기를 막는 이유의 알림 버튼. 막대의 이동 버튼과 같다: 성우 없음 → 그 화자의 성우 창, 줄 → 그 줄의 문제 칸('…번 줄로').
+// 모달이 열려 있으면 둘 다 하지 않고 알림을 남긴다(창 위에 성우 창을 겹치거나 창 뒤 칸으로 포커스를 빼지 않는다, MG-11)
 function blockActionOf(
 	{ target }: ReturnType<typeof readBlockOf>,
 	lines: readonly DraftLine[],
@@ -142,16 +144,18 @@ function blockActionOf(
 	if (target?.kind === "voice")
 		return {
 			label: DRAMA_TEXT.pickVoice,
-			onClick: () =>
+			onClick: unlessModal(() =>
 				document.getElementById(speakerFieldId(target.index, "voice"))?.click(),
+			),
 		};
 	if (target?.kind !== "line") return undefined;
 	return {
 		label: DRAMA_TEXT.toLine(
 			lines.findIndex((line) => line.id === target.id) + 1,
 		),
-		onClick: () =>
+		onClick: unlessModal(() =>
 			document.getElementById(dramaFieldId(target.id, target.field))?.focus(),
+		),
 	};
 }
 

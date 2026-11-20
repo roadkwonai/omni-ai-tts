@@ -2,7 +2,8 @@
 
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@tts-pilot-app/ui/components/sonner";
-import { useEffect, useRef, useState } from "react";
+import { cn } from "@tts-pilot-app/ui/lib/utils";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { type ToastT, toast, useSonner } from "sonner";
 
 import {
@@ -12,6 +13,7 @@ import {
 	planToastHold,
 	shouldReturnFocusToModal,
 	TOASTER_SELECTOR,
+	toastMoveDelay,
 	toastPlacement,
 } from "@/lib/toast-position";
 import { getQueryClient } from "@/utils/orpc";
@@ -114,7 +116,38 @@ function AppToaster() {
 		for (const { toast: t, duration } of release) retime(t, duration);
 		if (!modalOpen) held.current.clear();
 	}, [toasts, modalOpen]);
-	return <Toaster richColors {...toastPlacement(modalOpen)} />;
+
+	// 알림 자리(위·아래)는 모달 신호를 늦게 따른다(MG-11). sonner는 자리마다 목록 <ol>을 key={position}으로 그려(index.mjs 1150~1155행)
+	// 자리가 바뀌면 옛 목록이 바로 사라지고 새 목록의 알림이 다시 들어온다(Toast mounted 진입, 570행·CSS [data-mounted=true]).
+	// 옛 자리에서 기본 전환 시간(150ms 토큰)만큼 흐린 뒤 옮긴다. 움직임 줄이기면 그리기 전에 바로 옮긴다(layout effect)
+	const [placedOpen, setPlacedOpen] = useState(false);
+	const moving = placedOpen !== modalOpen;
+	useLayoutEffect(() => {
+		if (!moving) return;
+		const delay = toastMoveDelay(
+			getComputedStyle(document.documentElement).getPropertyValue(
+				"--default-transition-duration",
+			),
+			window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+		);
+		if (delay === 0) {
+			setPlacedOpen(modalOpen);
+			return;
+		}
+		const timer = window.setTimeout(() => setPlacedOpen(modalOpen), delay);
+		return () => window.clearTimeout(timer);
+	}, [moving, modalOpen]);
+	return (
+		<Toaster
+			richColors
+			{...toastPlacement(placedOpen)}
+			// 래퍼가 기본 클래스(toaster group)와 합친다. sonner CSS가 레이어 밖에서 목록 transition을 정해(index.mjs 457행 [data-sonner-toaster]{transition:transform .4s ease}) 중요도(!)로 덮는다
+			className={cn(
+				"transition-opacity!",
+				moving && "pointer-events-none opacity-0",
+			)}
+		/>
+	);
 }
 
 export default function Providers({ children }: { children: React.ReactNode }) {
