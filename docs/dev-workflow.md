@@ -11,7 +11,8 @@
 - 인증 민감 경로(`.dev-cycle.json`의 `authPaths`)를 건드리면 러너가 `[review] prokit-reviewer(security)` 행을 자동으로 붙인다.
 - 러너가 맨 앞에 붙이는 행도 있다. D·E·F 표는 그 계층 패키지(`packages/api`, E는 `packages/db`)에 `test` 스크립트가 없으면 `vitest 도입(최초 1회)` 행<!-- edition:pro -->, `--task`로 연 라운드는 Task 세부 계획과 그 리뷰 행, `--plan`으로 연 라운드는 정밀 분석(기존 프로젝트만)·진행 계획 문서·계획 리뷰 행<!-- /edition -->이다. 이 행들은 이 문서에 적지 않는다.
 - `[confirm]` 행(사용자 확인)은 증거 칸을 N/A·PASS·blocked·미실행·대기 같은 건너뛰기 표시로 채울 수 없다. audit이 거부하고 `close --partial`로도 닫히지 않는다. 라운드를 닫은 뒤의 커밋·push, 릴리스, 배포는 `prokit-dev-cycle`의 "5. 종료"를 따른다.
-- 구현 단계 행과 행 문구에 전문 에이전트(`skills.manifest.json`의 `performers.agents`)가 적힌 행은 그 에이전트에 맡긴다. 증거에 `위임: <에이전트>(사용: <그 에이전트가 읽은 공식 스킬>)`를 적는다. Main은 직접 구현하거나 확인하지 않고, 맡길 에이전트가 없으면 `blocked: 사유`로 남긴다. 훅을 설치하지 않는 호스트(Grok Build)나 서브에이전트 도구가 없는 호스트면 Main이 하고 `degraded: Main 직접(<호스트>)`로 적은 뒤 그 라운드의 fresh 리뷰(`prokit-reviewer(code)`, E는 `prokit-reviewer(db)`)를 받는다. 훅 기록이 있는 라운드는 서브에이전트를 구별하는 호스트라 받지 않는다. F처럼 계층이 여럿이면 계층마다 그 계층 에이전트에 맡기고, 그 라운드가 바꾸지 않은 계층의 구현 행은 `N/A: 사유`로 둔다. 공식 스킬(`performers.skills`)은 맡은 에이전트가 프로젝트 판을 읽은 기록만 audit이 센다.
+- 기존 일반 완료 항목을 그대로 두고 라운드만 보관하려면 `pnpm dev-cycle close --round-only`를 쓴다.
+- 구현 단계 행과 행 문구에 전문 에이전트(`skills.manifest.json`의 `performers.agents`)가 적힌 행은 그 에이전트에 맡긴다. 증거에 `위임: <에이전트>(사용: <그 에이전트가 읽은 공식 스킬>)`를 적는다. L의 화면 구현 행은 Main이 직접 수정할 수 있고 fresh 코드 리뷰를 받는다. 그 밖에 Main은 직접 구현하거나 확인하지 않고, 맡길 에이전트가 없으면 `blocked: 사유`로 남긴다. 훅을 설치하지 않는 호스트(Grok Build)나 서브에이전트 도구가 없는 호스트면 Main이 하고 `degraded: Main 직접(<호스트>)`로 적은 뒤 그 라운드의 fresh 리뷰(`prokit-reviewer(code)`, E는 `prokit-reviewer(db)`)를 받는다. 훅 기록이 있는 라운드는 서브에이전트를 구별하는 호스트라 받지 않는다. F처럼 계층이 여럿이면 계층마다 그 계층 에이전트에 맡기고, 그 라운드가 바꾸지 않은 계층의 구현 행은 `N/A: 사유`로 둔다. 공식 스킬(`performers.skills`)은 맡은 에이전트가 프로젝트 판을 읽은 기록만 audit이 센다.
 - 행 일 이름(첫 괄호 앞)에 나온 공식 스킬은 그 행의 일이라 맡는 쪽이 그 라운드에서 읽어야 audit이 받는다. 괄호 안에 조건과 함께 적은 이름(`컴포넌트 조합·추가는 shadcn`, `없으면 agent-browser`)은 그 상황일 때만 쓴다. 리뷰어 focus 행(`prokit-reviewer(ui)`<!-- edition:pro -->, `(security)`, `(db)`<!-- /edition -->)은 리뷰어 정의의 focus 표에서 언제가 붙지 않은 공식 스킬을 리뷰어가 읽어야 받는다.
 - 위임은 `prokit-dev-cycle`의 `references/delegation.md`를 따른다. provider의 실제 내용·hash·scope·의존성·capability·side effect와 snapshot·evidence packet을 확인한 뒤 한 작업 단위에 한 수행 흐름만 둔다. 고위험 미검사는 parked 또는 degraded로 남기며 PASS로 적지 않는다.
 
@@ -20,6 +21,8 @@
 `pnpm dev-cycle archive [--title "제목"]`은 활성 라운드와 미완료 항목을 보존한 채 대조표 밖의 완료한 `[x]` 일반 할 일·백로그만 보관한다. 끝난 하위 항목에는 부모 문맥을 붙인다. `close`는 audit과 실제 사용자 확인 뒤에 대조표와 완료한 일반 할 일·백로그를 함께 KST 날짜의 `YYYY-MM-DD-제목.md`에 보관한다. 같은 이름은 `-2`부터 이어 붙이고, `tasks/archive/README.md` 색인과 `tasks/todo.md`의 색인 링크를 갱신한다. 기존 월별 기록은 보존한다.
 
 ## 케이스
+
+제목이 `백로그: <항목>`인 라운드는 디자인 리뷰 행을 `N/A: 백로그`로 둔다. 디자인 감사와 접근성 회귀 검사 결과는 보고서에 남긴다.
 
 ### A. 경미
 - [verify] 타입·린트 검사 (commands.typecheck, commands.lint) → 명령과 결과 요약
@@ -38,6 +41,13 @@
 - [verify] 재확인 1회 (마감 뒤 검증 증거 묶음을 다시 찍고, 리뷰·감사한 평가자를 이어 써서 그 묶음으로 본다) → 새 묶음 tasks/evidence/…/packet.json sha256=값과 점수
 - [review] prokit-reviewer(code) → verdict, max_severity, 반영·기각 내역
 - DESIGN.md 갱신 여부 (주 UI 스킬의 정본 갱신 단계. 카탈로그에서 들여온 파일은 merge와 diff 확인) → 갱신 내역과 lint 결과 또는 N/A: 사유
+
+### L. 작은 화면 변경
+- 구현 (기존 화면 파일의 작은 변경. prokit-ui-builder에 위임하거나 Main이 직접 수정한다) → 위임: prokit-ui-builder(사용: 읽은 공식 스킬), 변경 파일 요약 또는 Main 직접: 바꾼 줄 요약
+- [verify] 타입·린트·빌드 → 명령과 결과
+- [verify] next-dev-loop 런타임 확인 (prokit-runtime-checker에 위임. 바뀐 요소가 보이는 폭과 상태를 각각 1\~2개 확인하고 오류 예산을 잰다) → 위임: prokit-runtime-checker(사용: next-dev-loop, agent-browser); 폭: 확인한 폭; 상태: 확인한 상태; 오류 예산: 수
+- [review] prokit-reviewer(code) (목표 해소와 회귀를 확인하고 diff가 경량 조건에 맞고 새 흐름이 아닌지 판정. Main 직접 수정이면 새 리뷰어에게 맡기고 리뷰: fresh 기록) → prokit-reviewer(code): approve, max=심각도(none·low·medium), 경량: 확인, 리뷰: fresh(Main 직접일 때), 반영·기각 내역
+- [confirm] 사용자 확인과 마무리 선택 (결과를 사용자에게 보여 주고 확인과 마무리 선택을 함께 받는다. N/A 불가) → 확인한 내용과 날짜, 마무리: 선택
 
 ### C. 버그
 - 재현 테스트 작성, 실패 확인 (디버깅 단계. 프로젝트 테스트 러너로 돈다. 화면 문구·모양 버그는 테스트 파일을 만들지 않고 수정 전 화면을 브라우저로 재현한다) → 테스트 이름과 실패 출력, 또는 재현 스크린샷 경로

@@ -14,7 +14,9 @@ ego-browser는 ego lite 앱(macOS)이 설치하는 CLI와 전역 `ego-browser` �
 - 로그인이 필요한 화면은 테스트 전용 계정으로 본다. 메일 인증 등으로 가입 화면에서 계정을 만들 수 없으면 `prokit-runtime-checker`는 확인을 멈추고 막힌 이유를 보고한다. Main이 로컬 개발 DB에만 인증을 마친 테스트 계정을 만들어 다시 맡긴다. 비밀번호는 증거, 커밋, 출력에 남기지 않고 프로젝트 밖 파일(권한 600)로 넘긴다. 원격 DB에는 만들지 않는다. <!-- edition:pro -->
 
 ## 검증 증거 묶음
-화면 라운드의 런타임 확인은 묶음을 한 번 찍는다. 디자인 리뷰·감사·리뷰어·재확인이 이 묶음을 읽으므로 각자 다시 찍지 않는다(규칙은 `prokit-dev-cycle`의 `references/execution-efficiency.md` "검증 증거 묶음").
+L 라운드는 바뀐 요소가 보이는 폭과 상태를 각각 1\~2개 확인하고 오류 예산 수를 기록한다. 표준 묶음은 찍지 않는다.
+
+대조표가 묶음 capture를 요구하는 화면 라운드(B·F, B 확인 행을 상속한 C 포함)의 런타임 확인은 묶음을 한 번 찍는다. 디자인 리뷰·감사·리뷰어·재확인이 이 묶음을 읽으므로 각자 다시 찍지 않는다(규칙은 `prokit-dev-cycle`의 `references/execution-efficiency.md` "검증 증거 묶음").
 
 ```bash
 pnpm dev-cycle packet capture http://localhost:3001/<경로> tasks/evidence/<라운드 제목>/packet-1
