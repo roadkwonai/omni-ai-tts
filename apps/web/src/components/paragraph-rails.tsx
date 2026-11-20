@@ -9,6 +9,7 @@ import { Input } from "@tts-pilot-app/ui/components/input";
 import {
 	Sheet,
 	SheetContent,
+	SheetDescription,
 	SheetHeader,
 	SheetTitle,
 } from "@tts-pilot-app/ui/components/sheet";
@@ -993,6 +994,11 @@ export function SummarySheet() {
 					<SheetTitle ref={titleRef} tabIndex={-1} className="rounded-md">
 						{PARAGRAPH_TEXT.summary}
 					</SheetTitle>
+					{check ? (
+						<SheetDescription>
+							주황색 점은 확인할 문단이 있다는 뜻이에요.
+						</SheetDescription>
+					) : null}
 				</SheetHeader>
 				<div className="px-4 pb-6">
 					<SummaryBody
