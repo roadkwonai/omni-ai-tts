@@ -284,6 +284,9 @@ export function classify(files, config, { root, base } = {}) {
 }
 
 const H_BUILD_ROW = "[verify] 빌드·검사 (";
+const H_EVAL_ROW = "스킬을 바꿨으면 skill-creator eval 적용 여부 확인 (";
+const LEGACY_H_EVAL_ROW =
+	"스킬을 바꿨으면 skill-creator eval 재실행 → 벤치마크 경로 또는 N/A: 사유";
 const H_BUILD_NA = "N/A: 하네스 문서·러너만 변경(앱 빌드 입력 변경 없음)";
 const H_BUILD_INPUT =
 	/(?:^|\/)(?:package(?:-lock)?\.json|npm-shrinkwrap\.json|pnpm-(?:lock|workspace)\.yaml|bun\.lockb?|yarn\.lock|next\.config\.[^/]+|tsconfig(?:\.[^/]+)?\.json|turbo\.json|biome\.jsonc?|vercel\.(?:json|ts)|\.vercelignore)$|^\.github\/(?:actions|workflows)\//;
@@ -3482,19 +3485,32 @@ export function writeTable(
 		const moved = new Set();
 		const fills = roundLog(root, active)?.fills ?? [];
 		const refill = [];
+		const legacyEval = active.rows.findIndex(
+			(r) => r.text === LEGACY_H_EVAL_ROW,
+		);
 		for (const r of rows) {
-			if (old.has(r.text)) {
-				r.evidence = old.get(r.text);
+			const previousEval =
+				r.text.startsWith(H_EVAL_ROW) && active.rows[legacyEval];
+			const exact = old.get(r.text);
+			if (old.has(r.text) && (!previousEval || bare(exact))) {
+				r.evidence = exact;
+				if (previousEval) {
+					moved.add(previousEval.text);
+					if (previousEval.evidence && previousEval.evidence !== exact)
+						extra.push(`- 이전 H 평가 증거(참고): ${previousEval.evidence}`);
+				}
 				continue;
 			}
-			const i = active.rows.findIndex(
-				(o) =>
-					!oldLite.has(o.text) &&
-					!kept.has(o.text) &&
-					oldOnly(o) &&
-					newOnly(r) &&
-					stepOf(o.text) === stepOf(r.text),
-			);
+			const i = previousEval
+				? legacyEval
+				: active.rows.findIndex(
+						(o) =>
+							!oldLite.has(o.text) &&
+							!kept.has(o.text) &&
+							oldOnly(o) &&
+							newOnly(r) &&
+							stepOf(o.text) === stepOf(r.text),
+					);
 			const o = active.rows[i];
 			r.evidence = o?.evidence ?? "";
 			if (!o) continue;

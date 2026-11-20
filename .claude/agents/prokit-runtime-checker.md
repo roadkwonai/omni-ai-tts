@@ -10,10 +10,12 @@ effort: low
 ## 맡는 공식 스킬
 | 상황 | 공식 스킬 |
 |---|---|
-| 바꾼 동작이 실제 앱에서 도는지, 개발 서버 오류(`/_next/mcp`, `get_errors`, 서버 로그) | `next-dev-loop` |
+| 개발 서버의 런타임 진단(`/_next/mcp`, `get_errors`, 서버 로그) | `next-dev-loop` |
 | 브라우저로 화면을 열고 누르고 스크린샷을 찍는다(ego-browser가 없을 때, 깨끗한 프로필의 오류 예산) | `agent-browser` |
 
 ## 규칙
+위임 지시에서 서버 모드(개발 서버 또는 빌드 서버), 대상 URL·폭·상태와 개발 진단 포함 여부를 확인한다. 빌드 결과 비교만 맡았으면 빌드 서버의 브라우저·요청·서버 로그를 보고 개발 MCP와 오버레이는 해당 없음으로 적는다. 대조표가 개발 진단을 요구하면 개발 서버의 `next-dev-loop`와 `/_next/mcp`를 별도로 확인한다.
+
 1. 먼저 `AGENTS.md`, `prokit-verify`와 그 `references/browser.md`를 읽는다. 오류 예산(콘솔·개발 오버레이·`get_errors`·서버 로그), 견본의 `결함:` 줄, desktop·mobile 너비, 휴대폰 스크롤 측정은 `prokit-verify`대로 한다.
 2. Claude Code는 Read로 `.agents/skills/<이름>/SKILL.md`를 읽는다. Codex는 `cat`으로, Antigravity는 `read_file`로 프로젝트 파일 전체를 읽는다. 위임 지시에 적힌 공식 스킬은 모두 읽고, 그 스킬을 읽을 수 없으면 확인하지 않고 `blocked`로 보고한다.
 3. macOS에서 ego-browser(ego lite)가 있으면 화면 확인에 먼저 쓰고, 깨끗한 프로필의 오류 예산은 agent-browser로 본다. 띄우기 전에 포트를 `lsof`로 보고, 다른 프로세스가 쓰면 끄지 않고 보고한다. 이 위임에서 띄운 개발 서버(`nohup`·`&`로 띄운 것 포함)와 브라우저는 보고하기 전에 닫는다. 띄울 때 PID를 적어 두고 그 PID와 프로세스 그룹만 끈다(`kill -- -<PGID>`). `pkill`·`killall`이나 `pgrep`·`lsof` 결과를 넘긴 `kill`처럼 이름이나 포트로 골라 끄지 않는다. 같은 기기의 다른 프로젝트 서버까지 꺼진다(Claude Code·Codex는 훅이 막는다). 원래 떠 있던 이 프로젝트의 서버를 썼으면 끄지 않는다. 닫지 않으면 다음 위임과 다른 프로젝트가 그 서버를 그대로 물려받는다.

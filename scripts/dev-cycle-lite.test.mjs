@@ -24,6 +24,59 @@ import {
 	writeTable,
 } from "./dev-cycle.mjs";
 
+test("H 갱신은 기존 평가 증거와 수동 행을 보존하고 평가 행을 하나로 합친다", (t) => {
+	const root = mkdtempSync(join(tmpdir(), "prokit-h-eval-"));
+	t.after(() => rmSync(root, { recursive: true, force: true }));
+	const git = (...args) => execFileSync("git", args, { cwd: root });
+	const write = (file, content) => {
+		const path = join(root, file);
+		mkdirSync(dirname(path), { recursive: true });
+		writeFileSync(path, content);
+	};
+	git("init", "-q");
+	git("config", "user.email", "test@example.com");
+	git("config", "user.name", "Test");
+	write(
+		".dev-cycle.json",
+		readFileSync(new URL("../.dev-cycle.json", import.meta.url)),
+	);
+	const workflow = readFileSync(
+		new URL("../docs/dev-workflow.md", import.meta.url),
+		"utf8",
+	);
+	const legacy =
+		"스킬을 바꿨으면 skill-creator eval 재실행 → 벤치마크 경로 또는 N/A: 사유";
+	const oldWorkflow = workflow.replace(
+		/스킬을 바꿨으면 skill-creator eval 적용 여부 확인[^\n]+/,
+		legacy,
+	);
+	write("docs/dev-workflow.md", oldWorkflow);
+	write("tasks/todo.md", "# 작업\n");
+	git("add", ".");
+	git("commit", "-qm", "base");
+	const config = loadConfig(root);
+	writeTable(root, config, "H", { write: true, title: "갱신" });
+	let todo = readFileSync(join(root, "tasks/todo.md"), "utf8");
+	todo = todo.replace(`| ${legacy} |  |`, `| ${legacy} | 기존 평가 증거 |`);
+	todo = todo.replace(
+		"<!-- dev-cycle:end -->",
+		"| 99 | 수동 확인 | 기존 수동 증거 |\n<!-- dev-cycle:end -->",
+	);
+	write("tasks/todo.md", todo);
+	write("docs/dev-workflow.md", workflow);
+	writeTable(root, config, "H", { write: true, upgrade: true });
+	const active = parseActive(readFileSync(join(root, "tasks/todo.md"), "utf8"));
+	const evalRows = active.rows.filter((r) =>
+		r.text.startsWith("스킬을 바꿨으면 skill-creator eval"),
+	);
+	assert.equal(evalRows.length, 1);
+	assert.equal(evalRows[0].evidence, "기존 평가 증거");
+	assert.equal(
+		active.rows.find((r) => r.text === "수동 확인")?.evidence,
+		"기존 수동 증거",
+	);
+});
+
 test("H 자동 빌드 제외는 빌드 입력이 추가되면 무효가 된다", (t) => {
 	const root = mkdtempSync(join(tmpdir(), "prokit-h-build-"));
 	t.after(() => rmSync(root, { recursive: true, force: true }));
