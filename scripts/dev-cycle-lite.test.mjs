@@ -18,10 +18,52 @@ import {
 	changedFiles,
 	classify,
 	loadConfig,
+	parseActive,
 	parseWorkflow,
 	setEvidence,
 	writeTable,
 } from "./dev-cycle.mjs";
+
+test("H 자동 빌드 제외는 빌드 입력이 추가되면 무효가 된다", (t) => {
+	const root = mkdtempSync(join(tmpdir(), "prokit-h-build-"));
+	t.after(() => rmSync(root, { recursive: true, force: true }));
+	const git = (...args) => execFileSync("git", args, { cwd: root });
+	const write = (file, content) => {
+		const path = join(root, file);
+		mkdirSync(dirname(path), { recursive: true });
+		writeFileSync(path, content);
+	};
+	git("init", "-q");
+	git("config", "user.email", "test@example.com");
+	git("config", "user.name", "Test");
+	write(
+		".dev-cycle.json",
+		readFileSync(new URL("../.dev-cycle.json", import.meta.url)),
+	);
+	write(
+		"docs/dev-workflow.md",
+		readFileSync(new URL("../docs/dev-workflow.md", import.meta.url)),
+	);
+	write("tasks/todo.md", "# 작업\n");
+	write("scripts/dev-cycle.mjs", "old\n");
+	git("add", ".");
+	git("commit", "-qm", "base");
+	const config = loadConfig(root);
+	writeTable(root, config, "H", { write: true, title: "하네스" });
+	write("scripts/dev-cycle.mjs", "new\n");
+	writeTable(root, config, "H", { write: true, upgrade: true });
+	const active = parseActive(readFileSync(join(root, "tasks/todo.md"), "utf8"));
+	assert.match(
+		active.rows.find((r) => r.text.startsWith("[verify] 빌드·검사 (")).evidence,
+		/^N\/A: 하네스 문서·러너만 변경/,
+	);
+	write(".github/workflows/check.yml", "name: check\n");
+	assert.ok(
+		audit(root, config).problems.some((p) =>
+			p.includes("빌드·배포 또는 작업공간 입력이 바뀌었다"),
+		),
+	);
+});
 
 test("L은 기존 화면 파일 두 개와 변경 30줄까지만 허용한다", (t) => {
 	const root = mkdtempSync(join(tmpdir(), "prokit-lite-"));

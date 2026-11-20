@@ -283,6 +283,27 @@ export function classify(files, config, { root, base } = {}) {
 	return { pathCase, layers: list, harness, auth, evidence, liteOk };
 }
 
+const H_BUILD_ROW = "[verify] 빌드·검사 (";
+const H_BUILD_NA = "N/A: 하네스 문서·러너만 변경(앱 빌드 입력 변경 없음)";
+const H_BUILD_INPUT =
+	/(?:^|\/)(?:package(?:-lock)?\.json|npm-shrinkwrap\.json|pnpm-(?:lock|workspace)\.yaml|bun\.lockb?|yarn\.lock|next\.config\.[^/]+|tsconfig(?:\.[^/]+)?\.json|turbo\.json|biome\.jsonc?|vercel\.(?:json|ts)|\.vercelignore)$|^\.github\/(?:actions|workflows)\//;
+const H_BUILD_NEUTRAL =
+	/^(?:(?:AGENTS|CLAUDE)\.md|docs\/dev-workflow\.md|\.(?:agents|claude|codex)\/(?:skills|agents|prompts)\/.+\.(?:md|toml)|scripts\/(?:dev-cycle|skills-setup|sync-agents)(?:[\w-]*\.test)?\.mjs)$/;
+
+function harnessBuildScope(files, config, cls = classify(files, config)) {
+	if (
+		cls.evidence.some(
+			({ why }) => why === "빌드·배포 설정" || why === "작업공간 설정",
+		) ||
+		files.some((file) => H_BUILD_INPUT.test(file))
+	)
+		return "required";
+	const source = files.filter((file) => !liteIgnored(file, config));
+	return source.length && source.every((file) => H_BUILD_NEUTRAL.test(file))
+		? "not-applicable"
+		: null;
+}
+
 export const SECURITY_ROW =
 	"[review] prokit-reviewer(security) → verdict, max_severity, 반영·기각 내역";
 
@@ -3129,6 +3150,26 @@ const roundRowProblem = (
 	const lateReview = lateReviewProblem(root, active);
 	const lite = liteRowProblem(root, active, files);
 	const copy = copyOnlyProblem(root, active, files);
+	const buildScope =
+		active.meta.case === "H" &&
+		harnessBuildScope(
+			active.meta.skills === "true"
+				? changedFiles(root, active.meta.base)
+				: files,
+			config,
+		);
+	const harnessBuildProblem = (r) => {
+		if (active.meta.case !== "H" || !r.text.startsWith(H_BUILD_ROW))
+			return null;
+		const value = bare(r.evidence);
+		if (buildScope === "required" && /^n\/a\s*:/i.test(value))
+			return "빌드·배포 또는 작업공간 입력이 바뀌었다. 빌드·타입·린트 명령과 실제 결과를 적는다";
+		if (value === H_BUILD_NA && buildScope !== "not-applicable")
+			return "현재 diff가 자동으로 채운 빌드 사유의 범위를 벗어났다. 빌드 영향과 검사 결과를 다시 적는다";
+		if (!value && buildScope === "not-applicable")
+			return `${H_BUILD_NA}. pnpm dev-cycle table H --write --upgrade로 근거를 채울 수 있다`;
+		return null;
+	};
 	// 두뇌·과설계 방지·사용: 표기는 한 번에 모두 알린다(하나씩 알리면 증거를 여러 번 다시 쓴다)
 	const skillProblems = (r) => {
 		const all = [
@@ -3137,6 +3178,7 @@ const roundRowProblem = (
 		return all.length ? all.join(". 또 ") : null;
 	};
 	return (r) =>
+		harnessBuildProblem(r) ??
 		rowProblem(r) ??
 		(/^n\/a\s*:\s*백로그(?![가-힣])/i.test(bare(r.evidence)) &&
 		(!isBacklog(active) || !r.text.startsWith("[review] 디자인 리뷰"))
@@ -3397,10 +3439,8 @@ export function writeTable(
 			? `경고: 진행 계획에 끝나지 않은 Task가 있다(${pending.id} ${pending.state}). 이 라운드가 그 Task의 일이면 ${active ? "열린 라운드를 닫은 뒤 " : ""}--task ${pending.id}로 연다. 버그 수정·하네스 변경이면 그대로 진행한다`
 			: unplanned && `경고: ${unplanned}`;
 	const base = active ? active.meta.base : resolveBase(root, config);
-	const cls = classify(
-		active ? roundFiles(root, active) : changedFiles(root, base),
-		config,
-	);
+	const files = active ? roundFiles(root, active) : changedFiles(root, base);
+	const cls = classify(files, config);
 	const key = caseKey ?? cls.pathCase;
 	if (!CASES.includes(key))
 		throw new UsageError(
@@ -3548,6 +3588,15 @@ export function writeTable(
 		brains: active?.meta.brains,
 		skills: active?.meta.skills === "true",
 	};
+	const hBuildScope =
+		key === "H" &&
+		(active?.meta.skills === "true"
+			? harnessBuildScope(changedFiles(root, base), config)
+			: harnessBuildScope(files, config, cls));
+	if (hBuildScope === "not-applicable") {
+		const build = rows.find((r) => r.text.startsWith(H_BUILD_ROW));
+		if (build && !bare(build.evidence)) build.evidence = H_BUILD_NA;
+	}
 	const block = renderBlock(meta, rows, upgrade ? extra : []);
 	if (write) {
 		if (task !== undefined) writeTask(root, config, task, { state: "진행" });
