@@ -739,15 +739,21 @@ export function ParagraphBar({
 					? PARAGRAPH_TEXT.listenHint
 					: PARAGRAPH_TEXT.resultHint;
 
-	const mainLabel = running
-		? PARAGRAPH_TEXT.stop
-		: count > 0
-			? stopped
-				? PARAGRAPH_TEXT.makeRest(count)
-				: PARAGRAPH_TEXT.makeAll(count, plan?.free ?? false)
-			: stopped
-				? PARAGRAPH_TEXT.makeRestPlain
-				: PARAGRAPH_TEXT.makeAllPlain;
+	// 모두 무료면 '· 무료' 꼬리(멈춘 뒤 '이어서 만들기'도). 카드는 이때 배지를 빼므로 막대가 늘 말한다(MG-03)
+	const mainFree = !running && count > 0 && (plan?.free ?? false);
+	const labelOf = (free: boolean) =>
+		running
+			? PARAGRAPH_TEXT.stop
+			: count > 0
+				? stopped
+					? PARAGRAPH_TEXT.makeRest(count, free)
+					: PARAGRAPH_TEXT.makeAll(count, free)
+				: stopped
+					? PARAGRAPH_TEXT.makeRestPlain
+					: PARAGRAPH_TEXT.makeAllPlain;
+	// 접근 이름은 꼬리까지 전체 글, 보이는 글은 꼬리 앞(줄어드는 조각)과 꼬리(줄지 않는 조각)로 나눈다
+	const mainLabel = labelOf(mainFree);
+	const mainText = labelOf(false);
 	const mainFilled = !running && fill === "bar";
 	const receiveReason = receive.ok
 		? null
@@ -771,8 +777,9 @@ export function ParagraphBar({
 			aria-label={PARAGRAPH_TEXT.barLabel}
 			tabIndex={-1}
 			// 767px 이하는 바닥에 붙은 판(카드색, 위 모서리만 둥글게, 본문 여백 밖까지), 768px 이상은 바탕색 띠 안에 뜬 카드. z-5는 앱 메뉴(z-10) 아래다.
-			// 대본이 비어 빈 상태가 보이는 동안(작업실 본문의 data-empty) 휴대폰에서는 접는다: 눌러도 아무것도 못 하는 '전체 만들기'가 빈 카드의 행동을 가리지 않게
-			className="studio-bar-scroll sticky bottom-0 z-5 focus-visible:outline-2 focus-visible:outline-ring max-md:-mx-4 max-md:rounded-t-2xl max-md:bg-card max-md:px-4 max-md:pt-3 max-md:pb-4 max-md:ring-1 max-md:ring-border group-data-empty/studio:max-md:hidden md:bg-background md:pt-3 md:pb-4"
+			// 대본이 비어 빈 상태가 보이는 동안(작업실 본문의 data-empty) 모든 폭에서 접는다(MG-03): 눌러도 아무것도 못 하는 '전체 만들기'가 빈 상태의 행동(붙여 넣기·열기·직접 쓰기)과 겨루지 않게.
+			// 접힌 동안 useBarHeight는 0px를 둔다(ResizeObserver가 display:none의 높이 0을 알린다)
+			className="studio-bar-scroll sticky bottom-0 z-5 focus-visible:outline-2 focus-visible:outline-ring group-data-empty/studio:hidden max-md:-mx-4 max-md:rounded-t-2xl max-md:bg-card max-md:px-4 max-md:pt-3 max-md:pb-4 max-md:ring-1 max-md:ring-border md:bg-background md:pt-3 md:pb-4"
 		>
 			<div className="flex flex-col gap-3 md:rounded-2xl md:bg-card md:p-4 md:ring-1 md:ring-border md:ring-inset">
 				<div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-x-6">
@@ -799,10 +806,10 @@ export function ParagraphBar({
 							) : null}
 						</div>
 					) : null}
-					{/* DOM은 요약 칩 → 주 버튼 → 받기(브리프 7절). 칩은 요약 레일이 안 보이는 1단·2단에만 나오고, 빈 상태에는 접는다(눌러도 볼 것이 없다). 767px 이하는 한 줄로 흐르고(320에서 안 들어가면 칩이 위 줄, D22),
+					{/* DOM은 요약 칩 → 주 버튼 → 받기(브리프 7절). 칩은 요약 레일이 안 보이는 1단·2단에만 나온다(빈 상태에는 막대째 접힌다). 767px 이하는 한 줄로 흐르고(320에서 안 들어가면 칩이 위 줄, D22),
 					    768px 이상은 주 버튼을 오른쪽 끝에 둔다 */}
 					<div className="flex flex-wrap items-center gap-2 md:ml-auto md:justify-end">
-						<div className="contents @6xl:hidden group-data-empty/studio:hidden">
+						<div className="contents @6xl:hidden">
 							{restored ? <SummarySheet /> : null}
 						</div>
 						<div className="max-md:contents md:flex md:flex-row-reverse md:flex-wrap md:gap-2">
@@ -817,6 +824,7 @@ export function ParagraphBar({
 									)}
 									focusableWhenDisabled
 									disabled={mainLocked}
+									aria-label={mainLabel}
 									aria-busy={finding || undefined}
 									aria-describedby={
 										line ? lineId : noScript && !running ? reasonId : undefined
@@ -836,8 +844,15 @@ export function ParagraphBar({
 											className={mainFilled ? undefined : "text-warning"}
 										/>
 									) : null}
-									{/* 767px 이하 한 줄: 좁으면 글자가 줄어든다(접근 이름은 그대로 전체 글) */}
-									<span className="min-w-0 truncate">{mainLabel}</span>
+									{/* 767px 이하 한 줄: 좁으면 앞 글만 줄어들고 '· 무료' 꼬리는 남는다(320, MG-03). 꼬리 앞 공백은 버튼 gap 대신 글자 공백(whitespace-pre) */}
+									<span className="flex min-w-0">
+										<span className="min-w-0 truncate">{mainText}</span>
+										{mainFree ? (
+											<span className="shrink-0 whitespace-pre">
+												{` ${PARAGRAPH_TEXT.freeTail}`}
+											</span>
+										) : null}
+									</span>
 								</Button>
 							) : null}
 							{/* 만드는 중 막대에는 '받기'가 없다(브리프 머리). 복원 전에도 없다 */}

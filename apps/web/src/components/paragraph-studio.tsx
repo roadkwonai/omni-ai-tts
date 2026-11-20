@@ -35,7 +35,7 @@ import {
 	shouldFillExample,
 	shouldSetExampleVoice,
 } from "@/lib/demo-example";
-import type { ParagraphStatus } from "@/lib/make-all";
+import { makeMarkOf, makePlan, type ParagraphStatus } from "@/lib/make-all";
 import {
 	batchSpeaker,
 	blockOf,
@@ -87,7 +87,12 @@ import { ParagraphBar } from "./paragraph-bar";
 import { type CardActions, ParagraphCard } from "./paragraph-card";
 import { ParagraphEmpty } from "./paragraph-empty";
 import { focusText, paragraphTextId } from "./paragraph-focus";
-import { useParagraphs, useWork, WorkProvider } from "./paragraph-provider";
+import {
+	useParagraphs,
+	useShownParagraphs,
+	useWork,
+	WorkProvider,
+} from "./paragraph-provider";
 import {
 	ParagraphCount,
 	WorkBand,
@@ -436,7 +441,7 @@ function ParagraphList({
 	onEndSelecting,
 	onEmpty,
 }: {
-	// 빈 상태가 보이는지 본문(StudioBody)에 알린다. 본문이 data-empty로 휴대폰 레일·막대를 접는다(R2)
+	// 빈 상태가 보이는지 본문(StudioBody)에 알린다. 본문이 data-empty로 휴대폰 레일과 막대를 접는다(R2, 막대는 모든 폭 MG-03)
 	onEmpty: (empty: boolean) => void;
 	madeFrom: RefObject<string | null>;
 	// 이어 듣기가 지금 들려주는 문단 id. 값이 바뀔 때만 목록이 다시 그리고 그 카드 둘의 playing 프롭만 바뀐다
@@ -499,6 +504,21 @@ function ParagraphList({
 				? setupRequest(openSetup, voices, "", now)
 				: null,
 		[openSetup, voices, now],
+	);
+	// 만들 문단이 모두 무료인지(MG-03). 막대와 같은 계획을 막대와 같은 늦춘 문단으로 셈해(E10) 막대가 '· 무료'를 보일 때 카드는 배지를 뺀다
+	const shownPs = useShownParagraphs();
+	const allFree = useMemo(
+		() =>
+			voices
+				? makePlan(
+						shownPs,
+						{ ...meta, paragraphs: shownPs },
+						voices,
+						found,
+						now,
+					).free
+				: false,
+		[shownPs, meta, voices, found, now],
 	);
 	if (!work.restored)
 		return (
@@ -620,7 +640,10 @@ function ParagraphList({
 							problem={problem?.text ?? null}
 							connections={problem?.connections ?? false}
 							expired={problem?.expired ?? false}
-							free={request ? !needsConfirm(request, now) : false}
+							mark={makeMarkOf(
+								request ? !needsConfirm(request, now) : false,
+								allFree,
+							)}
 							locked={locked}
 							current={p.id === currentId}
 							since={p.id === currentId ? make.since : null}
@@ -719,7 +742,7 @@ function StudioBody() {
 	// 프리셋을 불러올 때마다(머리 메뉴·채널·성우 창) 올라 기본 성우 설정 칸을 다시 그린다(같은 프리셋을 다시 불러와도, T9 resetKey)
 	const [loads, setLoads] = useState(0);
 	const madeFrom = useRef<string | null>(null);
-	// 대본이 비어 빈 상태가 보이는 동안(R2 브리프 4절). 휴대폰에서 조건 줄·레일·하단 막대를 접고, 3단은 작업 요약 aside를, 1·2단의 md 이상은 막대의 요약 칩을 접는다(CSS group-data-empty)
+	// 대본이 비어 빈 상태가 보이는 동안(R2 브리프 4절). 휴대폰에서 조건 줄·레일을 접고, 모든 폭에서 하단 막대와 그 건너뛰기 링크(MG-03), 3단은 작업 요약 aside를 접는다(CSS group-data-empty)
 	const [empty, setEmpty] = useState(false);
 	// 이어 듣기 재생 위치의 문단 id(막대 플레이어가 쓰고 목록이 읽는다). 작업 상태에 넣지 않는다(계획 2.5)
 	const [playingId, setPlayingId] = useState<string | null>(null);
@@ -778,7 +801,7 @@ function StudioBody() {
 				</a>
 				<a
 					href="#paragraph-bar"
-					className={cn(SKIP_LINK, "group-data-empty/studio:max-md:hidden")}
+					className={cn(SKIP_LINK, "group-data-empty/studio:hidden")}
 				>
 					{PARAGRAPH_TEXT.toBar}
 				</a>

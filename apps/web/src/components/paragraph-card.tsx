@@ -61,7 +61,7 @@ import {
 import { flushSync } from "react-dom";
 
 import { PROVIDER_LABEL } from "@/lib/connection-view";
-import type { ParagraphStatus } from "@/lib/make-all";
+import type { makeMarkOf, ParagraphStatus } from "@/lib/make-all";
 import {
 	type Paragraph,
 	spokenOf,
@@ -323,18 +323,18 @@ function StatusCell({
 	}
 }
 
-// 카드 '만들기'(무채색 neutral + 회색 Coins, 무료면 '무료' 배지, DN-1). 전체 만들기가 도는 동안 잠기고 이유를 설명·툴팁으로 잇는다(E3).
+// 카드 '만들기'(무채색 neutral + 회색 Coins, 무료면 '무료' 배지, DN-1. 모두 무료면 표식 없음, MG-03 makeMarkOf). 전체 만들기가 도는 동안 잠기고 이유를 설명·툴팁으로 잇는다(E3).
 // 잠겨도 가리켜 툴팁을 볼 수 있고 누름은 Base UI가 막는다(focusableWhenDisabled). 접근 이름에 문단 번호(200장에서 같은 이름이 줄지 않게)
 function MakeButton({
 	id,
 	n,
-	free,
+	mark,
 	locked,
 	onMake,
 }: {
 	id: string;
 	n: number;
-	free: boolean;
+	mark: ReturnType<typeof makeMarkOf>;
 	locked: boolean;
 	onMake: CardActions["make"];
 }) {
@@ -350,7 +350,7 @@ function MakeButton({
 							size="lg"
 							focusableWhenDisabled
 							disabled={locked}
-							aria-label={PARAGRAPH_TEXT.makeOf(n, free)}
+							aria-label={PARAGRAPH_TEXT.makeOf(n, mark === "free")}
 							aria-describedby={locked ? reasonId : undefined}
 							className={cn(locked && "opacity-50 hover:bg-card")}
 							onClick={(event) => onMake(id, event.currentTarget)}
@@ -358,15 +358,15 @@ function MakeButton({
 					}
 				>
 					{PARAGRAPH_TEXT.make}
-					{free ? (
+					{mark === "free" ? (
 						<Badge variant="success">{PARAGRAPH_TEXT.free}</Badge>
-					) : demo ? null : (
+					) : mark === "paid" && !demo ? (
 						<Coins
 							data-icon="inline-end"
 							aria-hidden="true"
 							className="text-muted-foreground"
 						/>
-					)}
+					) : null}
 				</TooltipTrigger>
 				<TooltipContent>{PARAGRAPH_TEXT.afterMakeAll}</TooltipContent>
 			</Tooltip>
@@ -764,7 +764,7 @@ export const ParagraphCard = memo(function ParagraphCard({
 	problem,
 	connections,
 	expired,
-	free,
+	mark,
 	locked,
 	current,
 	since,
@@ -802,7 +802,8 @@ export const ParagraphCard = memo(function ParagraphCard({
 	problem: string | null;
 	connections: boolean;
 	expired: boolean;
-	free: boolean;
+	// '만들기' 옆 사용량 표식(makeMarkOf)
+	mark: ReturnType<typeof makeMarkOf>;
 	// 전체 만들기가 도는 중(카드 '만들기' 잠금)
 	locked: boolean;
 	// 지금 만드는 문단과 보낸 시각
@@ -1018,7 +1019,7 @@ export const ParagraphCard = memo(function ParagraphCard({
 							<MakeButton
 								id={p.id}
 								n={n}
-								free={free}
+								mark={mark}
 								locked={locked}
 								onMake={actions.make}
 							/>

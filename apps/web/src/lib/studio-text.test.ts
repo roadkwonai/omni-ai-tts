@@ -176,6 +176,12 @@ describe("PARAGRAPH_TEXT(브리프 9절)", () => {
 		);
 		expect(PARAGRAPH_TEXT.makeAll(28, true)).toBe("전체 만들기 · 28개 · 무료");
 		expect(PARAGRAPH_TEXT.makeAll(28, false)).toBe("전체 만들기 · 28개");
+		// 멈춘 뒤에도 모두 무료면 막대가 '무료'를 말한다(카드는 배지를 뺀다, MG-03). 꼬리는 막대가 줄지 않는 조각으로 따로 그린다
+		expect(PARAGRAPH_TEXT.makeRest(28, true)).toBe(
+			"이어서 만들기 · 28개 · 무료",
+		);
+		expect(PARAGRAPH_TEXT.makeRest(28, false)).toBe("이어서 만들기 · 28개");
+		expect(PARAGRAPH_TEXT.freeTail).toBe("· 무료");
 		expect(PARAGRAPH_TEXT.inserted(200, 0)).toBe("문단 200개를 넣었어요");
 		expect(PARAGRAPH_TEXT.inserted(200, 5)).toBe(
 			"문단 200개를 넣었어요. 나머지 5개는 넣지 않았어요.",

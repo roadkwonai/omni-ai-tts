@@ -28,6 +28,7 @@ import {
 	type MakeItem,
 	type MakeState,
 	madeOf,
+	makeMarkOf,
 	makePlan,
 	makeReducer,
 	mergeFound,
@@ -229,6 +230,20 @@ describe("makePlan", () => {
 		expect(
 			makePlan([para("a", "하나")], w, VOICES, new Map(), after).free,
 		).toBe(false);
+	});
+	it("카드 '만들기' 표식: 모두 무료면 없고(막대만 '무료'), 섞이면 무료 배지·유료 Coins(MG-03)", () => {
+		const w = work({ defaultVoice: fishFree });
+		const all = makePlan([para("a", "하나")], w, VOICES, new Map(), NOW);
+		expect(makeMarkOf(true, all.free)).toBeNull();
+		const mixed = makePlan(
+			[para("a", "하나"), para("b", "둘", { voice: typecast })],
+			w,
+			VOICES,
+			new Map(),
+			NOW,
+		);
+		expect(makeMarkOf(true, mixed.free)).toBe("free");
+		expect(makeMarkOf(false, mixed.free)).toBe("paid");
 	});
 	it("make가 비면 free가 아니다", () => {
 		const a = para("a", "하나");

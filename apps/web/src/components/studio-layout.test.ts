@@ -91,9 +91,35 @@ test("레일 칸의 기본은 hidden이고 막대의 요약 칩은 2단까지 �
 		new URL("./paragraph-bar.tsx", import.meta.url),
 		"utf8",
 	);
-	// 빈 상태(md 이상)에서는 칩도 접는다. md 미만은 막대 자체가 접힌다
-	expect(bar).toContain(
-		'className="contents @6xl:hidden group-data-empty/studio:hidden"',
-	);
+	// 빈 상태에서는 막대 자체가 접혀 칩 래퍼에 따로 접는 class가 없다
+	expect(bar).toContain('className="contents @6xl:hidden"');
 	expect(bar).not.toContain("@4xl:hidden");
+});
+
+test("막대 주 버튼의 '· 무료' 꼬리는 줄지 않는 조각이고 앞 글만 줄어든다(320, MG-03)", () => {
+	const bar = readFileSync(
+		new URL("./paragraph-bar.tsx", import.meta.url),
+		"utf8",
+	);
+	expect(bar).toContain('<span className="min-w-0 truncate">{mainText}</span>');
+	expect(bar).toMatch(
+		/<span className="shrink-0 whitespace-pre">\s*\{` \$\{PARAGRAPH_TEXT\.freeTail\}`\}\s*<\/span>/,
+	);
+	// 접근 이름은 꼬리까지 전체 글
+	expect(bar).toContain("aria-label={mainLabel}");
+});
+
+test("빈 상태에서는 모든 폭에서 막대와 '만들기와 받기로' 건너뛰기 링크를 접는다(MG-03)", () => {
+	const bar = readFileSync(
+		new URL("./paragraph-bar.tsx", import.meta.url),
+		"utf8",
+	);
+	const band = bar.slice(bar.indexOf('id="paragraph-bar"'));
+	const barClass = band.slice(0, band.indexOf("\n\t\t\t>"));
+	expect(barClass).toContain("group-data-empty/studio:hidden");
+	expect(barClass).not.toContain("group-data-empty/studio:max-md:hidden");
+	const skip = body.slice(body.indexOf('href="#paragraph-bar"'));
+	expect(skip.slice(0, skip.indexOf("</a>"))).toContain(
+		'"group-data-empty/studio:hidden"',
+	);
 });

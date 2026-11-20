@@ -271,6 +271,12 @@ export function makePlan(
 	return plan;
 }
 
+// 카드 '만들기' 옆 사용량 표식(MG-03): 유료면 Coins, 무료면 '무료' 배지. 만들 문단이 모두 무료(makePlan의 free)면 막대 '전체 만들기 · N개 · 무료'만 말하고 카드는 표식이 없다
+export const makeMarkOf = (
+	free: boolean,
+	allFree: boolean,
+): "free" | "paid" | null => (!free ? "paid" : allFree ? null : "free");
+
 // 새로 만들 문단의 공급자별 예상 사용량(estimate 합계, 첫 등장 순). 배율을 모르는 ElevenLabs 요청은 1로 세고 rateMissing(E20).
 // Fish 무료와 유료가 섞이면 바이트 줄이다(무료는 0바이트)
 export function usageByProvider(

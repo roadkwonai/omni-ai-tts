@@ -33,6 +33,7 @@ import { plain, retryTime } from "./voice-view";
 // 숫자와 이름 뒤에 받침 따라 바뀌는 조사를 붙이지 않는다. 문장은 마침표, 한 줄 상태는 마침표 없이. 크레딧이 쓰였을 수 있으면 "다시 해 주세요"라고 하지 않는다
 
 const n = (value: number) => plain.format(value);
+const FREE_TAIL = "· 무료";
 // 예상 길이(작업 요약·요약 칩): 1분 미만은 초, 그 위는 반올림한 분
 const aboutLength = (seconds: number) =>
 	seconds < 60 ? `약 ${n(seconds)}초` : `약 ${n(Math.round(seconds / 60))}분`;
@@ -79,9 +80,12 @@ export const PARAGRAPH_TEXT = {
 	toBar: "만들기와 받기로",
 	placeholder: "대본을 써 주세요. 긴 대본은 ‘대본 붙여 넣기’로 한 번에 넣어요.",
 	// 주 버튼
+	// 모두 무료면 '· 무료' 꼬리(막대는 꼬리를 줄지 않는 조각으로 따로 그린다, MG-03)
 	makeAll: (count: number, free: boolean) =>
-		`전체 만들기 · ${n(count)}개${free ? " · 무료" : ""}`,
-	makeRest: (count: number) => `이어서 만들기 · ${n(count)}개`,
+		`전체 만들기 · ${n(count)}개${free ? ` ${FREE_TAIL}` : ""}`,
+	makeRest: (count: number, free: boolean) =>
+		`이어서 만들기 · ${n(count)}개${free ? ` ${FREE_TAIL}` : ""}`,
+	freeTail: FREE_TAIL,
 	// 잠긴 주 버튼(만들 수를 모를 때·막혔을 때)은 개수 없이
 	makeAllPlain: "전체 만들기",
 	makeRestPlain: "이어서 만들기",
