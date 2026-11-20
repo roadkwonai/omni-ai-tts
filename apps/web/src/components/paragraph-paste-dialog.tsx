@@ -135,7 +135,9 @@ function PasteBody({
 					{PARAGRAPH_TEXT.pasteDescription(max)}
 				</DialogDescription>
 			</DialogHeader>
-			<div className="flex min-w-0 flex-col gap-3">
+			{/* 768px 이상은 창이 최대 높이(알림 자리, MG-14)에 걸리면 이 본문만 줄고 스크롤한다(머리·버튼 줄 고정). 글 칸이 먼저 min-h-60까지 준다.
+			    스크롤 칸이 포커스 링을 잘라 내지 않게 가로 4px(문단 자동 태그 창과 같다) */}
+			<div className="flex min-w-0 flex-col gap-3 md:-mx-1 md:min-h-0 md:overflow-y-auto md:overscroll-contain md:px-1">
 				<label htmlFor={textId} className="sr-only">
 					{PARAGRAPH_TEXT.pasteLabel}
 				</label>
@@ -295,7 +297,7 @@ export function ParagraphPasteDialog({ filled = false }: { filled?: boolean }) {
 						centered(paragraphTextId(inserted.current))) ||
 					true
 				}
-				className="md:max-w-2xl"
+				className="md:flex md:max-w-2xl md:flex-col"
 			>
 				<PasteBody
 					textId={textId}

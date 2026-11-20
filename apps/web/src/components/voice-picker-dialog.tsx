@@ -42,6 +42,7 @@ import {
 	LoadingRows,
 	PresetOption,
 	SavedOption,
+	TAB_PANEL,
 } from "./drama-voice-dialog";
 import { useWork } from "./paragraph-provider";
 import { usePresetList } from "./presets";
@@ -73,8 +74,6 @@ function targetText(target: PickTarget) {
 }
 type Tab = "saved" | "preset";
 
-const TAB_PANEL = "overscroll-contain md:h-112 md:overflow-y-auto md:px-1";
-
 type PickerProps = {
 	target: PickTarget;
 	// 지금 성우(고른 줄 표시). 없으면 null
@@ -103,9 +102,10 @@ export function VoicePickerDialog({
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger render={trigger} />
+			{/* 768px 이상은 세로 flex: 창이 최대 높이(알림 자리, MG-14)에 걸리면 창 대신 탭 묶음이 줄어 패널만 스크롤한다(드라마 창과 같다) */}
 			<DialogContent
 				initialFocus={() => firstRef.current ?? true}
-				className="md:max-w-2xl"
+				className="md:flex md:max-w-2xl md:flex-col"
 			>
 				<PickerBody
 					{...props}
@@ -210,7 +210,8 @@ function PickerBody({
 				<Button
 					variant="neutral"
 					size="lg"
-					className="justify-self-start"
+					// 767px 이하는 grid(justify-self), 768px 이상은 flex(self)라 둘 다 글만큼 너비
+					className="justify-self-start md:self-start"
 					onClick={() => {
 						onFollowDefault();
 						onClose();
@@ -224,7 +225,7 @@ function PickerBody({
 			<Tabs
 				value={tab}
 				onValueChange={(next) => setTab(next as Tab)}
-				className="min-w-0 gap-3"
+				className="min-w-0 gap-3 md:min-h-0"
 			>
 				<TabsList aria-label={DRAMA_TEXT.source}>
 					<TabsTrigger ref={savedTabRef} value="saved">

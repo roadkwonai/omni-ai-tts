@@ -636,9 +636,8 @@ export function ScriptInsertDialog({
 				// 767 이하는 전체 시트, 머리·버튼 줄은 고정하고 본문만 스크롤한다. 고르는 단계는 높이를 고정해 고른 뒤 미리 보기·경고 줄이 생겨도 창 머리가 움직이지 않는다
 				className={cn(
 					"flex h-dvh flex-col rounded-none md:max-w-2xl md:rounded-2xl",
-					scriptId === undefined
-						? "md:h-[85dvh]"
-						: "md:h-auto md:max-h-[85dvh]",
+					// 최대 높이는 공통 값(알림 자리를 뺀 높이, packages/ui dialog.tsx)을 따르고, 고르는 단계의 85dvh도 그 값에 걸린다(MG-14)
+					scriptId === undefined ? "md:h-[85dvh]" : "md:h-auto",
 				)}
 			>
 				<InsertBody

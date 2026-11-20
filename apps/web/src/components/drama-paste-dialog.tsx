@@ -91,7 +91,9 @@ function PasteBody({
 				<DialogTitle>{DRAMA_TEXT.paste}</DialogTitle>
 				<DialogDescription>{DRAMA_TEXT.pasteDescription}</DialogDescription>
 			</DialogHeader>
-			<div className="flex min-w-0 flex-col gap-3">
+			{/* 768px 이상은 창이 최대 높이(알림 자리, MG-14)에 걸리면 이 본문만 줄고 스크롤한다(머리·버튼 줄 고정). 글 칸이 먼저 min-h-40까지 준다.
+			    스크롤 칸이 포커스 링을 잘라 내지 않게 가로 4px(문단 자동 태그 창과 같다) */}
+			<div className="flex min-w-0 flex-col gap-3 md:-mx-1 md:min-h-0 md:overflow-y-auto md:overscroll-contain md:px-1">
 				<label htmlFor={textId} className="sr-only">
 					{DRAMA_TEXT.pasteLabel}
 				</label>
@@ -240,7 +242,7 @@ export function DramaPasteDialog({
 				initialFocus={() => document.getElementById(textId) ?? true}
 				// 알림 동작으로 열었어도 닫히면 이 버튼으로 간다
 				finalFocus={triggerRef}
-				className="md:max-w-lg"
+				className="md:flex md:max-w-lg md:flex-col"
 			>
 				<PasteBody
 					seed={seed}

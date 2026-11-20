@@ -7,7 +7,10 @@ import type * as React from "react";
 
 // shadcn base-lyra dialog(2026-10-06 추가)를 같은 앱의 AlertDialog 모양에 맞췄다(T6 계획 리뷰 D2·E2):
 // rounded-2xl·ring, 제목 font-bold text-xl, 확대 없이 흐려지기만, font-medium 없음.
-// 767px 이하는 화면 아래에 붙는 시트, 768px 이상은 가운데 창(max-w-md). sm 단계 너비가 시트를 덮지 않게 md에서만 바꾼다
+// 767px 이하는 화면 아래에 붙는 시트, 768px 이상은 가운데 창(max-w-md). sm 단계 너비가 시트를 덮지 않게 md에서만 바꾼다.
+// 가운데 창은 위아래 여백이 같아 최대 높이에서 알림 자리(globals.css --toast-clearance)를 두 번 빼면 위 여백이 그 자리 이상이다(MG-14).
+// 빼는 것은 화면 높이 736px(46rem) 이상일 때만이다(그때 최대 512px 이상). 그 아래(1280×600, 가로 휴대폰 등)는 이번 변경 전처럼 max-h-dvh라
+// 짧은 화면의 폼 창 버튼 줄이 밀려나지 않는다. 대신 그 화면에선 알림이 키 큰 창의 제목을 덮을 수 있다(기존 한계)
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
 	return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 }
@@ -52,7 +55,7 @@ function DialogContent({
 			<DialogPrimitive.Popup
 				data-slot="dialog-content"
 				className={cn(
-					"data-open:fade-in-0 data-closed:fade-out-0 fixed inset-x-0 bottom-0 z-50 grid max-h-dvh gap-4 overflow-y-auto overscroll-contain rounded-t-2xl bg-popover p-4 text-popover-foreground outline-none ring-1 ring-border duration-100 data-closed:animate-out data-open:animate-in md:inset-x-4 md:top-1/2 md:bottom-auto md:mx-auto md:w-auto md:max-w-md md:-translate-y-1/2 md:rounded-2xl",
+					"data-open:fade-in-0 data-closed:fade-out-0 fixed inset-x-0 bottom-0 z-50 grid max-h-dvh gap-4 overflow-y-auto overscroll-contain rounded-t-2xl bg-popover p-4 text-popover-foreground outline-none ring-1 ring-border duration-100 data-closed:animate-out data-open:animate-in md:inset-x-4 md:top-1/2 md:bottom-auto md:mx-auto md:w-auto md:max-w-md md:-translate-y-1/2 md:rounded-2xl [@media(min-width:48rem)_and_(min-height:46rem)]:max-h-[calc(100dvh_-_2*var(--toast-clearance))]",
 					className,
 				)}
 				onKeyDown={(event) => {

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { toast } from "sonner";
 import { expect, test, vi } from "vitest";
 
@@ -36,7 +37,7 @@ test("평소에는 아래(작업실 막대 위), 모달이 열리면 위 가운�
 	expect(toastPlacement(false, true)).toEqual(normal);
 	const open = toastPlacement(true, false);
 	expect(open.position).toBe("top-center");
-	// 1024×768에서 키 큰 대화상자의 위 여백(66px)에 두 줄 알림(72px)이 제목을 덮지 않게 8px
+	// 가운데 대화상자 위 알림 자리(--toast-clearance 112px) 안에 세 줄 알림(약 96px)이 들어가게 8px
 	expect(open.offset.top).toBe(8);
 	// 휴대폰 상단 막대 59px + 8px 이상
 	expect(open.mobileOffset.top).toBe(72);
@@ -47,6 +48,24 @@ test("상단 막대가 보이는 폭(601~767px, sonner는 offset을 쓴다)도 �
 	const open = toastPlacement(true, true);
 	expect(open.offset.top).toBe(72);
 	expect(open.mobileOffset.top).toBe(72);
+});
+
+test("768px 이상 가운데 대화상자는 최대 높이에서 알림 자리를 위아래로 빼 위 여백이 세 줄 알림 끝 이상이다(MG-14)", () => {
+	const ui = (path: string) =>
+		readFileSync(
+			new URL(`../../../../packages/ui/src/${path}`, import.meta.url),
+			"utf8",
+		);
+	const steps = ui("styles/globals.css").match(
+		/--toast-clearance: calc\(var\(--spacing\) \* (\d+)\);/,
+	)?.[1];
+	// --spacing 기본 0.25rem(4px). 알림 자리 = 위 간격 + 세 줄 알림(약 96px)보다 커야 한다
+	expect(Number(steps) * 4).toBeGreaterThan(
+		toastPlacement(true, false).offset.top + 96,
+	);
+	expect(ui("components/dialog.tsx")).toContain(
+		"[@media(min-width:48rem)_and_(min-height:46rem)]:max-h-[calc(100dvh_-_2*var(--toast-clearance))]",
+	);
 });
 
 test("모달이 닫히면 안내로 바꾼 알림의 설명을 되돌리고(없었으면 지움), 닫힌 알림은 건너뛴다", () => {

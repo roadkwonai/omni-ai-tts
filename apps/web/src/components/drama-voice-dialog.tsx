@@ -88,6 +88,11 @@ export const speakerFieldId = (index: number, field: "name" | "voice") =>
 	`drama-speaker-${field}-${index}`;
 
 type Tab = "saved" | "preset" | "all";
+// 성우 창 탭 패널(드라마 창과 성우 고르기 창이 같이 쓴다). 768px 이상은 넘치면 패널 안에서 스크롤한다.
+// 기준 높이는 basis(448px): TabsContent의 flex-1(기준 0%)은 창이 flex일 때 내용 높이로 풀려 짧은 탭만 창이 줄었다(MG-14 런타임).
+// 창이 최대 높이에 걸리면 160px까지 줄고, 더 모자라면 창이 스크롤한다
+export const TAB_PANEL =
+	"overscroll-contain md:min-h-40 md:basis-112 md:overflow-y-auto md:px-1";
 // '전체' 탭 맨 위 공급자 고르기(브리프 14절 2). 순서는 화면 전체의 공급자 순서
 const PROVIDER_OPTIONS = PROVIDER_IDS.map((value) => ({
 	value,
@@ -434,7 +439,12 @@ export function DramaVoicePicker({ index }: { index: number }) {
 					</>
 				)}
 			</DialogTrigger>
-			<DialogContent initialFocus={firstFocus} className="md:max-w-2xl">
+			{/* 768px 이상은 세로 flex: 창이 최대 높이(알림 자리, MG-14)에 걸리면 창 대신 탭 묶음이 줄어 패널만 스크롤한다(두 겹 스크롤 없음).
+			    줄어드는 정도와 바닥은 TAB_PANEL 주석 */}
+			<DialogContent
+				initialFocus={firstFocus}
+				className="md:flex md:max-w-2xl md:flex-col"
+			>
 				{/* 오른쪽 위 '닫기'(44px + 12px)와 제목이 겹치지 않게 오른쪽을 비운다 */}
 				<DialogHeader className="pr-12">
 					<DialogTitle className="flex items-center gap-2">
@@ -443,7 +453,11 @@ export function DramaVoicePicker({ index }: { index: number }) {
 					</DialogTitle>
 					<DialogDescription>{DRAMA_TEXT.pickerDescription}</DialogDescription>
 				</DialogHeader>
-				<Tabs value={tab} onValueChange={setTab} className="min-w-0 gap-3">
+				<Tabs
+					value={tab}
+					onValueChange={setTab}
+					className="min-w-0 gap-3 md:min-h-0"
+				>
 					<TabsList aria-label={DRAMA_TEXT.source}>
 						<TabsTrigger ref={savedTabRef} value="saved">
 							{DRAMA_TEXT.savedTab}
@@ -468,11 +482,7 @@ export function DramaVoicePicker({ index }: { index: number }) {
 					{/* 768px 이상은 세 탭이 같은 높이이고 넘치면 패널 안에서 스크롤한다(끝에서 뒤 페이지로 이어지지 않는다).
 					    767px 이하는 시트만 스크롤한다(이중 스크롤 없음). 패널은 Tab 정지가 아니다(안의 버튼이 정지다).
 					    스크롤 칸이 포커스 윤곽을 잘라 내지 않게 좌우 4px */}
-					<TabsContent
-						value="saved"
-						tabIndex={-1}
-						className="overscroll-contain md:h-112 md:overflow-y-auto md:px-1"
-					>
+					<TabsContent value="saved" tabIndex={-1} className={TAB_PANEL}>
 						{voicesLoad === "loading" ? (
 							<LoadingRows />
 						) : voicesLoad === "failed" ? (
@@ -521,11 +531,7 @@ export function DramaVoicePicker({ index }: { index: number }) {
 							</ul>
 						)}
 					</TabsContent>
-					<TabsContent
-						value="preset"
-						tabIndex={-1}
-						className="overscroll-contain md:h-112 md:overflow-y-auto md:px-1"
-					>
+					<TabsContent value="preset" tabIndex={-1} className={TAB_PANEL}>
 						{/* 프리셋 성우는 담은 성우 목록으로 화자에 붙는다(usableSpeakers). 담은 목록이 받는 중·실패면 프리셋을 골라도 카드가 비므로
 						    줄 대신 뼈대·담은 성우 실패 줄을 보인다(리뷰 Minor 4) */}
 						{presetLoad === "loading" || voicesLoad === "loading" ? (
@@ -585,11 +591,7 @@ export function DramaVoicePicker({ index }: { index: number }) {
 							</ul>
 						)}
 					</TabsContent>
-					<TabsContent
-						value="all"
-						tabIndex={-1}
-						className="overscroll-contain md:h-112 md:overflow-y-auto md:px-1"
-					>
+					<TabsContent value="all" tabIndex={-1} className={TAB_PANEL}>
 						<div className="flex flex-col gap-4">
 							<RadioMenu<ProviderId>
 								label={DRAMA_TEXT.providerPick}
