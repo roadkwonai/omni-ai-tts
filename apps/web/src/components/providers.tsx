@@ -3,30 +3,42 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@tts-pilot-app/ui/components/sonner";
 import { cn } from "@tts-pilot-app/ui/lib/utils";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+	useSyncExternalStore,
+} from "react";
 import { type ToastT, toast, useSonner } from "sonner";
 
 import {
+	focusedToastIndex,
 	hasOpenModal,
 	MODAL_OPEN_SELECTOR,
 	MODAL_TITLE_SELECTOR,
 	planToastHold,
+	refocusToastLater,
+	restoreHints,
 	shouldReturnFocusToModal,
 	TOASTER_SELECTOR,
 	toastMoveDelay,
 	toastPlacement,
+	updateToast,
 } from "@/lib/toast-position";
 import { getQueryClient } from "@/utils/orpc";
 
 import { ThemeProvider } from "./theme-provider";
 
-const KINDS = ["success", "error", "info", "warning", "loading"] as const;
-
-// 같은 id로 duration만 바꾼다. toast()는 종류를 지우므로(sonner index.mjs 249~256행) 원래 종류 함수로 부른다
-function retime(t: ToastT, duration: number) {
-	const kind = KINDS.find((k) => k === t.type);
-	(kind ? toast[kind] : toast)(t.title, { id: t.id, duration });
-}
+// 상단 막대가 보이는 폭(app-nav의 md 경계 48rem 미만, md:hidden 위 막대). 서버 렌더는 데스크톱으로 본다
+const TOP_BAR = "(width < 48rem)";
+const subscribeTopBar = (callback: () => void) => {
+	const media = matchMedia(TOP_BAR);
+	media.addEventListener("change", callback);
+	return () => media.removeEventListener("change", callback);
+};
+const hasTopBar = () => matchMedia(TOP_BAR).matches;
+const serverTopBar = () => false;
 
 // 평소에는 작업실 하단 막대 위(브리프 5.6), 시트·대화상자·알림창이 열려 있는 동안은 화면 위(MG-08).
 // 열림 표식(data-open)과 팝업 추가·제거만 본다. 이미 뜬 알림도 같은 Toaster라 위치가 함께 옮겨진다.
@@ -104,17 +116,18 @@ function AppToaster() {
 	useEffect(() => {
 		// toasts는 다시 그리기 신호일 뿐이다. useSonner 목록은 dismiss 반영이 늦어(index.mjs 941~950행)
 		// 막 닫은 알림을 되살릴 수 있으니 계획 입력은 활성 목록(toast.getToasts, dismiss 즉시 빠짐)에서 읽는다
-		const { freeze, release } = planToastHold(
-			toast.getToasts() as ToastT[],
-			modalOpen,
-			held.current,
-		);
+		const live = toast.getToasts() as ToastT[];
+		const { freeze, release } = planToastHold(live, modalOpen, held.current);
 		for (const t of freeze) {
 			held.current.set(t.id, t.duration);
-			retime(t, Number.POSITIVE_INFINITY);
+			updateToast(t, { duration: Number.POSITIVE_INFINITY });
 		}
-		for (const { toast: t, duration } of release) retime(t, duration);
-		if (!modalOpen) held.current.clear();
+		for (const { toast: t, duration } of release) updateToast(t, { duration });
+		if (!modalOpen) {
+			held.current.clear();
+			// 모달 중 이동 행동이 안내로 바꾼 설명을 되돌린다(MG-12)
+			restoreHints(live);
+		}
 	}, [toasts, modalOpen]);
 
 	// 알림 자리(위·아래)는 모달 신호를 늦게 따른다(MG-11). sonner는 자리마다 목록 <ol>을 key={position}으로 그려(index.mjs 1150~1155행)
@@ -122,25 +135,38 @@ function AppToaster() {
 	// 옛 자리에서 기본 전환 시간(150ms 토큰)만큼 흐린 뒤 옮긴다. 움직임 줄이기면 그리기 전에 바로 옮긴다(layout effect)
 	const [placedOpen, setPlacedOpen] = useState(false);
 	const moving = placedOpen !== modalOpen;
+	// 모달을 닫으며(알림에 포커스가 있을 때의 Escape) 아래로 옮기면 옛 목록과 함께 포커스가 body로 떨어진다(MG-12).
+	// 옮기기 직전 포커스가 있던 알림 자리를 적어 두고, 새 목록이 그려진 다음 프레임에 같은 알림의 행동 버튼으로 돌린다(refocusToastLater). 알림이 사라졌으면 손대지 않는다
+	const refocus = useRef<string | null>(null);
 	useLayoutEffect(() => {
 		if (!moving) return;
+		const place = () => {
+			refocus.current = modalOpen
+				? null
+				: focusedToastIndex(document.activeElement);
+			setPlacedOpen(modalOpen);
+		};
 		const delay = toastMoveDelay(
 			getComputedStyle(document.documentElement).getPropertyValue(
 				"--default-transition-duration",
 			),
 			window.matchMedia("(prefers-reduced-motion: reduce)").matches,
 		);
-		if (delay === 0) {
-			setPlacedOpen(modalOpen);
-			return;
-		}
-		const timer = window.setTimeout(() => setPlacedOpen(modalOpen), delay);
+		if (delay === 0) return place();
+		const timer = window.setTimeout(place, delay);
 		return () => window.clearTimeout(timer);
 	}, [moving, modalOpen]);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: placedOpen은 새 목록이 그려졌다는 신호다
+	useLayoutEffect(() => {
+		const index = refocus.current;
+		refocus.current = null;
+		if (index !== null) return refocusToastLater(document, index);
+	}, [placedOpen]);
+	const topBar = useSyncExternalStore(subscribeTopBar, hasTopBar, serverTopBar);
 	return (
 		<Toaster
 			richColors
-			{...toastPlacement(placedOpen)}
+			{...toastPlacement(placedOpen, topBar)}
 			// 래퍼가 기본 클래스(toaster group)와 합친다. sonner CSS가 레이어 밖에서 목록 transition을 정해(index.mjs 457행 [data-sonner-toaster]{transition:transform .4s ease}) 중요도(!)로 덮는다
 			className={cn(
 				"transition-opacity!",

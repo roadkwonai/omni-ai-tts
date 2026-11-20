@@ -47,9 +47,11 @@ import {
 import {
 	DRAMA_TEXT,
 	type DraftLine,
+	type DraftSpeaker,
 	joinFileName,
 	lineFileName,
 	readBlockOf,
+	speakerNameOf,
 	zipFileName,
 } from "@/lib/drama-view";
 import { unlessModal } from "@/lib/modal-action";
@@ -136,25 +138,31 @@ const PLAY_FAILED = {
 const RATES_STALE = 60 * 60 * 1000;
 
 // 읽기를 막는 이유의 알림 버튼. 막대의 이동 버튼과 같다: 성우 없음 → 그 화자의 성우 창, 줄 → 그 줄의 문제 칸('…번 줄로').
-// 모달이 열려 있으면 둘 다 하지 않고 알림을 남긴다(창 위에 성우 창을 겹치거나 창 뒤 칸으로 포커스를 빼지 않는다, MG-11)
+// 모달이 열려 있으면 둘 다 하지 않고 알림을 남긴다(창 위에 성우 창을 겹치거나 창 뒤 칸으로 포커스를 빼지 않는다, MG-11). 설명은 그 대상을 말한다(MG-12)
 function blockActionOf(
 	{ target }: ReturnType<typeof readBlockOf>,
+	speakers: readonly Pick<DraftSpeaker, "name">[],
 	lines: readonly DraftLine[],
 ) {
 	if (target?.kind === "voice")
 		return {
 			label: DRAMA_TEXT.pickVoice,
-			onClick: unlessModal(() =>
-				document.getElementById(speakerFieldId(target.index, "voice"))?.click(),
+			onClick: unlessModal(
+				() =>
+					document
+						.getElementById(speakerFieldId(target.index, "voice"))
+						?.click(),
+				DRAMA_TEXT.afterCloseVoice(speakerNameOf(speakers, target.index)),
 			),
 		};
 	if (target?.kind !== "line") return undefined;
+	const n = lines.findIndex((line) => line.id === target.id) + 1;
 	return {
-		label: DRAMA_TEXT.toLine(
-			lines.findIndex((line) => line.id === target.id) + 1,
-		),
-		onClick: unlessModal(() =>
-			document.getElementById(dramaFieldId(target.id, target.field))?.focus(),
+		label: DRAMA_TEXT.toLine(n),
+		onClick: unlessModal(
+			() =>
+				document.getElementById(dramaFieldId(target.id, target.field))?.focus(),
+			DRAMA_TEXT.afterCloseLine(n),
 		),
 	};
 }
@@ -510,7 +518,9 @@ export function DramaReadProvider({ children }: { children: ReactNode }) {
 		// 막대는 첫 줄부터의 이유만 보이므로, 이 줄 뒤에만 있는 이유는 막대와 같은 글(readBlockOf)로 알린다
 		if ("problem" in read) {
 			const block = readBlockOf(read.problem, drama.speakers, lines);
-			toast.error(block.text, { action: blockActionOf(block, lines) });
+			toast.error(block.text, {
+				action: blockActionOf(block, drama.speakers, lines),
+			});
 			return;
 		}
 		if (read.lines.length === 0) return;

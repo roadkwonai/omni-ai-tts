@@ -2483,6 +2483,22 @@ describe("무대·이전 테이크·막대 도움(Task 11, Ruling 12)", () => {
 		]);
 	});
 
+	it("창이 열린 채 이동 행동을 누르면 알림 설명이 행동 대상을 말한다(MG-12, 해요체·마침표 없음)", () => {
+		const hints = [
+			DRAMA_TEXT.afterCloseVoice("민수"),
+			DRAMA_TEXT.afterCloseLine(3),
+			DRAMA_TEXT.afterCloseStage,
+			DRAMA_TEXT.afterClosePaste,
+		];
+		expect(hints).toEqual([
+			"창을 닫으면 ‘민수’ 성우를 고를 수 있어요",
+			"창을 닫으면 3번 줄로 갈 수 있어요",
+			"창을 닫으면 무대로 갈 수 있어요",
+			"창을 닫으면 붙여 넣을 수 있어요",
+		]);
+		for (const hint of hints) expect(hint).toMatch(/요$/);
+	});
+
 	it("나누지 못한 이유는 지시뿐인 줄 → 태그 이름 단어 → Drama 3 → 그 밖 순서다", () => {
 		const lines = (text: string) => [
 			{ speaker: 0, direction: "", text: "또 늦었네." },

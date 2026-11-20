@@ -380,7 +380,7 @@ critique 27/40, audit 18/20(접근성 3/4) 결과 가운데 브리프·스펙을
 - [ ] T15b-15 데모 QA 관찰: 채널·카테고리 삭제 확인의 연결 수가 성우만 센다(대본·프리셋 미표시), voiceList가 끊기면 /casting 전체가 오류 경계로 바뀐다, ego-browser에서만 /drama 768 다크 ResizeObserver loop 콘솔 오류(5회 중 2회), 데모 결과 행을 지울 화면이 없음(매일 초기화로 정리). 스펙 9절 '저장 10,000자'는 문단당 상한이다.
 
 ### 백로그·UI/UX 병합 검수 (병합 라운드에서 미룬 것, 2026-11-20)
-- [ ] MG-12 (MG-11 라운드 critique·재확인) ① 모달 중 '창을 닫은 뒤 다시 눌러요' 안내와 원래 행동 알림이 위에 둘로 쌓이면 1024 성우 대화상자 제목을 다시 가린다(r2-1024-drama-guide.png). 안내를 새 알림 대신 눌린 알림 본문 교체로 하거나 대화상자 최대 높이에 알림 자리를 남긴다. ② 640~767px에서 모달 중 위 알림(8px)이 모달 배경 뒤 휴대폰 상단 막대와 겹친다(누를 수는 없음, 24px 때도 같음). 이 구간도 휴대폰 위 간격(72px)으로 맞출지 본다. ③ 모달이 닫히면 남은 안내 알림(MODAL_HINT_ID)을 지울지(닫힘 신호와 겹침). ④ 알림에 포커스가 있을 때 Escape로 모달을 닫으면 목록이 다시 붙으며 포커스가 body로 떨어진다(기존 동작, 이제 150ms 뒤).
+- [ ] MG-14 (MG-12 재확인 critique P2) 모달 중 행동별 안내가 두 줄이 되면 1024 성우 대화상자에서 알림 아래 끝(82px)과 제목 위(83px) 간격이 1px이다(겹침 없음). 문구가 더 길거나 세 줄이면 겹친다. 안내를 짧게 하거나 모달이 열린 동안 대화상자 최대 높이에 알림 자리를 남긴다(toast-position.ts shortcut). 같은 때 실제 스크린리더(VoiceOver)로 재누름 재낭독과 390 닫기 경로를 확인한다.
 - [ ] MG-13 (MG-03 리뷰 low) ① 만드는 중(making·stopping)과 첫 찾기 전(checking)에는 카드 배지가 숨고 막대는 '멈추기'·꼬리 없는 '전체 만들기'라 '무료'가 화면에 없다(paragraph-studio.tsx:510 allFree가 막대의 !running·ready 조건을 따르지 않음). ② 멈춘 상태 '이어서 만들기 · N개 · 무료'는 만들기를 눌러야 생겨 화면 확인 못 함(테스트로 문구 고정). ③ studio-layout.test.ts:105 정규식이 JSX 서식에 묶여 있다.
 - [ ] MG-04 (audit P3, web-design-guidelines) 랜딩 막대 로고는 라이트·다크 두 판 모두 eager·fetchPriority high로 받는다. 로고를 currentColor SVG 한 장으로 바꿀 때 없앤다(landing-logo.tsx shortcut 주석). 같은 때 landing.css:219 `border-radius: 1px`(DESIGN rounded 스케일 밖)도 본다.
 ### 이번 문서 작업에서 확인한 기존 품질 항목

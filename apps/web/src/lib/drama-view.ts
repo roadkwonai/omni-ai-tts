@@ -407,6 +407,12 @@ export const DRAMA_TEXT = {
 	// 막는 이유의 이동 버튼(8절 막는 이유 표의 이동 버튼 열)
 	toName: "이름 칸으로",
 	toLine: (line: number) => `${line}번 줄로`,
+	// 창이 열린 채 알림의 이동 행동을 눌렀을 때 그 알림 설명(MG-12, modal-action unlessModal). 행동 대상을 말한다
+	afterCloseVoice: (name: string) =>
+		`창을 닫으면 ‘${name}’ 성우를 고를 수 있어요`,
+	afterCloseLine: (line: number) => `창을 닫으면 ${line}번 줄로 갈 수 있어요`,
+	afterCloseStage: "창을 닫으면 무대로 갈 수 있어요",
+	afterClosePaste: "창을 닫으면 붙여 넣을 수 있어요",
 	// 막대 '샘플링' 접근 이름(5.8, 늘 지금 값): 보이는 글로 시작하고 처음 값인 항목을 뒤에 붙인다(WCAG 2.5.3)
 	samplingLabel: (settings: DramaSettings): string =>
 		[samplingText(settings), ...samplingParts(settings, false)].join(", "),

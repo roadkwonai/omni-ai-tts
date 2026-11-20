@@ -698,7 +698,7 @@ export function DramaProvider({ children }: { children: ReactNode }) {
 				toast.success(DRAMA_TEXT.made, {
 					action: {
 						label: DRAMA_TEXT.toStage,
-						onClick: unlessModal(focusStage),
+						onClick: unlessModal(focusStage, DRAMA_TEXT.afterCloseStage),
 					},
 				});
 		} catch (error) {

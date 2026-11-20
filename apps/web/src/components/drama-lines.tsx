@@ -797,7 +797,10 @@ export function DramaLines() {
 	const onMultiLine = (text: string) =>
 		showPasted(DRAMA_TEXT.multiLinePasted, {
 			label: DRAMA_TEXT.paste,
-			onClick: unlessModal(() => pasteRef.current?.(text)),
+			onClick: unlessModal(
+				() => pasteRef.current?.(text),
+				DRAMA_TEXT.afterClosePaste,
+			),
 		});
 
 	return (

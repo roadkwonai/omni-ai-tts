@@ -1,14 +1,21 @@
-import { expect, test } from "vitest";
+import { toast } from "sonner";
+import { expect, test, vi } from "vitest";
 
 import {
+	focusedToastIndex,
 	hasOpenModal,
+	hintedToasts,
 	MODAL_OPEN_SELECTOR,
 	MODAL_TITLE_SELECTOR,
 	planToastHold,
+	refocusToastLater,
+	restoreHints,
 	shouldReturnFocusToModal,
 	TOAST_RESUME_MS,
+	TOASTER_SELECTOR,
 	toastMoveDelay,
 	toastPlacement,
+	toastRefocusTarget,
 } from "./toast-position";
 
 test("알림 자리 옮김은 기본 전환 시간(ms)만큼 흐린 뒤, 움직임 줄이기면 즉시", () => {
@@ -23,16 +30,158 @@ test("알림 자리 옮김은 기본 전환 시간(ms)만큼 흐린 뒤, 움직�
 });
 
 test("평소에는 아래(작업실 막대 위), 모달이 열리면 위 가운데", () => {
-	const normal = toastPlacement(false);
+	const normal = toastPlacement(false, false);
 	expect(normal.position).toBe("bottom-right");
 	expect(normal.offset.bottom).toContain("--studio-bar-height");
-	const open = toastPlacement(true);
+	expect(toastPlacement(false, true)).toEqual(normal);
+	const open = toastPlacement(true, false);
 	expect(open.position).toBe("top-center");
 	// 1024×768에서 키 큰 대화상자의 위 여백(66px)에 두 줄 알림(72px)이 제목을 덮지 않게 8px
 	expect(open.offset.top).toBe(8);
 	// 휴대폰 상단 막대 59px + 8px 이상
 	expect(open.mobileOffset.top).toBe(72);
 	expect(open.mobileOffset.top).toBeGreaterThanOrEqual(59 + 8);
+});
+
+test("상단 막대가 보이는 폭(601~767px, sonner는 offset을 쓴다)도 모달 중 위 간격은 72px", () => {
+	const open = toastPlacement(true, true);
+	expect(open.offset.top).toBe(72);
+	expect(open.mobileOffset.top).toBe(72);
+});
+
+test("모달이 닫히면 안내로 바꾼 알림의 설명을 되돌리고(없었으면 지움), 닫힌 알림은 건너뛴다", () => {
+	const error = vi.spyOn(toast, "error").mockReturnValue(1);
+	const message = vi.spyOn(toast, "message").mockReturnValue(2);
+	hintedToasts.set(1, "원래 설명");
+	hintedToasts.set(2, undefined);
+	hintedToasts.set(9, "닫힌 알림");
+	restoreHints([
+		{ id: 1, type: "error", title: "막혔어요" },
+		{ id: 2, title: "붙여 넣을까요" },
+		{ id: 5, title: "안내 안 한 알림" },
+	]);
+	// 종류 있는 알림은 그 종류 함수로(종류 유지), 없는 알림은 message로
+	expect(error.mock.calls).toEqual([
+		["막혔어요", { id: 1, description: "원래 설명" }],
+	]);
+	expect(message.mock.calls).toEqual([
+		["붙여 넣을까요", { id: 2, description: undefined }],
+	]);
+	expect(hintedToasts.size).toBe(0);
+	vi.restoreAllMocks();
+});
+
+// 알림 li 하나와 그 안의 행동 버튼을 흉내 낸다(sonner index.mjs 720행 data-index, 877행 data-action)
+function fakeToast(index: string, hasAction: boolean) {
+	const action = { name: "action" };
+	const item = {
+		getAttribute: (name: string) => (name === "data-index" ? index : null),
+		querySelector: (selector: string) =>
+			selector === "[data-action]" && hasAction ? action : null,
+	};
+	return { item, action };
+}
+
+test("포커스가 있던 알림의 자리 번호를 읽고, 알림 밖이면 null", () => {
+	const { item } = fakeToast("1", true);
+	const inToast = {
+		matches: () => false,
+		closest: () => item,
+	} as unknown as Element;
+	expect(focusedToastIndex(inToast)).toBe("1");
+	const outside = {
+		matches: () => false,
+		closest: () => null,
+	} as unknown as Element;
+	expect(focusedToastIndex(outside)).toBeNull();
+	expect(focusedToastIndex(null)).toBeNull();
+});
+
+test("포커스가 목록(ol) 자체면(Alt+T) 맨 앞 알림(0번)으로 본다", () => {
+	const list = {
+		matches: (selector: string) => selector === TOASTER_SELECTOR,
+		closest: () => null,
+	} as unknown as Element;
+	expect(focusedToastIndex(list)).toBe("0");
+});
+
+// 다음 프레임 복귀: 가짜 문서(키·누름 듣기, 알림 하나)와 손으로 돌리는 프레임
+function laterSetup() {
+	const frames = new Map<number, FrameRequestCallback>();
+	let next = 1;
+	vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+		frames.set(next, cb);
+		return next++;
+	});
+	vi.stubGlobal("cancelAnimationFrame", (id: number) => frames.delete(id));
+	const listeners = new Map<string, () => void>();
+	const focus = vi.fn();
+	const doc = {
+		addEventListener: (type: string, fn: () => void) => listeners.set(type, fn),
+		removeEventListener: (type: string) => listeners.delete(type),
+		querySelector: () => ({ querySelector: () => ({ focus }) }),
+	} as unknown as Document;
+	const runFrames = () => {
+		for (const [id, cb] of [...frames]) {
+			frames.delete(id);
+			cb(0);
+		}
+	};
+	return { doc, focus, listeners, runFrames };
+}
+
+test("Base UI의 연 버튼 복귀(마이크로태스크) 뒤인 다음 프레임에 같은 알림 행동 버튼으로 돌린다", () => {
+	const { doc, focus, listeners, runFrames } = laterSetup();
+	refocusToastLater(doc, "0");
+	expect(focus).not.toHaveBeenCalled();
+	runFrames();
+	expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+	expect(listeners.size).toBe(0);
+	vi.unstubAllGlobals();
+});
+
+test("그 사이 사용자가 키를 치거나 누르면(포커스를 직접 옮겼을 수 있다) 건드리지 않는다", () => {
+	for (const type of ["keydown", "pointerdown"]) {
+		const { doc, focus, listeners, runFrames } = laterSetup();
+		refocusToastLater(doc, "0");
+		listeners.get(type)?.();
+		runFrames();
+		expect(focus).not.toHaveBeenCalled();
+		expect(listeners.size).toBe(0);
+		vi.unstubAllGlobals();
+	}
+});
+
+test("취소하면 프레임과 듣기를 모두 거둔다", () => {
+	const { doc, focus, listeners, runFrames } = laterSetup();
+	refocusToastLater(doc, "0")();
+	runFrames();
+	expect(focus).not.toHaveBeenCalled();
+	expect(listeners.size).toBe(0);
+	vi.unstubAllGlobals();
+});
+
+test("옮긴 뒤 같은 자리 알림의 행동 버튼(없으면 알림)으로, 알림이 사라졌으면 null", () => {
+	const seen: string[] = [];
+	const root = (found: ReturnType<typeof fakeToast>["item"] | null) => ({
+		querySelector: (selector: string) => {
+			seen.push(selector);
+			return found;
+		},
+	});
+	const withAction = fakeToast("1", true);
+	expect(
+		toastRefocusTarget(root(withAction.item) as unknown as ParentNode, "1"),
+	).toBe(withAction.action);
+	expect(seen[0]).toContain('[data-index="1"]');
+	expect(seen[0]).toContain(TOASTER_SELECTOR);
+	const plain = fakeToast("0", false);
+	expect(
+		toastRefocusTarget(root(plain.item) as unknown as ParentNode, "0"),
+	).toBe(plain.item);
+	expect(toastRefocusTarget(root(null) as unknown as ParentNode, "2")).toBe(
+		null,
+	);
 });
 
 test("알림에 있던 포커스가 모달·알림 밖으로 가면 모달로 되돌린다", () => {
