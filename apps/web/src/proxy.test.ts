@@ -79,7 +79,7 @@ describe("proxy 낙관적 확인(T15-a 랜딩)", () => {
 
 	it("공개 정적 파일은 matcher에서 빠진다", () => {
 		for (const url of [
-			"/brand/logo-light.png",
+			"/brand/logo-symbol.png",
 			"/screenshots/studio.png",
 			"/icon.png",
 			"/apple-icon.png",

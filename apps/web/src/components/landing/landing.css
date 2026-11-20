@@ -216,7 +216,8 @@
 	top: 50%;
 	height: 2px;
 	margin-top: -1px;
-	border-radius: 1px;
+	/* DESIGN radius-2(2px). 2px 높이 줄이라 양끝이 둥글다 */
+	border-radius: var(--radius-xs);
 	background: currentColor;
 	transition: transform 200ms var(--ease-in-out);
 }

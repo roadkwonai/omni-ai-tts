@@ -121,11 +121,12 @@ export function LandingBar() {
 						aria-hidden="true"
 						className="absolute inset-0 -z-10 rounded-2xl bg-background opacity-0 ring-1 ring-border transition-opacity group-data-scrolled/bar:opacity-100"
 					/>
+					{/* hover: 글자도 심볼과 같은 primary가 된다(메뉴 링크의 hover:text-primary와 같은 신호, 색 전환이라 움직임 줄이기에도 남는다) */}
 					<a
 						href="#top"
-						className="flex min-h-11 items-center rounded-lg outline-offset-2 transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-ring"
+						className="flex min-h-11 items-center rounded-lg outline-offset-2 transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-ring"
 					>
-						<LandingLogo eager className="h-10 w-auto" />
+						<LandingLogo />
 					</a>
 					<ul className="hidden items-center gap-1 md:flex">
 						{NAV_ITEMS.map((item) => (
@@ -171,7 +172,7 @@ export function LandingBar() {
 							<DialogContent className="landing-menu-panel fixed inset-0 m-0 flex h-dvh max-h-none w-full max-w-none flex-col overflow-y-auto overscroll-contain border-0 bg-background p-0 text-foreground">
 								<DialogTitle className="sr-only">메뉴</DialogTitle>
 								<div className="mx-3 mt-3 flex h-14 shrink-0 items-center justify-between px-4">
-									<LandingLogo className="h-10 w-auto" />
+									<LandingLogo />
 									<DialogClose aria-label="메뉴 닫기" className={MENU_BUTTON}>
 										<MenuIcon open />
 									</DialogClose>

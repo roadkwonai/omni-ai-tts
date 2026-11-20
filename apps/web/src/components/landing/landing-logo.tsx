@@ -1,39 +1,31 @@
-import Image from "next/image";
-
-// 심볼 + 글자 로고. 라이트·다크는 글자 색이 달라 두 판을 CSS로 가른다(숨은 판은 받지 않는다).
-// eager: 첫 화면 막대 로고는 LCP라 바로 받는다(Next 문서: preload 대신 loading="eager"). 숨은 판도 같이 받는 비용이 있다
-export function LandingLogo({
-	className,
-	eager,
-}: {
-	className?: string;
-	eager?: boolean;
-}) {
-	const loading = eager ? "eager" : undefined;
+// 심볼 + 글자 로고(높이 40px). 심볼은 물결 테두리 링 안 파형 막대 다섯을 원본 PNG(docs/assets/brand/logo-light.png, 1200×400)에서 잰
+// 인라인 SVG이고 색은 primary 토큰, 글자는 사이트 글꼴의 진짜 텍스트(currentColor)라 라이트·다크가 저절로 맞고 받을 이미지가 없다. 링크 이름은 글자가 맡는다.
+// 크기는 원본 비율(심볼 높이 ≈ 대문자 높이 × 3)대로 18px 글자(대문자 12.7px)에 심볼 38px. 전체 폭 약 145px라 320px 막대의 로고 자리 152px에 든다
+export function LandingLogo() {
 	return (
-		<>
-			<Image
-				src="/brand/logo-light.png"
-				alt="Omni AI TTS"
-				width={1200}
-				height={400}
-				translate="no"
-				sizes="120px"
-				loading={loading}
-				fetchPriority={eager ? "high" : undefined}
-				className={`${className} dark:hidden`}
-			/>
-			<Image
-				src="/brand/logo-dark.png"
-				alt="Omni AI TTS"
-				width={1200}
-				height={400}
-				translate="no"
-				sizes="120px"
-				loading={loading}
-				fetchPriority={eager ? "high" : undefined}
-				className={`${className} hidden dark:block`}
-			/>
-		</>
+		<span
+			translate="no"
+			className="inline-flex h-10 items-center gap-1.25 whitespace-nowrap font-bold text-lg leading-none tracking-tight"
+		>
+			<svg
+				aria-hidden="true"
+				viewBox="-162 -154 324 308"
+				fill="none"
+				stroke="currentColor"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+				className="h-9.5 w-10 shrink-0 text-primary"
+			>
+				<path
+					strokeWidth="17"
+					d="M137.7-14.5C137-20.1 140.5-26.4 141.3-32.6C142.1-38.8 144.6-46.3 142.4-51.8C140.1-57.3 132.8-61.6 127.8-65.8C122.7-70 115.7-72.9 112.1-77C108.5-81.2 108.5-86.3 106.3-90.8C104-95.3 104.3-100.9 98.8-104.1C93.2-107.3 81.3-109 72.9-110.1C64.4-111.1 55.1-107.3 48-110.5C41-113.7 37.1-123.4 30.4-129.1C23.7-134.8 15.6-144.6 7.6-144.6C-0.4-144.6-10.2-135-17.6-129.2C-25-123.4-29.4-112.7-36.8-110C-44.2-107.3-53.2-112.9-61.9-112.9C-70.6-112.9-83.1-112.8-89-110C-95-107.1-95-100.6-97.5-95.8C-100-91.1-99.9-85.8-104-81.3C-108.1-76.7-116.4-73.4-122.2-68.5C-128-63.6-136.2-57.5-138.8-51.9C-141.4-46.3-138.4-40.5-137.7-35C-137-29.5-133.5-24.8-134.7-18.9C-135.8-13.1-141.9-6.7-144.7 0C-147.6 6.7-153 14.9-152 21.4C-151 27.8-143.6 33.3-139 38.5C-134.4 43.8-126.8 47.3-124.3 52.7C-121.7 58.2-124.5 65.1-123.8 71.5C-123.2 77.9-125.4 85.8-120.6 90.9C-115.8 95.9-103.5 99.2-95 101.9C-86.5 104.6-76.2 103-69.6 107.1C-62.9 111.2-60.6 120.3-55 126.4C-49.3 132.5-43.3 142.2-35.8 143.6C-28.3 145-18 138.6-10 135C-2.1 131.5 4.6 123.1 11.8 122.2C18.9 121.4 25.5 128.1 33 130C40.5 132 50.4 135.8 56.9 133.9C63.3 132.1 67.1 124.2 71.5 118.9C75.8 113.7 77.8 106.3 83.1 102.6C88.3 98.9 96.4 99.4 103 96.9C109.6 94.4 118.8 92.3 122.8 87.6C126.7 82.9 125.8 75 126.7 68.8C127.5 62.6 125.6 55.9 127.9 50.4C130.3 44.9 136.8 41 140.8 35.8C144.8 30.5 151 24.4 151.9 18.6C152.7 12.9 148.1 6.8 145.7 1.3C143.4-4.2 138.5-8.8 137.7-14.5Z"
+				/>
+				<path
+					strokeWidth="28"
+					d="M-88 14V44M-44-21V48M0-60V48M44-21V48M88 14V44"
+				/>
+			</svg>
+			Omni AI TTS
+		</span>
 	);
 }

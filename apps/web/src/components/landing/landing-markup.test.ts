@@ -140,7 +140,7 @@ test("메뉴 단추는 열림 상태(aria-expanded)를 알리고 처음엔 닫�
 
 test("막대 로고와 이름은 번역하지 않는다", () => {
 	const html = renderToStaticMarkup(createElement(LandingBar));
-	expect(count(html, /<img [^>]*translate="no"/g)).toBeGreaterThanOrEqual(2);
+	expect(html).toMatch(/<span translate="no"[^>]*>.*?Omni AI TTS<\/span>/);
 });
 
 test("마지막 행동은 '데모 작업실 열기'(/studio?example=1)와 '처음으로 돌아가 다시 듣기'(오디션 무대 #audition-stage)이고 로그인 링크·투어 되돌리기는 없다", () => {
@@ -473,10 +473,16 @@ test("태그라인 스크롤 채움은 큰 화면·정밀 포인터·움직임 �
 	expect(block).not.toMatch(/opacity:\s*0\.3\b/);
 });
 
-test("막대 로고(첫 화면)는 loading=eager, 메뉴 패널 로고는 기본(lazy)이다", () => {
+test("막대 로고는 이미지 요청 없이 인라인 SVG 심볼(aria-hidden)과 진짜 글자라 링크 이름이 'Omni AI TTS'다", () => {
 	const html = renderToStaticMarkup(createElement(LandingBar));
-	expect(count(html, /<img [^>]*alt="Omni AI TTS"[^>]*loading="eager"/g)).toBe(
-		2,
+	expect(html).not.toContain("<img");
+	expect(html).not.toContain("/brand/logo-");
+	expect(html).toMatch(
+		/<a [^>]*href="#top"[^>]*><span translate="no"[^>]*><svg aria-hidden="true"[^>]*>.*?<\/svg>Omni AI TTS<\/span><\/a>/,
+	);
+	// hover는 글자를 primary로 바꾸는 색 신호다(투명도만 낮추지 않는다)
+	expect(html).toMatch(
+		/<a [^>]*href="#top"[^>]*class="[^"]*hover:text-primary/,
 	);
 });
 
