@@ -746,7 +746,7 @@ describe("막는 이유(브리프 8절, 이 순서)", () => {
 	it("(섞임 →) 성우 → 이름 빈 → 이름 겹침 → 이름 20자 → 빈 대사 → 300자 → 지시 60자 → <| → 장면 이름 40자 → 상한 → 없음", () => {
 		// 이름이 빈 화자가 앞에 있어도 성우 없는 화자가 먼저다
 		expect(block({ speakers: [sp("", "f1"), sp("민수")] })).toEqual({
-			text: "화자 ‘민수’의 성우를 골라 주세요",
+			text: "‘민수’의 성우를 골라 주세요",
 			target: { kind: "speaker", index: 1 },
 		});
 		expect(
@@ -891,7 +891,7 @@ describe("막는 이유(브리프 8절, 이 순서)", () => {
 		const two = [ln("a", 0, "가"), ln("b", 1, "나")];
 		expect(at(three, two)).toBeNull();
 		expect(at(three, [...two, ln("c", 2, "다")])).toEqual({
-			text: "화자 ‘셋’의 성우를 골라 주세요",
+			text: "‘셋’의 성우를 골라 주세요",
 			target: { kind: "speaker", index: 2 },
 		});
 		expect(
@@ -2000,7 +2000,7 @@ describe("드라마 문구(브리프 8절 정본)", () => {
 			enterHelp:
 				"대사 칸에서 Enter를 누르면 바로 아래에 다음 화자의 새 줄이 생겨요",
 			multiLinePasted:
-				"여러 줄을 한 줄로 합쳤어요. 줄마다 나누려면 대본 붙여 넣기를 써 주세요.",
+				"여러 줄을 한 줄로 합쳤어요. 줄마다 나누려면 대본 붙여 넣기를 써요.",
 			pasteDescription:
 				"‘이름: 대사’ 줄을 화자와 줄로 바꿔요. 이름이 없는 줄은 앞 줄의 화자가 이어 말해요.",
 			pasteLabel: "붙여 넣을 대본",
@@ -2229,7 +2229,7 @@ describe("드라마 문구(브리프 8절 정본)", () => {
 			"3번 줄, 지연",
 			"2줄을 새로 만들고 1,005줄은 저장된 소리를 써요",
 			"Gemini · 2줄 · 1,234자 · 추정 약 $0.0032",
-			"화자 ‘민수’의 성우를 골라 주세요",
+			"‘민수’의 성우를 골라 주세요",
 			"4번 줄이 읽기 상한 200자를 넘어요(지시 포함)",
 			"5번 줄은 보낼 대사가 없어요(태그만 있어요)",
 			"대본이 2,000자를 넘어 자동 태그를 쓸 수 없어요 (지금 2,153자)",
@@ -2483,15 +2483,15 @@ describe("무대·이전 테이크·막대 도움(Task 11, Ruling 12)", () => {
 		]);
 	});
 
-	it("창이 열린 채 이동 행동을 누르면 알림 설명이 행동 대상을 말한다(MG-12, 해요체·마침표 없음)", () => {
+	it("창이 열린 채 이동 행동을 누르면 알림 설명이 행동 대상을 말한다(MG-12, 해요체·마침표 없음. 성우의 화자 이름은 제목이 말한다: MG-16)", () => {
 		const hints = [
-			DRAMA_TEXT.afterCloseVoice("민수"),
+			DRAMA_TEXT.afterCloseVoice,
 			DRAMA_TEXT.afterCloseLine(3),
 			DRAMA_TEXT.afterCloseStage,
 			DRAMA_TEXT.afterClosePaste,
 		];
 		expect(hints).toEqual([
-			"창을 닫으면 ‘민수’ 성우를 고를 수 있어요",
+			"창을 닫으면 이어서 고를 수 있어요",
 			"창을 닫으면 3번 줄로 갈 수 있어요",
 			"창을 닫으면 무대로 갈 수 있어요",
 			"창을 닫으면 붙여 넣을 수 있어요",
@@ -2641,7 +2641,7 @@ describe("읽기를 막는 이유와 막대 이유 줄(브리프 14절 배치 5)
 		expect(
 			readBlockOf({ kind: "voice", lineId: null, speaker: 1 }, speakers, lines),
 		).toEqual({
-			text: "화자 ‘화자 2’의 성우를 골라 주세요",
+			text: "‘화자 2’의 성우를 골라 주세요",
 			target: { kind: "voice", index: 1 },
 		});
 		expect(
@@ -2697,7 +2697,7 @@ describe("읽기를 막는 이유와 막대 이유 줄(브리프 14절 배치 5)
 	});
 	it("같은 글(성우 없음·빈 대사)은 두 버튼이 함께 가리킨다", () => {
 		const voice = {
-			text: "화자 ‘민수’의 성우를 골라 주세요",
+			text: "‘민수’의 성우를 골라 주세요",
 			target: { kind: "speaker", index: 0 } as const,
 		};
 		expect(

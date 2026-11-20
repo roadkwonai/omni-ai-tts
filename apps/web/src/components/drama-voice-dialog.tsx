@@ -90,9 +90,9 @@ export const speakerFieldId = (index: number, field: "name" | "voice") =>
 type Tab = "saved" | "preset" | "all";
 // 성우 창 탭 패널(드라마 창과 성우 고르기 창이 같이 쓴다). 768px 이상은 넘치면 패널 안에서 스크롤한다.
 // 기준 높이는 basis(448px): TabsContent의 flex-1(기준 0%)은 창이 flex일 때 내용 높이로 풀려 짧은 탭만 창이 줄었다(MG-14 런타임).
-// 창이 최대 높이에 걸리면 160px까지 줄고, 더 모자라면 창이 스크롤한다
+// 창이 최대 높이에 걸리면 160px까지 줄고, 더 모자라면 창이 스크롤한다. 더 내릴 수 있으면 아래가 흐려진다(scroll-end-fade, index.css, MG-16)
 export const TAB_PANEL =
-	"overscroll-contain md:min-h-40 md:basis-112 md:overflow-y-auto md:px-1";
+	"overscroll-contain md:scroll-end-fade md:min-h-40 md:basis-112 md:overflow-y-auto md:px-1";
 // '전체' 탭 맨 위 공급자 고르기(브리프 14절 2). 순서는 화면 전체의 공급자 순서
 const PROVIDER_OPTIONS = PROVIDER_IDS.map((value) => ({
 	value,

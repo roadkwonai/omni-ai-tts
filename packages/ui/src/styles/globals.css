@@ -212,7 +212,7 @@
 }
 
 /* 모달 중 위 가운데 알림 자리(MG-14, apps/web/src/lib/toast-position.ts toastPlacement): 위 간격 8px + 세 줄 알림 약 96px + 여유 8px = 112px.
-   폭 768px·높이 736px 이상에서 가운데 대화상자는 최대 높이에서 이 값의 두 배를 빼 위 여백이 늘 이 값 이상이다(packages/ui dialog.tsx) */
+   폭 768px·높이 600px 이상(MG-16)에서 가운데 대화상자는 최대 높이에서 이 값의 두 배를 빼 위 여백이 늘 이 값 이상이다(packages/ui dialog.tsx) */
 :root {
 	--toast-clearance: calc(var(--spacing) * 28);
 }

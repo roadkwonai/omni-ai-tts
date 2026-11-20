@@ -178,8 +178,9 @@ export const DRAMA_TEXT = {
 	linesFull: "줄은 50개까지예요",
 	enterHelp:
 		"대사 칸에서 Enter를 누르면 바로 아래에 다음 화자의 새 줄이 생겨요",
+	// 모달 중 안내를 달아도 세 줄 이하(MG-16, modal-hint-lines.test)라 끝을 '써요'로 줄였다
 	multiLinePasted:
-		"여러 줄을 한 줄로 합쳤어요. 줄마다 나누려면 대본 붙여 넣기를 써 주세요.",
+		"여러 줄을 한 줄로 합쳤어요. 줄마다 나누려면 대본 붙여 넣기를 써요.",
 	pasteDescription:
 		"‘이름: 대사’ 줄을 화자와 줄로 바꿔요. 이름이 없는 줄은 앞 줄의 화자가 이어 말해요.",
 	pasteLabel: "붙여 넣을 대본",
@@ -260,8 +261,9 @@ export const DRAMA_TEXT = {
 		"같은 대본의 앞 요청은 처리 여부를 아직 몰라요. 다시 만들면 크레딧이 한 번 더 쓰일 수 있어요.",
 	confirmMake: "크레딧 쓰고 만들기",
 
-	// 막는 이유(dramaBlock, 이 순서)
-	noVoice: (name: string) => `화자 ‘${name}’의 성우를 골라 주세요`,
+	// 막는 이유(dramaBlock, 이 순서). noVoice는 읽기의 readVoiceBlock과 같은 글이다(막대가 한 줄로 합친다).
+	// 이름 상한(20자)에서도 알림 두 줄이라 모달 중 안내까지 세 줄 이하다(MG-16, modal-hint-lines.test)
+	noVoice: (name: string) => `‘${name}’의 성우를 골라 주세요`,
 	noName: (i: number) => `화자 ${i}의 이름을 써 주세요`,
 	sameName: (name: string) => `같은 이름의 화자가 있어요 (‘${name}’)`,
 	nameTooLong: (i: number, count: number) =>
@@ -407,9 +409,9 @@ export const DRAMA_TEXT = {
 	// 막는 이유의 이동 버튼(8절 막는 이유 표의 이동 버튼 열)
 	toName: "이름 칸으로",
 	toLine: (line: number) => `${line}번 줄로`,
-	// 창이 열린 채 알림의 이동 행동을 눌렀을 때 그 알림 설명(MG-12, modal-action unlessModal). 행동 대상을 말한다
-	afterCloseVoice: (name: string) =>
-		`창을 닫으면 ‘${name}’ 성우를 고를 수 있어요`,
+	// 창이 열린 채 알림의 이동 행동을 눌렀을 때 그 알림 설명(MG-12, modal-action unlessModal). 행동 대상을 말한다.
+	// 제목 + 안내는 세 줄 이하다(MG-16, modal-hint-lines.test). 성우는 제목이 화자 이름을 말해 안내에서 뺀다(이름 20자면 넘친다)
+	afterCloseVoice: "창을 닫으면 이어서 고를 수 있어요",
 	afterCloseLine: (line: number) => `창을 닫으면 ${line}번 줄로 갈 수 있어요`,
 	afterCloseStage: "창을 닫으면 무대로 갈 수 있어요",
 	afterClosePaste: "창을 닫으면 붙여 넣을 수 있어요",
@@ -461,7 +463,7 @@ export const DRAMA_TEXT = {
 		`${PROVIDER_LABEL[provider]} · ${n(lines)}줄 · ${n(chars)}자 · ${usageText(usage)}`,
 	// 확인 창 취소는 cancel
 	readConfirmGo: "읽기",
-	readVoiceBlock: (name: string) => `화자 ‘${name}’의 성우를 골라 주세요`,
+	readVoiceBlock: (name: string) => `‘${name}’의 성우를 골라 주세요`,
 	readLongBlock: (line: number) =>
 		`${line}번 줄이 읽기 상한 ${n(TRIAL_TEXT_MAX)}자를 넘어요(지시 포함)`,
 	readEmptyBlock: (line: number) =>

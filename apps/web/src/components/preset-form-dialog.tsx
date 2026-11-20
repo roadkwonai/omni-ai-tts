@@ -33,6 +33,7 @@ import { plain } from "@/lib/voice-view";
 import { OWNED_LIST, orpc } from "@/utils/orpc";
 
 import {
+	DIALOG_BODY,
 	DialogButtons,
 	fieldClass,
 	isComposingEnter,
@@ -186,10 +187,11 @@ export function PresetFormDialog({
 				finalFocus={() =>
 					(goneRef.current ? goneFocus() : openerRef.current) ?? true
 				}
+				className="md:flex md:flex-col"
 			>
 				<form
 					noValidate
-					className="flex flex-col gap-5"
+					className="flex flex-col gap-5 md:min-h-0"
 					onSubmit={(event) => {
 						event.preventDefault();
 						submit();
@@ -201,118 +203,123 @@ export function PresetFormDialog({
 					<DialogHeader>
 						<DialogTitle className="wrap-anywhere">{title}</DialogTitle>
 					</DialogHeader>
-					{/* 요약 두 줄이 창의 설명이다(창을 열면 읽힌다, critique P2). 설명은 <p>라 <div>로 연다 */}
-					{summary ? (
-						<DialogDescription
-							render={<div />}
-							className="flex flex-col gap-1 text-sm"
-						>
-							{summary}
-						</DialogDescription>
-					) : null}
-					<div className="flex flex-col gap-2">
-						<div className="flex items-baseline justify-between gap-3">
-							<Label htmlFor={`${ids}-name`} className="font-bold text-sm">
-								이름
-							</Label>
-							<span
-								id={`${ids}-count`}
-								className={cn(
-									"text-sm tabular-nums",
-									nameCount > NAME_MAX
-										? "text-warning"
-										: "text-muted-foreground",
-								)}
+					<div className={DIALOG_BODY}>
+						{/* 요약 두 줄이 창의 설명이다(창을 열면 읽힌다, critique P2). 설명은 <p>라 <div>로 연다 */}
+						{summary ? (
+							<DialogDescription
+								render={<div />}
+								className="flex flex-col gap-1 text-sm"
 							>
-								{plain.format(nameCount)} / {NAME_MAX}자
-							</span>
-						</div>
-						<Input
-							ref={nameRef}
-							id={`${ids}-name`}
-							name="name"
-							autoComplete="off"
-							className={fieldClass}
-							value={values.name}
-							readOnly={pending}
-							aria-invalid={problem ? true : undefined}
-							aria-describedby={
-								problem ? `${ids}-name-error ${ids}-count` : `${ids}-count`
-							}
-							onChange={(event) => {
-								const { value } = event.target;
-								setValues((all) => ({ ...all, name: value }));
-								setProblem(null);
-							}}
-						/>
-						{problem ? (
-							<p
-								id={`${ids}-name-error`}
-								role="alert"
-								className="text-sm text-warning"
-							>
-								{problem}
-							</p>
+								{summary}
+							</DialogDescription>
 						) : null}
-					</div>
-					<div className="flex flex-col gap-2">
-						{/* 칸 이름은 RadioMenu 버튼의 '채널 · …'이 맡는다(위 글자 라벨을 두지 않는다, 계획 리뷰 D6) */}
-						<RadioMenu
-							label={PRESET_TEXT.channel}
-							value={values.channelId ?? NO_CHANNEL}
-							options={options}
-							// 받는 중이거나 받지 못하면(받아 둔 목록이 있어도) 누를 수 없다(브리프 5절)
-							disabled={pending || !channels.isSuccess}
-							className="w-full justify-between"
-							// 채널을 바꾸면 기본 체크를 푼다(다른 채널의 기본을 모르고 바꾸지 않게, 계획 리뷰 E6)
-							onChange={(next) =>
-								setValues((all) => ({
-									...all,
-									channelId: next === NO_CHANNEL ? null : next,
-									channelDefault: false,
-								}))
-							}
-						/>
-						{channels.isError ? (
-							<p className="text-sm text-warning">
-								{PRESET_TEXT.channelsFailed}
-							</p>
-						) : channels.data?.length === 0 ? (
-							<p className="text-muted-foreground text-sm">
-								{PRESET_TEXT.noChannels}
-							</p>
-						) : null}
-						{/* 줄 전체가 눌림 영역이다(44px, 계획 리뷰 D7). 채널이 없어 꺼지면 라벨도 회색이다(누를 수 있는 줄로 보이지 않게, 브리프 5절) */}
-						<Label
-							className={cn(
-								"flex min-h-11 items-center gap-3 text-sm",
-								values.channelId === null && "text-muted-foreground",
-							)}
-						>
-							<Checkbox
-								checked={values.channelDefault}
-								disabled={pending || values.channelId === null}
+						<div className="flex flex-col gap-2">
+							<div className="flex items-baseline justify-between gap-3">
+								<Label htmlFor={`${ids}-name`} className="font-bold text-sm">
+									이름
+								</Label>
+								<span
+									id={`${ids}-count`}
+									className={cn(
+										"text-sm tabular-nums",
+										nameCount > NAME_MAX
+											? "text-warning"
+											: "text-muted-foreground",
+									)}
+								>
+									{plain.format(nameCount)} / {NAME_MAX}자
+								</span>
+							</div>
+							<Input
+								ref={nameRef}
+								id={`${ids}-name`}
+								name="name"
+								autoComplete="off"
+								className={fieldClass}
+								value={values.name}
+								readOnly={pending}
+								aria-invalid={problem ? true : undefined}
 								aria-describedby={
-									values.channelId === null ? `${ids}-default-why` : undefined
+									problem ? `${ids}-name-error ${ids}-count` : `${ids}-count`
 								}
-								onCheckedChange={(on) =>
-									setValues((all) => ({ ...all, channelDefault: on === true }))
+								onChange={(event) => {
+									const { value } = event.target;
+									setValues((all) => ({ ...all, name: value }));
+									setProblem(null);
+								}}
+							/>
+							{problem ? (
+								<p
+									id={`${ids}-name-error`}
+									role="alert"
+									className="text-sm text-warning"
+								>
+									{problem}
+								</p>
+							) : null}
+						</div>
+						<div className="flex flex-col gap-2">
+							{/* 칸 이름은 RadioMenu 버튼의 '채널 · …'이 맡는다(위 글자 라벨을 두지 않는다, 계획 리뷰 D6) */}
+							<RadioMenu
+								label={PRESET_TEXT.channel}
+								value={values.channelId ?? NO_CHANNEL}
+								options={options}
+								// 받는 중이거나 받지 못하면(받아 둔 목록이 있어도) 누를 수 없다(브리프 5절)
+								disabled={pending || !channels.isSuccess}
+								className="w-full justify-between"
+								// 채널을 바꾸면 기본 체크를 푼다(다른 채널의 기본을 모르고 바꾸지 않게, 계획 리뷰 E6)
+								onChange={(next) =>
+									setValues((all) => ({
+										...all,
+										channelId: next === NO_CHANNEL ? null : next,
+										channelDefault: false,
+									}))
 								}
 							/>
-							{PRESET_TEXT.channelDefault}
-						</Label>
-						{values.channelId === null ? (
-							<p
-								id={`${ids}-default-why`}
-								className="text-muted-foreground text-sm"
+							{channels.isError ? (
+								<p className="text-sm text-warning">
+									{PRESET_TEXT.channelsFailed}
+								</p>
+							) : channels.data?.length === 0 ? (
+								<p className="text-muted-foreground text-sm">
+									{PRESET_TEXT.noChannels}
+								</p>
+							) : null}
+							{/* 줄 전체가 눌림 영역이다(44px, 계획 리뷰 D7). 채널이 없어 꺼지면 라벨도 회색이다(누를 수 있는 줄로 보이지 않게, 브리프 5절) */}
+							<Label
+								className={cn(
+									"flex min-h-11 items-center gap-3 text-sm",
+									values.channelId === null && "text-muted-foreground",
+								)}
 							>
-								{PRESET_TEXT.defaultNeedsChannel}
-							</p>
-						) : current ? (
-							<p className="text-muted-foreground text-sm">
-								{defaultNote(current.name)}
-							</p>
-						) : null}
+								<Checkbox
+									checked={values.channelDefault}
+									disabled={pending || values.channelId === null}
+									aria-describedby={
+										values.channelId === null ? `${ids}-default-why` : undefined
+									}
+									onCheckedChange={(on) =>
+										setValues((all) => ({
+											...all,
+											channelDefault: on === true,
+										}))
+									}
+								/>
+								{PRESET_TEXT.channelDefault}
+							</Label>
+							{values.channelId === null ? (
+								<p
+									id={`${ids}-default-why`}
+									className="text-muted-foreground text-sm"
+								>
+									{PRESET_TEXT.defaultNeedsChannel}
+								</p>
+							) : current ? (
+								<p className="text-muted-foreground text-sm">
+									{defaultNote(current.name)}
+								</p>
+							) : null}
+						</div>
 					</div>
 					{failure ? (
 						<p role="alert" className="text-sm text-warning">

@@ -185,8 +185,9 @@ export function MyVoiceCreate({
 				initialFocus={() => firstRef.current ?? true}
 				// 빈 상태에서 만든 뒤처럼 연 버튼이 사라졌어도 페이지의 '만들기'로 돌아간다
 				finalFocus={() => document.getElementById(CREATE_ID) ?? true}
-				// 390px는 전체 높이 시트. 안쪽 단계 칸만 스크롤하고 버튼 줄은 아래에 둔다
-				className="h-dvh rounded-none max-md:flex max-md:flex-col max-md:overflow-hidden md:h-auto md:max-w-160 md:rounded-2xl"
+				// 390px는 전체 높이 시트. 안쪽 단계 칸만 스크롤하고 버튼 줄은 아래에 둔다.
+				// 768px 이상도 창이 최대 높이(알림 자리, MG-14·MG-16)에 걸리면 단계 칸만 줄어 스크롤한다(머리·버튼 줄 고정)
+				className="flex h-dvh flex-col rounded-none max-md:overflow-hidden md:h-auto md:max-w-160 md:rounded-2xl"
 			>
 				<CreateFlow
 					providers={providers}
@@ -415,7 +416,7 @@ function CreateFlow({
 	return (
 		<form
 			noValidate
-			className="flex flex-col gap-5 max-md:min-h-0 max-md:flex-1"
+			className="flex min-h-0 flex-col gap-5 max-md:flex-1"
 			onSubmit={(event) => {
 				event.preventDefault();
 				if (last) send();
@@ -454,7 +455,8 @@ function CreateFlow({
 				</p>
 			</div>
 
-			<section className="flex flex-col gap-4 max-md:-mx-1 max-md:min-h-0 max-md:flex-1 max-md:overflow-y-auto max-md:px-1">
+			{/* 스크롤 칸이 포커스 링을 자르지 않게 사방 4px */}
+			<section className="-m-1 flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain p-1 max-md:flex-1">
 				<h3 ref={headingRef} tabIndex={-1} className={heading}>
 					{STEP_NAME[step]}
 				</h3>

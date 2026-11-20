@@ -131,6 +131,22 @@ test("막대 주 버튼은 좁으면 '· N개'부터 빼고 동사만 줄며 '·
 	expect(flat).toContain("aria-label={mainLabel}");
 });
 
+test("767px 이하 막대 주 버튼 묶음은 최소 글 폭(w-min)에서 남는 폭을 채우는 상자다(contents로 풀지 않는다, MG-15·MG-17)", () => {
+	const bar = readFileSync(
+		new URL("./paragraph-bar.tsx", import.meta.url),
+		"utf8",
+	);
+	const OPEN = '<div className="';
+	const at = bar.indexOf("ref={setMain}");
+	expect(at).toBeGreaterThan(0);
+	const open = bar.lastIndexOf(OPEN, at) + OPEN.length;
+	const group = bar.slice(open, bar.indexOf('"', open)).split(" ");
+	expect(group).toEqual(
+		expect.arrayContaining(["max-md:w-min", "max-md:flex-auto"]),
+	);
+	expect(group).not.toContain("max-md:contents");
+});
+
 test("빈 상태에서는 모든 폭에서 막대와 '만들기와 받기로' 건너뛰기 링크를 접는다(MG-03)", () => {
 	const bar = readFileSync(
 		new URL("./paragraph-bar.tsx", import.meta.url),

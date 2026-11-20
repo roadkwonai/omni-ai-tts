@@ -47,11 +47,9 @@ import {
 import {
 	DRAMA_TEXT,
 	type DraftLine,
-	type DraftSpeaker,
 	joinFileName,
 	lineFileName,
 	readBlockOf,
-	speakerNameOf,
 	zipFileName,
 } from "@/lib/drama-view";
 import { unlessModal } from "@/lib/modal-action";
@@ -138,10 +136,9 @@ const PLAY_FAILED = {
 const RATES_STALE = 60 * 60 * 1000;
 
 // 읽기를 막는 이유의 알림 버튼. 막대의 이동 버튼과 같다: 성우 없음 → 그 화자의 성우 창, 줄 → 그 줄의 문제 칸('…번 줄로').
-// 모달이 열려 있으면 둘 다 하지 않고 알림을 남긴다(창 위에 성우 창을 겹치거나 창 뒤 칸으로 포커스를 빼지 않는다, MG-11). 설명은 그 대상을 말한다(MG-12)
+// 모달이 열려 있으면 둘 다 하지 않고 알림을 남긴다(창 위에 성우 창을 겹치거나 창 뒤 칸으로 포커스를 빼지 않는다, MG-11). 설명은 그 대상을 말한다(MG-12, 화자 이름은 제목이 말한다: MG-16)
 function blockActionOf(
 	{ target }: ReturnType<typeof readBlockOf>,
-	speakers: readonly Pick<DraftSpeaker, "name">[],
 	lines: readonly DraftLine[],
 ) {
 	if (target?.kind === "voice")
@@ -152,7 +149,7 @@ function blockActionOf(
 					document
 						.getElementById(speakerFieldId(target.index, "voice"))
 						?.click(),
-				DRAMA_TEXT.afterCloseVoice(speakerNameOf(speakers, target.index)),
+				DRAMA_TEXT.afterCloseVoice,
 			),
 		};
 	if (target?.kind !== "line") return undefined;
@@ -519,7 +516,7 @@ export function DramaReadProvider({ children }: { children: ReactNode }) {
 		if ("problem" in read) {
 			const block = readBlockOf(read.problem, drama.speakers, lines);
 			toast.error(block.text, {
-				action: blockActionOf(block, drama.speakers, lines),
+				action: blockActionOf(block, lines),
 			});
 			return;
 		}

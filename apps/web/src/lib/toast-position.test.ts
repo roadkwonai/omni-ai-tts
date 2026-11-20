@@ -50,7 +50,7 @@ test("상단 막대가 보이는 폭(601~767px, sonner는 offset을 쓴다)도 �
 	expect(open.mobileOffset.top).toBe(72);
 });
 
-test("768px 이상 가운데 대화상자는 최대 높이에서 알림 자리를 위아래로 빼 위 여백이 세 줄 알림 끝 이상이다(MG-14)", () => {
+test("768px·높이 600px 이상 가운데 대화상자는 최대 높이에서 알림 자리를 위아래로 빼 위 여백이 세 줄 알림 끝 이상이다(MG-14·MG-16)", () => {
 	const ui = (path: string) =>
 		readFileSync(
 			new URL(`../../../../packages/ui/src/${path}`, import.meta.url),
@@ -64,7 +64,7 @@ test("768px 이상 가운데 대화상자는 최대 높이에서 알림 자리�
 		toastPlacement(true, false).offset.top + 96,
 	);
 	expect(ui("components/dialog.tsx")).toContain(
-		"[@media(min-width:48rem)_and_(min-height:46rem)]:max-h-[calc(100dvh_-_2*var(--toast-clearance))]",
+		"[@media(min-width:48rem)_and_(min-height:37.5rem)]:max-h-[calc(100dvh_-_2*var(--toast-clearance))]",
 	);
 });
 

@@ -388,7 +388,7 @@
 | `addLine` / `paste` | 줄 추가 / 대본 붙여 넣기 | 목록 아래(스펙) |
 | `linesFull` | 줄은 50개까지예요 | `role="status"` |
 | `enterHelp` | 대사 칸에서 Enter를 누르면 바로 아래에 다음 화자의 새 줄이 생겨요 | 목록 아래 도움 줄(DN-4) |
-| `multiLinePasted` | 여러 줄을 한 줄로 합쳤어요. 줄마다 나누려면 대본 붙여 넣기를 써 주세요. | 알림 + 동작 '대본 붙여 넣기' |
+| `multiLinePasted` | 여러 줄을 한 줄로 합쳤어요. 줄마다 나누려면 대본 붙여 넣기를 써요. (MG-16: 모달 중 안내와 세 줄 이하) | 알림 + 동작 '대본 붙여 넣기' |
 | `pasteDescription` | ‘이름: 대사’ 줄을 화자와 줄로 바꿔요. 이름이 없는 줄은 앞 줄의 화자가 이어 말해요. | 창 설명 |
 | `pasteLabel` / `pastePlaceholder` | 붙여 넣을 대본 / 지연: 또 늦었네. 삼십 분이나 기다렸어.⏎민수: 미안, 미안! 지하철이 갑자기 멈춰 버렸어. | 글 칸 |
 | `pasteSummary(줄, 화자)` | {6}줄 · 화자 {2}명 | 미리 보기 요약 |
@@ -436,7 +436,7 @@
 **막는 이유(`dramaBlock`, 이 순서) · 나누지 못함 경고(`splitWarning`)**
 | 경우 | 문구 | 이동 버튼 |
 |---|---|---|
-| 대본에 쓰인 화자 중 성우 없는 화자(줄이 없는 화자는 성우가 비어도 막지 않는다) | 화자 ‘{민수}’의 성우를 골라 주세요 | 성우 고르기 |
+| 대본에 쓰인 화자 중 성우 없는 화자(줄이 없는 화자는 성우가 비어도 막지 않는다) | ‘{민수}’의 성우를 골라 주세요 | 성우 고르기 |
 | 이름 빈 | 화자 {2}의 이름을 써 주세요 | 이름 칸으로 |
 | 이름 겹침 | 같은 이름의 화자가 있어요 (‘{민수}’) | 이름 칸으로(뒤 화자) |
 | 이름 20자 초과 | 화자 {2}의 이름을 20자 이하로 줄여 주세요 (지금 {23}자) | 이름 칸으로 |
@@ -686,7 +686,7 @@
 | `readConfirmBody(make, reuse)` | {make}줄을 새로 만들고 {reuse}줄은 저장된 소리를 써요 |
 | `readConfirmRow(provider, lines, chars, usage)` | {provider} · {lines}줄 · {chars}자 · {T5 usageText} |
 | `readConfirmGo` · 취소 | 읽기 · 취소 |
-| `readVoiceBlock(name)` · `readLongBlock(line)` · `readEmptyBlock(line)` | 화자 ‘{name}’의 성우를 골라 주세요 · {line}번 줄이 읽기 상한 200자를 넘어요(지시 포함) · {line}번 줄은 보낼 대사가 없어요(태그만 있어요) |
+| `readVoiceBlock(name)` · `readLongBlock(line)` · `readEmptyBlock(line)` | ‘{name}’의 성우를 골라 주세요 · {line}번 줄이 읽기 상한 200자를 넘어요(지시 포함) · {line}번 줄은 보낼 대사가 없어요(태그만 있어요) |
 | `autoTag` | 전체 자동 태그 |
 | `autoTagLong(count)` | 대본이 2,000자를 넘어 자동 태그를 쓸 수 없어요 (지금 {count}자) |
 | `autoTagTitle` | 대본을 보내 연기 값을 제안받을까요? |

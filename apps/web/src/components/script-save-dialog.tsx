@@ -34,6 +34,7 @@ import { client, OWNED_LIST, orpc } from "@/utils/orpc";
 
 import { ClassChecklist } from "./class-checklist";
 import {
+	DIALOG_BODY,
 	DialogButtons,
 	fieldClass,
 	isComposingEnter,
@@ -295,11 +296,11 @@ export function ScriptSaveDialog({
 					return titleRef.current ?? true;
 				}}
 				finalFocus={() => openerRef.current ?? true}
-				className="md:max-w-lg"
+				className="md:flex md:max-w-lg md:flex-col"
 			>
 				<form
 					noValidate
-					className="flex flex-col gap-5"
+					className="flex flex-col gap-5 md:min-h-0"
 					onSubmit={(event) => {
 						event.preventDefault();
 						submit();
@@ -326,23 +327,25 @@ export function ScriptSaveDialog({
 							)}
 						</DialogDescription>
 					</DialogHeader>
-					<ScriptFields
-						title={title}
-						onTitle={(next) => {
-							setTitle(next);
-							setProblem(null);
-						}}
-						problem={problem}
-						tooLong={tooLong}
-						titleRef={titleRef}
-						pending={pending}
-						channelId={channelId}
-						onChannel={setChannelId}
-						channelNote={SCRIPT_TEXT.channelNote}
-						category={category}
-						type={type}
-						onToggle={toggle}
-					/>
+					<div className={DIALOG_BODY}>
+						<ScriptFields
+							title={title}
+							onTitle={(next) => {
+								setTitle(next);
+								setProblem(null);
+							}}
+							problem={problem}
+							tooLong={tooLong}
+							titleRef={titleRef}
+							pending={pending}
+							channelId={channelId}
+							onChannel={setChannelId}
+							channelNote={SCRIPT_TEXT.channelNote}
+							category={category}
+							type={type}
+							onToggle={toggle}
+						/>
+					</div>
 					{failure ? (
 						<p role="alert" className="text-sm text-warning">
 							{failure}

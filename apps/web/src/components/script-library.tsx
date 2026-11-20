@@ -77,7 +77,11 @@ import { SCRIPT_TEXT } from "@/lib/script-text";
 import { firstSentenceTitle } from "@/lib/script-work";
 import { failureOf } from "@/lib/voice-failure";
 import { client, orpc, QUIET } from "@/utils/orpc";
-import { DialogButtons, isComposingEnter } from "./class-form-dialog";
+import {
+	DIALOG_BODY,
+	DialogButtons,
+	isComposingEnter,
+} from "./class-form-dialog";
 import { boxClass } from "./class-group";
 import { ConfirmDialog } from "./confirm-dialog";
 import { EmptyState } from "./empty-state";
@@ -885,11 +889,11 @@ function ScriptEditDialog({
 					return titleRef.current ?? true;
 				}}
 				finalFocus={() => openerRef.current ?? true}
-				className="md:max-w-lg"
+				className="md:flex md:max-w-lg md:flex-col"
 			>
 				<form
 					noValidate
-					className="flex flex-col gap-5"
+					className="flex flex-col gap-5 md:min-h-0"
 					onSubmit={(event) => {
 						event.preventDefault();
 						submit();
@@ -917,22 +921,24 @@ function ScriptEditDialog({
 								: SCRIPT_TEXT.preview(row.paragraphCount, row.charCount)}
 						</DialogDescription>
 					</DialogHeader>
-					<ScriptFields
-						title={title}
-						onTitle={(next) => {
-							setTitle(next);
-							setProblem(null);
-						}}
-						problem={problem}
-						tooLong={tooLong}
-						titleRef={titleRef}
-						pending={pending}
-						channelId={channelId}
-						onChannel={setChannelId}
-						category={category}
-						type={type}
-						onToggle={toggle}
-					/>
+					<div className={DIALOG_BODY}>
+						<ScriptFields
+							title={title}
+							onTitle={(next) => {
+								setTitle(next);
+								setProblem(null);
+							}}
+							problem={problem}
+							tooLong={tooLong}
+							titleRef={titleRef}
+							pending={pending}
+							channelId={channelId}
+							onChannel={setChannelId}
+							category={category}
+							type={type}
+							onToggle={toggle}
+						/>
+					</div>
 					{failure ? (
 						<p role="alert" className="text-sm text-warning">
 							{failure}

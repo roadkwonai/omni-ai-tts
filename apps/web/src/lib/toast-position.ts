@@ -165,9 +165,9 @@ const BAR_BOTTOM = "var(--studio-bar-height, 0px)";
 
 // 아래 간격은 설치본 sonner 2.0.8 기본값(24px·휴대폰 16px)이다. 위 간격은 모달이 열린 동안만 쓰며 데스크톱 8px, 상단 막대가 보이는 폭(767px 이하) 72px이다.
 // 8px(MG-11): 가운데 대화상자는 위아래 여백이 같아, 위 간격이 크면 키 큰 창의 제목을 덮는다.
-// 알림 자리(MG-14): 폭 768px·높이 736px 이상에서 가운데 대화상자는 최대 높이가 100dvh - 2 × --toast-clearance(112px = 8px + 세 줄 알림 약 96px + 여유 8px,
-// packages/ui globals.css)라 위 여백이 늘 112px 이상이다. 1024×768에서 최대 544px, 위 여백 112px ≥ 세 줄 알림 끝 104px.
-// shortcut: 높이 736px 미만 화면(창 최대 = 화면 높이, dialog.tsx)과 네 줄 이상 알림(약 118px)은 알림이 키 큰 창의 제목을 덮을 수 있다, 그런 화면·알림이 흔해지면 짧은 화면의 폼 창 버튼 줄을 본문 스크롤로 고정한 뒤 문턱을 낮추거나 문구를 줄인다.
+// 알림 자리(MG-14·MG-16): 폭 768px·높이 600px 이상에서 가운데 대화상자는 최대 높이가 100dvh - 2 × --toast-clearance(112px = 8px + 세 줄 알림 약 96px + 여유 8px,
+// packages/ui globals.css)라 위 여백이 늘 112px 이상이다. 1280×600에서 최대 376px, 위 여백 112px ≥ 세 줄 알림 끝 104px. 모달 중 안내 알림은 세 줄 이하다(modal-hint-lines.test).
+// shortcut: 높이 600px 미만 화면(가로 휴대폰 등, 창 최대 = 화면 높이, dialog.tsx)은 알림이 키 큰 창의 제목을 덮을 수 있다(그 높이에선 알림 자리를 빼면 폼 창이 들어가지 않는다), 그런 화면이 흔해지면 모달 중 알림을 창 아래로 옮기는 것을 검토한다.
 // 72px: 상단 막대는 59px(app-nav.tsx 297·315행: 칸 50px + py-1 8px + 아래 선 1px)이라 막대 아래 13px 떨어지고, 오른쪽 시트 닫기 버튼(top-3 + 44px = 56px)과도 겹치지 않는다.
 // sonner의 mobileOffset은 600px 이하에서만 쓰여(index.mjs 457행 @media (max-width:600px)) 601~767px은 offset으로 같은 72px을 준다(MG-12)
 export function toastPlacement(modalOpen: boolean, topBar: boolean) {

@@ -54,6 +54,12 @@ export const isComposingEnter = (event: React.KeyboardEvent) =>
 	event.key === "Enter" &&
 	(event.nativeEvent.isComposing || event.keyCode === 229);
 
+// DialogButtons를 쓰는 창의 본문(머리와 버튼 줄 사이). 768px 이상은 창이 세로 flex(md:flex md:flex-col, form이면 form도 md:min-h-0)일 때
+// 창이 최대 높이(알림 자리, MG-14·MG-16)에 걸리면 이 본문만 줄어 스크롤하고 머리·버튼 줄은 남는다. 사방 4px은 스크롤 칸이 포커스 링을 자르지 않게.
+// 넘칠 때만 아래가 흐려져 더 있음을 알리고, 포커스로 스크롤된 칸은 흐림 위에 선다(scroll-end-fade, index.css)
+export const DIALOG_BODY =
+	"flex min-w-0 flex-col gap-5 md:scroll-end-fade md:-m-1 md:min-h-0 md:overflow-y-auto md:overscroll-contain md:p-1";
+
 // 창 아래 '취소'와 주 버튼(입력 창 둘, 프리셋 불러오기 창). 진행 중에는 둘 다 누를 수 없고(포커스는 간다) 주 버튼에 스피너가 돈다.
 // 767px 이하 시트에서는 두 버튼이 가로 반반(브리프 5절 B3). onSubmit이 없으면 주 버튼은 form 제출이다
 export function DialogButtons({
@@ -269,10 +275,11 @@ export function ClassFormDialog({
 				finalFocus={() =>
 					(goneRef.current ? createRef.current : openerRef.current) ?? true
 				}
+				className="md:flex md:flex-col"
 			>
 				<form
 					noValidate
-					className="flex flex-col gap-5"
+					className="flex flex-col gap-5 md:min-h-0"
 					onSubmit={(event) => {
 						event.preventDefault();
 						submit();
@@ -298,56 +305,58 @@ export function ClassFormDialog({
 							{editing === "new" ? "만들기" : "고치기"}
 						</DialogTitle>
 					</DialogHeader>
-					<div className="flex flex-col gap-2">
-						<Label htmlFor={`${ids}-name`} className="font-bold text-sm">
-							이름
-						</Label>
-						<Input
-							ref={nameRef}
-							autoComplete="off"
-							className={fieldClass}
-							{...bind("name")}
-						/>
-						{error("name")}
-					</div>
-					{group === "channel" ? (
+					<div className={DIALOG_BODY}>
 						<div className="flex flex-col gap-2">
-							<Label htmlFor={`${ids}-url`} className="font-bold text-sm">
-								채널 주소 <Optional />
+							<Label htmlFor={`${ids}-name`} className="font-bold text-sm">
+								이름
 							</Label>
 							<Input
-								type="url"
-								inputMode="url"
-								autoComplete="url"
-								spellCheck={false}
-								placeholder="https://youtube.com/@…"
+								ref={nameRef}
+								autoComplete="off"
 								className={fieldClass}
-								{...bind("url")}
+								{...bind("name")}
 							/>
-							{error("url")}
+							{error("name")}
 						</div>
-					) : null}
-					<div className="flex flex-col gap-2">
-						<div className="flex items-baseline justify-between gap-3">
-							<Label htmlFor={`${ids}-memo`} className="font-bold text-sm">
-								메모 <Optional />
-							</Label>
-							<span
-								id={`${ids}-memo-count`}
-								className={cn(
-									"text-sm tabular-nums",
-									memoCount >= 190 ? "text-warning" : "text-muted-foreground",
-								)}
-							>
-								{plain.format(memoCount)} / {MEMO_MAX}자
-							</span>
+						{group === "channel" ? (
+							<div className="flex flex-col gap-2">
+								<Label htmlFor={`${ids}-url`} className="font-bold text-sm">
+									채널 주소 <Optional />
+								</Label>
+								<Input
+									type="url"
+									inputMode="url"
+									autoComplete="url"
+									spellCheck={false}
+									placeholder="https://youtube.com/@…"
+									className={fieldClass}
+									{...bind("url")}
+								/>
+								{error("url")}
+							</div>
+						) : null}
+						<div className="flex flex-col gap-2">
+							<div className="flex items-baseline justify-between gap-3">
+								<Label htmlFor={`${ids}-memo`} className="font-bold text-sm">
+									메모 <Optional />
+								</Label>
+								<span
+									id={`${ids}-memo-count`}
+									className={cn(
+										"text-sm tabular-nums",
+										memoCount >= 190 ? "text-warning" : "text-muted-foreground",
+									)}
+								>
+									{plain.format(memoCount)} / {MEMO_MAX}자
+								</span>
+							</div>
+							<Textarea
+								autoComplete="off"
+								className={cn(fieldClass, "min-h-20")}
+								{...bind("memo")}
+							/>
+							{error("memo")}
 						</div>
-						<Textarea
-							autoComplete="off"
-							className={cn(fieldClass, "min-h-20")}
-							{...bind("memo")}
-						/>
-						{error("memo")}
 					</div>
 					{failure ? (
 						<p role="alert" className="text-sm text-warning">

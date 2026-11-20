@@ -94,6 +94,8 @@ export function DramaAutoTag({
 	const [error, setError] = useState<string | null>(null);
 	const [preview, setPreview] = useState<Preview>({ changes: [], skipped: 0 });
 	const cancelRef = useRef<HTMLButtonElement>(null);
+	// 미리 보기 창의 첫 포커스('닫기'). 목록이 Tab으로 닿는 스크롤 칸이라 기본(첫 Tab 자리)에 맡기지 않는다
+	const closeRef = useRef<HTMLButtonElement>(null);
 	// 렌더를 기다리지 않고 두 번째 요청을 막는다(두 번 누름). 버튼 잠금은 보조다
 	const sendingRef = useRef(false);
 	// 확인 창이 미리 보기로 넘어가며 닫힐 때는 포커스를 연 버튼으로 돌리지 않는다(미리 보기 창이 가져간다)
@@ -162,11 +164,13 @@ export function DramaAutoTag({
 				}}
 			>
 				<DialogContent
+					initialFocus={closeRef}
 					finalFocus={() => opener ?? true}
-					className="md:max-w-lg"
+					className="md:flex md:max-w-lg md:flex-col"
 				>
 					<PreviewBody
 						preview={preview}
+						closeRef={closeRef}
 						onDone={() => setPhase("closed")}
 						showUndo={showUndo}
 					/>
@@ -271,10 +275,12 @@ function ConfirmBody({
 // '모두 바꾸기'는 지금 줄에서 보낸 뒤 바뀌지 않은 줄만 바꾸고(replace: 바꾸기 전 대본을 scriptUndo로 잡는다) 실행 취소 알림을 띄운다
 function PreviewBody({
 	preview,
+	closeRef,
 	onDone,
 	showUndo,
 }: {
 	preview: Preview;
+	closeRef: RefObject<HTMLButtonElement | null>;
 	onDone: () => void;
 	showUndo: (message: string, undo: () => void, after?: () => void) => void;
 }) {
@@ -339,7 +345,12 @@ function PreviewBody({
 				) : null}
 			</DialogHeader>
 			{changes.length > 0 ? (
-				<ol className="flex min-w-0 flex-col divide-y divide-border">
+				// 768px 이상은 창이 최대 높이(알림 자리, MG-14·MG-16)에 걸리면 이 목록만 줄어 스크롤한다(머리·버튼 줄 고정).
+				<ol
+					// biome-ignore lint/a11y/noNoninteractiveTabindex: 안에 포커스 갈 곳이 없는 스크롤 칸이라 키보드로도 스크롤하게 Tab으로 닿는다(axe scrollable-region-focusable)
+					tabIndex={0}
+					className="flex min-w-0 flex-col divide-y divide-border focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 md:-m-1 md:min-h-0 md:overflow-y-auto md:overscroll-contain md:p-1"
+				>
 					{changes.map(({ line, n, fields }) => (
 						<li
 							key={line.id}
@@ -376,6 +387,7 @@ function PreviewBody({
 			{/* 767px 이하 시트에서는 두 버튼이 가로 반반(붙여 넣기 창과 같다). 첫 포커스는 '닫기'(바꾸지 않는 쪽) */}
 			<DialogFooter>
 				<DialogClose
+					ref={closeRef}
 					render={
 						<Button
 							variant="neutral"

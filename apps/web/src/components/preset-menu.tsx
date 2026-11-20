@@ -110,6 +110,7 @@ export function LoadDialog({
 	onClose: () => void;
 }) {
 	const loadRef = useRef<HTMLButtonElement>(null);
+	const titleId = useId();
 	const [pending, setPending] = useState(false);
 	return (
 		<Dialog
@@ -121,13 +122,22 @@ export function LoadDialog({
 			<DialogContent
 				initialFocus={loadRef}
 				finalFocus={() => openerRef.current ?? true}
+				className="md:flex md:flex-col"
 			>
-				<DialogHeader>
-					<DialogTitle className="wrap-anywhere">
+				<DialogHeader className="md:min-h-0">
+					<DialogTitle id={titleId} className="wrap-anywhere">
 						{loadQuestion(preset.name)}
 					</DialogTitle>
-					{/* 설명(<p>)을 <div>로 열어 성우 안내·바뀌는 값·알림 줄을 모두 감싼다. 창을 열면 비교와 경고까지 읽힌다(덮어쓰기 확인과 같다, critique P2) */}
-					<DialogDescription render={<div />} className="flex flex-col gap-4">
+					{/* 설명(<p>)을 <div>로 열어 성우 안내·바뀌는 값·알림 줄을 모두 감싼다. 창을 열면 비교와 경고까지 읽힌다(덮어쓰기 확인과 같다, critique P2).
+					    768px 이상은 창이 최대 높이(알림 자리, MG-14·MG-16)에 걸리면 이 설명만 줄어 스크롤한다(제목·버튼 줄 고정).
+					    안에 포커스 갈 곳이 없어 키보드로도 스크롤하게 Tab으로 닿는다. 포커스가 오면 창 제목 이름의 묶음으로 읽히고, 링은 탭 패널과 같다 */}
+					<DialogDescription
+						render={<div />}
+						role="group"
+						aria-labelledby={titleId}
+						tabIndex={0}
+						className="flex flex-col gap-4 focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 md:-m-1 md:min-h-0 md:overflow-y-auto md:overscroll-contain md:p-1"
+					>
 						{view.lead ? (
 							<p className="text-popover-foreground">{view.lead}</p>
 						) : null}
