@@ -40,6 +40,16 @@
           }
         ]
       }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/dev-cycle.mjs\" compact-log"
+          }
+        ]
+      }
     ]
   },
   "enabledPlugins": {
