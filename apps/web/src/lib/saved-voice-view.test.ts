@@ -10,6 +10,7 @@ import {
 	knownOnly,
 	linkedNote,
 	linkMessage,
+	peopleOptions,
 	queryFromFilters,
 	removedMessage,
 	removeQuestion,
@@ -29,6 +30,9 @@ const item = (
 		memo: string | null;
 		channelIds: string[];
 		classificationIds: string[];
+		gender: "female" | "male" | null;
+		age: string | null;
+		tags: string[];
 	}> = {},
 ) => ({
 	id: `saved-${voiceId}`,
@@ -37,6 +41,9 @@ const item = (
 		voiceId,
 		name: extra.name ?? voiceId,
 		englishName: extra.englishName ?? null,
+		gender: extra.gender ?? null,
+		age: extra.age ?? null,
+		tags: extra.tags ?? [],
 	},
 	favorite: extra.favorite ?? false,
 	frequent: extra.frequent ?? false,
@@ -161,6 +168,56 @@ describe("filterSaved(그룹 안 OR, 그룹끼리 AND)", () => {
 		expect(ids({ q: "광고" })).toEqual(["c"]);
 		expect(ids({ q: "민지".normalize("NFD") })).toEqual(["a"]);
 		expect(ids({ q: "  " })).toEqual(["a", "b", "c"]);
+	});
+});
+
+describe("성별·연령(공통 키, 브리프 B4)", () => {
+	const items = [
+		item("t", { gender: "female", age: "middle_age" }),
+		item("e", { provider: "elevenlabs", gender: "male", age: "young" }),
+		item("f", { provider: "fish_audio", tags: ["female", "young"] }),
+		item("n"),
+	];
+	const ids = (f: Partial<typeof EMPTY_LIBRARY_FILTERS>) =>
+		filterSaved(items, { ...EMPTY_LIBRARY_FILTERS, ...f }).map(
+			(i) => i.voice.voiceId,
+		);
+	it("각각 하나만 고르고 두 축은 AND, 값이 없는 성우는 그 축을 고르면 빠진다", () => {
+		expect(ids({})).toEqual(["t", "e", "f", "n"]);
+		expect(ids({ gender: "female" })).toEqual(["t", "f"]);
+		expect(ids({ age: "young" })).toEqual(["e", "f"]);
+		expect(ids({ gender: "female", age: "young" })).toEqual(["f"]);
+	});
+	it("주소 쿼리 gender·age는 값 하나다(여럿이면 첫 아는 값, 모르는 값은 버린다)", () => {
+		const f = { ...EMPTY_LIBRARY_FILTERS, gender: "male", age: "old" };
+		expect(queryFromFilters(f)).toBe("gender=male&age=old");
+		expect(filtersFromQuery(new URLSearchParams(queryFromFilters(f)))).toEqual(
+			f,
+		);
+		expect(
+			filtersFromQuery(
+				new URLSearchParams(
+					"gender=x&gender=female&gender=male&age=young_adult",
+				),
+			),
+		).toEqual({ ...EMPTY_LIBRARY_FILTERS, gender: "female" });
+		expect(hasLibraryFilters({ ...EMPTY_LIBRARY_FILTERS, age: "old" })).toBe(
+			true,
+		);
+		expect(hasLibraryFilters(EMPTY_LIBRARY_FILTERS)).toBe(false);
+	});
+	it("선택지는 담은 성우에 있는 값만 공통 키 순서로(고른 값은 남긴다)", () => {
+		const options = peopleOptions(items, EMPTY_LIBRARY_FILTERS);
+		expect(options.gender).toEqual([
+			{ value: "female", label: "여성" },
+			{ value: "male", label: "남성" },
+		]);
+		expect(options.age.map((o) => o.label)).toEqual(["청년", "중년"]);
+		expect(
+			peopleOptions(items, { ...EMPTY_LIBRARY_FILTERS, age: "old" }).age.map(
+				(o) => o.value,
+			),
+		).toEqual(["young", "middle", "old"]);
 	});
 });
 

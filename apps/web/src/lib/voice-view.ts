@@ -4,7 +4,6 @@ import { PROVIDER_LABEL } from "./connection-view";
 import {
 	ACCENT_KO,
 	EL_ACCOUNT_CATEGORY,
-	EL_AGE,
 	EL_DESCRIPTIVE,
 	EL_PUBLIC_CATEGORY,
 	EL_USE_CASE,
@@ -17,12 +16,14 @@ import {
 } from "./provider-conditions";
 import type { SampleStatus } from "./sample-state";
 import {
-	AGE_LABEL,
+	AGE_KEY_LABEL,
+	ageKeyOf,
 	GEMINI_ACCENT_LABEL,
 	GEMINI_CONTEXT_LABEL,
 	GEMINI_PITCH_LABEL,
 	GENDER_LABEL,
 	geminiKind,
+	genderKeyOf,
 	labelOf,
 	USE_CASE_LABEL,
 } from "./voice-filter";
@@ -73,12 +74,24 @@ const FISH_KNOWN = new Set([
 	...FISH_MOOD.keys(),
 ]);
 
-// 성별·연령·억양의 한국어 이름. 공급자가 주지 않으면 null이다(Fish Audio는 성별·연령 태그)
+// 성별·연령·억양의 한국어 이름. 공급자가 주지 않으면 null이다(Fish Audio는 성별·연령 태그).
+// 성별·연령은 조건과 같은 공통 키(genderKeyOf·ageKeyOf)의 이름이고, 표에 없는 값은 공급자 값 그대로다
 function personOf(voice: Voice) {
+	const gender = genderKeyOf(voice);
+	const age = ageKeyOf(voice);
+	const person = {
+		gender: gender ? labelOf(GENDER_LABEL, gender) : null,
+		// Fish Audio는 태그에서만 읽는다(공급자 값이 없다)
+		age: age
+			? labelOf(AGE_KEY_LABEL, age)
+			: voice.provider === "fish_audio"
+				? null
+				: voice.age || null,
+	};
 	// Gemini는 연령 값이 없다. 한국어 성우 억양은 ElevenLabs처럼 'OO 억양'이고 대표 성우의 영어 억양은 원문이다(계획 리뷰 R4-1)
 	if (voice.provider === "gemini") {
 		return {
-			gender: voice.gender ? labelOf(GENDER_LABEL, voice.gender) : null,
+			...person,
 			age: null,
 			accent: !voice.accent
 				? null
@@ -87,18 +100,9 @@ function personOf(voice: Voice) {
 					: voice.accent,
 		};
 	}
-	if (voice.provider === "fish_audio") {
-		return {
-			gender: knownTags(FISH_GENDER, voice.tags)[0] ?? null,
-			age: knownTags(FISH_AGE, voice.tags)[0] ?? null,
-			accent: null,
-		};
-	}
+	if (voice.provider === "fish_audio") return { ...person, accent: null };
 	return {
-		gender: voice.gender ? labelOf(GENDER_LABEL, voice.gender) : null,
-		age: voice.age
-			? labelOf(voice.provider === "typecast" ? AGE_LABEL : EL_AGE, voice.age)
-			: null,
+		...person,
 		accent: voice.accent ? labelOf(ACCENT_KO, voice.accent) : null,
 	};
 }

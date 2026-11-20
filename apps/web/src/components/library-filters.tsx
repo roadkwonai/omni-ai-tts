@@ -25,6 +25,7 @@ import {
 	LIBRARY_TEXT,
 	type LibraryView,
 } from "@/lib/saved-voice-view";
+import type { Option } from "@/lib/voice-filter";
 
 import {
 	type AxisView,
@@ -49,7 +50,7 @@ const PROVIDER_OPTIONS = Object.entries(PROVIDER_LABEL).map(
 
 type Choice = Extract<AxisView, { kind: "single" | "multi" }>;
 
-// 보관함 조건 줄(R2 브리프 4절): 한 줄은 검색 + 보기 네 칸 + '조건' 버튼이고, 공급자·채널·카테고리·타입은 '조건'을 눌러 펼친다
+// 보관함 조건 줄(R2 브리프 4절): 한 줄은 검색 + 보기 네 칸 + '조건' 버튼이고, 공급자·채널·카테고리·타입·성별·연령은 '조건'을 눌러 펼친다
 // (대본 보관함·휴대폰과 같은 방식). 고른 조건은 목록 위 칩이고 칩을 누르면 그 조건이 풀린다.
 // 채널·분류 목록을 받는 중이면 그 드롭다운은 잠기고(선택지도 사유도 없음), 실패면 사유 한 줄, 비었으면 안내와 '채널·분류에서 만들기'
 export function LibraryFilters({
@@ -62,7 +63,10 @@ export function LibraryFilters({
 	loaded,
 	failed,
 	searchRef,
+	people,
 }: {
+	// 성별·연령 선택지(saved-voice-view peopleOptions)
+	people: Record<"gender" | "age", Option[]>;
 	filters: Filters;
 	query: string;
 	onQuery: (q: string) => void;
@@ -119,13 +123,27 @@ export function LibraryFilters({
 				countUnknown: true,
 			};
 		}),
+		// 성별·연령(브리프 B4): 하나만 고른다('전체'로 해제, 캐스팅 '전체' 탭과 같다). 담은 성우에 있는 공통 키만 선택지이고, 받기 전·값이 없으면 잠긴다
+		...(["gender", "age"] as const).map((key): Choice => {
+			const value = filters[key];
+			return {
+				key,
+				label: key === "gender" ? "성별" : "연령",
+				kind: "single",
+				options: people[key],
+				selected: value === null ? [] : [value],
+				onChange: ([next]) => onChange({ ...filters, [key]: next ?? null }),
+			};
+		}),
 	];
 	// 보기 칸은 한 줄에 늘 보이므로 조건 수에 넣지 않는다
 	const selectedCount =
 		(filters.provider ? 1 : 0) +
 		filters.channel.length +
 		filters.category.length +
-		filters.type.length;
+		filters.type.length +
+		(filters.gender ? 1 : 0) +
+		(filters.age ? 1 : 0);
 	// 이름을 아는 값만 칩이 된다(목록을 받기 전의 id는 개수로만 보인다)
 	const chips = axes.flatMap((axis) =>
 		axis.selected.flatMap((value) => {

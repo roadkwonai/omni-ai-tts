@@ -20,13 +20,14 @@ import {
 	initialList,
 	type ServerList,
 	type ServerProvider,
+	withPeople,
 	withSearch,
 } from "@/lib/provider-conditions";
 import { failureOf } from "@/lib/voice-failure";
-import { EMPTY_FILTERS } from "@/lib/voice-filter";
+import { typecastPeople } from "@/lib/voice-filter";
 import { plain } from "@/lib/voice-view";
 
-import { AllProviders } from "./all-providers";
+import { AllProviders, type AllState, EMPTY_ALL } from "./all-providers";
 import { SignInNotice } from "./notice";
 import {
 	type AiryState,
@@ -87,8 +88,8 @@ const countedLabel = (
 export function VoiceCasting() {
 	const [tab, setTab] = useState<Tab>("all");
 	const tabListRef = useRef<HTMLDivElement>(null);
-	// '전체' 탭의 적용된 검색어. '모두 보기 →'가 그 공급자 탭으로 가져간다
-	const [allSearch, setAllSearch] = useState("");
+	// '전체' 탭의 적용된 검색어와 성별·연령. '모두 보기 →'가 그 공급자 탭으로 가져간다
+	const [all, setAll] = useState<AllState>(EMPTY_ALL);
 	// 탭마다 조건·출처·고른 성우를 따로 든다(같은 페이지 안, 브리프 9절). 탭 내용은 keepMounted라 검색 칸·대기 시각도 남는다
 	const [sources, setSources] = useState<Record<ServerProvider, VoiceSource>>({
 		elevenlabs: "public",
@@ -145,34 +146,43 @@ export function VoiceCasting() {
 		);
 	}
 
-	// '전체' 묶음의 '모두 보기 →'(브리프 9절, 계획 리뷰 U4): 그 탭을 시작 조건(공개·한국어·기본 정렬)에 검색어만 더해 연다.
-	// 그 탭에 전에 고른 조건은 풀린다. 포커스는 그 탭 상태 줄의 인원 글자로 간다
+	// '전체' 묶음의 '모두 보기 →'(브리프 5·9절, 계획 리뷰 U4): 그 탭을 시작 조건(공개·한국어·기본 정렬)에 검색어·성별·연령을 더해 연다
+	// (Airy·Gemini 탭은 성별만, 연령 조건이 없다). 그 탭에 전에 고른 조건은 풀린다. 포커스는 그 탭 상태 줄의 인원 글자로 간다
 	function showProvider(provider: ProviderId) {
 		changeTab(provider);
+		const { search, gender, age } = all;
+		const genders = gender === null ? [] : [gender];
 		if (provider === "typecast") {
 			setTypecast({
-				query: allSearch,
-				filters: EMPTY_FILTERS,
-				showAll: allSearch === "",
+				query: search,
+				filters: typecastPeople(gender, age),
+				showAll: search === "",
 			});
 			setPendingFocus("typecast");
 			return;
 		}
 		if (provider === "airy") {
-			setAiry({ query: allSearch, genders: [] });
+			setAiry({ query: search, genders });
 			setPendingFocus("airy");
 			return;
 		}
 		if (provider === "gemini") {
-			setGemini({ query: allSearch, filters: EMPTY_GEMINI.filters });
+			setGemini({
+				query: search,
+				filters: { ...EMPTY_GEMINI.filters, genders },
+			});
 			setPendingFocus("gemini");
 			return;
 		}
 		const listKey: ListKey = `${provider}:public`;
-		setSources((all) => ({ ...all, [provider]: "public" }));
-		setLists((all) => ({
-			...all,
-			[listKey]: withSearch(initialList(provider, "public"), allSearch),
+		setSources((sources) => ({ ...sources, [provider]: "public" }));
+		setLists((lists) => ({
+			...lists,
+			[listKey]: withPeople(
+				withSearch(initialList(provider, "public"), search),
+				gender,
+				age,
+			),
 		}));
 		setPendingFocus(listKey);
 	}
@@ -217,8 +227,8 @@ export function VoiceCasting() {
 					</TabsList>
 					<Panel value="all">
 						<AllProviders
-							search={allSearch}
-							onSearchChange={setAllSearch}
+							state={all}
+							onStateChange={setAll}
 							onShowProvider={showProvider}
 							{...choose("all")}
 						/>

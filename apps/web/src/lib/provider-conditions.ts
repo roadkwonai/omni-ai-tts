@@ -4,7 +4,16 @@ import type {
 	VoiceSource,
 } from "@tts-pilot-app/api/providers/contract";
 
-import { GENDER_LABEL, type Option } from "./voice-filter";
+import {
+	AGE_KEY_LABEL,
+	EL_AGE_KEY,
+	FISH_AGE_KEY,
+	FISH_GENDER_KEY,
+	GENDER_LABEL,
+	keyLabels,
+	type Option,
+	providerValue,
+} from "./voice-filter";
 
 // ElevenLabs·Fish Audio 조건 줄(T4 브리프 6절). 조건은 공급자 입력의 query 그대로 들고, 서버가 공급자에게 그대로 보낸다.
 export type ElPublicQuery = Extract<
@@ -33,12 +42,7 @@ export function languageName(code: string): string {
 }
 
 // 브리프 6절 값 표(2026-10-04 실측 값). Map 순서가 선택지 순서다. 성별은 voice-filter의 GENDER_LABEL(여성·남성·중성)을 쓴다.
-export const EL_AGE = new Map([
-	["young", "청년"],
-	["middle_aged", "중년"],
-	["middle-aged", "중년"],
-	["old", "노년"],
-]);
+export const EL_AGE = keyLabels(EL_AGE_KEY, AGE_KEY_LABEL);
 export const ACCENT_KO = new Map([
 	["standard", "표준 억양"],
 	["seoul", "서울 억양"],
@@ -115,15 +119,8 @@ export const EL_ORIGIN = new Map([
 	["community", ORIGIN_TEXT.saved],
 	["default", ORIGIN_TEXT.premade],
 ]);
-export const FISH_GENDER = new Map([
-	["female", "여성"],
-	["male", "남성"],
-]);
-export const FISH_AGE = new Map([
-	["young", "청년"],
-	["middle-aged", "중년"],
-	["old", "노년"],
-]);
+export const FISH_GENDER = keyLabels(FISH_GENDER_KEY, GENDER_LABEL);
+export const FISH_AGE = keyLabels(FISH_AGE_KEY, AGE_KEY_LABEL);
 export const FISH_CONTENT = new Map([
 	["narration", "내레이션"],
 	["social-media", "소셜 미디어"],
@@ -283,6 +280,27 @@ const withQuery = <L extends ServerList>(
 	({ ...list, query: { ...list.query, ...patch } }) as ServerList;
 export const withSearch = (list: ServerList, search: string) =>
 	withQuery(list, { search });
+// '전체' 탭의 공통 성별·연령(키) → 그 공급자 탭이 같은 조건을 고른 것과 같은 조회 인자(ElevenLabs gender·age, Fish Audio 태그)
+export function withPeople(
+	list: ServerList,
+	gender: string | null,
+	age: string | null,
+): ServerList {
+	if (list.provider === "fish_audio") {
+		const added = [
+			providerValue(FISH_GENDER_KEY, gender),
+			providerValue(FISH_AGE_KEY, age),
+		].filter((tag) => tag !== null);
+		return added.length === 0
+			? list
+			: withQuery(list, { tags: [...list.query.tags, ...added] });
+	}
+	if (gender === null && age === null) return list;
+	return withQuery(list, {
+		gender,
+		age: providerValue(EL_AGE_KEY, age),
+	} as Partial<ElPublicQuery>);
+}
 
 // 조건 하나. 하나·여럿 고르기는 값 배열, 토글은 불린이다(ponytail)
 type AxisBase = { key: string; label: string };

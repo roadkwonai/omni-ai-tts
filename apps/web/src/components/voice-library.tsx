@@ -18,6 +18,7 @@ import {
 	knownOnly,
 	LIBRARY_TEXT,
 	type LibraryFilters,
+	peopleOptions,
 	queryFromFilters,
 } from "@/lib/saved-voice-view";
 import { failureOf } from "@/lib/voice-failure";
@@ -187,6 +188,7 @@ function Library() {
 				loaded={loaded}
 				failed={failed}
 				searchRef={searchRef}
+				people={peopleOptions(items, filters)}
 			/>
 			{/* 보이는 줄에는 role을 두지 않는다. 개수는 검색어 0.5초 뒤·조건을 바꾼 바로 뒤 화면 밖 status가 알린다(계획 리뷰 D19, audit P1-2) */}
 			<div className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1">

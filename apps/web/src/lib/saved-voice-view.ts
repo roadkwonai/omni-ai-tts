@@ -10,7 +10,15 @@ import {
 	type Named,
 } from "./classes-view";
 import { PROVIDER_IDS } from "./connection-view";
-import { anyOf } from "./voice-filter";
+import {
+	AGE_KEY_LABEL,
+	ageKeyOf,
+	anyOf,
+	GENDER_LABEL,
+	genderKeyOf,
+	type Option,
+	ordered,
+} from "./voice-filter";
 
 // 보관함의 같은 성우: 공급자 + 성우 id(REQ-04). 목록 행 키 voiceKey는 출처까지 넣으므로 따로 둔다
 export const savedKey = (voice: Pick<Voice, "provider" | "voiceId">) =>
@@ -24,6 +32,9 @@ export type LibraryFilters = {
 	channel: string[];
 	category: string[];
 	type: string[];
+	// 공통 키 하나(voice-filter genderKeyOf·ageKeyOf, 브리프 B4 단일 선택)
+	gender: string | null;
+	age: string | null;
 };
 export const EMPTY_LIBRARY_FILTERS: LibraryFilters = {
 	q: "",
@@ -32,8 +43,9 @@ export const EMPTY_LIBRARY_FILTERS: LibraryFilters = {
 	channel: [],
 	category: [],
 	type: [],
+	gender: null,
+	age: null,
 };
-
 const VIEWS: readonly LibraryView[] = ["all", "favorite", "frequent", "preset"];
 
 // 필터는 주소 쿼리가 정본이다('성우 N명' 링크가 이 주소로 온다, 스펙 2절). 모르는 값은 기본값이다
@@ -48,6 +60,10 @@ export function filtersFromQuery(params: URLSearchParams): LibraryFilters {
 		channel: ids("channel"),
 		category: ids("category"),
 		type: ids("type"),
+		// 값 하나. 여럿이면 첫 아는 키, 모르는 키는 버린다
+		gender:
+			params.getAll("gender").find((key) => GENDER_LABEL.has(key)) ?? null,
+		age: params.getAll("age").find((key) => AGE_KEY_LABEL.has(key)) ?? null,
 	};
 }
 
@@ -58,6 +74,8 @@ export function queryFromFilters(filters: LibraryFilters): string {
 	if (filters.provider) params.set("provider", filters.provider);
 	for (const key of GROUPS)
 		for (const id of filters[key]) params.append(key, id);
+	if (filters.gender) params.set("gender", filters.gender);
+	if (filters.age) params.set("age", filters.age);
 	return params.toString();
 }
 
@@ -80,7 +98,10 @@ export function knownOnly(
 
 type SavedLike = {
 	id: string;
-	voice: Pick<Voice, "provider" | "voiceId" | "name" | "englishName">;
+	voice: Pick<
+		Voice,
+		"provider" | "voiceId" | "name" | "englishName" | "gender" | "age" | "tags"
+	>;
 	favorite: boolean;
 	frequent: boolean;
 	memo: string | null;
@@ -110,11 +131,32 @@ export function filterSaved<T extends SavedLike>(
 			anyOf(filters.channel, item.channelIds) &&
 			anyOf(filters.category, item.classificationIds) &&
 			anyOf(filters.type, item.classificationIds) &&
+			(filters.gender === null || genderKeyOf(item.voice) === filters.gender) &&
+			(filters.age === null || ageKeyOf(item.voice) === filters.age) &&
 			(q === "" ||
 				[item.voice.name, item.voice.englishName, item.memo].some(
 					(text) => text !== null && foldName(text).includes(q),
 				)),
 	);
+}
+
+// 성별·연령 선택지: 담은 성우에 있는 공통 키만, 표 순서로(브리프 B4). 고른 키는 담은 성우에 없어도 남겨 풀 수 있게 한다(옛 주소)
+export function peopleOptions(
+	items: readonly Pick<SavedLike, "voice">[],
+	filters: Pick<LibraryFilters, "gender" | "age">,
+): { gender: Option[]; age: Option[] } {
+	const genders = new Set(filters.gender ? [filters.gender] : []);
+	const ages = new Set(filters.age ? [filters.age] : []);
+	for (const { voice } of items) {
+		const gender = genderKeyOf(voice);
+		const age = ageKeyOf(voice);
+		if (gender) genders.add(gender);
+		if (age) ages.add(age);
+	}
+	return {
+		gender: ordered(genders, GENDER_LABEL),
+		age: ordered(ages, AGE_KEY_LABEL),
+	};
 }
 
 // 패널 칩: 채널 → 카테고리 → 타입, 그룹 안은 T6 이름순. 모르는 id(목록을 받기 전, 다른 탭에서 지움)는 뺀다

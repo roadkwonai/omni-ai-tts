@@ -17,19 +17,51 @@ export const EMPTY_FILTERS: VoiceFilters = {
 	useCases: [],
 };
 
-// 브리프 6절 표. Map의 순서가 선택지 순서다.
+// 브리프 6절 표. Map의 순서가 선택지 순서다. 성별은 키가 공통 키다('전체' 탭·보관함 조건)
 export const GENDER_LABEL = new Map([
 	["female", "여성"],
 	["male", "남성"],
 	["neutral", "중성"],
 ]);
-export const AGE_LABEL = new Map([
+// 공통 연령 키('전체' 탭·보관함 조건, 메타 줄 이름표)
+export const AGE_KEY_LABEL = new Map([
 	["child", "어린이"],
 	["teenager", "청소년"],
-	["young_adult", "청년"],
-	["middle_age", "중년"],
-	["elder", "노년"],
+	["young", "청년"],
+	["middle", "중년"],
+	["old", "노년"],
 ]);
+// 공급자 값 → 공통 키. 공통 키를 공급자 값으로 바꿀 때는 표의 첫 값이다(providerValue). 공급자 이름표(AGE_LABEL·EL_AGE·FISH_AGE)도 이 표에서 만든다
+export const TYPECAST_AGE_KEY = new Map([
+	["child", "child"],
+	["teenager", "teenager"],
+	["young_adult", "young"],
+	["middle_age", "middle"],
+	["elder", "old"],
+]);
+export const EL_AGE_KEY = new Map([
+	["young", "young"],
+	["middle_aged", "middle"],
+	["middle-aged", "middle"],
+	["old", "old"],
+]);
+export const FISH_GENDER_KEY = new Map([
+	["female", "female"],
+	["male", "male"],
+]);
+export const FISH_AGE_KEY = new Map([
+	["young", "young"],
+	["middle-aged", "middle"],
+	["old", "old"],
+]);
+// 공급자 값 → 한국어 이름(공통 키의 이름표)
+export const keyLabels = (
+	keys: Map<string, string>,
+	labels: Map<string, string>,
+) => new Map([...keys].map(([value, key]) => [value, labelOf(labels, key)]));
+export const providerValue = (keys: Map<string, string>, key: string | null) =>
+	[...keys].find(([, common]) => common === key)?.[0] ?? null;
+export const AGE_LABEL = keyLabels(TYPECAST_AGE_KEY, AGE_KEY_LABEL);
 export const USE_CASE_LABEL = new Map([
 	["Ads/Promotion", "광고·홍보"],
 	["Audiobook/Storytelling", "오디오북·이야기"],
@@ -47,8 +79,36 @@ export const USE_CASE_LABEL = new Map([
 ]);
 
 // 모르는 값은 공급자 값 그대로 보인다(브리프 6절).
-export const labelOf = (labels: Map<string, string>, value: string) =>
-	labels.get(value) ?? value;
+export function labelOf(labels: Map<string, string>, value: string) {
+	return labels.get(value) ?? value;
+}
+
+const tagKey = (keys: Map<string, string>, tags: readonly string[]) => {
+	const tag = tags.find((value) => keys.has(value));
+	return tag === undefined ? null : (keys.get(tag) ?? null);
+};
+// 성우의 공통 성별·연령 키. 모르는 값과 값 없음은 null이다. Fish Audio는 태그, Airy·Gemini는 연령이 없다.
+// 메타 줄(voice-view personOf)도 이 판단으로 이름을 붙인다
+export function genderKeyOf(
+	voice: Pick<Voice, "provider" | "gender" | "tags">,
+): string | null {
+	// 계약의 성별 값(male·female·neutral)이 공통 키다
+	if (voice.provider === "fish_audio")
+		return tagKey(FISH_GENDER_KEY, voice.tags);
+	return voice.gender;
+}
+export function ageKeyOf(
+	voice: Pick<Voice, "provider" | "age" | "tags">,
+): string | null {
+	if (voice.provider === "fish_audio") return tagKey(FISH_AGE_KEY, voice.tags);
+	const keys =
+		voice.provider === "typecast"
+			? TYPECAST_AGE_KEY
+			: voice.provider === "elevenlabs"
+				? EL_AGE_KEY
+				: null;
+	return (keys && voice.age && keys.get(voice.age)) || null;
+}
 
 const normalize = (text: string) => text.normalize("NFC").trim().toLowerCase();
 
@@ -60,6 +120,19 @@ export function hasConditions(
 		normalize(query) !== "" ||
 		Object.values(filters).some((values) => values.length > 0)
 	);
+}
+
+// '전체' 탭의 공통 성별·연령 → Typecast 탭 조건(묶음과 '모두 보기 →' 뒤 탭이 같은 거르기라 인원이 같다)
+export function typecastPeople(
+	gender: string | null,
+	age: string | null,
+): VoiceFilters {
+	const typecastAge = providerValue(TYPECAST_AGE_KEY, age);
+	return {
+		...EMPTY_FILTERS,
+		genders: gender ? [gender] : [],
+		ages: typecastAge ? [typecastAge] : [],
+	};
 }
 
 // 고른 값이 없는 축은 거르지 않는다. 값이 없는(null) 성우는 그 축을 고르면 빠진다.
@@ -188,6 +261,26 @@ export function filterGemini(
 		.map(({ voice }) => voice);
 }
 
+// '전체' 탭 한 목록 묶음: 그 탭에서 같은 검색어·성별·연령을 고른 거르기(Typecast 이름, Airy 이름·성우 id, Gemini 이름·성우 id·설명).
+// Airy·Gemini는 연령 정보가 없어 연령을 고르면 0명이다(브리프 casting 5절)
+export function oneListFound(
+	provider: "typecast" | "airy" | "gemini",
+	all: readonly Voice[],
+	{
+		search,
+		gender,
+		age,
+	}: { search: string; gender: string | null; age: string | null },
+): Voice[] {
+	if (provider === "typecast")
+		return filterVoices(all, search, typecastPeople(gender, age));
+	if (age !== null) return [];
+	const genders = gender === null ? [] : [gender];
+	return provider === "gemini"
+		? filterGemini(all, search, { ...EMPTY_GEMINI_FILTERS, genders })
+		: filterByNameOrId(all, search, genders);
+}
+
 // 콘텐츠별 선반. 인원 많은 순, 같으면 처음 나온 순(정렬은 안정적이다). 콘텐츠가 없는 성우는 마지막 묶음(null)이다.
 export function groupByUseCase(
 	voices: readonly Voice[],
@@ -213,7 +306,7 @@ export function groupByUseCase(
 export type Option = { value: string; label: string };
 
 // 아는 값은 표 순서, 모르는 값은 그 뒤에 처음 나온 순서
-function ordered(
+export function ordered(
 	values: ReadonlySet<string>,
 	labels: Map<string, string>,
 ): Option[] {

@@ -383,6 +383,13 @@ critique 27/40, audit 18/20(접근성 3/4) 결과 가운데 브리프·스펙을
 - [ ] MG-14 (MG-12 재확인 critique P2) 모달 중 행동별 안내가 두 줄이 되면 1024 성우 대화상자에서 알림 아래 끝(82px)과 제목 위(83px) 간격이 1px이다(겹침 없음). 문구가 더 길거나 세 줄이면 겹친다. 안내를 짧게 하거나 모달이 열린 동안 대화상자 최대 높이에 알림 자리를 남긴다(toast-position.ts shortcut). 같은 때 실제 스크린리더(VoiceOver)로 재누름 재낭독과 390 닫기 경로를 확인한다.
 - [ ] MG-13 (MG-03 리뷰 low) ① 만드는 중(making·stopping)과 첫 찾기 전(checking)에는 카드 배지가 숨고 막대는 '멈추기'·꼬리 없는 '전체 만들기'라 '무료'가 화면에 없다(paragraph-studio.tsx:510 allFree가 막대의 !running·ready 조건을 따르지 않음). ② 멈춘 상태 '이어서 만들기 · N개 · 무료'는 만들기를 눌러야 생겨 화면 확인 못 함(테스트로 문구 고정). ③ studio-layout.test.ts:105 정규식이 JSX 서식에 묶여 있다.
 - [ ] MG-04 (audit P3, web-design-guidelines) 랜딩 막대 로고는 라이트·다크 두 판 모두 eager·fetchPriority high로 받는다. 로고를 currentColor SVG 한 장으로 바꿀 때 없앤다(landing-logo.tsx shortcut 주석). 같은 때 landing.css:219 `border-radius: 1px`(DESIGN rounded 스케일 밖)도 본다.
+
+### 성별·연령 필터 (캐스팅 '전체' 탭·보관함 라운드에서 미룬 것, 2026-11-20)
+- [ ] GA-01 (재확인 critique P3) '전체' 탭 회색 적용 안내 줄이 조건을 걸고 풀 때 나타나며 '내 문장' 카드와 목록을 약 36px 밀어 레이아웃이 한 번 움직인다. 줄 자리를 미리 두거나 조건 줄 끝에 합친다.
+- [ ] GA-02 (재확인 critique P3) Airy·Gemini 연령 사유 문구가 해제 방법을 말하지 않는다("연령 조건을 풀면 보여요" 같은 복구 안내 검토).
+- [ ] GA-03 (critique P2·minor) 청년·중년·노년이 몇 세인지 설명이 없고 '전체' 탭에는 어린이·청소년 선택지가 없다(Typecast만 값이 있어 공통 축에서 뺐다). 성별 '중성'도 Typecast·Gemini만 있어 '전체' 탭에 없다.
+- [ ] GA-04 (런타임 확인 미확인) 데모 DB에 ElevenLabs·Fish Audio 성별·연령 조건 캐시가 없어 두 공급자 묶음의 필터 결과(본인용 실제 목록)를 화면으로 보지 못했다. 본인용 작업실에서 무료 목록 조회로 확인한다. 보관함 `?gender=female&gender=male` 옛 주소는 첫 값만 읽고 주소창은 다시 쓰지 않는다.
+
 ### 이번 문서 작업에서 확인한 기존 품질 항목
 
 - [ ] Q-01 기존 전체 Biome 오류 정리 라운드: 초기 `pnpm exec biome check .`가 100 errors / 68 warnings / 2 infos로 실패. 2026-09-26 재검사 103 errors / 68 warnings / 2 infos(기존 코드·도구 상태 파일 포함); 프로토타입 13파일 검사는 통과. 이번 문서 계획과 분리해서 원인·범위를 확인한다. 2026-09-29 재검사 73 errors / 70 warnings: turbo.json·tsconfig.json·package.json 포맷과 apps/web(theme-provider·loader·next.config)의 import 정리 등 대부분 `biome check --write`로 자동 수정 가능.
