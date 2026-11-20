@@ -390,6 +390,13 @@ critique 27/40, audit 18/20(접근성 3/4) 결과 가운데 브리프·스펙을
 - [ ] GA-03 (critique P2·minor) 청년·중년·노년이 몇 세인지 설명이 없고 '전체' 탭에는 어린이·청소년 선택지가 없다(Typecast만 값이 있어 공통 축에서 뺐다). 성별 '중성'도 Typecast·Gemini만 있어 '전체' 탭에 없다.
 - [ ] GA-04 (런타임 확인 미확인) 데모 DB에 ElevenLabs·Fish Audio 성별·연령 조건 캐시가 없어 두 공급자 묶음의 필터 결과(본인용 실제 목록)를 화면으로 보지 못했다. 본인용 작업실에서 무료 목록 조회로 확인한다. 보관함 `?gender=female&gender=male` 옛 주소는 첫 값만 읽고 주소창은 다시 쓰지 않는다.
 
+
+### 성우 보관함 정렬·공통 태그 (라운드에서 미룬 것, 2026-11-20)
+- [ ] VL-01 (critique P3) 행 알약은 공급자 원래 태그 이름('이야기·내레이션')을, 콘텐츠·분위기 필터는 합친 이름('내레이션·오디오북')을 써 둘을 머릿속에서 이어야 한다. 알약도 공통 묶음 이름으로 바꿀지 정한다.
+- [ ] VL-02 (critique P3) 상태 줄 정렬 버튼(44px outline)이 인원 글자보다 무겁다. 상태 줄 맥락에서 한 단계 가볍게 할지 공급자 탭과 함께 정한다.
+- [ ] VL-03 (critique 관찰) 0명일 때 어느 축 때문인지 단서가 없다(태그 없는 성우 안내 줄 밖의 일반 조건). Gemini 쓰임새 'Wellness & Culture'와 페르소나는 공통 태그에 없다.
+- [ ] VL-04 (ponytail 미확인) sortSaved가 Array.prototype.toSorted(Safari 16+)를 쓴다. 지원 브라우저 범위를 정할 때 확인한다.
+
 ### 이번 문서 작업에서 확인한 기존 품질 항목
 
 - [ ] Q-01 기존 전체 Biome 오류 정리 라운드: 초기 `pnpm exec biome check .`가 100 errors / 68 warnings / 2 infos로 실패. 2026-09-26 재검사 103 errors / 68 warnings / 2 infos(기존 코드·도구 상태 파일 포함); 프로토타입 13파일 검사는 통과. 이번 문서 계획과 분리해서 원인·범위를 확인한다. 2026-09-29 재검사 73 errors / 70 warnings: turbo.json·tsconfig.json·package.json 포맷과 apps/web(theme-provider·loader·next.config)의 import 정리 등 대부분 `biome check --write`로 자동 수정 가능.
