@@ -24,7 +24,12 @@ import {
 	voiceOf,
 	type Work,
 } from "./paragraph-script";
-import { createFailureOf, savedOf, scriptCount } from "./studio-view";
+import {
+	createFailureOf,
+	type ListLoad,
+	savedOf,
+	scriptCount,
+} from "./studio-view";
 import { needsConfirm, type TrialProblem, trialFailureOf } from "./trial-view";
 
 // 문단 작업실 '전체 만들기'(T10 스펙 5.1)의 순수 함수: 문단 상태, 찾기 대상, 만들기 계획, 요청 id 규칙, 상태 리듀서, 보내기 루프, 요약, 받기 목록.
@@ -271,7 +276,21 @@ export function makePlan(
 	return plan;
 }
 
-// 카드 '만들기' 옆 사용량 표식(MG-03): 유료면 Coins, 무료면 '무료' 배지. 만들 문단이 모두 무료(makePlan의 free)면 막대 '전체 만들기 · N개 · 무료'만 말하고 카드는 표식이 없다
+// 확인 중: 성우 목록을 받는 중이거나 복원 뒤 첫 찾기 전(입력 뒤 배경 찾기는 잠그지 않는다, '스펙과 다른 점' 27)
+export const checkingOf = (
+	voicesLoad: ListLoad,
+	findState: "first" | "ok" | "failed",
+): boolean => voicesLoad === "loading" || findState === "first";
+
+// 막대 주 버튼이 '· 무료' 꼬리를 보이는지(MG-03·MG-13). free는 makePlan의 free, ready는 복원했고 확인 중이 아님.
+// 만드는 중·멈추는 중('멈추기')과 확인 중(꼬리 없는 '전체 만들기')에는 없다. 카드는 이 값이 참일 때만 '무료' 배지를 뺀다
+export const freeTailOf = (
+	free: boolean,
+	phase: MakeState["phase"],
+	ready: boolean,
+): boolean => free && ready && phase !== "making" && phase !== "stopping";
+
+// 카드 '만들기' 옆 사용량 표식(MG-03): 유료면 Coins, 무료면 '무료' 배지. 막대가 '· 무료' 꼬리를 보이면(freeTailOf) 막대만 말하고 카드는 표식이 없다
 export const makeMarkOf = (
 	free: boolean,
 	allFree: boolean,

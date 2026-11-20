@@ -86,6 +86,8 @@ export const PARAGRAPH_TEXT = {
 	makeRest: (count: number, free: boolean) =>
 		`이어서 만들기 · ${n(count)}개${free ? ` ${FREE_TAIL}` : ""}`,
 	freeTail: FREE_TAIL,
+	// 막대가 따로 그리는 개수 조각(좁으면 이 조각부터 빠진다, MG-13)
+	countTail: (count: number) => ` · ${n(count)}개`,
 	// 잠긴 주 버튼(만들 수를 모를 때·막혔을 때)은 개수 없이
 	makeAllPlain: "전체 만들기",
 	makeRestPlain: "이어서 만들기",
@@ -93,7 +95,7 @@ export const PARAGRAPH_TEXT = {
 	receive: "받기",
 	// 카드
 	make: "만들기",
-	// 카드 '만들기' 접근 이름. 보이는 글(무료면 '무료' 배지까지)을 그대로 담는다(2.5.3)
+	// 카드 '만들기' 접근 이름. 보이는 글로 시작하고(2.5.3) 무료면 '무료'까지. 막대가 '· 무료'를 말해 배지를 뺀 때도 무료를 듣는다(MG-13)
 	makeOf: (no: number, free = false) =>
 		`문단 ${n(no)} 만들기${free ? " 무료" : ""}`,
 	free: "무료",

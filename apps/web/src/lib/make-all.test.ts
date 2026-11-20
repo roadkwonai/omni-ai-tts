@@ -14,6 +14,7 @@ import {
 	afterFailure,
 	afterUnknownConfirmed,
 	CHUNK_MAX_BYTES,
+	checkingOf,
 	chunkTargets,
 	type Found,
 	type FoundMap,
@@ -21,6 +22,7 @@ import {
 	findTargets,
 	firstLink,
 	forgetFound,
+	freeTailOf,
 	joinKeyOf,
 	type LiveMap,
 	MAKE_IDLE,
@@ -244,6 +246,30 @@ describe("makePlan", () => {
 		);
 		expect(makeMarkOf(true, mixed.free)).toBe("free");
 		expect(makeMarkOf(false, mixed.free)).toBe("paid");
+		// 유료는 늘 표식이 있다: 표식 없음(null)은 무료라 카드 접근 이름은 mark !== "paid"로 '무료'를 듣는다(MG-13)
+		expect(makeMarkOf(false, true)).toBe("paid");
+	});
+	it("막대 '· 무료' 꼬리는 만드는 중·멈추는 중·확인 중에는 없고, 그때 카드는 '무료' 배지를 보인다(MG-13)", () => {
+		// 멈춘 뒤 '이어서 만들기 · N개 · 무료'와 시작 전 찾기·확인 창 동안은 꼬리가 남는다
+		for (const phase of ["idle", "finding", "confirm", "stopped"] as const)
+			expect(freeTailOf(true, phase, true)).toBe(true);
+		for (const phase of ["making", "stopping"] as const) {
+			expect(freeTailOf(true, phase, true)).toBe(false);
+			expect(makeMarkOf(true, freeTailOf(true, phase, true))).toBe("free");
+		}
+		// 확인 중(첫 찾기 전·성우 목록 받는 중)이나 복원 전은 꼬리 없는 '전체 만들기'다
+		expect(freeTailOf(true, "idle", false)).toBe(false);
+		expect(makeMarkOf(true, freeTailOf(true, "idle", false))).toBe("free");
+		// 멈춘 뒤 꼬리가 보이면 카드는 배지를 뺀다
+		expect(makeMarkOf(true, freeTailOf(true, "stopped", true))).toBeNull();
+		// 모두 무료가 아니면 어느 상태든 꼬리가 없다
+		expect(freeTailOf(false, "stopped", true)).toBe(false);
+	});
+	it("확인 중은 성우 목록을 받는 중이거나 첫 찾기 전이다", () => {
+		expect(checkingOf("loading", "ok")).toBe(true);
+		expect(checkingOf("ready", "first")).toBe(true);
+		expect(checkingOf("ready", "ok")).toBe(false);
+		expect(checkingOf("failed", "failed")).toBe(false);
 	});
 	it("make가 비면 free가 아니다", () => {
 		const a = para("a", "하나");

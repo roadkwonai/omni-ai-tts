@@ -96,17 +96,39 @@ test("레일 칸의 기본은 hidden이고 막대의 요약 칩은 2단까지 �
 	expect(bar).not.toContain("@4xl:hidden");
 });
 
-test("막대 주 버튼의 '· 무료' 꼬리는 줄지 않는 조각이고 앞 글만 줄어든다(320, MG-03)", () => {
+test("막대 주 버튼은 좁으면 '· N개'부터 빼고 동사만 줄며 '· 무료' 꼬리는 줄지 않는다(320, MG-03·MG-13)", () => {
 	const bar = readFileSync(
 		new URL("./paragraph-bar.tsx", import.meta.url),
 		"utf8",
 	);
-	expect(bar).toContain('<span className="min-w-0 truncate">{mainText}</span>');
-	expect(bar).toMatch(
-		/<span className="shrink-0 whitespace-pre">\s*\{` \$\{PARAGRAPH_TEXT\.freeTail\}`\}\s*<\/span>/,
+	// 서식(줄바꿈·들여쓰기·class 순서)에 묶이지 않게 공백을 접고 태그·중괄호 옆 공백을 지운 뒤 class 낱말로 본다
+	const flat = bar.replace(/\s+/g, " ").replace(/\s*([<>{}])\s*/g, "$1");
+	const OPEN = '<span className="';
+	// 내용 inner를 바로 담은 span과, parent면 그 span을 감싼 span의 class 낱말
+	const classesOf = (inner: string, parent = false) => {
+		const at = flat.indexOf(`">${inner}`);
+		expect(at).toBeGreaterThan(0);
+		let open = flat.lastIndexOf(OPEN, at);
+		if (parent) open = flat.lastIndexOf(OPEN, open - 1);
+		return flat
+			.slice(open + OPEN.length, flat.indexOf('"', open + OPEN.length))
+			.split(" ");
+	};
+	const verb = classesOf("{mainVerb}");
+	expect(verb).toEqual(expect.arrayContaining(["min-w-0", "truncate"]));
+	// '· N개'는 줄지 않는 조각이라 안 들어가면 통째로 한 줄 높이(h-lh)에 가려진 둘째 줄로 넘어간다
+	expect(classesOf("{mainCount}")).toEqual(
+		expect.arrayContaining(["shrink-0", "whitespace-pre"]),
 	);
+	expect(classesOf("{mainVerb}", true)).toEqual(
+		expect.arrayContaining(["flex-wrap", "h-lh", "overflow-hidden", "min-w-0"]),
+	);
+	// 꼬리는 글자 공백으로 띄우고(whitespace-pre) 줄지 않는다
+	const tail = classesOf("{` ${PARAGRAPH_TEXT.freeTail}`}");
+	expect(tail).toEqual(expect.arrayContaining(["shrink-0", "whitespace-pre"]));
+	expect(tail).not.toContain("truncate");
 	// 접근 이름은 꼬리까지 전체 글
-	expect(bar).toContain("aria-label={mainLabel}");
+	expect(flat).toContain("aria-label={mainLabel}");
 });
 
 test("빈 상태에서는 모든 폭에서 막대와 '만들기와 받기로' 건너뛰기 링크를 접는다(MG-03)", () => {

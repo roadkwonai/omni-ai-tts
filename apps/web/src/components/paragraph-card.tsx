@@ -350,21 +350,25 @@ function MakeButton({
 							size="lg"
 							focusableWhenDisabled
 							disabled={locked}
-							aria-label={PARAGRAPH_TEXT.makeOf(n, mark === "free")}
+							// 표식 없음(null)도 무료다(막대가 '· 무료'를 말해 배지만 뺐다, MG-13)
+							aria-label={PARAGRAPH_TEXT.makeOf(n, mark !== "paid")}
 							aria-describedby={locked ? reasonId : undefined}
-							className={cn(locked && "opacity-50 hover:bg-card")}
+							className={cn(locked && "hover:bg-card")}
 							onClick={(event) => onMake(id, event.currentTarget)}
 						/>
 					}
 				>
-					{PARAGRAPH_TEXT.make}
+					{/* 잠기면 글과 Coins만 흐리고 '무료' 배지는 선명하게 둔다(MG-13, 배지 글 4.83·5.58:1 유지) */}
+					<span className={cn(locked && "opacity-50")}>
+						{PARAGRAPH_TEXT.make}
+					</span>
 					{mark === "free" ? (
 						<Badge variant="success">{PARAGRAPH_TEXT.free}</Badge>
 					) : mark === "paid" && !demo ? (
 						<Coins
 							data-icon="inline-end"
 							aria-hidden="true"
-							className="text-muted-foreground"
+							className={cn("text-muted-foreground", locked && "opacity-50")}
 						/>
 					) : null}
 				</TooltipTrigger>

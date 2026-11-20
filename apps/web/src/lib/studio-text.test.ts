@@ -182,6 +182,14 @@ describe("PARAGRAPH_TEXT(브리프 9절)", () => {
 		);
 		expect(PARAGRAPH_TEXT.makeRest(28, false)).toBe("이어서 만들기 · 28개");
 		expect(PARAGRAPH_TEXT.freeTail).toBe("· 무료");
+		// 막대는 동사 · 개수 · 꼬리를 따로 그리고 좁으면 개수 조각부터 뺀다(MG-13). 이어 붙이면 접근 이름의 앞 글과 같다
+		expect(PARAGRAPH_TEXT.countTail(28)).toBe(" · 28개");
+		expect(PARAGRAPH_TEXT.makeAllPlain + PARAGRAPH_TEXT.countTail(28)).toBe(
+			PARAGRAPH_TEXT.makeAll(28, false),
+		);
+		expect(PARAGRAPH_TEXT.makeRestPlain + PARAGRAPH_TEXT.countTail(28)).toBe(
+			PARAGRAPH_TEXT.makeRest(28, false),
+		);
 		expect(PARAGRAPH_TEXT.inserted(200, 0)).toBe("문단 200개를 넣었어요");
 		expect(PARAGRAPH_TEXT.inserted(200, 5)).toBe(
 			"문단 200개를 넣었어요. 나머지 5개는 넣지 않았어요.",

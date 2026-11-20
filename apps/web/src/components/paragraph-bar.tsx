@@ -44,7 +44,9 @@ import { toast } from "sonner";
 
 import { PROVIDER_LABEL } from "@/lib/connection-view";
 import {
+	checkingOf,
 	fillOf,
+	freeTailOf,
 	joinKeyOf,
 	type MakeState,
 	makePlan,
@@ -499,9 +501,8 @@ export function ParagraphBar({
 		receive.ok &&
 		joinKeyOf(receive.items) === shown.key;
 
-	// 확인 중: 성우 목록을 받는 중이거나 복원 뒤 첫 찾기 전(입력 뒤 배경 찾기는 잠그지 않는다, '스펙과 다른 점' 27)
 	const voicesFailed = voicesLoad === "failed";
-	const checking = voicesLoad === "loading" || findState === "first";
+	const checking = checkingOf(voicesLoad, findState);
 	const ready = restored && plan !== null && !checking;
 	const noScript = restored && !receive.ok && receive.reason === "empty";
 	const allMade =
@@ -739,8 +740,8 @@ export function ParagraphBar({
 					? PARAGRAPH_TEXT.listenHint
 					: PARAGRAPH_TEXT.resultHint;
 
-	// 모두 무료면 '· 무료' 꼬리(멈춘 뒤 '이어서 만들기'도). 카드는 이때 배지를 빼므로 막대가 늘 말한다(MG-03)
-	const mainFree = !running && count > 0 && (plan?.free ?? false);
+	// 모두 무료면 '· 무료' 꼬리(멈춘 뒤 '이어서 만들기'도). 카드는 같은 freeTailOf가 참일 때만 배지를 빼므로 둘 중 하나는 늘 말한다(MG-03·MG-13)
+	const mainFree = freeTailOf(plan?.free ?? false, make.phase, ready);
 	const labelOf = (free: boolean) =>
 		running
 			? PARAGRAPH_TEXT.stop
@@ -751,9 +752,15 @@ export function ParagraphBar({
 				: stopped
 					? PARAGRAPH_TEXT.makeRestPlain
 					: PARAGRAPH_TEXT.makeAllPlain;
-	// 접근 이름은 꼬리까지 전체 글, 보이는 글은 꼬리 앞(줄어드는 조각)과 꼬리(줄지 않는 조각)로 나눈다
+	// 접근 이름은 꼬리까지 전체 글, 보이는 글은 동사 · 개수(좁으면 먼저 빠짐) · 꼬리(줄지 않음)로 나눈다(MG-13)
 	const mainLabel = labelOf(mainFree);
-	const mainText = labelOf(false);
+	const mainVerb = running
+		? PARAGRAPH_TEXT.stop
+		: stopped
+			? PARAGRAPH_TEXT.makeRestPlain
+			: PARAGRAPH_TEXT.makeAllPlain;
+	const mainCount =
+		!running && count > 0 ? PARAGRAPH_TEXT.countTail(count) : null;
 	const mainFilled = !running && fill === "bar";
 	const receiveReason = receive.ok
 		? null
@@ -844,9 +851,17 @@ export function ParagraphBar({
 											className={mainFilled ? undefined : "text-warning"}
 										/>
 									) : null}
-									{/* 767px 이하 한 줄: 좁으면 앞 글만 줄어들고 '· 무료' 꼬리는 남는다(320, MG-03). 꼬리 앞 공백은 버튼 gap 대신 글자 공백(whitespace-pre) */}
+									{/* 767px 이하 한 줄: 좁으면 '· N개' 조각이 통째로 둘째 줄로 넘어가 가려지고(h-lh·overflow-hidden), 그래도 좁으면 동사만 줄어든다.
+									    '· 무료' 꼬리는 남는다(320, MG-03·MG-13). 조각 앞 공백은 버튼 gap 대신 글자 공백(whitespace-pre) */}
 									<span className="flex min-w-0">
-										<span className="min-w-0 truncate">{mainText}</span>
+										<span className="flex h-lh min-w-0 flex-wrap overflow-hidden">
+											<span className="min-w-0 truncate">{mainVerb}</span>
+											{mainCount ? (
+												<span className="shrink-0 whitespace-pre">
+													{mainCount}
+												</span>
+											) : null}
+										</span>
 										{mainFree ? (
 											<span className="shrink-0 whitespace-pre">
 												{` ${PARAGRAPH_TEXT.freeTail}`}

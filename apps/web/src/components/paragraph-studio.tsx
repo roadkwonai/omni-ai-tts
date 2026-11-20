@@ -35,7 +35,13 @@ import {
 	shouldFillExample,
 	shouldSetExampleVoice,
 } from "@/lib/demo-example";
-import { makeMarkOf, makePlan, type ParagraphStatus } from "@/lib/make-all";
+import {
+	checkingOf,
+	freeTailOf,
+	makeMarkOf,
+	makePlan,
+	type ParagraphStatus,
+} from "@/lib/make-all";
 import {
 	batchSpeaker,
 	blockOf,
@@ -505,9 +511,9 @@ function ParagraphList({
 				: null,
 		[openSetup, voices, now],
 	);
-	// 만들 문단이 모두 무료인지(MG-03). 막대와 같은 계획을 막대와 같은 늦춘 문단으로 셈해(E10) 막대가 '· 무료'를 보일 때 카드는 배지를 뺀다
+	// 만들 문단이 모두 무료인지(MG-03). 막대와 같은 계획을 막대와 같은 늦춘 문단으로 셈해(E10) 막대가 '· 무료'를 보일 때(freeTailOf, MG-13) 카드는 배지를 뺀다
 	const shownPs = useShownParagraphs();
-	const allFree = useMemo(
+	const planFree = useMemo(
 		() =>
 			voices
 				? makePlan(
@@ -519,6 +525,11 @@ function ParagraphList({
 					).free
 				: false,
 		[shownPs, meta, voices, found, now],
+	);
+	const allFree = freeTailOf(
+		planFree,
+		make.phase,
+		work.restored && !checkingOf(work.voicesLoad, work.findState),
 	);
 	if (!work.restored)
 		return (

@@ -381,7 +381,7 @@ critique 27/40, audit 18/20(접근성 3/4) 결과 가운데 브리프·스펙을
 
 ### 백로그·UI/UX 병합 검수 (병합 라운드에서 미룬 것, 2026-11-20)
 - [ ] MG-14 (MG-12 재확인 critique P2) 모달 중 행동별 안내가 두 줄이 되면 1024 성우 대화상자에서 알림 아래 끝(82px)과 제목 위(83px) 간격이 1px이다(겹침 없음). 문구가 더 길거나 세 줄이면 겹친다. 안내를 짧게 하거나 모달이 열린 동안 대화상자 최대 높이에 알림 자리를 남긴다(toast-position.ts shortcut). 같은 때 실제 스크린리더(VoiceOver)로 재누름 재낭독과 390 닫기 경로를 확인한다.
-- [ ] MG-13 (MG-03 리뷰 low) ① 만드는 중(making·stopping)과 첫 찾기 전(checking)에는 카드 배지가 숨고 막대는 '멈추기'·꼬리 없는 '전체 만들기'라 '무료'가 화면에 없다(paragraph-studio.tsx:510 allFree가 막대의 !running·ready 조건을 따르지 않음). ② 멈춘 상태 '이어서 만들기 · N개 · 무료'는 만들기를 눌러야 생겨 화면 확인 못 함(테스트로 문구 고정). ③ studio-layout.test.ts:105 정규식이 JSX 서식에 묶여 있다.
+- [ ] MG-15 (MG-13 마감에서 미룸, 사용자 결정 2026-11-20) 320 폭에서 문단 작업실 막대 주 버튼 자리가 약 34px(`max-md:flex-1`)라 'N개'를 빼도 '이어… · 무료'처럼 동사가 잘린다. 360도 '이어서 만들… · 무료'로 끝 글자가 잘린다(390부터 동사 보존, 재확인 실측). 버튼을 글만큼 넓히고 요약 칩을 위 줄로 보내거나(D22 의도) 좁을 때 짧은 동사를 쓴다. T15b-12(390 막대 정리)와 함께 본다.
 - [ ] MG-04 (audit P3, web-design-guidelines) 랜딩 막대 로고는 라이트·다크 두 판 모두 eager·fetchPriority high로 받는다. 로고를 currentColor SVG 한 장으로 바꿀 때 없앤다(landing-logo.tsx shortcut 주석). 같은 때 landing.css:219 `border-radius: 1px`(DESIGN rounded 스케일 밖)도 본다.
 ### 이번 문서 작업에서 확인한 기존 품질 항목
 
