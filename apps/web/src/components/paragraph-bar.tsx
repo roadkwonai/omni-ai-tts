@@ -813,13 +813,13 @@ export function ParagraphBar({
 							) : null}
 						</div>
 					) : null}
-					{/* DOM은 요약 칩 → 주 버튼 → 받기(브리프 7절). 칩은 요약 레일이 안 보이는 1단·2단에만 나온다(빈 상태에는 막대째 접힌다). 767px 이하는 한 줄로 흐르고(320에서 안 들어가면 칩이 위 줄, D22),
-					    768px 이상은 주 버튼을 오른쪽 끝에 둔다 */}
+					{/* DOM은 요약 칩 → 주 버튼 → 받기(브리프 7절). 칩은 요약 레일이 안 보이는 1단·2단에만 나온다(빈 상태에는 막대째 접힌다). 768px 이상은 주 버튼을 오른쪽 끝에 둔다.
+					    767px 이하는 주 버튼·받기가 한 묶음이고 묶음의 기본 폭은 최소 글 폭(w-min: 동사 + '· 무료', '· N개'는 빼고)이다. 칩 옆에 그 폭이 없으면 칩이 위 줄로 가고(D22, MG-15) 묶음은 남는 폭을 채운다 */}
 					<div className="flex flex-wrap items-center gap-2 md:ml-auto md:justify-end">
 						<div className="contents @6xl:hidden">
 							{restored ? <SummarySheet /> : null}
 						</div>
-						<div className="max-md:contents md:flex md:flex-row-reverse md:flex-wrap md:gap-2">
+						<div className="flex gap-2 max-md:w-min max-md:min-w-0 max-md:flex-auto md:flex-row-reverse md:flex-wrap">
 							{mainShown ? (
 								<Button
 									ref={setMain}
@@ -851,7 +851,7 @@ export function ParagraphBar({
 											className={mainFilled ? undefined : "text-warning"}
 										/>
 									) : null}
-									{/* 767px 이하 한 줄: 좁으면 '· N개' 조각이 통째로 둘째 줄로 넘어가 가려지고(h-lh·overflow-hidden), 그래도 좁으면 동사만 줄어든다.
+									{/* 767px 이하: 좁으면 '· N개' 조각이 통째로 둘째 줄로 넘어가 가려지고(h-lh·overflow-hidden), 그래도 좁으면 동사만 줄어든다.
 									    '· 무료' 꼬리는 남는다(320, MG-03·MG-13). 조각 앞 공백은 버튼 gap 대신 글자 공백(whitespace-pre) */}
 									<span className="flex min-w-0">
 										<span className="flex h-lh min-w-0 flex-wrap overflow-hidden">
