@@ -43,6 +43,9 @@
 - DESIGN.md 갱신 여부 (주 UI 스킬의 정본 갱신 단계. 카탈로그에서 들여온 파일은 merge와 diff 확인) → 갱신 내역과 lint 결과 또는 N/A: 사유
 
 ### L. 작은 화면 변경
+
+앱 코드를 바꾼 L에서는 `pnpm build` 결과를 빌드 검사 행에 적는다. 첫 브라우저 위임에서 개발 서버의 화면과 MCP 진단을 같은 세션으로 확인한다(`prokit-verify`의 런타임과 브라우저).
+
 - 구현 (기존 화면 파일의 작은 변경. prokit-ui-builder에 위임하거나 Main이 직접 수정한다) → 위임: prokit-ui-builder(사용: 읽은 공식 스킬), 변경 파일 요약 또는 Main 직접: 바꾼 줄 요약
 - [verify] 타입·린트·빌드 → 명령과 결과
 - [verify] next-dev-loop 런타임 확인 (prokit-runtime-checker에 위임. 바뀐 요소가 보이는 폭과 상태를 각각 1\~2개 확인하고 오류 예산을 잰다) → 위임: prokit-runtime-checker(사용: next-dev-loop, agent-browser); 폭: 확인한 폭; 상태: 확인한 상태; 오류 예산: 수
