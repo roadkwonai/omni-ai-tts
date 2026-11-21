@@ -195,6 +195,16 @@ const textsOf = (raw: string, room: number, max = STUDIO_TEXT_MAX) => {
 };
 
 describe("pasteToParts: 화자 없는 대본은 T10-a와 같다", () => {
+	it("자리가 0 이하이면 들어가는 조각 없이 실제 생략 수만 센다", () => {
+		for (const room of [0, -1, -10]) {
+			expect(pasteToParts("민수: 하나\n지아: 둘", () => 2000, room)).toEqual({
+				parts: [],
+				names: [],
+				extra: 2,
+				long: 0,
+			});
+		}
+	});
 	it("200개를 넘으면 앞 room개와 extra", () => {
 		const raw = blocks(PARAGRAPHS_MAX + 5);
 		const all = textsOf(raw, PARAGRAPHS_MAX);

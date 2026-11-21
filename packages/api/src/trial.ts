@@ -128,10 +128,16 @@ export type Claim =
 	| { kind: "claimed"; id: string; createdAt: string }
 	| { kind: "existing"; row: ExistingRow };
 
-async function requestRow(db: Database, ownerId: string, requestId: string) {
+async function requestRow(
+	db: Database,
+	ownerId: string,
+	requestId: string,
+	includeAudio = true,
+) {
 	const [row] = await db
 		.select({
 			...resultColumns,
+			audio: includeAudio ? t.audio : sql<Buffer | null>`null`,
 			comboKey: t.comboKey,
 			status: t.status,
 			failureReason: t.failureReason,
@@ -236,7 +242,12 @@ export async function claimRow(
 			id: row.id,
 			createdAt: row.createdAt.toISOString(),
 		};
-	const existing = await requestRow(db, ownerId, requestId);
+	const existing = await requestRow(
+		db,
+		ownerId,
+		requestId,
+		input.fields.kind === "trial",
+	);
 	// 같은 요청 id가 없으면 진행 중인 다른 요청에 걸린 것이다
 	if (!existing) throw trialError(provider, "in_progress");
 	if (existing.comboKey !== key) throw trialError(provider, "request_mismatch");

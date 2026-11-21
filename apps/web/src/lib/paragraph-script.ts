@@ -179,11 +179,11 @@ export function pasteToParts(
 	room: number,
 ): { parts: Part[]; names: string[]; extra: number; long: number } {
 	const { all, long } = partsOf(segmentsOf(raw), maxOf);
-	const parts = all.slice(0, room);
+	const parts = all.slice(0, Math.max(0, room));
 	return {
 		parts,
 		names: namesOf(parts),
-		extra: Math.max(0, all.length - room),
+		extra: all.length - parts.length,
 		long,
 	};
 }

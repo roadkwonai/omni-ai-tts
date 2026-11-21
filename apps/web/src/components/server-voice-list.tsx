@@ -17,6 +17,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { toast } from "sonner";
 
 import { PROVIDER_LABEL } from "@/lib/connection-view";
 import { keepFirstPage } from "@/lib/list-query";
@@ -97,6 +98,11 @@ export function useListRefresh(provider: ProviderId) {
 	const [blockedUntil, setBlockedUntil] = useState<string | null>(null);
 	const mutation = useMutation(
 		orpc.voiceListRefresh.mutationOptions({
+			onError: () => {
+				toast.error(
+					"목록을 새로 고치지 못했어요. 연결과 로그인 상태를 확인한 뒤 다시 시도해 주세요.",
+				);
+			},
 			onSuccess: ({ retryAt }) => {
 				setBlockedUntil(retryAt);
 				// 429 대기 중이면 서버가 만료로 바꾸지 않았다. 목록은 그대로 둔다

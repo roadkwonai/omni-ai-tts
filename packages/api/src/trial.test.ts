@@ -15,12 +15,14 @@ import { testDb as db, testDatabaseUrl as url } from "./test-db";
 import {
 	audioOf,
 	claim,
+	claimRow,
 	comboKey,
 	complete,
 	findSaved,
 	listResults,
 	remove,
 	replay,
+	replayStudio,
 	settle,
 	sweep,
 	withStorage,
@@ -110,6 +112,63 @@ describe.skipIf(!url)("생성 기록", () => {
 	afterAll(async () => {
 		await db.delete(trialGeneration);
 		await db.$client.end();
+	});
+
+	it("충돌 조회는 내 문장 오디오를 보존하고 작업실·드라마 오디오는 읽지 않는다", async () => {
+		const queries = vi.spyOn(db.$client, "query");
+		for (const kind of ["trial", "studio", "drama"] as const) {
+			const requestId = id();
+			const key = comboKey(request(), kind);
+			const input = {
+				ownerId: A,
+				requestId,
+				key,
+				usage,
+				provider: "elevenlabs" as const,
+				fields: {
+					kind,
+					voiceId: "el0001",
+					model: "test",
+					settings: {},
+					text: "안녕하세요",
+				},
+			};
+			const first = await claimRow(db, input);
+			expect(first.kind).toBe("claimed");
+			if (first.kind !== "claimed") throw new Error("claim failed");
+			await complete(db, A, first.id, MP3, "audio/mpeg");
+			queries.mockClear();
+			const again = await claimRow(db, input);
+			const selects = queries.mock.calls
+				.map(([query]) =>
+					typeof query === "string" ? query : Reflect.get(query, "text"),
+				)
+				.filter((query) => /^select /i.test(query));
+			expect(selects).toHaveLength(1);
+			expect(selects[0]).toMatch(kind === "trial" ? /"audio"/ : /\bnull\b/i);
+			if (kind !== "trial") expect(selects[0]).not.toMatch(/"audio"/);
+			expect(again.kind).toBe("existing");
+			if (again.kind !== "existing") throw new Error("collision missing");
+			if (kind === "trial") {
+				expect(
+					new Uint8Array(
+						await replay("elevenlabs", again.row).audio.arrayBuffer(),
+					),
+				).toEqual(MP3);
+			} else {
+				expect(again.row.audio).toBeNull();
+				expect(
+					await replayStudio(db, A, requestId, key, "elevenlabs"),
+				).toMatchObject({ id: first.id });
+			}
+			await expect(
+				claimRow(db, { ...input, key: "different" }),
+			).rejects.toMatchObject({ data: { reason: "request_mismatch" } });
+			expect((await claimRow(db, { ...input, ownerId: B })).kind).toBe(
+				"claimed",
+			);
+			await db.delete(trialGeneration).where(eq(trialGeneration.ownerId, B));
+		}
 	});
 
 	it("선점하고 완료하면 찾기가 오디오를 돌려주고 만료를 30일 뒤로 늘린다", async () => {

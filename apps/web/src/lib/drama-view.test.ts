@@ -24,13 +24,15 @@ import { describe, expect, it } from "vitest";
 
 import {
 	type AutoTagChange,
-	actingOf,
-	allFish,
 	autoTagApply,
 	autoTagBlock,
 	autoTagChanges,
 	autoTagInput,
 	autoTagNotes,
+} from "./drama-autotag";
+import {
+	actingOf,
+	allFish,
 	badgeEdit,
 	badSpeakerNames,
 	barReason,

@@ -44,6 +44,8 @@ import {
 	autoTagChanges,
 	autoTagInput,
 	autoTagNotes,
+} from "@/lib/drama-autotag";
+import {
 	DRAMA_TEXT,
 	type DraftLine,
 	feelText,

@@ -8,7 +8,6 @@ import {
 	paragraphTagPrompt,
 } from "../paragraph-tags";
 import { STUDIO_TIMEOUT_MS, trialError } from "../providers/errors";
-import type { TrialAudio } from "../providers/trial-contract";
 import {
 	estimate,
 	freeModelOpen,
@@ -17,7 +16,6 @@ import {
 	studioTextMax,
 } from "../providers/trial-options";
 import {
-	type StudioResult,
 	studioAudioInputSchema,
 	studioAutoTagInputSchema,
 	studioAutoTagOutputSchema,
@@ -38,7 +36,6 @@ import {
 	type LateTarget,
 	recordFailure,
 	recordSuccess,
-	replay,
 	replayStudio,
 	saveLate,
 	usableVoices,
@@ -48,15 +45,6 @@ import { cooldownOf } from "../voice-cache";
 import { rateFor } from "./rates";
 
 const PREFIX = "[studio]";
-
-// 선점이 같은 요청 id에 걸린 경우(동시 재전송)의 재생. 그 행은 사실상 진행 중이라 오디오가 없다(앞 요청이 그 사이 끝난 아주 짧은 경우만 오디오를 읽는다).
-// 보통의 재전송은 replayStudio가 길이만 읽는다(계획 리뷰 P4·E3)
-const resultOf = (audio: TrialAudio): StudioResult => ({
-	id: audio.id,
-	createdAt: audio.createdAt,
-	usage: audio.usage,
-	bytes: audio.audio.size,
-});
 
 // 음성 작업실(T9 스펙 3절, T10 다섯 공급자). 크레딧을 쓰는 길은 studioCreate 하나다. 나머지는 DB만 본다
 export const studioRouter = {
@@ -113,8 +101,15 @@ export const studioRouter = {
 					}),
 				PREFIX,
 			);
-			if (claimed.kind === "existing")
-				return resultOf(replay(provider, claimed.row));
+			if (claimed.kind === "existing") {
+				const again = await withStorage(
+					provider,
+					() => replayStudio(db, ownerId, requestId, key, provider),
+					PREFIX,
+				);
+				if (again) return again;
+				throw trialError(provider, "unknown_outcome");
+			}
 			// 늦은 결과·성공 기록의 대상: 이 소유자의 이 작업실 행, 사용 이력을 올릴 성우
 			const target: LateTarget = {
 				ownerId,
