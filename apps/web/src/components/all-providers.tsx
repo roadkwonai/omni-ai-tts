@@ -113,7 +113,7 @@ function useOneListBundle(
 		// 연령으로 0명이 된 까닭을 그 묶음에서 바로 알린다(브리프 5절, critique P1)
 		emptyText:
 			provider !== "typecast" && state.age !== null
-				? `${PROVIDER_LABEL[provider]}는 연령 정보가 없어 연령으로 찾을 수 없어요`
+				? `${PROVIDER_LABEL[provider]}는 연령 정보가 없어요. 이 성우들을 찾으려면 연령 조건을 해제해 주세요.`
 				: NO_MATCH,
 		reload: () =>
 			query
