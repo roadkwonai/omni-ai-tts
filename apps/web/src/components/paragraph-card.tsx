@@ -288,6 +288,8 @@ function StatusCell({
 			);
 		case "blocked":
 		case "failed":
+			if (status === "blocked" && reason === PARAGRAPH_TEXT.noVoice)
+				return null;
 			return (
 				<span className={cn(STATE, "min-w-0 items-start text-warning")}>
 					<TriangleAlert
