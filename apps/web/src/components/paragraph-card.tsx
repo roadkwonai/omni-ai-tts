@@ -289,9 +289,14 @@ function StatusCell({
 		case "blocked":
 		case "failed":
 			return (
-				<span className={cn(STATE, "text-warning")}>
-					<TriangleAlert aria-hidden="true" className={STATE_ICON} />
-					{reason ?? PARAGRAPH_TEXT.failed}
+				<span className={cn(STATE, "min-w-0 items-start text-warning")}>
+					<TriangleAlert
+						aria-hidden="true"
+						className={cn(STATE_ICON, "mt-0.5")}
+					/>
+					<span className="wrap-anywhere min-w-0 break-keep">
+						{reason ?? PARAGRAPH_TEXT.failed}
+					</span>
 				</span>
 			);
 		case "making":
