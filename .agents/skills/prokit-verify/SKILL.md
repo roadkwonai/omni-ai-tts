@@ -26,7 +26,7 @@ description: >-
 | 바뀐 것 | 최소 검사 |
 |---|---|
 | 모든 코드 | `commands.typecheck`, `commands.lint` |
-| 화면과 라우트 | 모든 코드 검사 + `commands.build`, 런타임 확인. 대조표가 묶음 capture를 요구하는 B·F와 B 확인 행을 상속한 C는 검증 증거 묶음, L은 변경 요소가 보이는 폭·상태 확인 |
+| 화면과 라우트 | 모든 코드 검사 + `commands.build`, 런타임 확인. 대조표가 묶음 capture를 요구하는 B·F와 B 확인 행을 상속한 C는 검증 증거 묶음, L은 변경 요소가 보이는 폭·상태와 오류 예산 확인 |
 | 프로시저와 인증 | 모든 코드 검사 + `commands.test`, **2계정 격리 테스트** | <!-- edition:pro -->
 | 스키마 | 모든 코드 검사 + 로컬 개발 DB에 `commands.dbMigrate` 적용 출력, 병합 전 대상(Neon 개발 브랜치 또는 Supabase 스테이징)에도 적용한 출력. Supabase는 `supabase db advisors` 보안 검사(`No issues found`)도. 대상과 명령은 `prokit-db`의 `references/migration-flow.md`. 사용자 소유 테이블이면 그 테이블을 쓰는 프로시저의 2계정 격리 테스트도(D 행) | <!-- edition:pro -->
 | 스킬, 에이전트, dev-cycle | `pnpm agents:check`, `pnpm skills:check`, `pnpm dev-cycle case`, `pnpm dev-cycle status`. 평가 범위와 재사용은 실행 효율과 재검증의 H 검증 범위 |
