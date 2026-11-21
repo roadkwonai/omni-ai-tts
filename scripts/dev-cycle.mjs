@@ -310,6 +310,64 @@ function harnessBuildScope(files, config, cls = classify(files, config)) {
 export const SECURITY_ROW =
 	"[review] prokit-reviewer(security) → verdict, max_severity, 반영·기각 내역";
 
+const LOGIC_BUILD_ROW = "[verify] 타입·린트·빌드 → 명령과 결과";
+const LOGIC_REVIEW_ROW =
+	"[review] prokit-reviewer(code) → verdict, max_severity, 반영·기각 내역";
+const LOGIC_UPGRADE =
+	"케이스 상향 필요: C 순수 로직 범위를 확인할 수 없다 → 스테이징과 작업 트리를 대조한 뒤 pnpm dev-cycle table C --write --upgrade (기존 계층 검사 적용)";
+const SCREEN_ONLY_ROWS = [
+	"[verify] next-dev-loop 런타임 확인과 검증 증거 묶음 (",
+	"[verify] 휴대폰 스크롤 측정 (",
+	"[review] 디자인 리뷰 (",
+	"[review] 디자인 감사와 web-design-guidelines 코드 검사 (",
+	"[verify] 재확인 1회 (",
+];
+
+// 경로는 명백히 범위 밖인 변경을 거르는 데만 쓴다. 순수 로직 여부는 같은 diff의 독립 리뷰로 확정한다.
+function pureLogicDiff(root, base, files, config, cls, round = "") {
+	if (!base || cls.pathCase !== "B" || cls.auth || cls.harness) return null;
+	const source = files.filter((file) => !liteIgnored(file, config));
+	if (
+		!source.length ||
+		source.some(
+			(file) =>
+				!/^apps\/web\/src\/.+\.ts$/.test(file) ||
+				/(?:^|\/)(?:app|components|hooks|providers|ui|config)\/|(?:^|[/.])(?:config|middleware|proxy|instrumentation(?:-client)?|route|page|layout|template|default|error|loading|not-found|d)\.ts$/.test(
+					file,
+				) ||
+				!lstatSync(join(root, file), { throwIfNoEntry: false })?.isFile(),
+		)
+	)
+		return null;
+	const args = ["--relative", "--no-renames", "--no-ext-diff", "--no-textconv"];
+	const diff = (...options) =>
+		git(root, ["--literal-pathspecs", "diff", ...args, ...options]);
+	const modified = splitZ(
+		diff("--name-only", "-z", "--diff-filter=M", base, "--", ...source),
+	);
+	if (modified.length !== source.length) return null;
+	const staged = splitZ(
+		diff("--cached", "--name-only", "-z", base, "--"),
+	).filter((file) => !liteIgnored(file, config));
+	if (
+		staged.some((file) => !source.includes(file)) ||
+		(staged.length && diff("--name-only", "-z", "--", ...staged))
+	)
+		return null;
+	const patch = diff(
+		"--binary",
+		"--full-index",
+		"--no-color",
+		base,
+		"--",
+		...source,
+	);
+	return createHash("sha256")
+		.update(`${round}\0${base}\0`)
+		.update(patch)
+		.digest("hex");
+}
+
 export function parseWorkflow(md) {
 	const blocks = {};
 	let key = null;
@@ -337,7 +395,7 @@ export function parseWorkflow(md) {
 	return blocks;
 }
 
-export function buildRows(workflow, caseKey, cls) {
+export function buildRows(workflow, caseKey, cls, { pureLogic = false } = {}) {
 	if (!workflow[caseKey])
 		throw new UsageError(`${caseKey} 케이스 블록이 워크플로 문서에 없다`);
 	const expand = (key, stack) => {
@@ -348,11 +406,17 @@ export function buildRows(workflow, caseKey, cls) {
 			if (item.include) {
 				for (const k of item.include) rows.push(...expand(k, [...stack, key]));
 			} else if (item.inherit) {
-				const src = cls.pathCase;
+				const src = pureLogic && key === "C" ? "B" : cls.pathCase;
 				if (src !== key) {
 					rows.push(
-						...expand(src, [...stack, key]).filter((r) =>
-							item.inherit.includes(r.tag),
+						...expand(src, [...stack, key]).filter(
+							(r) =>
+								item.inherit.includes(r.tag) &&
+								!(
+									pureLogic &&
+									key === "C" &&
+									SCREEN_ONLY_ROWS.some((prefix) => r.text.startsWith(prefix))
+								),
 						),
 					);
 				}
@@ -371,6 +435,10 @@ export function buildRows(workflow, caseKey, cls) {
 	};
 	expand(caseKey, []).forEach(push);
 	if (caseKey === "L") return out;
+	if (pureLogic) {
+		push({ text: LOGIC_BUILD_ROW, tag: "verify" });
+		push({ text: LOGIC_REVIEW_ROW, tag: "review" });
+	}
 	if (cls.harness && caseKey !== "H") expand("H", []).forEach(push);
 	if (
 		cls.auth &&
@@ -387,7 +455,7 @@ const esc = (s) => String(s ?? "").replace(/\|/g, "\\|");
 
 export function renderBlock(meta, rows, extra = []) {
 	const lines = [
-		`<!-- dev-cycle:start case=${meta.case} base=${meta.base ?? "none"} auth=${Boolean(meta.auth)} opened=${meta.opened}${meta.task ? ` task=${meta.task}` : ""}${meta.notask ? " notask=true" : ""}${meta.brains ? ` brains=${meta.brains}` : ""}${meta.skills ? " skills=true" : ""} -->`,
+		`<!-- dev-cycle:start case=${meta.case} base=${meta.base ?? "none"} auth=${Boolean(meta.auth)} opened=${meta.opened}${meta.task ? ` task=${meta.task}` : ""}${meta.notask ? " notask=true" : ""}${meta.brains ? ` brains=${meta.brains}` : ""}${meta.skills ? " skills=true" : ""}${meta.pure ? ` pure=${meta.pure}` : ""} -->`,
 		`## 활성 라운드: ${meta.case} — ${meta.title}`,
 		"| # | 단계 | 증거 |",
 		"|---|---|---|",
@@ -1471,7 +1539,7 @@ function lateReviewProblem(root, active) {
 			(e) => e.t > at && e.t <= done && PACKET_SOURCE_RE.test(e.file),
 		);
 		return late
-			? `코드 리뷰를 채운 뒤 마감에서 화면 소스(${late.file})를 고쳤다. 코드 리뷰는 마감 행을 채운 뒤에 한다. 같은 리뷰어를 이어 써서(SendMessage) 마감 diff를 다시 보게 하고 이 행을 다시 채운다`
+			? `코드 리뷰를 채운 뒤 마감에서 소스(${late.file})를 고쳤다. 코드 리뷰는 마감 행을 채운 뒤에 한다. 같은 리뷰어를 이어 써서(SendMessage) 마감 diff를 다시 보게 하고 이 행을 다시 채운다`
 			: null;
 	};
 }
@@ -3046,6 +3114,99 @@ const liteRejected = (active) =>
 			[...scopeVerdict(r.evidence, "경량")].some((m) => m[1] === "아님"),
 	);
 
+const reviewApproved = (value) =>
+	/^prokit-reviewer\(code\):\s*approve,\s*max=(none|low|medium)(?=\s*[,;]|$)/.test(
+		value,
+	);
+
+function freshReview(value, log, row, after = 0, files = []) {
+	const filled = log?.fills.findLast((f) => f.text === row.text)?.t;
+	const latest = log?.reviewerWork.findLast(
+		({ t }) => t <= (filled ?? Number.POSITIVE_INFINITY),
+	);
+	const identified =
+		log && [...log.uses, ...log.agentUses, ...log.edits].some((e) => e.seen);
+	return (
+		/(?:^|[;,]\s*)리뷰:\s*fresh\b/.test(value) &&
+		!/(?:리뷰:\s*(?:이어 쓰기|reused)|reused\s*[:=]\s*true)/i.test(value) &&
+		(!identified || latest) &&
+		(!latest ||
+			(!log.priorReviewers.has(latest.id) &&
+				!log.reviewerWork.some(({ t, id }) => id === latest.id && t < after) &&
+				!log.edits.some(
+					(e) => e.agentId === latest.id && files.includes(e.file),
+				)))
+	);
+}
+
+const logicEvidenceField = (value, key) => {
+	const fields = value
+		.split(";")
+		.map((part) => part.trim())
+		.filter((part) => part.startsWith(`${key}:`));
+	return fields.length === 1
+		? fields[0].slice(key.length + 1).trim()
+		: undefined;
+};
+const reviewedDiff = (value) => logicEvidenceField(value, "diff");
+
+function pureLogicStatus(root, config, active, files, cls) {
+	if (active?.meta.case !== "C" || !active.meta.pure) return null;
+	if (active.meta.skills === "true") return { diff: null, state: "outside" };
+	const diff = pureLogicDiff(
+		root,
+		active.meta.base,
+		files,
+		config,
+		cls,
+		active.meta.pure,
+	);
+	const review = active.rows.find((r) => r.text === LOGIC_REVIEW_ROW);
+	const value = bare(review?.evidence);
+	const verdict = logicEvidenceField(value, "순수 로직");
+	if (
+		(!diff && files.some((file) => !liteIgnored(file, config))) ||
+		verdict === "아님"
+	)
+		return { diff, state: "outside" };
+	if (
+		!diff ||
+		!reviewApproved(value) ||
+		verdict !== "확인" ||
+		logicEvidenceField(value, "리뷰") !== "fresh" ||
+		reviewedDiff(value) !== diff ||
+		!logicEvidenceField(value, "소비자")
+	)
+		return { diff, state: "pending" };
+	const log = roundLog(root, active);
+	const after = log?.fills.findLast((f) => f.text?.startsWith("수정 →"))?.t;
+	return {
+		diff,
+		state: freshReview(value, log, review, after, files)
+			? "confirmed"
+			: "pending",
+	};
+}
+
+function pureLogicRowProblem(r, logic) {
+	if (!logic || logic.state === "outside") return null;
+	const value = bare(r.evidence);
+	if (r.text === LOGIC_REVIEW_ROW && logic.state !== "confirmed")
+		return "현재 diff의 새 독립 코드 리뷰를 받는다. 리뷰: fresh; 순수 로직: 확인; diff: <case --json의 지문>; 소비자: <경로와 계약 확인 근거>를 적는다";
+	if (
+		r.text === LOGIC_BUILD_ROW ||
+		r.text.startsWith("[verify] 재현 테스트 통과 (")
+	) {
+		if (
+			SKIP_RE.test(value) ||
+			!logic.diff ||
+			reviewedDiff(value) !== logic.diff
+		)
+			return "현재 diff에서 실제 검사한 명령·결과와 diff: <case --json의 지문>을 적는다";
+	}
+	return null;
+}
+
 function liteRowProblem(root, active, files) {
 	if (active.meta.case !== "L") return () => null;
 	const implementation = active.rows.find((r) =>
@@ -3056,8 +3217,6 @@ function liteRowProblem(root, active, files) {
 	const implAt = filledAt(implementation);
 	const direct = mainDirect(bare(implementation?.evidence));
 	const edits = log?.edits ?? [];
-	const identified =
-		log && [...log.uses, ...log.agentUses, ...edits].some((e) => e.seen);
 	const field = (value, key) =>
 		value.match(new RegExp(`(?:^|[;,]\\s*)${key}:\\s*([^;]+)`))?.[1].trim();
 	return (r) => {
@@ -3094,33 +3253,13 @@ function liteRowProblem(root, active, files) {
 				return "prokit-runtime-checker에 맡기고 폭: …; 상태: …; 오류 예산: …을 적는다. 폭과 상태는 각각 1~2개다";
 		}
 		if (CODE_REVIEW.test(r.text)) {
-			const approved =
-				/^prokit-reviewer\(code\):\s*approve,\s*max=(none|low|medium)(?=\s*[,;]|$)/.test(
-					value,
-				);
 			if (
-				!approved ||
+				!reviewApproved(value) ||
 				![...scopeVerdict(value, "경량")].some((m) => m[1] === "확인")
 			)
 				return "prokit-reviewer(code)의 approve, max=none|low|medium 및 경량: 확인 근거를 적는다";
-			if (direct) {
-				const work =
-					log?.reviewerWork.filter(
-						({ t }) => t <= (filledAt(r) ?? Number.POSITIVE_INFINITY),
-					) ?? [];
-				const latest = work.at(-1);
-				if (
-					!/(?:^|[;,]\s*)리뷰:\s*fresh\b/.test(value) ||
-					(identified && !latest) ||
-					/(?:리뷰:\s*(?:이어 쓰기|reused)|reused\s*[:=]\s*true)/i.test(
-						value,
-					) ||
-					(latest &&
-						(log.priorReviewers.has(latest.id) ||
-							work.some(({ t, id }) => id === latest.id && t < (implAt ?? 0))))
-				)
-					return "Main 직접 구현은 새 prokit-reviewer(code)에 맡긴 뒤 리뷰: fresh를 적는다";
-			}
+			if (direct && !freshReview(value, log, r, implAt))
+				return "Main 직접 구현은 새 prokit-reviewer(code)에 맡긴 뒤 리뷰: fresh를 적는다";
 		}
 		if (isConfirm(r.text))
 			return /[;,]\s*마무리:\s*\S/.test(value)
@@ -3138,12 +3277,7 @@ function liteRowProblem(root, active, files) {
 }
 
 // audit과 status가 같은 판정을 쓴다. 진행 계획 라운드의 확인 행은 지문까지 본다.
-const roundRowProblem = (
-	root,
-	config,
-	active,
-	files = roundFiles(root, active),
-) => {
+const roundRowProblem = (root, config, active, files, logic) => {
 	const planRound = isPlanRound(active);
 	const brain = brainProblem(root, config, active);
 	const simplicity = simplicityProblem(root, config, active);
@@ -3188,6 +3322,7 @@ const roundRowProblem = (
 			? "N/A: 백로그는 백로그: 제목 라운드의 디자인 리뷰 행에서만 쓴다"
 			: null) ??
 		lite(r) ??
+		pureLogicRowProblem(r, logic) ??
 		copy(r) ??
 		uiRecordProblem(root, active.meta, r) ??
 		packet(r) ??
@@ -3368,6 +3503,7 @@ export function writeTable(
 		task,
 		plan = false,
 		noTask = false,
+		pureLogic = false,
 	} = {},
 ) {
 	const md = readTodo(root, config) ?? "# 작업\n";
@@ -3453,8 +3589,22 @@ export function writeTable(
 		throw new UsageError(
 			`--plan은 케이스 A(계획 문서만 바꾸는 라운드)로 연다. 지금 diff 판정은 ${cls.pathCase}다`,
 		);
+	if (pureLogic && (key !== "C" || !base))
+		throw new UsageError("--pure-logic는 기준 커밋이 있는 케이스 C에만 쓴다");
+	const logicDiff =
+		pureLogic || active?.meta.pure
+			? pureLogicDiff(root, base, files, config, cls, active?.meta.pure)
+			: null;
+	if (
+		pureLogic &&
+		(active?.meta.skills === "true" ||
+			(!logicDiff && files.some((file) => !liteIgnored(file, config))))
+	)
+		throw new UsageError(
+			"현재 diff가 C 순수 로직 후보 범위를 벗어났다. --pure-logic 없이 대조표를 연다",
+		);
 	const workflow = readWorkflow(root, config);
-	const rows = buildRows(workflow, key, cls).map((r) => ({
+	const rows = buildRows(workflow, key, cls, { pureLogic }).map((r) => ({
 		...r,
 		evidence: "",
 	}));
@@ -3464,10 +3614,18 @@ export function writeTable(
 			active.meta.case === "L" && key !== "L"
 				? new Set(workflow.L.map((r) => r.text))
 				: new Set();
-		const oldRows = active.rows.filter((r) => !oldLite.has(r.text));
+		const dropped = new Set(oldLite);
+		if (pureLogic) {
+			for (const r of buildRows(workflow, "B", cls))
+				if (SCREEN_ONLY_ROWS.some((prefix) => r.text.startsWith(prefix)))
+					dropped.add(r.text);
+		}
+		const oldRows = active.rows.filter((r) => !dropped.has(r.text));
 		for (const r of active.rows) {
-			if (oldLite.has(r.text) && r.evidence)
-				extra.push(`- 이전 L 증거(참고) ${r.text} → ${r.evidence}`);
+			if (dropped.has(r.text) && r.evidence)
+				extra.push(
+					`- 이전 ${active.meta.case} 증거(참고) ${r.text} → ${r.evidence}`,
+				);
 		}
 		const old = new Map(oldRows.map((r) => [r.text, r.evidence]));
 		const kept = new Set(rows.map((r) => r.text));
@@ -3492,6 +3650,19 @@ export function writeTable(
 			const previousEval =
 				r.text.startsWith(H_EVAL_ROW) && active.rows[legacyEval];
 			const exact = old.get(r.text);
+			if (
+				!pureLogic &&
+				active.meta.pure &&
+				exact &&
+				(r.text === LOGIC_REVIEW_ROW ||
+					((r.text === LOGIC_BUILD_ROW ||
+						r.text.startsWith("[verify] 재현 테스트 통과 (")) &&
+						reviewedDiff(bare(exact)) !== logicDiff) ||
+					isConfirm(r.text))
+			) {
+				extra.push(`- 이전 C 증거(참고, 재검토 필요) ${r.text} → ${exact}`);
+				continue;
+			}
 			if (old.has(r.text) && (!previousEval || bare(exact))) {
 				r.evidence = exact;
 				if (previousEval) {
@@ -3505,7 +3676,7 @@ export function writeTable(
 				? legacyEval
 				: active.rows.findIndex(
 						(o) =>
-							!oldLite.has(o.text) &&
+							!dropped.has(o.text) &&
 							!kept.has(o.text) &&
 							oldOnly(o) &&
 							newOnly(r) &&
@@ -3603,6 +3774,7 @@ export function writeTable(
 		notask: noTask || active?.meta.notask === "true",
 		brains: active?.meta.brains,
 		skills: active?.meta.skills === "true",
+		pure: pureLogic ? (active?.meta.pure ?? randomUUID()) : undefined,
 	};
 	const hBuildScope =
 		key === "H" &&
@@ -3887,7 +4059,13 @@ export function audit(
 	const X = active.meta.case;
 	const files =
 		X === "L" ? changedFiles(root, active.meta.base) : roundFiles(root, active);
-	const problemOf = roundRowProblem(root, config, active, files);
+	const cls = classify(
+		files,
+		config,
+		X === "L" ? { root, base: active.meta.base } : undefined,
+	);
+	const logic = pureLogicStatus(root, config, active, files, cls);
+	const problemOf = roundRowProblem(root, config, active, files, logic);
 	active.rows.forEach((r, i) => {
 		const p = problemOf(r);
 		if (p)
@@ -3895,11 +4073,6 @@ export function audit(
 				`#${i + 1} ${r.text}: ${p}${planRound && isConfirm(r.text) ? ` — ${PLAN_CONFIRM_NOTE}` : ""}`,
 			);
 	});
-	const cls = classify(
-		files,
-		config,
-		X === "L" ? { root, base: active.meta.base } : undefined,
-	);
 	const warnings = [
 		...shellEdits(root, config, active, files),
 		...skillWarnings(root, active, { files, auth: cls.auth }),
@@ -3915,7 +4088,9 @@ export function audit(
 			: X !== "L" && !["C", "F"].includes(X) && ![X, "A"].includes(cls.pathCase)
 				? cls.pathCase
 				: null;
-	if (upgrade) {
+	if (logic?.state === "outside") {
+		problems.push(LOGIC_UPGRADE);
+	} else if (upgrade) {
 		problems.push(
 			X === "L"
 				? `케이스 상향 필요: ${upgrade} (L의 변경 범위 또는 리뷰 조건을 충족하지 못했다) → pnpm dev-cycle table ${upgrade} --write --upgrade`
@@ -3923,7 +4098,9 @@ export function audit(
 		);
 	} else {
 		const have = new Set(active.rows.map((r) => r.text));
-		for (const r of buildRows(readWorkflow(root, config), X, cls)) {
+		for (const r of buildRows(readWorkflow(root, config), X, cls, {
+			pureLogic: Boolean(logic),
+		})) {
 			if (!have.has(r.text))
 				problems.push(
 					`필수 행 누락: ${r.text} → pnpm dev-cycle table ${X} --write --upgrade`,
@@ -4328,7 +4505,11 @@ function statusOfRound(root, config) {
 			line: '활성 라운드 없음 — pnpm dev-cycle case로 판정한 뒤 pnpm dev-cycle table <케이스> --write --title "<요약>"으로 연다 (케이스는 요청 기준, 아직 diff가 없으면 판정은 A)',
 		};
 	}
-	const problemOf = roundRowProblem(root, config, active);
+	const files = roundFiles(root, active);
+	const logic = active.meta.pure
+		? pureLogicStatus(root, config, active, files, classify(files, config))
+		: null;
+	const problemOf = roundRowProblem(root, config, active, files, logic);
 	const filled = active.rows.filter((r) => !problemOf(r)).length;
 	const next = active.rows.find(problemOf)?.text ?? null;
 	const cover =
@@ -4344,7 +4525,7 @@ function statusOfRound(root, config) {
 				g.rows.length > 1 &&
 				g.rows.includes(active.rows.findIndex((r) => r.text === next) + 1),
 		);
-	const line = `라운드 ${active.meta.case}${active.meta.task ? `(${active.meta.task})` : active.meta.notask === "true" ? "(--no-task)" : ""} "${active.title}" — ${filled}/${active.rows.length}칸 — 다음: ${next ?? "audit 후 close"}${next && isConfirm(next) && isPlanRound(active) ? ` — ${PLAN_CONFIRM_NOTE}` : ""}${cover ? ` — 이 행은 두뇌 ${cover.brain}의 ${cover.names.join(", ")}를 먼저 불러서 한다` : ""}${group ? ` — 함께 시작할 수 있는 행: ${group.rows.map((n) => `#${n}`).join(" ")}(${group.when})` : ""}`;
+	const line = `라운드 ${active.meta.case}${active.meta.task ? `(${active.meta.task})` : active.meta.notask === "true" ? "(--no-task)" : ""} "${active.title}" — ${filled}/${active.rows.length}칸 — 다음: ${logic?.state === "outside" ? LOGIC_UPGRADE : (next ?? "audit 후 close")}${next && isConfirm(next) && isPlanRound(active) ? ` — ${PLAN_CONFIRM_NOTE}` : ""}${cover ? ` — 이 행은 두뇌 ${cover.brain}의 ${cover.names.join(", ")}를 먼저 불러서 한다` : ""}${group ? ` — 함께 시작할 수 있는 행: ${group.rows.map((n) => `#${n}`).join(" ")}(${group.when})` : ""}`;
 	return {
 		active: true,
 		case: active.meta.case,
@@ -5148,7 +5329,7 @@ function projectPath(root, cwd, file) {
 }
 
 const USAGE =
-	"사용법: dev-cycle <case | table [CASE] [--write] [--upgrade] [--title 제목] [--task T번호 | --plan | --no-task] | evidence <행 번호> --file <증거 파일> | status | plan | audit [--packet 파일 --context 파일] | resource <check|run|clean> | delegation <capture|diff|resolve|validate|accept> | close [--partial] [--round-only] | archive | secrets | guard --staged | guard --since <ref>> [--json]";
+	"사용법: dev-cycle <case | table [CASE] [--write] [--upgrade] [--pure-logic] [--title 제목] [--task T번호 | --plan | --no-task] | evidence <행 번호> --file <증거 파일> | status | plan | audit [--packet 파일 --context 파일] | resource <check|run|clean> | delegation <capture|diff|resolve|validate|accept> | close [--partial] [--round-only] | archive | secrets | guard --staged | guard --since <ref>> [--json]";
 
 function readDelegationJson(root, path, flag) {
 	if (!path || path.startsWith("--"))
@@ -6034,20 +6215,28 @@ export function main(argv, root = process.cwd()) {
 			const md = readTodo(root, config);
 			const active = md && parseActive(md);
 			const base = active ? active.meta.base : resolveBase(root, config);
-			const cls = classify(
+			const files =
 				active && active.meta.case !== "L"
 					? roundFiles(root, active)
-					: changedFiles(root, base),
-				config,
-				{ root, base },
-			);
+					: changedFiles(root, base);
+			const cls = classify(files, config, { root, base });
+			const logic = pureLogicStatus(root, config, active, files, cls);
 			const head = `${cls.pathCase}${cls.auth ? " (+auth: security 리뷰 행 추가)" : ""}${cls.harness && cls.pathCase !== "H" ? " (+H)" : ""} — base ${base ?? "none"}`;
 			const lines = cls.evidence.map(
 				(e) =>
 					`  ${e.case ?? "-"}${e.auth ? "+auth" : ""}  ${e.file}  (${e.why ?? "인증 민감 경로"})`,
 			);
-			if (cls.liteOk) lines.push("  작은 화면 변경이면 L로 열 수 있다");
-			print({ ...cls, base }, [head, ...lines].join("\n"));
+			if (logic) {
+				lines.push(
+					logic.state === "outside"
+						? LOGIC_UPGRADE
+						: `  C 순수 로직: ${logic.state === "confirmed" ? "확인" : "검사·리뷰 증거 대기"}${logic.diff ? ` (diff: ${logic.diff})` : ""}`,
+				);
+			} else if (cls.liteOk) lines.push("  작은 화면 변경이면 L로 열 수 있다");
+			print(
+				{ ...cls, base, ...(logic ? { pureLogic: logic } : {}) },
+				[head, ...lines].join("\n"),
+			);
 			return 0;
 		}
 		case "table": {
@@ -6063,6 +6252,7 @@ export function main(argv, root = process.cwd()) {
 				task,
 				plan: rest.includes("--plan"),
 				noTask: rest.includes("--no-task"),
+				pureLogic: rest.includes("--pure-logic"),
 			});
 			const text = rest.includes("--write")
 				? `${config.todoPath}에 케이스 ${r.case} 대조표(${r.rows}행)를 썼다\n${brainLine(config)}${stageGuide(root, config)}${parallelGuide(root, config)}${reviewGuide(root, config)}${formatGuide(config)}`
