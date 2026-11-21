@@ -126,6 +126,21 @@ describe("splitBlocks", () => {
 });
 
 describe("splitLong", () => {
+	it("NaN 상한은 분할 전에 거절한다", () => {
+		expect(() => splitLong("안녕", Number.NaN)).toThrow(RangeError);
+	});
+	it("양의 정수가 아닌 상한은 빈 입력에서도 거절한다", () => {
+		for (const max of [
+			0,
+			-1,
+			1.5,
+			Number.POSITIVE_INFINITY,
+			Number.NEGATIVE_INFINITY,
+		]) {
+			expect(() => splitLong("", max)).toThrow(RangeError);
+			expect(() => splitLong("안녕", max)).toThrow(RangeError);
+		}
+	});
 	it("2,000자 안의 마지막 문장 끝에서 자른다", () => {
 		const first = `${"가".repeat(1500)}다. ${"나".repeat(400)}요.`;
 		const block = `${first} ${"라".repeat(500)}`;

@@ -101,6 +101,8 @@ function cutOf(window: readonly string[], max: number): number {
 }
 // 코드 포인트로 max 이하가 될 때까지 나눈다: max 안 마지막 문장 끝 → 마지막 공백 → 정확히 max(서로게이트를 가르지 않음)
 export function splitLong(block: string, max: number): string[] {
+	if (!Number.isInteger(max) || max <= 0)
+		throw new RangeError("max must be a positive integer");
 	const chars = [...block.trim()];
 	const pieces: string[] = [];
 	let at = 0;
