@@ -1571,7 +1571,14 @@ export function parallelRows(rows) {
 		when: g.when,
 		rows: rows
 			.map((r, i) => [i + 1, r])
-			.filter(([, r]) => g.rows.some((p) => r.text.startsWith(p)))
+			.filter(
+				([, r]) =>
+					g.rows.some((p) => r.text.startsWith(p)) &&
+					!(
+						r.text.startsWith("[review] 디자인 리뷰") &&
+						/^n\/a\s*:\s*백로그/i.test(r.evidence ?? "")
+					),
+			)
 			.map(([n]) => n),
 	})).filter((g) => g.rows.length > 1);
 }
@@ -1579,9 +1586,18 @@ function parallelGuide(root, config) {
 	const md = readTodo(root, config);
 	const active = md && parseActive(md);
 	const groups = active ? parallelRows(active.rows) : [];
-	return groups.length
-		? `\n함께 시작할 수 있는 행(서로의 결과가 필요 없다. 채운 순서는 audit과 상관없다):\n${groups.map((g) => `  ${g.rows.map((n) => `#${n}`).join(" ")} — ${g.when}`).join("\n")}`
-		: "";
+	const backlog =
+		active &&
+		["B", "C"].includes(active.meta.case) &&
+		isBacklog(active) &&
+		active.rows.some((r) => r.text.startsWith("[review] 디자인 감사"))
+			? "\n백로그 화면 검증: 디자인 비평 A·B는 면제한다. 디자인 감사와 prokit-reviewer(ui)의 접근성 검사는 수행해 보고서에 기록한다."
+			: "";
+	return (
+		(groups.length
+			? `\n함께 시작할 수 있는 행(서로의 결과가 필요 없다. 채운 순서는 audit과 상관없다):\n${groups.map((g) => `  ${g.rows.map((n) => `#${n}`).join(" ")} — ${g.when}`).join("\n")}`
+			: "") + backlog
+	);
 }
 
 // 두뇌를 고르면 단계 행은 그 두뇌의 방법으로 한다. 증거의 `사용:` 이름이 고른 두뇌 파일에 백틱으로 적혀 있거나,
@@ -3939,6 +3955,13 @@ export function writeTable(
 		skills: active?.meta.skills === "true",
 		pure: pureLogic ? (active?.meta.pure ?? randomUUID()) : undefined,
 	};
+	if (["B", "C"].includes(key) && isBacklog(meta)) {
+		const designReview = rows.find((row) =>
+			row.text.startsWith("[review] 디자인 리뷰"),
+		);
+		if (designReview && !bare(designReview.evidence))
+			designReview.evidence = "N/A: 백로그";
+	}
 	const hBuildScope =
 		key === "H" &&
 		(active?.meta.skills === "true"
