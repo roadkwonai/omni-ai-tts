@@ -636,6 +636,8 @@ const isConfirm = (text) => /^\[confirm\]/i.test(text);
 const isBacklog = (active) => /^백로그:\s*\S/.test(active.title);
 const LITE_IMPLEMENTATION = /^구현 \(/;
 const LITE_RUNTIME = /^\[verify\] next-dev-loop 런타임 확인 \(/;
+const LITE_RUNTIME_GUIDE =
+	"L 런타임 행: 위임: prokit-runtime-checker(사용: <실제로 읽은 공식 스킬>); 폭: <확인한 폭>; 상태: <확인한 상태>; 오류 예산: <출처별 실제 오류 수>";
 const CODE_REVIEW = /^\[review\] prokit-reviewer\(code\)/;
 const mainDirect = (value) => /^Main 직접:\s*\S/.test(value);
 const isPlanRound = (active) =>
@@ -4665,7 +4667,7 @@ function formatGuide(config, caseKey) {
 		"  전문 에이전트에 맡긴 행: 위임: <에이전트>(사용: <그 에이전트가 읽은 공식 스킬>) → 결과",
 		"  첫 위임: pnpm dev-cycle delegation resolve <선택한 수행자 정의의 프로젝트 상대 경로> 출력의 handoff(실제 정의 경로와 SHA-256)를 지시에 넣는다. 실제 호스트와 배정 범위도 적는다. inspectionOnly는 파일 관측만 뜻한다",
 		caseKey === "L" &&
-			"  L 런타임 행: 위임: prokit-runtime-checker(사용: next-dev-loop, agent-browser); 폭: 320px, 390px; 상태: 기본; 오류 예산: 0",
+			`  L 첫 실행 위임에 아래 양식을 붙인다. 수행자가 실제 검사 결과로 빈칸을 채워 증거 한 줄을 돌려준다.\n  ${LITE_RUNTIME_GUIDE}`,
 		["B", "C", "F", "L"].includes(caseKey) &&
 			"  prokit-web에서 Next API를 쓰거나 바꾸지 않았으면: Next 문서: N/A: <변경에 해당하지 않는 이유>",
 		"  [design] 행: 기존: …; 결정: …; 설정: …; 검증: … (필드는 맨 앞이나 ; 뒤에서 시작)",
@@ -6582,9 +6584,14 @@ export function main(argv, root = process.cwd()) {
 			const guide = s.active ? reviewGuide(root, config).trim() : "";
 			print(
 				s,
-				[s.line, ...(guide ? [guide] : []), ...(s.skillsUpdate ?? [])].join(
-					"\n",
-				),
+				[
+					s.line,
+					guide,
+					s.case === "L" && LITE_RUNTIME_GUIDE,
+					...(s.skillsUpdate ?? []),
+				]
+					.filter(Boolean)
+					.join("\n"),
 			);
 			return 0;
 		}

@@ -39,6 +39,7 @@ exact native 이름은 현재 task/run의 accepted runtime receipt가 같은 `ag
    - 결정 위치(브리프, `DESIGN.md`, `[design]` 증거)와 완료 조건
    - 화면 작업이 아닌 앱 동작·서버·DB의 작은 변경은 첫 지시에 표적 파일과 직접 소비자, 수용 조건, 표적 회귀 검사와 변경 파일 린트 명령(테스트 파일 포함), 입력·실행 환경, 허용 부작용, 범위를 넓힐 조건을 한 번 적는다. 두 검사 결과와 증거 경로를 인계에 포함한다. 경로나 가정이 빗나가면 영향받는 소비자부터 확인하고, 변경이 다른 계층에 닿으면 기존 케이스 판정과 위임을 따른다. <!-- edition:pro -->
    - 검증 증거 묶음: 대조표에서 묶음을 쓰는 평가·재확인·마감 위임에 `tasks/evidence/…/packet.json sha256=<값>`과 "묶음 우선, 묶음에 없는 상호작용만 직접 측정"을 넣는다([실행 효율과 재검증](execution-efficiency.md) "검증 증거 묶음")
+   - L 실행 확인: 첫 `prokit-runtime-checker` 위임에 `pnpm dev-cycle table L --write` 또는 `pnpm dev-cycle status`가 출력한 `L 런타임 행`의 증거 양식을 붙인다. 확인 뒤 실제 값으로 채운 한 줄을 보고 첫 줄에 받는다.
    - L 코드 리뷰: 첫 지시에 목표·변경 파일·구현 주체(Main 직접 또는 실제 위임처), 타입·린트·빌드 결과와 영향 범위 실행 확인 보고·이미지 경로를 넣는다. 실행 담당자의 실제 선택 출처·정의 경로·지문, 확인한 호출 근거와 위임 전후 범위 대조 결과를 함께 보낸다. 변경을 비교하는 기준 SHA나 구현 전 `implementation-before.json`과 리뷰 시작의 `review-before.json`은 용도를 나눠 표시한다. snapshot마다 파일 경로와 실제 `manifestHash`를 짝지어 전달한다.
    - 화면 구현·마감: 구현 전 바닥선(`prokit-ui`의 `references/build-floor.md`)과 보고에 항목별 결과를 적으라는 요구
    - 예산: 시간 예산(아래 9의 기본값이나 나눈 일에 맞춘 값)과 예산에 다다르면 멈추고 진행 보고를 하라는 요구
