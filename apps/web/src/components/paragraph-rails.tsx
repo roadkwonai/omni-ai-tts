@@ -849,7 +849,7 @@ function SummaryBody({ onShow }: { onShow: (id: string) => void }) {
 						</dd>
 					</div>
 				</dl>
-				<JumpField paragraphs={ps} onShow={onShow} />
+				{ps.length > 1 ? <JumpField paragraphs={ps} onShow={onShow} /> : null}
 			</div>
 			{/* 공개 데모는 공급자를 부르지 않아 예상 사용량 칸을 숨긴다 */}
 			<section
