@@ -653,7 +653,7 @@ function CardMenu({
 				>
 					<Ellipsis aria-hidden="true" />
 				</TooltipTrigger>
-				<TooltipContent>{PARAGRAPH_TEXT.menu}</TooltipContent>
+				<TooltipContent>이동·추가 등 문단 작업</TooltipContent>
 			</Tooltip>
 			<DropdownMenuContent
 				align="end"
@@ -1081,7 +1081,7 @@ export const ParagraphCard = memo(function ParagraphCard({
 							>
 								<SlidersHorizontal aria-hidden="true" />
 							</TooltipTrigger>
-							<TooltipContent>{STUDIO_TEXT.settings}</TooltipContent>
+							<TooltipContent>문단별 모델·음성 설정</TooltipContent>
 						</Tooltip>
 						<CardMenu
 							id={p.id}
