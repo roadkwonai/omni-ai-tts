@@ -109,6 +109,7 @@
 <!-- prokit-template:end -->
 ## TTS Pilot 프로젝트 규칙
 이 저장소는 Typecast·ElevenLabs·Fish Audio·Airy·Gemini 성우로 한국어 음성을 만드는 개인 작업실(TTS Pilot)이다. 위 템플릿 규칙에 아래를 더한다.
+- 이 저장소의 GitHub push·릴리스에는 `direnv exec .`로 프로젝트 `.envrc`의 `GH_TOKEN`을 사용하고, 실행 전에 `gh api user` 등으로 `roadkwonai` 계정과 대상 저장소 쓰기 권한을 확인한다. Git HTTPS도 같은 `gh auth git-credential`을 사용하며, 토큰 값은 출력하거나 커밋하지 않는다. 토큰이 없거나 다른 계정이면 실제 상황을 보고한다.
 - 먼저 읽을 문서에 더한다: `PRODUCT.md`(제품 맥락), `docs/plans/tts-service-requirements.md`(요구사항 REQ-01~13), `tasks/todo.md` 라운드 블록 밖의 백로그(P0~P4).
 - 공급자 연동(성우 목록, 기본 샘플, 생성과 시험 생성, 클론 보이스, 사용량, 공급자 오류, 오디오 업로드·다운로드)은 계층 스킬과 함께 `tts-provider`를 읽는다. 구현을 전문 수행 에이전트(서버·공급자 코드 `prokit-api-builder`, 화면 `prokit-ui-builder`, 계층 밖 `prokit-implementer`)에 맡길 때도 위임 지시의 읽을 스킬에 `.agents/skills/tts-provider/SKILL.md`를 넣는다.
 - `prokit-reviewer`는 diff에 공급자 연동이 있으면 focus와 상관없이 `tts-provider`를 읽는다. security에서는 유료 호출을 부를 수 있는 주체(호출마다 하는 소유자 검사), 공급자 키 노출, 공급자 voice id(클론)의 소유권, 유료 호출의 중복과 자동 재시도, 입력 길이와 업로드 검사를 확인한다.
