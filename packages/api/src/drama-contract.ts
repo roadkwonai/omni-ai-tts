@@ -131,8 +131,13 @@ export const dramaResultSchema = studioResultSchema.extend({
 	segments: segmentsSchema,
 });
 
-export const dramaItemSchema = dramaResultSchema.extend({
+// 저장된 테이크 찾기(T20): 결과와 줄 구간, 완료 또는 처리 여부 미확인(오디오 없음)
+export const dramaFoundSchema = dramaResultSchema.extend({
 	status: z.enum(["done", "unknown"]),
+});
+export type DramaFound = z.output<typeof dramaFoundSchema>;
+
+export const dramaItemSchema = dramaFoundSchema.extend({
 	request: dramaRequestSchema,
 });
 export type DramaItem = z.output<typeof dramaItemSchema>;

@@ -1,0 +1,467 @@
+{
+	"rules": {
+		"readingItems": [
+			[
+				"3|10|12,345원|money|false||만 이천삼백사십오 원",
+				"12|20|1억 2천만 원|money|false||일억 이천만 원",
+				"22|27|100달러|money|false||백 달러"
+			],
+			[
+				"3|16|010-1234-5678|phone|false||공일공 일이삼사 오육칠팔|영일영 일이삼사 오육칠팔",
+				"18|30|2026년 6월 10일|date|false||이천이십육 년 유월 십 일",
+				"32|35|10월|date|false||시월"
+			],
+			[
+				"3|7|3:05|time|false||세 시 오 분",
+				"17|22|16:10|time|true|time|열여섯 시 십 분",
+				"24|29|24:00|time|false||스물네 시"
+			],
+			[
+				"3|5|3개|count|false||세 개",
+				"7|10|20살|count|false||스무 살",
+				"12|14|2번|count|true|unit|두 번|이 번",
+				"19|21|5대|count|true|unit|다섯 대|오 대"
+			],
+			[
+				"0|4|3.5%|percent|false||삼 점 오 퍼센트",
+				"8|15|3.14159|decimal|true|precision|삼 점 일사일오구",
+				"20|23|-5도|temperature|false||영하 오 도|마이너스 오 도",
+				"25|28|-7점|count|true|negative|마이너스 칠 점"
+			],
+			[
+				"0|4|1~3개|range|true|range|한 개에서 세 개|일에서 삼 개",
+				"6|12|10~20명|range|true|range|열 명에서 스무 명|십에서 이십 명",
+				"14|17|1/2|fraction|true|fraction|이 분의 일",
+				"19|29|2026-06-10|fraction|true|fraction",
+				"31|34|3·1|fraction|true|fraction"
+			],
+			[
+				"0|6|GPT-4o|product|true|product",
+				"8|17|iPhone 16|product|true|product",
+				"19|22|007|number|true|leading_zero|영영칠",
+				"24|30|v1.2.3|product|true|product",
+				"32|37|1,2,3|number|true|list"
+			],
+			[
+				"0|2|30|number|true|unit_join|삼십",
+				"5|6|5|number|true|unit_join|오",
+				"9|12|제3장|count|false||제삼 장",
+				"13|17|제12회|count|false||제십이 회",
+				"28|33|1조 5억|number|true|large|일조 오억",
+				"35|48|9999999999999|number|true|large"
+			],
+			[]
+		],
+		"speakerLine": [
+			{ "name": "지연", "text": " 안녕" },
+			{ "name": "민수", "text": " 반가워" },
+			null,
+			null,
+			null,
+			null,
+			null,
+			{ "name": "빈사람", "text": "" },
+			{ "name": "새사람", "text": " (U+1112)(U+1161)(U+11ab)글" }
+		],
+		"spokenOf": [
+			"사과 3개를 샀어요. [whispers] <sigh>",
+			"값은 천이백 원 [laughs]",
+			"  \n ",
+			"민수의 말 <sigh>",
+			"(U+1112)(U+1161)(U+11ab)글 조합\r\n다음 줄 [excited]",
+			"에어리 [whispers] 글",
+			"제미나이 글",
+			"[laughs]",
+			"못 쓰는 성우",
+			"사과 3개를 샀어요. [whispers] <sigh>",
+			"2100 a0e6b1232e03c28e",
+			"플래시 글"
+		],
+		"applyCertain": [
+			["사과 세 개를 샀어요. [whispers] <sigh>", ""],
+			["값은 천이백 원 [laughs]", ""]
+		],
+		"blockOf": [
+			null,
+			null,
+			"empty",
+			null,
+			null,
+			null,
+			null,
+			"empty",
+			"unavailable",
+			null,
+			{ "kind": "too_long", "length": 2100, "max": 2000 },
+			null
+		],
+		"paragraphRequest": [
+			"{\"provider\":\"fish_audio\",\"voiceId\":\"fa1\",\"text\":\"사과 3개를 샀어요. [whispers] \",\"settings\":{\"model\":\"s2.1-pro-free\",\"speed\":1,\"temperature\":0.7,\"tag\":\"\"}}",
+			"{\"provider\":\"typecast\",\"voiceId\":\"tc1\",\"text\":\"값은 천이백 원 \",\"settings\":{\"model\":\"ssfm-v21\",\"emotion\":\"preset\",\"preset\":\"happy\",\"intensity\":1,\"language\":\"auto\",\"tempo\":1,\"pitch\":0,\"volume\":100}}",
+			null,
+			"{\"provider\":\"fish_audio\",\"voiceId\":\"fa2\",\"text\":\"민수의 말 \",\"settings\":{\"model\":\"s2.1-pro\",\"speed\":1,\"temperature\":0.7,\"tag\":\"\"}}",
+			"{\"provider\":\"elevenlabs\",\"voiceId\":\"el1\",\"text\":\"(U+1112)(U+1161)(U+11ab)글 조합\\r\\n다음 줄 [excited]\",\"settings\":{\"model\":\"eleven_v4\",\"stability\":0.5,\"similarity\":0.75,\"style\":0,\"speed\":1,\"speakerBoost\":true,\"tag\":\"\"}}",
+			"{\"provider\":\"airy\",\"voiceId\":\"ai1\",\"text\":\"에어리 글\",\"settings\":{\"model\":\"airy-tts-v1\",\"language\":\"ko\",\"style\":\"normal\"}}",
+			"{\"provider\":\"gemini\",\"voiceId\":\"ge1\",\"text\":\"제미나이 글\",\"settings\":{\"model\":\"gemini-3.8-flash-tts\",\"direction\":\"밝게\"}}",
+			null,
+			"{\"provider\":\"fish_audio\",\"voiceId\":\"gone\",\"text\":\"못 쓰는 성우\",\"settings\":{\"model\":\"s2.1-pro-free\",\"speed\":1,\"temperature\":0.7,\"tag\":\"\"}}",
+			"{\"provider\":\"fish_audio\",\"voiceId\":\"fa1\",\"text\":\"사과 3개를 샀어요. [whispers] \",\"settings\":{\"model\":\"s2.1-pro-free\",\"speed\":1,\"temperature\":0.7,\"tag\":\"\"}}",
+			"{\"provider\":\"typecast\",\"voiceId\":\"tc1\",\"text\":\"가×2100\",\"settings\":{\"model\":\"ssfm-v21\",\"emotion\":\"preset\",\"preset\":\"normal\",\"intensity\":1,\"language\":\"auto\",\"tempo\":1,\"pitch\":0,\"volume\":100}}",
+			"{\"provider\":\"elevenlabs\",\"voiceId\":\"el1\",\"text\":\"플래시 글\",\"settings\":{\"model\":\"eleven_flash_v2_5\",\"stability\":0.5,\"similarity\":0.75,\"style\":0,\"speed\":1,\"speakerBoost\":true,\"tag\":\"\"}}"
+		],
+		"paragraphRequestLater": [
+			"s2.1-pro",
+			"ssfm-v21",
+			null,
+			"s2.1-pro",
+			"eleven_v4",
+			"airy-tts-v1",
+			"gemini-3.8-flash-tts",
+			null,
+			"s2.1-pro",
+			"s2.1-pro",
+			"ssfm-v21",
+			"eleven_flash_v2_5"
+		],
+		"pasteToParts": {
+			"parts": [
+				{ "text": "첫 문단이다." },
+				{ "text": "길다." },
+				{ "text": "안녕\n이어짐", "speaker": "민수" },
+				{ "text": "끝", "speaker": "민수" }
+			],
+			"names": ["민수"],
+			"extra": 0,
+			"long": 1
+		},
+		"status": [
+			"made",
+			"unknown",
+			"empty",
+			"made",
+			"unmade",
+			"unmade",
+			"unmade",
+			"empty",
+			"blocked",
+			"made",
+			"blocked",
+			"unmade"
+		],
+		"chunks": [1, 2, 2],
+		"makePlan": [
+			{
+				"make": [
+					["p2", 2, "41aaae905f0fdb8e"],
+					["p5", 5, "05f307adb9f755d3"],
+					["p6", 6, "db2ebf94ea0fcb71"],
+					["p7", 7, "8d4139ca0df2d6f1"],
+					["p12", 10, "e604f7fb21d94fa9"]
+				],
+				"estimate": [2, 5, 6, 7, 10],
+				"reused": 3,
+				"firstBlocked": null,
+				"blockedCount": 0,
+				"unknown": ["41aaae905f0fdb8e"],
+				"unreviewed": 0,
+				"free": false
+			},
+			{
+				"make": [],
+				"estimate": [2, 5, 6, 7, 12],
+				"reused": 3,
+				"firstBlocked": { "id": "p9", "n": 9, "block": "unavailable" },
+				"blockedCount": 2,
+				"unknown": [],
+				"unreviewed": 0,
+				"free": false
+			}
+		],
+		"usage": [
+			{
+				"provider": "typecast",
+				"count": 1,
+				"usage": { "unit": "credit", "amount": 8 },
+				"rateMissing": false
+			},
+			{
+				"provider": "elevenlabs",
+				"count": 2,
+				"usage": { "unit": "credit", "amount": 26 },
+				"rateMissing": true
+			},
+			{
+				"provider": "airy",
+				"count": 1,
+				"usage": { "unit": "credit", "amount": 8 },
+				"rateMissing": false
+			},
+			{
+				"provider": "gemini",
+				"count": 1,
+				"usage": { "unit": "usd_micro", "amount": 450 },
+				"rateMissing": false
+			}
+		],
+		"receivePlan": [
+			{ "ok": false, "reason": "unmade", "unmade": 5, "firstId": "p2" },
+			[
+				"p1|1|r0|0.5|지연|사과 3개를 샀어요. [whispers] <sigh>",
+				"p2|2|d0|1.2|민지/차분|값은 1,200원 [laughs]",
+				"p4|4|r2|0.5|민수|민수의 말 <sigh>",
+				"p5|5|d1|0.5|Rachel|(U+1112)(U+1161)(U+11ab)글 조합\r\n다음 줄 [excited]",
+				"p6|6|d2|0.5|에어리|에어리 [whispers] 글",
+				"p7|7|d3|0.5|Kore|제미나이 글",
+				"p10|9|r0|0.5|지연|사과 3개를 샀어요. [whispers] <sigh>",
+				"p12|10|d4|0|Rachel|플래시 글"
+			],
+			{ "ok": false, "reason": "empty" }
+		],
+		"autoTagTargets": [
+			[
+				[1, "fish_s2", null, "made", false],
+				[2, "typecast_v21", ["normal", "happy", "sad"], "unknown", true],
+				[4, "fish_s2", null, "made", false],
+				[5, "elevenlabs_tags", null, null, true],
+				[6, "airy", null, null, true],
+				[7, "gemini", null, null, true],
+				[10, "fish_s2", null, "made", false]
+			],
+			1
+		],
+		"autoTagBatches": [[7], [50, 50, 1]],
+		"autoTagInputOf": [
+			"{\"emotions\":null,\"text\":\"사과 3개를 샀어요. [whispers] <sigh>\",\"direction\":\"\",\"provider\":\"fish_audio\",\"model\":\"s2.1-pro-free\"}",
+			"{\"emotions\":[\"normal\",\"happy\",\"sad\"],\"text\":\"값은 1,200원 [laughs]\",\"direction\":\"\",\"provider\":\"typecast\",\"model\":\"ssfm-v21\",\"feel\":{\"typecast\":{\"emotion\":\"happy\",\"intensity\":1}}}",
+			"{\"emotions\":null,\"text\":\"민수의 말 <sigh>\",\"direction\":\"\",\"provider\":\"fish_audio\",\"model\":\"s2.1-pro\"}",
+			"{\"emotions\":null,\"text\":\"(U+1112)(U+1161)(U+11ab)글 조합\\r\\n다음 줄 [excited]\",\"direction\":\"\",\"provider\":\"elevenlabs\",\"model\":\"eleven_v4\"}",
+			"{\"emotions\":null,\"text\":\"에어리 [whispers] 글\",\"direction\":\"\",\"provider\":\"airy\",\"model\":\"airy-tts-v1\",\"feel\":{\"airy\":{\"style\":\"normal\"}}}",
+			"{\"emotions\":null,\"text\":\"제미나이 글\",\"direction\":\"밝게\",\"provider\":\"gemini\",\"model\":\"gemini-3.8-flash-tts\"}",
+			"{\"emotions\":null,\"text\":\"사과 3개를 샀어요. [whispers] <sigh>\",\"direction\":\"\",\"provider\":\"fish_audio\",\"model\":\"s2.1-pro-free\"}"
+		],
+		"autoTagChanges": [
+			{
+				"n": 1,
+				"text": "[laughs] 사과 3개를 샀어요. [whispers] <sigh>",
+				"settings": null,
+				"fields": [
+					{
+						"field": "text",
+						"before": "사과 3개를 샀어요. [whispers] <sigh>",
+						"after": "[laughs] 사과 3개를 샀어요. [whispers] <sigh>"
+					}
+				]
+			},
+			{
+				"n": 2,
+				"text": null,
+				"settings": { "emotion": "preset", "preset": "sad", "intensity": 2 },
+				"fields": [
+					{ "field": "emotion", "before": "기쁨 · 1", "after": "슬픔 · 2" }
+				]
+			},
+			{
+				"n": 6,
+				"text": null,
+				"settings": { "style": "bright" },
+				"fields": [{ "field": "style", "before": "기본", "after": "밝게" }]
+			},
+			{
+				"n": 7,
+				"text": null,
+				"settings": { "direction": "새 말투" },
+				"fields": [
+					{ "field": "direction", "before": "밝게", "after": "새 말투" }
+				]
+			}
+		],
+		"applyAutoTag": [4, 0, "af19f4bfa9dee727"],
+		"srtOf": "1\n00:00:00,000 --> 00:00:01,235\n안녕 <삼국지>\n\n2\n01:01:02,000 --> 01:01:40,000\n끝\n",
+		"fileNames": [
+			"가_나_다_라__20261020-1200.srt",
+			"007_A_B_성우_첫_문단_글첫_문단_글첫_문단_글첫_.mp3",
+			".._x_"
+		],
+		"pcm16": [0, 0, 0, 64, 1, 192, 255, 127, 1, 128, 255, 127, 1, 128, 1, 0],
+		"monoOf": [0.375, 0, 0],
+		"trimSilence": [
+			[0.0010000000474974513, 0.5, 0.20000000298023224, 0.003000000026077032],
+			[]
+		],
+		"spansOf": [
+			{ "start": 0, "end": 1 },
+			{ "start": 1.46, "end": 1.96 },
+			{ "start": 1.96, "end": 1.9602267573696146 }
+		],
+		"joinWav": "932 afdde7fb0c854db8",
+		"gapOf": [0.3, 1, null, 5, 0, null, null],
+		"sceneRequest": [
+			{
+				"sceneName": " 첫 만남 ",
+				"speakers": [
+					{ "name": "지연", "voiceId": "fa1" },
+					{ "name": "민수", "voiceId": "fa2" }
+				],
+				"lines": [
+					{ "speaker": 1, "direction": " [작게] 웃으며 ", "text": " 안녕 " },
+					{ "speaker": 0, "direction": "", "text": "<whisper>그래</whisper>" }
+				],
+				"model": "s2.1-pro",
+				"settings": { "speed": 1, "temperature": 0.7 }
+			},
+			null,
+			null
+		],
+		"usableSpeakers": [
+			["tc1", null],
+			["el1", null],
+			["fa1", null],
+			["ge1", "preset1"],
+			["ai1", null],
+			[null, null]
+		],
+		"acting": [
+			{
+				"family": "typecast_v21",
+				"emotions": ["normal", "happy", "sad"],
+				"model": "ssfm-v21"
+			},
+			{ "family": "elevenlabs_tags", "emotions": null, "model": "eleven_v4" },
+			{ "family": "fish_s2", "emotions": null, "model": "s2.1-pro-free" },
+			{ "family": "gemini", "emotions": null, "model": "gemini-3.8-flash-tts" },
+			{ "family": "airy", "emotions": null, "model": "airy-tts-v1" },
+			{ "family": "fish_s2", "emotions": null, "model": "s2.1-pro-free" }
+		],
+		"lineRequest": [
+			"{\"provider\":\"typecast\",\"voiceId\":\"tc1\",\"text\":\"타입 글\",\"settings\":{\"model\":\"ssfm-v21\",\"emotion\":\"preset\",\"preset\":\"sad\",\"intensity\":1.5,\"language\":\"auto\",\"tempo\":1,\"pitch\":0,\"volume\":100}}",
+			"{\"provider\":\"elevenlabs\",\"voiceId\":\"el1\",\"text\":\"[whispers] 일레븐 [laughs] 글\",\"settings\":{\"model\":\"eleven_v4\",\"stability\":0.5,\"similarity\":0.75,\"style\":0,\"speed\":1,\"speakerBoost\":true,\"tag\":\"\"}}",
+			"{\"provider\":\"fish_audio\",\"voiceId\":\"fa1\",\"text\":\"[웃으며] 피시 글\",\"settings\":{\"model\":\"s2.1-pro\",\"speed\":1,\"temperature\":0.7,\"tag\":\"\"}}",
+			"{\"provider\":\"gemini\",\"voiceId\":\"ge1\",\"text\":\"제미 글\",\"settings\":{\"model\":\"gemini-3.8-flash-tts\",\"direction\":\"힘차게\"}}",
+			"{\"provider\":\"airy\",\"voiceId\":\"ai1\",\"text\":\"에어 글\",\"settings\":{\"model\":\"airy-tts-v1\",\"language\":\"ko\",\"style\":\"bright\"}}"
+		],
+		"parsePaste": [
+			{
+				"speakers": [
+					"{\"name\":\"지연\",\"provider\":\"fish_audio\",\"voiceId\":\"fa1\",\"presetId\":null}",
+					"{\"name\":\"민수\",\"provider\":\"fish_audio\",\"voiceId\":\"fa2\",\"presetId\":null}",
+					"{\"name\":\"새사람\",\"provider\":\"fish_audio\",\"voiceId\":null,\"presetId\":null}"
+				],
+				"lines": [
+					"{\"id\":\"id1\",\"speaker\":0,\"direction\":\"\",\"text\":\"안녕\"}",
+					"{\"id\":\"id2\",\"speaker\":1,\"direction\":\"\",\"text\":\"반가워\"}",
+					"{\"id\":\"id3\",\"speaker\":1,\"direction\":\"\",\"text\":\"이어지는 말\"}",
+					"{\"id\":\"id4\",\"speaker\":1,\"direction\":\"\",\"text\":\"12:30 회의야\"}",
+					"{\"id\":\"id5\",\"speaker\":1,\"direction\":\"\",\"text\":\"https://a.b\"}",
+					"{\"id\":\"id6\",\"speaker\":1,\"direction\":\"\",\"text\":\"오후 3:05에 봐\"}",
+					"{\"id\":\"id7\",\"speaker\":2,\"direction\":\"\",\"text\":\"한글\"}"
+				],
+				"from": [0, 2, null]
+			},
+			{
+				"speakers": [
+					"{\"name\":\"지연\",\"provider\":\"fish_audio\",\"voiceId\":\"fa1\",\"presetId\":null}",
+					"{\"name\":\"안 쓰는 화자\",\"provider\":\"fish_audio\",\"voiceId\":null,\"presetId\":null}",
+					"{\"name\":\"민수\",\"provider\":\"fish_audio\",\"voiceId\":\"fa2\",\"presetId\":null}"
+				],
+				"lines": [
+					"{\"id\":\"id1\",\"speaker\":0,\"direction\":\"\",\"text\":\"이름 없는 줄\"}",
+					"{\"id\":\"id2\",\"speaker\":0,\"direction\":\"\",\"text\":\"둘째 줄\"}"
+				],
+				"from": [0, 1, 2]
+			},
+			{ "error": "too_many_speakers" },
+			{ "error": "empty" },
+			{ "error": "too_many_lines" }
+		],
+		"splitOk": [true, false, false, false],
+		"dramaAutoTagChanges": [
+			{
+				"n": 1,
+				"fields": [
+					{ "field": "direction", "before": "작게 웃으며", "after": "크게" }
+				],
+				"patch": { "direction": "크게" }
+			},
+			{
+				"n": 2,
+				"fields": [
+					{
+						"field": "text",
+						"before": "<whisper>그래</whisper>",
+						"after": "<whisper>그래</whisper> 좋아"
+					}
+				],
+				"patch": { "text": "<whisper>그래</whisper> 좋아" }
+			}
+		],
+		"dramaAutoTagApply": {
+			"lines": [
+				{
+					"id": "l2",
+					"speaker": 0,
+					"direction": "",
+					"text": "<whisper>그래</whisper> 좋아",
+					"gap": 1
+				},
+				{
+					"id": "l1",
+					"speaker": 2,
+					"direction": " [작게] 웃으며 ",
+					"text": "고침"
+				}
+			],
+			"applied": 1,
+			"changed": 1
+		},
+		"dramaSpeakerNameOf": ["한글", "화자 2", "화자 3"],
+		"readRequests": [
+			[
+				"{\"id\":\"m1\",\"speaker\":\"타입\",\"request\":{\"provider\":\"typecast\",\"voiceId\":\"tc1\",\"text\":\"타입 글\",\"settings\":{\"model\":\"ssfm-v21\",\"emotion\":\"preset\",\"preset\":\"sad\",\"intensity\":1.5,\"language\":\"auto\",\"tempo\":1,\"pitch\":0,\"volume\":100}}}",
+				"{\"id\":\"m2\",\"speaker\":\"일레븐\",\"request\":{\"provider\":\"elevenlabs\",\"voiceId\":\"el1\",\"text\":\"[whispers] 일레븐 [laughs] 글\",\"settings\":{\"model\":\"eleven_v4\",\"stability\":0.5,\"similarity\":0.75,\"style\":0,\"speed\":1,\"speakerBoost\":true,\"tag\":\"\"}}}",
+				"{\"id\":\"m3\",\"speaker\":\"피시\",\"request\":{\"provider\":\"fish_audio\",\"voiceId\":\"fa1\",\"text\":\"[웃으며] 피시 글\",\"settings\":{\"model\":\"s2.1-pro\",\"speed\":1,\"temperature\":0.7,\"tag\":\"\"}}}",
+				"{\"id\":\"m4\",\"speaker\":\"제미\",\"request\":{\"provider\":\"gemini\",\"voiceId\":\"ge1\",\"text\":\"제미 글\",\"settings\":{\"model\":\"gemini-3.8-flash-tts\",\"direction\":\"힘차게\"}}}",
+				"{\"id\":\"m5\",\"speaker\":\"에어\",\"request\":{\"provider\":\"airy\",\"voiceId\":\"ai1\",\"text\":\"에어 글\",\"settings\":{\"model\":\"airy-tts-v1\",\"language\":\"ko\",\"style\":\"bright\"}}}"
+			],
+			[
+				"{\"id\":\"m3\",\"speaker\":\"피시\",\"request\":{\"provider\":\"fish_audio\",\"voiceId\":\"fa1\",\"text\":\"[웃으며] 피시 글\",\"settings\":{\"model\":\"s2.1-pro\",\"speed\":1,\"temperature\":0.7,\"tag\":\"\"}}}"
+			],
+			{ "problem": { "kind": "voice", "lineId": null, "speaker": 3 } },
+			{ "problem": { "kind": "voice", "lineId": null, "speaker": 5 } },
+			{ "problem": { "kind": "long", "lineId": "x2", "speaker": null } },
+			{ "problem": { "kind": "empty", "lineId": "x3", "speaker": null } },
+			[
+				"{\"id\":\"x4\",\"speaker\":\"화자 3\",\"request\":{\"provider\":\"fish_audio\",\"voiceId\":\"fa1\",\"text\":\"글\",\"settings\":{\"model\":\"s2.1-pro\",\"speed\":1,\"temperature\":0.7,\"tag\":\"\"}}}"
+			]
+		],
+		"autoTagInput": [
+			{
+				"mode": "scene",
+				"speakers": [
+					"{\"name\":\"지연\",\"provider\":\"fish_audio\",\"model\":\"s2.1-pro-free\",\"emotions\":null}",
+					"{\"name\":\"민수\",\"provider\":\"fish_audio\",\"model\":\"s2.1-pro-free\",\"emotions\":null}"
+				],
+				"lines": [
+					"{\"speaker\":1,\"direction\":\" [작게] 웃으며 \",\"text\":\" 안녕 \"}",
+					"{\"speaker\":0,\"direction\":\"\",\"text\":\"<whisper>그래</whisper>\"}"
+				]
+			},
+			{
+				"mode": "read",
+				"speakers": [
+					"{\"name\":\"타입\",\"provider\":\"typecast\",\"model\":\"ssfm-v21\",\"emotions\":[\"normal\",\"happy\",\"sad\"]}",
+					"{\"name\":\"화자 2\",\"provider\":\"elevenlabs\",\"model\":\"eleven_v4\",\"emotions\":null}",
+					"{\"name\":\"피시\",\"provider\":\"fish_audio\",\"model\":\"s2.1-pro-free\",\"emotions\":null}",
+					"{\"name\":\"제미\",\"provider\":\"gemini\",\"model\":\"gemini-3.8-flash-tts\",\"emotions\":null}",
+					"{\"name\":\"에어\",\"provider\":\"airy\",\"model\":\"airy-tts-v1\",\"emotions\":null}"
+				],
+				"lines": [
+					"{\"speaker\":0,\"direction\":\"\",\"text\":\"타입 [laughs] 글\",\"feel\":{\"typecast\":{\"emotion\":\"sad\",\"intensity\":1.5}}}",
+					"{\"speaker\":1,\"direction\":\"whispers\",\"text\":\"일레븐 [laughs] 글\"}",
+					"{\"speaker\":2,\"direction\":\"웃으며\",\"text\":\"피시 <sigh> 글\"}",
+					"{\"speaker\":3,\"direction\":\"힘차게\",\"text\":\"제미 글\"}",
+					"{\"speaker\":4,\"direction\":\"\",\"text\":\"에어 글\",\"feel\":{\"airy\":{\"style\":\"bright\"}}}"
+				]
+			}
+		]
+	}
+}

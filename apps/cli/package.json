@@ -10,19 +10,18 @@
 		"omni-tts": "./dist/cli.js"
 	},
 	"scripts": {
-		"build": "tsc",
+		"build": "rolldown -c",
 		"cli": "node dist/cli.js",
 		"check-types": "tsc --noEmit",
-		"test": "tsc && vitest run"
-	},
-	"dependencies": {
-		"@orpc/client": "catalog:",
-		"@tts-pilot-app/api": "workspace:*"
+		"test": "tsc --noEmit && rolldown -c && vitest run"
 	},
 	"devDependencies": {
+		"@orpc/client": "catalog:",
 		"@orpc/server": "catalog:",
-		"@tts-pilot-app/db": "workspace:*",
+		"@tts-pilot-app/api": "workspace:0.0.0",
+		"@tts-pilot-app/db": "workspace:0.0.0",
 		"@types/node": "catalog:",
+		"rolldown": "1.2.11",
 		"typescript": "catalog:",
 		"vitest": "^5.0.2"
 	}

@@ -62,7 +62,7 @@ const failingDb = new Proxy(
 describe("드라마 소유자 없음(T9.5 스펙 8절 13번)", () => {
 	beforeEach(() => synthesizeScene.mockClear());
 
-	it("소유자가 없으면 네 프로시저 모두 UNAUTHORIZED이고 DB 접근·공급자 0회", async () => {
+	it("소유자가 없으면 여섯 프로시저 모두 UNAUTHORIZED이고 DB 접근·공급자 0회", async () => {
 		dbTouches = 0;
 		const none = as(null, failingDb);
 		const id = crypto.randomUUID();
@@ -75,6 +75,10 @@ describe("드라마 소유자 없음(T9.5 스펙 8절 13번)", () => {
 			unauthorized,
 		);
 		await expect(none.dramaDelete({ id })).rejects.toMatchObject(unauthorized);
+		await expect(none.dramaRequest({ requestId: id })).rejects.toMatchObject(
+			unauthorized,
+		);
+		await expect(none.dramaFind(request)).rejects.toMatchObject(unauthorized);
 		expect(dbTouches).toBe(0);
 		expect(synthesizeScene).not.toHaveBeenCalled();
 	});
@@ -107,6 +111,29 @@ describe.skipIf(!url)("드라마 소유자 격리(T9.5 스펙 8절 13번)", () =
 		expect((await as(A).dramaAudio({ id: made.id, part: 0 })).size).toBe(
 			WAV_HEADER_BYTES + 4,
 		);
+	});
+
+	it("B는 A의 요청 상태·저장 테이크를 찾지 못하고(null) A는 찾으며 공급자 0회·행 그대로(T20)", async () => {
+		const requestId = crypto.randomUUID();
+		const made = await as(A).dramaCreate({ requestId, request });
+		synthesizeScene.mockClear();
+		const rows = () => db.select().from(trialGeneration);
+		const before = await rows();
+		expect(await as(B).dramaRequest({ requestId })).toBeNull();
+		expect(await as(B).dramaFind(request)).toBeNull();
+		const { segments, ...result } = made;
+		expect(await as(A).dramaRequest({ requestId })).toEqual({
+			...result,
+			status: "done",
+			reason: null,
+		});
+		expect(await as(A).dramaFind(request)).toEqual({
+			...result,
+			segments,
+			status: "done",
+		});
+		expect(await rows()).toEqual(before);
+		expect(synthesizeScene).not.toHaveBeenCalled();
 	});
 
 	it("B가 A만 담은 성우로 만들면(B는 한 명만 담음) voice_unavailable이고 공급자 0회", async () => {

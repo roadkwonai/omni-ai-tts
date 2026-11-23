@@ -11,7 +11,9 @@ import {
 	dramaAutoTagInputSchema,
 	dramaAutoTagOutputSchema,
 	dramaCreateInputSchema,
+	dramaFoundSchema,
 	dramaItemSchema,
+	dramaRequestSchema,
 	dramaResultSchema,
 } from "../drama-contract";
 import {
@@ -34,10 +36,16 @@ import {
 	utf8Bytes,
 } from "../providers/trial-options";
 import {
+	studioRequestStatusInputSchema,
+	studioRequestStatusSchema,
+} from "../studio-contract";
+import {
 	askSuggestions,
 	audioPart,
 	claimRow,
 	dramaKey,
+	findDrama,
+	findRequest,
 	type LateTarget,
 	listDrama,
 	recordFailure,
@@ -263,6 +271,29 @@ export const dramaRouter = {
 			withStorage(
 				PROVIDER,
 				() => listDrama(context.db, context.ownerId),
+				PREFIX,
+			),
+		),
+	// 같은 장면(입력 스키마가 정리한 요청)의 저장된 테이크(T20 CLI). 공급자를 부르지 않고 쓰지 않는다
+	dramaFind: protectedProcedure
+		.input(dramaRequestSchema)
+		.output(dramaFoundSchema.nullable())
+		.handler(({ input, context }) =>
+			withStorage(
+				PROVIDER,
+				() => findDrama(context.db, context.ownerId, dramaKey(input)),
+				PREFIX,
+			),
+		),
+	// 요청 id의 상태(T20 CLI 중단 복구). 없거나 남의 것이면 null. 공급자를 부르지 않고 쓰지 않는다
+	dramaRequest: protectedProcedure
+		.input(studioRequestStatusInputSchema)
+		.output(studioRequestStatusSchema.nullable())
+		.handler(({ input, context }) =>
+			withStorage(
+				undefined,
+				() =>
+					findRequest(context.db, context.ownerId, input.requestId, "drama"),
 				PREFIX,
 			),
 		),

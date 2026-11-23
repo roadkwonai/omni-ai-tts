@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
 	chmodSync,
 	mkdtempSync,
@@ -8,15 +9,18 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { ORPCError } from "@orpc/client";
 import {
+	comboSignature,
 	DEFAULT_SETTINGS,
 	type TrialRequest,
 } from "@tts-pilot-app/api/providers/trial-options";
+import { build } from "rolldown";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+	type Connection,
 	login,
 	logout,
 	manageError,
@@ -25,11 +29,14 @@ import {
 } from "../src/client.js";
 import { checkOut, readInput, readJson, readSettings } from "../src/files.js";
 import { clean, jsonText, usageText } from "../src/output.js";
+import { create, type Kind } from "../src/paid.js";
 import {
 	claim,
 	fingerprint,
+	fingerprintOf,
 	kindOf,
 	recordOf,
+	recordsFor,
 	recordsOf,
 	release,
 } from "../src/requests.js";
@@ -153,6 +160,87 @@ describe("요청 기록", () => {
 		expect(of("trial")).not.toBe(of("studio"));
 		expect(kindOf(record("1"))).toBe("studio");
 		expect(kindOf({ ...record("1"), kind: "trial" })).toBe("trial");
+		expect(kindOf({ ...record("1"), kind: "drama" })).toBe("drama");
+	});
+	it("서명으로 만든 지문은 T18 식 그대로이고 종류마다 다르다", () => {
+		const signature = comboSignature(request("가"));
+		const formula = (kind: string) =>
+			createHash("sha256")
+				.update(JSON.stringify(["https://a.example", "u", kind, signature]))
+				.digest("hex");
+		expect(fingerprint("https://a.example", "u", request("가"))).toBe(
+			formula("studio"),
+		);
+		expect(fingerprintOf("https://a.example", "u", signature, "drama")).toBe(
+			formula("drama"),
+		);
+	});
+	it("요청 ID를 주면 앞 기록이 그 요청일 때만 바꾼다", async () => {
+		const dir = mkdtempSync(join(tmpdir(), "omni-cli-requests-"));
+		process.env.OMNI_TTS_CONFIG_DIR = dir;
+		const ignore = () => {};
+		try {
+			// 기록이 없으면 본 기록이 사라진 것이다
+			expect(await claim("k", record("2"), "1", ignore)).toEqual({
+				claimed: false,
+				previous: undefined,
+			});
+			expect(await recordOf("k")).toBeUndefined();
+			await claim("k", record("1"), false, ignore);
+			expect(await claim("k", record("2"), "9", ignore)).toMatchObject({
+				claimed: false,
+				previous: { requestId: "1" },
+			});
+			expect(await claim("k", record("2"), "1", ignore)).toMatchObject({
+				claimed: true,
+				previous: { requestId: "1" },
+			});
+			expect(await recordsFor(["k", "없음"])).toMatchObject([
+				{ requestId: "2" },
+				undefined,
+			]);
+		} finally {
+			delete process.env.OMNI_TTS_CONFIG_DIR;
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+	it("요청 모양이 다른 종류(drama)도 같은 흐름으로 한 번만 만들고 종류를 적는다", async () => {
+		const dir = mkdtempSync(join(tmpdir(), "omni-cli-requests-"));
+		process.env.OMNI_TTS_CONFIG_DIR = dir;
+		const connection = { origin: "https://a.example" } as Connection;
+		const scene = { key: "k", provider: "fish_audio", request: { lines: 2 } };
+		const seen: unknown[] = [];
+		const kind: Kind<{ lines: number }> = {
+			name: "drama",
+			find: async () => null,
+			create: async (_connection, value) => {
+				seen.push(value.request, await recordOf("k"));
+				return { id: "r" };
+			},
+			status: async () => null,
+			settle: async () => false,
+			finish: async () => {},
+		};
+		const err = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+		try {
+			expect(await create(kind, connection, scene, "reuse")).toMatchObject({
+				source: "created",
+				id: "r",
+			});
+			expect(seen).toMatchObject([{ lines: 2 }, { kind: "drama" }]);
+			// 완료를 확인하지 못해 남은 기록은 다시 만들지 않는다
+			await expect(
+				create(kind, connection, scene, "reuse"),
+			).rejects.toMatchObject({ exitCode: 6 });
+			expect(seen).toHaveLength(2);
+			expect(
+				(await recordsOf("https://a.example")).map((item) => kindOf(item)),
+			).toEqual(["drama"]);
+		} finally {
+			err.mockRestore();
+			delete process.env.OMNI_TTS_CONFIG_DIR;
+			rmSync(dir, { recursive: true, force: true });
+		}
 	});
 	it("기록이 없을 때만 선점하고 내 것만 지우거나 되돌린다", async () => {
 		const dir = mkdtempSync(join(tmpdir(), "omni-cli-requests-"));
@@ -491,8 +579,15 @@ it("다른 사용자가 접근할 수 있는 세션 폴더를 거절한다", asy
 
 it("잠금 중 프로세스가 강제 종료돼도 다음 요청이 잠금을 얻는다", async () => {
 	const dir = mkdtempSync(join(tmpdir(), "omni-cli-crash-"));
-	const moduleUrl = pathToFileURL(resolve("dist/session.js")).href;
 	try {
+		// 묶음에는 session 모듈이 따로 없다
+		const file = join(dir, "session.mjs");
+		await build({
+			input: "src/session.ts",
+			platform: "node",
+			output: { file },
+		});
+		const moduleUrl = pathToFileURL(file).href;
 		const child = spawn(
 			process.execPath,
 			[

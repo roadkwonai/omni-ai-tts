@@ -33,6 +33,7 @@ import {
 	claimRow,
 	comboKey,
 	complete,
+	findDrama,
 	findRequest,
 	findSaved,
 	findStudio,
@@ -350,7 +351,7 @@ describe.skipIf(!url)("작업실 생성 기록", () => {
 	const statusRead = async (
 		ownerId: string,
 		id: string,
-		kind: "studio" | "trial" = "studio",
+		kind: Kind = "studio",
 	) => findRequest(db, ownerId, await requestOfRow(id), kind);
 	const set = (
 		id: string,
@@ -406,11 +407,12 @@ describe.skipIf(!url)("작업실 생성 기록", () => {
 			});
 	});
 
-	// T18 작업실, T19 시험 생성: 같은 함수이고 종류만 다르다
+	// T18 작업실, T19 시험 생성, T20 드라마: 같은 함수이고 종류만 다르다
 	describe.each([
-		["studio", "trial"],
-		["trial", "studio"],
-	] as const)("요청 상태 %s", (kind, otherKind) => {
+		["studio", "trial", "drama"],
+		["trial", "studio", "drama"],
+		["drama", "studio", "trial"],
+	] as const)("요청 상태 %s", (kind, other, another) => {
 		it("완료·실패·미확인·진행 중을 사유와 함께 읽고 행은 그대로, 모르는 사유는 null", async () => {
 			const done = await row(A, kind, "done");
 			const before = await rowOf(done);
@@ -453,21 +455,62 @@ describe.skipIf(!url)("작업실 생성 기록", () => {
 			expect(await statusOf(id)).toBe("pending");
 		});
 
-		it("만료·남의 것·다른 종류·드라마·없음은 null", async () => {
+		it("만료·남의 것·다른 종류·없음은 null", async () => {
 			const expired = await row(A, kind, "done", MP3, req("만료"));
 			await set(expired, { expiresAt: new Date(Date.now() - 1000) });
 			for (const id of [
 				expired,
 				await row(B, kind, "done"),
-				await row(A, otherKind, "done"),
-				await dramaRow(A, "done"),
+				await row(A, other, "done"),
+				await row(A, another, "done"),
 			])
 				expect(await statusRead(A, id, kind)).toBeNull();
 			expect(await findRequest(db, A, crypto.randomUUID(), kind)).toBeNull();
 		});
 	});
 
-	it("결과 정보·요청 상태는 오디오 본문을 고르지 않는다: 길이만(T18·T19)", async () => {
+	it("드라마 찾기: 완료가 있으면 가장 최근 완료, 없으면 가장 최근 미확인. 실패·진행 중·만료·남의 것·다른 종류는 null이고 행은 그대로다(T20)", async () => {
+		// 같은 조합 키로 넣고 종류만 바꾼다
+		const key = comboKey(req("장면"), "drama");
+		const put = (
+			end: Parameters<typeof row>[2],
+			ownerId = A,
+			kind: Kind = "drama",
+		) => row(ownerId, kind, end, MP3, req("장면"), "drama");
+		await put("failed");
+		await put("done", B);
+		await put("done", A, "studio");
+		await put("done", A, "trial");
+		const expired = await put("done");
+		await set(expired, { expiresAt: new Date(Date.now() - 1000) });
+		expect(await findDrama(db, A, key)).toBeNull();
+		await put("unknown");
+		const unknown = await put("unknown");
+		expect(await findDrama(db, A, key)).toMatchObject({
+			id: unknown,
+			status: "unknown",
+			bytes: 0,
+			segments: null,
+		});
+		await put("done");
+		const done = await put("done");
+		await put("unknown");
+		await set(done, { segments: spans });
+		await put("pending");
+		const before = await db.select().from(trialGeneration);
+		expect(await findDrama(db, A, key)).toEqual({
+			id: done,
+			createdAt: (await rowOf(done))?.createdAt.toISOString(),
+			usage,
+			bytes: MP3.byteLength,
+			segments: spans,
+			status: "done",
+		});
+		expect(await findDrama(db, A, "없는 키")).toBeNull();
+		expect(await db.select().from(trialGeneration)).toEqual(before);
+	});
+
+	it("결과 정보·요청 상태·드라마 찾기는 오디오 본문을 고르지 않는다: 길이만(T18·T19·T20)", async () => {
 		const id = await row(A, "studio", "done");
 		const requestId = await requestOfRow(id);
 		const trialId = await requestOfRow(await row(A, "trial", "done"));
@@ -475,10 +518,11 @@ describe.skipIf(!url)("작업실 생성 기록", () => {
 		await findStudioInfo(db, A, id);
 		await findRequest(db, A, requestId, "studio");
 		await findRequest(db, A, trialId, "trial");
+		await findDrama(db, A, "키");
 		const sent = query.mock.calls.map(([q]) =>
 			typeof q === "string" ? q : (q as unknown as { text: string }).text,
 		);
-		expect(sent).toHaveLength(3);
+		expect(sent).toHaveLength(4);
 		for (const text of sent) {
 			expect(text).toMatch(/^select /);
 			expect(text.replace(/octet_length\("[^)]*"\)/, "")).not.toContain(

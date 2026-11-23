@@ -1,13 +1,6 @@
 // apps/web/src/lib/drama-read.ts
-import {
-	type ActingFamily,
-	type ActingLine,
-	applyLine,
-	readText,
-} from "@tts-pilot-app/api/drama-acting";
-import type { DramaModel } from "@tts-pilot-app/api/drama-script";
-import type { Preset, PresetValue } from "@tts-pilot-app/api/preset-contract";
-import type { ProviderId, Voice } from "@tts-pilot-app/api/providers/contract";
+import type { DraftLine, ReadLine } from "@tts-pilot-app/api/drama-request";
+import type { ProviderId } from "@tts-pilot-app/api/providers/contract";
 import type {
 	TrialFound,
 	TrialModelRate,
@@ -15,130 +8,25 @@ import type {
 import {
 	codePoints,
 	comboSignature,
-	DEFAULT_SETTINGS,
 	estimate,
-	GEMINI_DIRECTION_MAX,
-	type SettingsOf,
 	sentText,
-	TRIAL_TEXT_MAX,
 	type TrialRequest,
 	type Usage,
 } from "@tts-pilot-app/api/providers/trial-options";
-import type { SavedVoice } from "@tts-pilot-app/api/saved-voice-contract";
 
-import {
-	actingOf,
-	allFish,
-	type DraftLine,
-	type DraftSpeaker,
-	speakerNameOf,
-	speakerValue,
-	usableSpeakers,
-	voiceOfSpeaker,
-} from "./drama-view";
 import type { Current } from "./sample-state";
-import { needsConfirm, requestOf, type TrialProblem } from "./trial-view";
+import { needsConfirm, type TrialProblem } from "./trial-view";
 
-// 드라마 작업실 '읽기'(스펙 14절)·'받기'(16절)의 순수 함수: 줄 요청, 막는 이유, 확인 창 셈, 읽기 상태, 끼어듦 판정, 잇는 차례(15절).
+// 줄 요청과 막는 이유는 CLI와 함께 쓰는 공용 모듈에 있다(T20)
+export {
+	lineRequest,
+	type ReadLine,
+	type ReadProblem,
+	readRequests,
+} from "@tts-pilot-app/api/drama-request";
+
+// 드라마 작업실 '읽기'(스펙 14절)·'받기'(16절)의 순수 함수 가운데 화면에만 있는 것: 확인 창 셈, 읽기 상태, 끼어듦 판정, 잇는 차례(15절).
 // 비동기 흐름(찾기·받기·만들기·재생)은 components/drama-read.tsx가 이 함수들로 한다
-
-// 줄 하나의 시험 생성 요청. 찾기(trialFindMany·trialFind)와 만들기(trialCreate)가 이 함수 하나로 요청을 만들어 저장된 줄을 놓치지 않는다.
-// 성우별 보정(Typecast 모델·감정 좁히기, Fish 무료 기간)은 T5 requestOf가 한다
-export function lineRequest(
-	voice: Voice,
-	value: PresetValue,
-	family: ActingFamily,
-	line: ActingLine,
-	now = Date.now(),
-): TrialRequest {
-	return requestOf(
-		voice,
-		readText(family, line).text,
-		{
-			...DEFAULT_SETTINGS,
-			[value.provider]: applyLine(value, family, line).settings,
-		} as SettingsOf,
-		now,
-	);
-}
-
-export type ReadLine = { id: string; request: TrialRequest; speaker: string };
-export type ReadProblem = {
-	kind: "voice" | "long" | "empty";
-	lineId: string | null;
-	speaker: number | null;
-};
-
-// 읽을 줄(fromId부터 끝까지, count면 그 수만큼)의 요청. 막는 이유는 그 범위만 본다(대본 전체 판정 allFish는 전체 줄). 순서는 화자 성우 없음 → 보낼 대사 200자 넘음 → 태그를 빼면 빈 대사 차례다(줄 차례보다 검사 차례가 먼저).
-// speakers는 저장된 화자다. 렌더와 같게 usableSpeakers로 거른 뒤에만 성우·설정·연기 값을 읽는다.
-// presets가 null이면 프리셋 목록을 받지 못했다: 저장된 프리셋이 있는 쓰인 화자는 성우 없음으로 막는다(사용자가 고르지 않은 처음 설정으로 유료 호출이 나가지 않게)
-export function readRequests(
-	speakers: readonly DraftSpeaker[],
-	lines: readonly DraftLine[],
-	ctx: {
-		saved: readonly SavedVoice[];
-		presets: readonly Preset[] | null;
-		headerModel: DramaModel;
-		now: number;
-	},
-	fromId: string,
-	count?: number,
-): { lines: ReadLine[] } | { problem: ReadProblem } {
-	const from = lines.findIndex((line) => line.id === fromId);
-	const range =
-		from < 0
-			? []
-			: lines.slice(from, count === undefined ? undefined : from + count);
-	const presets = ctx.presets ?? [];
-	const usable = usableSpeakers(speakers, ctx.saved, presets);
-	const voiceOf = (index: number) => {
-		const speaker = usable[index];
-		if (!speaker || (ctx.presets === null && speakers[index]?.presetId))
-			return null;
-		return voiceOfSpeaker(speaker, ctx.saved);
-	};
-	const missing = range
-		.map((line) => line.speaker)
-		.filter((index) => !voiceOf(index))
-		.sort((a, b) => a - b)[0];
-	if (missing !== undefined)
-		return { problem: { kind: "voice", lineId: null, speaker: missing } };
-	// 도구줄·자동 태그와 같은 family(DramaProvider.actingOf). Fish 화자의 두 family는 보낼 글이 같다
-	const fishOnly = allFish(usable, lines);
-	const read = range.flatMap((line): ReadLine[] => {
-		const speaker = usable[line.speaker];
-		const voice = voiceOf(line.speaker);
-		if (!speaker || !voice) return [];
-		const value = speakerValue(speaker, presets);
-		const { family } = actingOf(
-			speaker,
-			voice,
-			value,
-			ctx.headerModel,
-			fishOnly,
-		);
-		return [
-			{
-				id: line.id,
-				speaker: speakerNameOf(usable, line.speaker),
-				request: lineRequest(voice, value, family, line, ctx.now),
-			},
-		];
-	});
-	// Gemini 말투 지시는 글이 아니라 따로 가지만 공급자 계약 상한(100자)을 넘으면 요청이 통째로 거절된다
-	const long = read.find(
-		({ request }) =>
-			codePoints(request.text) > TRIAL_TEXT_MAX ||
-			(request.provider === "gemini" &&
-				codePoints(request.settings.direction) > GEMINI_DIRECTION_MAX),
-	);
-	if (long)
-		return { problem: { kind: "long", lineId: long.id, speaker: null } };
-	const empty = read.find(({ request }) => request.text === "");
-	if (empty)
-		return { problem: { kind: "empty", lineId: empty.id, speaker: null } };
-	return { lines: read };
-}
 
 // 유료 확인이 필요한 줄이 있는가(막대 '읽기' Coins 표시 판정. 이어 듣기 단추는 allPrepared)
 export function readPaid(

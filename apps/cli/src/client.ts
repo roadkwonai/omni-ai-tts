@@ -22,6 +22,25 @@ export type ErrorDetail = {
 	retryAt?: string;
 	requestId?: string;
 	resultId?: string;
+	// 문단 묶음(T20): 멈춘 문단과, 여러 문단을 함께 알릴 때의 목록
+	paragraph?: number;
+	paragraphs?: {
+		n: number;
+		reason?: string;
+		requestId?: string;
+		resultId?: string;
+	}[];
+	// 드라마 줄(T20)
+	line?: number;
+	lines?: {
+		n: number;
+		reason?: string;
+		requestId?: string;
+		resultId?: string;
+	}[];
+	// 중간에 멈췄지만 게시한 파일과 이어 갈 문단(자동 태그)
+	out?: string;
+	remaining?: string;
 };
 export class ClientError extends Error {
 	constructor(

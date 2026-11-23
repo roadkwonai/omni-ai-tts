@@ -1,4 +1,6 @@
 import { resolve } from "node:path";
+import { familyOf } from "@tts-pilot-app/api/drama-acting";
+import { sendText, unsentCount } from "@tts-pilot-app/api/paragraph-tags";
 import type { Voice } from "@tts-pilot-app/api/providers/contract";
 import {
 	codePoints,
@@ -40,6 +42,11 @@ import {
 	show,
 	showRecords,
 } from "./paid.js";
+import type { KindName } from "./requests.js";
+
+// 공급자가 돌려주는 형식
+export const mimeOf = (provider: string) =>
+	provider === "gemini" ? MIME[".wav"] : MIME[".mp3"];
 
 export type StudioOptions = {
 	url?: string;
@@ -53,70 +60,87 @@ export type GenerateOptions = StudioOptions &
 		presetId?: string;
 	};
 
-async function download(
-	{ client }: Connection,
-	id: string,
-	out: string,
-	overwrite: boolean,
-) {
+// 결과 하나의 정보. 모르는 형식은 거절한다
+export async function infoOf({ client }: Connection, id: string) {
 	const resultId = id;
-	onInterrupt(() => downloadStopped("studio", id));
 	const info = await client
 		.studioInfo({ id })
 		.catch((error: unknown) => rpcError(error, { resultId }));
 	if (!Object.values(MIME).includes(info?.audioType))
 		throw serverError("결과의 파일 형식을 알 수 없습니다.", { resultId });
+	return info;
+}
+export type Info = Awaited<ReturnType<typeof infoOf>>;
+// 결과의 조각. 조각 길이의 합이 bytes라 전체 길이도 함께 확인된다
+export async function* partsFrom(
+	{ client }: Connection,
+	{ id, bytes, audioType }: Info,
+) {
+	if (!Number.isInteger(bytes) || bytes < 1 || bytes > STUDIO_AUDIO_MAX)
+		throw new Error("결과 길이가 올바르지 않다");
+	for (let part = 0; part < partsOf(bytes); part += 1) {
+		const file = await client.studioAudio({ id, part });
+		const length = Math.min(
+			STUDIO_PART_BYTES,
+			bytes - part * STUDIO_PART_BYTES,
+		);
+		if (file.size !== length || file.type !== audioType)
+			throw new Error("조각 길이나 형식이 다르다");
+		yield new Uint8Array(await file.arrayBuffer());
+	}
+}
+export const downloadFailed = (
+	error: unknown,
+	resultId: string,
+	kind: KindName = "studio",
+) =>
+	new ClientError(
+		"DOWNLOAD_FAILED",
+		7,
+		`음성 파일을 저장하지 못했습니다. ${kind} download로 다시 받을 수 있습니다.`,
+		{ ...detailOf(error), resultId },
+	);
+export async function downloadTo(
+	connection: Connection,
+	info: Info,
+	out: string,
+	overwrite: boolean,
+) {
+	try {
+		await save(out, overwrite, partsFrom(connection, info));
+	} catch (error) {
+		throw downloadFailed(error, info.id);
+	}
+}
+
+async function download(
+	connection: Connection,
+	id: string,
+	out: string,
+	overwrite: boolean,
+) {
+	onInterrupt(() => downloadStopped("studio", id));
+	const info = await infoOf(connection, id);
 	try {
 		checkExtension(out, info.audioType);
 	} catch (error) {
-		if (error instanceof ClientError) error.detail = { resultId };
+		if (error instanceof ClientError) error.detail = { resultId: id };
 		throw error;
 	}
-	const { bytes } = info;
-	let reason = {};
-	async function* parts() {
-		if (!Number.isInteger(bytes) || bytes < 1 || bytes > STUDIO_AUDIO_MAX)
-			throw new Error("결과 길이가 올바르지 않다");
-		// 조각 길이의 합이 bytes라 전체 길이도 함께 확인된다
-		for (let part = 0; part < partsOf(bytes); part += 1) {
-			const file = await client
-				.studioAudio({ id, part })
-				.catch((error: unknown) => {
-					reason = detailOf(error);
-					throw error;
-				});
-			const length = Math.min(
-				STUDIO_PART_BYTES,
-				bytes - part * STUDIO_PART_BYTES,
-			);
-			if (file.size !== length || file.type !== info.audioType)
-				throw new Error("조각 길이나 형식이 다르다");
-			yield new Uint8Array(await file.arrayBuffer());
-		}
-	}
-	try {
-		await save(out, overwrite, parts());
-	} catch {
-		throw new ClientError(
-			"DOWNLOAD_FAILED",
-			7,
-			"음성 파일을 저장하지 못했습니다. studio download로 다시 받을 수 있습니다.",
-			{ ...reason, resultId },
-		);
-	}
+	await downloadTo(connection, info, out, overwrite);
+	const { createdAt, usage, bytes } = info;
 	return {
-		result: {
-			id,
-			createdAt: info.createdAt,
-			usage: info.usage,
-			bytes,
-		},
+		result: { id, createdAt, usage, bytes },
 		out: resolve(out),
 		mime: info.audioType,
 	};
 }
 
-const studioKind = ({ json, out = "", overwrite }: StudioOptions): Kind => ({
+export const studioKind = ({
+	json,
+	out = "",
+	overwrite,
+}: Pick<StudioOptions, "json" | "out" | "overwrite">): Kind => ({
 	name: "studio",
 	async find({ client }, request) {
 		const found = await client.studioFindMany([request]).catch(rpcError);
@@ -195,11 +219,26 @@ export async function generate(options: GenerateOptions) {
 			2,
 			`대본은 ${max}자까지 보낼 수 있습니다(지금 ${codePoints(text)}자).`,
 		);
-	checkExtension(
-		out,
-		request.provider === "gemini" ? MIME[".wav"] : MIME[".mp3"],
+	checkExtension(out, mimeOf(request.provider));
+	// 웹과 같이 모델이 받지 않는 태그를 빼고 보낸다
+	const family = familyOf(request.provider, request.settings.model);
+	const removed = unsentCount(family, text);
+	const sent = removed ? normalizeText(sendText(family, text)) : text;
+	if (!sent)
+		throw new ClientError(
+			"INPUT",
+			2,
+			"모델이 받지 않는 태그를 빼면 대본이 비어 있습니다.",
+		);
+	if (removed) note(`모델이 받지 않아 뺀 태그 ${removed}개`);
+	await runPaid(
+		studioKind(options),
+		connection,
+		voice,
+		removed ? { ...request, text: sent } : request,
+		options,
+		removed ? request : undefined,
 	);
-	await runPaid(studioKind(options), connection, voice, request, options);
 }
 
 export async function downloadResult(id: string, options: StudioOptions) {
@@ -251,9 +290,7 @@ export async function presets(options: Pick<StudioOptions, "url" | "json">) {
 							item.ref ?? "없음",
 							item.settings.model,
 							item.voice && !item.unavailable ? "가능" : "이용 불가",
-							extensionOf(
-								item.provider === "gemini" ? MIME[".wav"] : MIME[".mp3"],
-							),
+							extensionOf(mimeOf(item.provider)),
 						]
 							.map(clean)
 							.join("\t"),

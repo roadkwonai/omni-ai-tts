@@ -1,4 +1,4 @@
-import { type ChildProcess, spawn } from "node:child_process";
+import { type ChildProcess, execFileSync, spawn } from "node:child_process";
 import {
 	existsSync,
 	mkdtempSync,
@@ -17,6 +17,12 @@ import { join, resolve } from "node:path";
 import { type AnyRouter, ORPCError, os } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/node";
 import { SimpleCsrfProtectionHandlerPlugin } from "@orpc/server/plugins";
+import { dramaRequestSchema } from "@tts-pilot-app/api/drama-contract";
+import {
+	type DramaRequest,
+	type LineSpan,
+	wavOf,
+} from "@tts-pilot-app/api/drama-script";
 import {
 	comboSignature,
 	STUDIO_PART_BYTES,
@@ -24,6 +30,11 @@ import {
 } from "@tts-pilot-app/api/providers/trial-options";
 
 export const cli = resolve("dist/cli.js");
+// 소리를 만들고 결합을 실제로 돌릴 ffmpeg. 없으면 그 테스트 파일이 실패한다
+export const ffmpegPath = () =>
+	execFileSync("/bin/sh", ["-c", "command -v ffmpeg"], {
+		encoding: "utf8",
+	}).trim();
 export const COOKIE = "session=fixture-cookie";
 export const USER = "user-1";
 
@@ -262,7 +273,7 @@ export const voiceOf = (provider: string, voiceId: string, over = {}) => ({
 	models: [],
 	...over,
 });
-const saved = (voice: object, unavailable = false) => ({
+export const saved = (voice: object, unavailable = false) => ({
 	voice,
 	unavailable,
 	favorite: false,
@@ -272,6 +283,11 @@ const saved = (voice: object, unavailable = false) => ({
 	useCount: 0,
 	lastUsedAt: null,
 });
+
+type Take = Omit<Row, "kind" | "request" | "combo" | "audioType"> & {
+	request: DramaRequest;
+	segments: LineSpan[] | null;
+};
 
 // biome-ignore lint/suspicious/noExplicitAny: 프로시저마다 입력 모양이 다르다
 type Any = any;
@@ -294,6 +310,30 @@ export function studioWorld() {
 			saved(voiceOf("elevenlabs", "el")),
 		] as object[],
 		presets: [] as object[],
+		scripts: [] as { id: string; work: object }[],
+		// 최근 대본에 남긴 것과 자동 태그로 받은 입력
+		recent: [] as { workId: string; channelId: string | null; work: object }[],
+		tagged: [] as { paragraphs: { text: string; direction: string }[] }[],
+		// 드라마 테이크와 자동 태그로 받은 입력
+		takes: [] as Take[],
+		scenes: [] as { requestId: string; request: DramaRequest }[],
+		dramaTagged: [] as Any[],
+		take(request: DramaRequest, over: Partial<Take> = {}) {
+			const take: Take = {
+				request,
+				id: crypto.randomUUID(),
+				requestId: crypto.randomUUID(),
+				status: "done",
+				reason: null,
+				createdAt: new Date().toISOString(),
+				usage: { unit: "usd_micro", amount: 7 },
+				audio: Buffer.from(wavOf(bytesOf(4410))),
+				segments: null,
+				...over,
+			};
+			w.takes.unshift(take);
+			return take;
+		},
 		// 공급자 목록(voiceList)의 성우
 		catalog: [] as { provider: string }[],
 		// 시험 생성의 완료 저장이 실패하면 응답은 오고 행은 이 상태로 남는다
@@ -322,6 +362,23 @@ export function studioWorld() {
 		createdAt: row.createdAt,
 		usage: row.usage,
 		bytes: row.audio.byteLength,
+	});
+	const sceneKey = (request: unknown) =>
+		JSON.stringify(dramaRequestSchema.parse(request));
+	const takeOut = ({
+		id,
+		createdAt,
+		usage,
+		audio,
+		segments,
+		status,
+	}: Take) => ({
+		id,
+		createdAt,
+		usage,
+		bytes: status === "done" ? audio.byteLength : 0,
+		segments,
+		status,
 	});
 	const proc = (name: string, fn: (input: Any) => Any) =>
 		os.handler(async ({ input }) => {
@@ -425,6 +482,81 @@ export function studioWorld() {
 			const row = done(input.id, "trial");
 			w.rows.splice(w.rows.indexOf(row), 1);
 			return { deleted: true };
+		}),
+		scriptGet: proc("scriptGet", ({ id }) => {
+			const script = w.scripts.find((item) => item.id === id);
+			if (!script) throw new ORPCError("NOT_FOUND");
+			return script;
+		}),
+		scriptRecordRecent: proc("scriptRecordRecent", (input) => {
+			w.recent.push(input);
+			return { id: crypto.randomUUID() };
+		}),
+		studioAutoTag: proc("studioAutoTag", (input) => {
+			w.tagged.push(input);
+			return {
+				paragraphs: input.paragraphs.map((item: { text: string }) => ({
+					...item,
+					text: `[laughs] ${item.text}`,
+				})),
+				skipped: 0,
+			};
+		}),
+		// 실제 서버처럼 정리한 요청으로 조합을 본다
+		dramaFind: proc("dramaFind", (input) => {
+			const combo = sceneKey(input);
+			const same = w.takes.filter((take) => sceneKey(take.request) === combo);
+			const take =
+				same.find((item) => item.status === "done") ??
+				same.find((item) => item.status === "unknown");
+			return take ? takeOut(take) : null;
+		}),
+		dramaCreate: proc("dramaCreate", (input) => {
+			w.scenes.push(input);
+			w.synth += 1;
+			const { status: _, ...made } = takeOut(
+				w.take(input.request, { requestId: input.requestId }),
+			);
+			return made;
+		}),
+		dramaRequest: proc("dramaRequest", ({ requestId }) => {
+			const take = w.takes.find((item) => item.requestId === requestId);
+			if (!take) return null;
+			const { segments: _, ...found } = takeOut(take);
+			return { ...found, reason: take.reason };
+		}),
+		dramaList: proc("dramaList", () =>
+			w.takes
+				.filter(({ status }) => status === "done" || status === "unknown")
+				.slice(0, 20)
+				.map((take) => ({ ...takeOut(take), request: take.request })),
+		),
+		dramaAudio: proc("dramaAudio", ({ id, part }) => {
+			const take = w.takes.find(
+				(item) => item.id === id && item.status === "done",
+			);
+			const chunk = take?.audio.subarray(
+				part * STUDIO_PART_BYTES,
+				(part + 1) * STUDIO_PART_BYTES,
+			);
+			if (!chunk?.length) throw new ORPCError("NOT_FOUND");
+			return new File([new Uint8Array(chunk)], "a", { type: "audio/wav" });
+		}),
+		dramaDelete: proc("dramaDelete", ({ id }) => {
+			const at = w.takes.findIndex((item) => item.id === id);
+			if (at < 0) throw new ORPCError("NOT_FOUND");
+			w.takes.splice(at, 1);
+			return { deleted: true };
+		}),
+		dramaAutoTag: proc("dramaAutoTag", (input) => {
+			w.dramaTagged.push(input);
+			return {
+				lines: input.lines.map((line: { text: string }) => ({
+					...line,
+					text: `[laughs] ${line.text}`,
+				})),
+				skipped: 0,
+			};
 		}),
 		savedVoiceList: proc("savedVoiceList", () => w.voices),
 		channelList: proc("channelList", () => []),

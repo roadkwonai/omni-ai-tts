@@ -361,7 +361,7 @@ export async function sample({ json, url, text, flag, extra }: Args) {
 	if (extname(out).toLowerCase() !== format)
 		throw input(`이 샘플은 ${format} 파일로 받아야 합니다.`);
 	try {
-		await saveBytes(out, overwrite, body);
+		saveBytes(out, overwrite, body);
 	} catch {
 		throw new ClientError(
 			"DOWNLOAD_FAILED",

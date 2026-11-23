@@ -34,11 +34,11 @@ import { parseRef, resolveVoice } from "./voices.js";
 
 type Client = Connection["client"];
 // 서버 상한 2MiB에 여유를 더한다(정확한 상한은 서버가 본다)
-const WORK_BYTES_MAX = 3 * 1024 * 1024;
+export const WORK_BYTES_MAX = 3 * 1024 * 1024;
 
-const get = (client: Client, id: string) =>
+export const get = (client: Client, id: string) =>
 	client.scriptGet({ id }).catch(manageError);
-type Script = Awaited<ReturnType<typeof get>>;
+export type Script = Awaited<ReturnType<typeof get>>;
 const titleOf = ({ title, work }: Script) =>
 	title ?? `최근 대본 "${[...workText(work)].slice(0, 30).join("")}"`;
 const head = (script: Script): [string, string | number][] => [
@@ -123,7 +123,7 @@ export async function scriptShow(args: Args) {
 		`${out.toLowerCase().endsWith(".json") ? JSON.stringify(work) : workText(work)}\n`,
 	);
 	try {
-		await saveBytes(out, overwrite, body);
+		saveBytes(out, overwrite, body);
 	} catch {
 		throw new ClientError(
 			"DOWNLOAD_FAILED",

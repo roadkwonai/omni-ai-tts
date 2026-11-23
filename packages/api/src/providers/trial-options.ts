@@ -206,6 +206,21 @@ export const DEFAULT_SETTINGS: SettingsOf = {
 	gemini: { model: "gemini-3.8-flash-tts", direction: "" },
 };
 
+type Values = Record<string, string | number | boolean>;
+
+// 그 공급자 칸이 모두 같은가('바뀐 값 있음')
+export function sameSettings(
+	provider: ProviderId,
+	a: SettingsOf[ProviderId],
+	b: SettingsOf[ProviderId],
+): boolean {
+	const x = a as Values;
+	const y = b as Values;
+	return Object.keys(DEFAULT_SETTINGS[provider]).every(
+		(key) => x[key] === y[key],
+	);
+}
+
 type Field<P extends ProviderId> = Exclude<keyof SettingsOf[P], "model"> &
 	string;
 // 모델이 받는 옵션(스펙 4절 표). 받지 않는 옵션은 화면에서 숨고 정리·공급자 본문에서 빠진다.

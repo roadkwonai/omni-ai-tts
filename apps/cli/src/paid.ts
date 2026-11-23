@@ -22,7 +22,7 @@ import {
 	reasonOf,
 	rpcError,
 } from "./client.js";
-import { discard } from "./files.js";
+import { discardAll } from "./files.js";
 import {
 	ask,
 	byteText,
@@ -39,7 +39,7 @@ import {
 	fingerprint,
 	type KindName,
 	kindOf,
-	recordOf,
+	recordsFor,
 	recordsOf,
 	release,
 } from "./requests.js";
@@ -53,15 +53,15 @@ export type PaidOptions = {
 };
 export type Source = "created" | "saved" | "resumed";
 export type Found = { id: string; status: "done" | "unknown" };
-// 종류(작업실·시험 생성)마다 다른 것
-export type Kind = {
+// 종류(작업실·시험 생성)마다 다른 것. R은 보낼 요청의 모양이다
+export type Kind<R = TrialRequest> = {
 	name: KindName;
 	// 저장 결과 조회. 배열이 아닌 응답은 던진다
-	find(connection: Connection, request: TrialRequest): Promise<Found | null>;
+	find(connection: Connection, request: R): Promise<Found | null>;
 	// 합성 요청 하나. 결과가 아닌 응답은 던진다(처리 여부 미확인)
 	create(
 		connection: Connection,
-		input: { requestId: string; request: TrialRequest },
+		input: { requestId: string; request: R },
 	): Promise<{ id: string }>;
 	status(
 		connection: Connection,
@@ -123,15 +123,20 @@ export function mutate<T>(request: Promise<T>): Promise<T> {
 	);
 	return request.catch(manageError);
 }
+// 묶음이 Ctrl+C의 안내에 문단 번호를 더하는 길
+let decorate = (error: ClientError) => error;
+export const onReport = (fn: typeof decorate) => {
+	decorate = fn;
+};
 export function watchInterrupt() {
 	process.on("SIGINT", () => {
-		discard();
-		process.exit(report(interrupted()));
+		discardAll();
+		process.exit(report(decorate(interrupted())));
 	});
 }
 
 // 기록을 못 지워도 결과를 잃지 않는다. 남은 기록은 다음 실행에서 같은 요청 ID로 다시 확인한다
-async function releaseOrWarn(...args: Parameters<typeof release>) {
+export async function releaseOrWarn(...args: Parameters<typeof release>) {
 	try {
 		await release(...args);
 	} catch {
@@ -141,7 +146,7 @@ async function releaseOrWarn(...args: Parameters<typeof release>) {
 
 // 요청 UUID 하나의 상태만 본다. 합성하지 않는다. 같은 조합의 다른 결과는 이 요청의 완료가 아니다
 export async function recover(
-	kind: Kind,
+	kind: Pick<Kind<never>, "name" | "status">,
 	connection: Connection,
 	requestId: string,
 ): Promise<StudioResult> {
@@ -203,6 +208,7 @@ export function noteChanged(before: object, request: TrialRequest) {
 }
 
 function summary(
+	kind: KindName,
 	voice: Voice,
 	request: TrialRequest,
 	usage: Usage,
@@ -213,7 +219,8 @@ function summary(
 		`모델 ${request.settings.model}`,
 		`글자 수 ${codePoints(request.text)}자`,
 		`예상 사용량 ${usageText(usage)}${rateKnown ? "" : " (배율을 확인하지 못했어요)"}`,
-		...(/\[[^\]]*\]/.test(request.text)
+		// 작업실은 받지 않는 태그를 이미 뺐다
+		...(kind === "trial" && /\[[^\]]*\]/.test(request.text)
 			? [
 					"대괄호 태그를 원문 그대로 보냅니다(모델이 태그를 읽거나 웹과 다른 결과가 될 수 있습니다).",
 				]
@@ -221,29 +228,35 @@ function summary(
 	].map(clean);
 }
 
-async function confirm(
+export async function confirm(
 	lines: string[],
-	{ yes, input }: PaidOptions,
+	{ yes, input }: Pick<PaidOptions, "yes" | "input">,
+	what = "생성입니다",
+	question = "만들까요?",
 ): Promise<void> {
 	for (const line of lines) note(line);
 	if (yes) return;
 	if (!process.stdin.isTTY || input === "-")
 		throw confirmRequired(
-			"요금이 나올 수 있는 생성입니다. 확인했으면 --yes를 붙여 실행하세요.",
+			`요금이 나올 수 있는 ${what}. 확인했으면 --yes를 붙여 실행하세요.`,
 		);
-	if (!(await ask("요금이 나올 수 있습니다. 만들까요? [y/N] ")))
+	if (!(await ask(`요금이 나올 수 있습니다. ${question} [y/N] `)))
 		throw canceled();
 }
 
 // 서버가 공급자를 부르기 전에 거절한 코드(웹 studio-view의 BEFORE_PROVIDER와 같다)
-const BEFORE_PROVIDER = new Set(["BAD_REQUEST", "UNAUTHORIZED", "FORBIDDEN"]);
+export const BEFORE_PROVIDER = new Set([
+	"BAD_REQUEST",
+	"UNAUTHORIZED",
+	"FORBIDDEN",
+]);
 // 사유 없는 NOT_FOUND. 시험 생성은 삭제 대기·처리 중·남의 클론을 선점 전에 이렇게 거절한다
 const isNotFound = (error: unknown) =>
 	error instanceof ORPCError &&
 	error.code === "NOT_FOUND" &&
 	!detailOf(error).reason;
 async function isRejected(
-	kind: Kind,
+	kind: Pick<Kind<never>, "name" | "status">,
 	connection: Connection,
 	requestId: string,
 	error: unknown,
@@ -268,42 +281,53 @@ async function isRejected(
 	);
 }
 
+// 만드는 방법. reuse: 기록과 저장 결과를 쓴다, new: 둘 다 쓰지 않는다(--new),
+// retry: 시작할 때 본 기록(없으면 undefined)이 그대로일 때만 바꾸고 미확인 저장 결과는 건너뛴다(--retry-unconfirmed)
+export type Mode = "reuse" | "new" | { retry: string | undefined };
+
 // 합성 요청을 보내는 유일한 곳. 먼저 선점하고, 보내는 것은 한 번뿐이다
-async function create(
-	kind: Kind,
+export async function create<R>(
+	kind: Kind<R>,
 	connection: Connection,
-	request: TrialRequest,
-	fresh: boolean,
+	{ key, provider, request }: { key: string; provider: string; request: R },
+	mode: Mode,
 ): Promise<{ source: Source; id: string; requestId?: string }> {
-	const { origin, userId } = connection;
+	const { origin } = connection;
 	const requestId = randomUUID();
+	const seen = typeof mode === "object" ? mode.retry : undefined;
 	const { claimed, previous } = await claim(
-		fingerprint(origin, userId, request, kind.name),
+		key,
 		{
 			origin,
 			requestId,
-			provider: request.provider,
+			provider,
 			createdAt: new Date().toISOString(),
-			...(kind.name === "trial" ? { kind: kind.name } : {}),
+			...(kind.name === "studio" ? {} : { kind: kind.name }),
 		},
-		fresh,
+		mode === "new" || (seen ?? false),
 		() => onInterrupt(() => unconfirmed(kind.name, requestId)),
 	);
-	// 확인하는 사이 다른 프로세스가 선점했다
-	if (!claimed && previous)
-		return {
-			source: "resumed",
-			id: (await recover(kind, connection, previous.requestId)).id,
-		};
-	if (!fresh) {
+	if (!claimed) {
+		// 확인하는 사이 다른 프로세스가 선점했다
+		if (previous)
+			return {
+				source: "resumed",
+				id: (await recover(kind, connection, previous.requestId)).id,
+			};
+		// 시작할 때 본 기록을 다른 프로세스가 정리했다. 만들지 않고 완료만 쓴다
+		const found = await kind.find(connection, request);
+		if (found?.status === "done") return { source: "saved", id: found.id };
+		throw unconfirmed(kind.name, seen ?? requestId);
+	}
+	if (mode !== "new") {
 		// 앞선 프로세스가 확인하는 사이 끝냈을 수 있다. 완료는 기록이 지워지기 전에 서버에 저장된다
 		const found = await kind
 			.find(connection, request)
 			.catch(async (error: unknown) => {
-				await releaseOrWarn(origin, requestId);
+				await releaseOrWarn(origin, requestId, previous);
 				throw error;
 			});
-		if (found) {
+		if (found && (mode === "reuse" || found.status === "done")) {
 			await releaseOrWarn(origin, requestId);
 			return { source: "saved", id: usable(found) };
 		}
@@ -355,47 +379,84 @@ export async function runPaid(
 	voice: Voice,
 	request: TrialRequest,
 	options: PaidOptions,
+	// 태그를 빼기 전 요청. 옛 판이 태그째 보낸 요청의 기록도 복구 대상이다
+	before?: TrialRequest,
+) {
+	const { origin, client, userId } = connection;
+	const { provider, voiceId, settings } = request;
+	const keyOf = (value: TrialRequest) =>
+		fingerprint(origin, userId, value, kind.name);
+	await runRequest(
+		kind,
+		connection,
+		{ key: keyOf(request), provider, request },
+		options,
+		async () => {
+			let rate: number | null = null;
+			if (provider === "elevenlabs") {
+				const models = await client.trialModels().catch(() => null);
+				rate =
+					models?.rates.find(({ model }) => model === settings.model)
+						?.multiplier ?? null;
+			}
+			const rateKnown = provider !== "elevenlabs" || rate !== null;
+			const usage = estimate(request, rate);
+			return {
+				lines: summary(kind.name, voice, request, usage, rateKnown),
+				request: {
+					provider,
+					voiceId,
+					model: settings.model,
+					characters: codePoints(request.text),
+				},
+				estimate: usage,
+				rateKnown,
+				needsConfirm: needsConfirm(request),
+			};
+		},
+		before && keyOf(before),
+	);
+}
+
+// 종류와 상관없는 흐름. describe는 저장 결과가 없거나 dry-run일 때만 불려 무엇을 만드는지 보인다
+export async function runRequest<R>(
+	kind: Kind<R>,
+	connection: Connection,
+	target: { key: string; provider: string; request: R },
+	options: PaidOptions,
+	describe: () => Promise<{
+		lines: string[];
+		request: object;
+		estimate: Usage;
+		rateKnown?: boolean;
+		needsConfirm: boolean;
+	}>,
+	oldKey?: string,
 ) {
 	const { json, fresh, dryRun } = options;
-	const { origin, client, userId } = connection;
-	const record = fresh
-		? undefined
-		: await recordOf(fingerprint(origin, userId, request, kind.name));
+	const { origin } = connection;
+	const records = fresh
+		? []
+		: await recordsFor(oldKey ? [target.key, oldKey] : [target.key]);
+	const record = records.find((item) => item !== undefined);
 	if (record && !dryRun) {
 		const { id } = await recover(kind, connection, record.requestId);
 		return kind.finish(connection, "resumed", id);
 	}
-	const found = fresh ? null : await kind.find(connection, request);
+	const found = fresh ? null : await kind.find(connection, target.request);
 	if (found && !dryRun) return kind.finish(connection, "saved", usable(found));
 
-	let rate: number | null = null;
-	if (request.provider === "elevenlabs") {
-		const models = await client.trialModels().catch(() => null);
-		rate =
-			models?.rates.find(({ model }) => model === request.settings.model)
-				?.multiplier ?? null;
-	}
-	const rateKnown = request.provider !== "elevenlabs" || rate !== null;
-	const usage = estimate(request, rate);
-	const lines = summary(voice, request, usage, rateKnown);
-	if (dryRun) {
-		const { provider, voiceId } = request;
+	const { lines, request, ...facts } = await describe();
+	if (dryRun)
 		return print(
 			json,
 			{
 				origin,
 				dryRun: true,
-				request: {
-					provider,
-					voiceId,
-					model: request.settings.model,
-					characters: codePoints(request.text),
-				},
+				request,
 				saved: found,
 				requestId: record?.requestId ?? null,
-				estimate: usage,
-				rateKnown,
-				needsConfirm: needsConfirm(request),
+				...facts,
 			},
 			[
 				...lines,
@@ -407,14 +468,16 @@ export async function runPaid(
 				...(record ? [`확인할 요청 ID ${clean(record.requestId)}`] : []),
 			].join("\n"),
 		);
-	}
-	if (needsConfirm(request)) await confirm(lines, options);
+	if (facts.needsConfirm) await confirm(lines, options);
+	// --new는 같은 지문의 앞 기록을 바꾼다. 태그째 보낸 옛 기록은 지문이 달라 만든 뒤에 따로 지운다
+	const [old] = fresh && oldKey ? await recordsFor([oldKey]) : [];
 	const { source, id, requestId } = await create(
 		kind,
 		connection,
-		request,
-		fresh,
+		target,
+		fresh ? "new" : "reuse",
 	);
+	if (old) await releaseOrWarn(origin, old.requestId);
 	await kind.finish(connection, source, id, requestId);
 }
 

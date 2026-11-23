@@ -8,7 +8,7 @@ import { z } from "zod";
 
 import type { Context } from "./context";
 import { parseJsonReply, type Suggestion } from "./drama-acting";
-import type { DramaItemInput } from "./drama-contract";
+import type { DramaFound, DramaItemInput } from "./drama-contract";
 import {
 	DRAMA_RESULTS_SHOWN,
 	type DramaRequest,
@@ -637,13 +637,13 @@ export async function findStudioInfo(
 	};
 }
 
-// 요청 id의 상태(T18 작업실, T19 시험 생성). 없거나 남의 것·다른 화면·만료면 null. 5분 넘은 진행 중은 미확인으로 읽기만 한다(옮기는 쓰기는 replayStudio·replayRequest·claimRow)
+// 요청 id의 상태(T18 작업실, T19 시험 생성, T20 드라마). 없거나 남의 것·다른 화면·만료면 null. 5분 넘은 진행 중은 미확인으로 읽기만 한다(옮기는 쓰기는 replayStudio·replayRequest·claimRow)
 // (소유자, 요청 id) 유니크로 찾으므로 kind는 매개변수다(부분 인덱스와 상관없다)
 export async function findRequest(
 	db: Database,
 	ownerId: string,
 	requestId: string,
-	kind: "studio" | "trial",
+	kind: Kind,
 ): Promise<StudioRequestStatus | null> {
 	const [row] = await db
 		.select({
@@ -712,6 +712,36 @@ export async function listDrama(
 			settings: row.settings,
 		} as DramaItemInput["request"],
 	}));
+}
+
+// 같은 장면(dramaKey)의 저장된 테이크 하나(T20). 완료가 있으면 가장 최근 완료, 없으면 가장 최근 미확인(findStudioMany와 같은 선택). 최근 20개와 상관없다.
+// 오디오를 읽지 않고 보관 기한도 늘리지 않는다
+export async function findDrama(
+	db: Database,
+	ownerId: string,
+	key: string,
+): Promise<DramaFound | null> {
+	const [row] = await db
+		.select({ ...studioColumns, status: t.status, segments: t.segments })
+		.from(t)
+		.where(
+			and(
+				eq(t.ownerId, ownerId),
+				dramaRow,
+				eq(t.comboKey, key),
+				inArray(t.status, ["done", "unknown"]),
+				gt(t.expiresAt, new Date()),
+			),
+		)
+		.orderBy(desc(sql`${t.status} = 'done'`), desc(t.createdAt))
+		.limit(1);
+	return row
+		? {
+				...studioOf(row),
+				status: row.status as DramaFound["status"],
+				segments: row.segments,
+			}
+		: null;
 }
 
 // 결과 오디오의 조각 하나(3MiB). Postgres substring은 1부터 센다. 저장 방식이 EXTERNAL이라 이 조각의 TOAST 덩어리만 읽는다.

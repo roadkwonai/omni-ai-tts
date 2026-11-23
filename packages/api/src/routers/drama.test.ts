@@ -18,7 +18,10 @@ import type { z } from "zod";
 
 import type { Context } from "../context";
 import { autoTagPrompt } from "../drama-acting";
-import type { dramaAutoTagInputSchema } from "../drama-contract";
+import {
+	type dramaAutoTagInputSchema,
+	dramaRequestSchema,
+} from "../drama-contract";
 import * as dramaScript from "../drama-script";
 import {
 	type AlignedSegment,
@@ -1293,6 +1296,105 @@ describe.skipIf(!url)("드라마 프로시저(T9.5 스펙 3·8절)", () => {
 			bytes: WAV_HEADER_BYTES + 8,
 			request: drama(),
 		});
+	});
+
+	it("저장된 행의 조합 키는 정리한 요청의 dramaKey다(T20)", async () => {
+		const raw = drama({
+			sceneName: "  첫 만남 ",
+			lines: [
+				{ speaker: 1, direction: " [작게] 웃으며 ", text: " 안녕\n그래 " },
+			],
+		});
+		const made = await create(raw);
+		const [row] = await ownerRows();
+		expect(row?.id).toBe(made.id);
+		expect(row?.comboKey).toBe(
+			trialModule.dramaKey(dramaRequestSchema.parse(raw)),
+		);
+	});
+
+	it("저장 테이크 찾기: 정리 전후 요청이 같은 테이크를 찾고 모델·대본·설정이 다르면 null, 공급자 0회(T20)", async () => {
+		const raw = drama({
+			sceneName: "  첫 만남 ",
+			lines: [
+				{ speaker: 1, direction: " [작게] 웃으며 ", text: " 안녕\n그래 " },
+			],
+		});
+		const made = await create(raw);
+		synthesizeScene.mockClear();
+		const clean = drama({
+			sceneName: "첫 만남",
+			lines: [{ speaker: 1, direction: "작게 웃으며", text: "안녕\n그래" }],
+		});
+		const found = { ...made, status: "done" };
+		expect(await me.dramaFind(raw)).toEqual(found);
+		expect(await me.dramaFind(clean)).toEqual(found);
+		for (const other of [
+			{ ...clean, model: "drama-3" as const },
+			{ ...clean, sceneName: "다른 장면" },
+			{ ...clean, settings: { ...DRAMA_SETTINGS, speed: 1.1 } },
+		])
+			expect(await me.dramaFind(other)).toBeNull();
+		expect(synthesizeScene).not.toHaveBeenCalled();
+	});
+
+	it("저장 테이크 찾기: 목록(최근 20개) 밖의 테이크도 줄 구간과 함께 찾는다(T20)", async () => {
+		const first = await create();
+		expect(first.segments).toHaveLength(4);
+		for (let i = 0; i < 20; i++) {
+			synthesizeScene.mockResolvedValueOnce(
+				scene({ pcm: new Uint8Array(8), segments: null }),
+			);
+			await create(drama({ sceneName: `장면 ${i}` }));
+		}
+		expect((await me.dramaList()).map((item) => item.id)).not.toContain(
+			first.id,
+		);
+		expect(await me.dramaFind(drama())).toEqual({ ...first, status: "done" });
+	});
+
+	it("요청 상태: 미확인·실패를 사유와 함께 읽고, 계약에 어긋난 찾기 요청은 BAD_REQUEST, 저장소 실패는 storage(T20)", async () => {
+		const unknownId = crypto.randomUUID();
+		synthesizeScene.mockRejectedValueOnce(
+			trialError("fish_audio", "unknown_outcome"),
+		);
+		await expect(create(drama(), unknownId)).rejects.toMatchObject({
+			code: "GATEWAY_TIMEOUT",
+		});
+		expect(await me.dramaRequest({ requestId: unknownId })).toMatchObject({
+			status: "unknown",
+			reason: "unknown_outcome",
+			bytes: 0,
+		});
+		expect(await me.dramaFind(drama())).toMatchObject({
+			status: "unknown",
+			bytes: 0,
+			segments: null,
+		});
+		const failedId = crypto.randomUUID();
+		synthesizeScene.mockRejectedValueOnce(
+			trialError("fish_audio", "provider_error"),
+		);
+		await expect(create(drama(), failedId)).rejects.toMatchObject({
+			code: "BAD_GATEWAY",
+		});
+		expect(await me.dramaRequest({ requestId: failedId })).toMatchObject({
+			status: "failed",
+			reason: "provider_error",
+		});
+		expect(
+			await me.dramaRequest({ requestId: crypto.randomUUID() }),
+		).toBeNull();
+		await expect(me.dramaFind(drama({ lines: [] }))).rejects.toMatchObject({
+			code: "BAD_REQUEST",
+		});
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		const broken = as(OWNER, { db: failingDb });
+		for (const call of [
+			broken.dramaFind(drama()),
+			broken.dramaRequest({ requestId: failedId }),
+		])
+			await expect(call).rejects.toMatchObject({ data: { reason: "storage" } });
 	});
 
 	it("지우기: 진행 중이면 NOT_FOUND, 완료는 지운다, studio 행 id → NOT_FOUND", async () => {

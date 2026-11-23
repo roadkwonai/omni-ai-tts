@@ -31,6 +31,10 @@
 			"dependsOn": ["^check-types"],
 			"outputs": []
 		},
+		"@tts-pilot-app/cli#check-types": {
+			"dependsOn": ["^check-types"],
+			"outputs": []
+		},
 		"test": {
 			"cache": false
 		},

@@ -1,12 +1,15 @@
 // apps/web/src/lib/studio-view.ts
 import { ORPCError } from "@orpc/client";
+import {
+	type EmotionValue,
+	pressedEmotion,
+} from "@tts-pilot-app/api/paragraph-autotag";
 import type { Preset } from "@tts-pilot-app/api/preset-contract";
-import type { ProviderId, Voice } from "@tts-pilot-app/api/providers/contract";
+import type { Voice } from "@tts-pilot-app/api/providers/contract";
 import {
 	codePoints,
 	DEFAULT_SETTINGS,
 	EMOTION_PRESETS,
-	type EmotionPreset,
 	normalizeText,
 	partsOf,
 	RANGES,
@@ -28,6 +31,14 @@ import {
 	trialFailureOf,
 } from "./trial-view";
 import { plain } from "./voice-view";
+
+// CLI와 함께 쓰는 공용 구현(T20). EmotionValue는 감정 팔레트 뱃지 값(Typecast 자동 감정 또는 요청 열거형의 감정)이다
+export {
+	type EmotionValue,
+	pressedEmotion,
+} from "@tts-pilot-app/api/paragraph-autotag";
+export { kstStamp, safeName } from "@tts-pilot-app/api/paragraph-files";
+export { savedOf } from "@tts-pilot-app/api/paragraph-script";
 
 // 음성 작업실의 화면 문구와 계산(T9 스펙 4·5절). 화면 없이 테스트하는 순수 함수만 둔다.
 // 문구는 브리프(docs/briefs/studio.md 8절)가 정본이다. 이름 뒤에 조사를 붙이지 않는다. 크레딧이 쓰였을 수 있으면 "다시 해 주세요"라고 하지 않는다
@@ -55,8 +66,6 @@ export const STUDIO_TEXT = {
 	presetLoaded: (name: string) => `‘${name}’ 프리셋을 불러왔어요`,
 } as const;
 
-// 감정 팔레트 뱃지 값: Typecast 자동 감정(v30만) 또는 요청 열거형의 감정
-export type EmotionValue = "smart" | EmotionPreset;
 // 뱃지 설명(브리프 8절). 감정 태그 리서치 2절의 Typecast 감정 설명을 짧게 옮겼다
 export const EMOTION_NOTE: Record<EmotionValue, string> = {
 	smart: "대본 내용을 보고 감정을 정해요",
@@ -83,11 +92,6 @@ export function emotionBadges(
 		(value) => ({ value, label: emotionName(value) }),
 	);
 }
-// 지금 눌린 뱃지. settings는 성우 맞춤 뒤 요청의 설정이다(v21은 늘 직접 감정)
-export const pressedEmotion = (settings: TypecastSettings): EmotionValue =>
-	settings.model === "ssfm-v30" && settings.emotion === "smart"
-		? "smart"
-		: settings.preset;
 // 뱃지를 누르면 바뀌는 칸. 대본에 글자를 넣지 않는다(Typecast는 요청 필드로 감정을 받는다)
 export function emotionPatch(
 	model: TypecastModel,
@@ -119,16 +123,6 @@ export function pickableVoices(items: readonly SavedVoice[]): SavedVoice[] {
 			lastUsed(b) - lastUsed(a) || Number(b.favorite) - Number(a.favorite),
 	);
 }
-// 임시 작업의 성우 id를 담은 그 공급자 성우에서만 되살린다(스펙 2절 '임시 작업'). 같은 id를 다른 공급자로 담았으면 없다
-export const savedOf = (
-	items: readonly SavedVoice[],
-	voiceId: string | null,
-	provider: ProviderId,
-): SavedVoice | null =>
-	items.find(
-		(item) =>
-			item.voice.provider === provider && item.voice.voiceId === voiceId,
-	) ?? null;
 export const usageLine = (item: SavedVoice, now: Date) =>
 	item.lastUsedAt
 		? `최근 사용 ${resultWhen(item.lastUsedAt, now)} · ${plain.format(item.useCount)}회`
@@ -147,15 +141,6 @@ export const listLoad = (query: {
 			? "failed"
 			: "loading";
 
-// 파일 이름에 못 쓰는 글자(Windows·macOS 공통), 공백(줄바꿈 포함), 제어 문자(C0·C1), 형식 문자(RLO 같은 방향 바꿈, 폭 없는 공백)는 '_'로 바꾼다
-const BAD_NAME = /[\\/:*?"<>|\s\p{Cc}\p{Cf}]/gu;
-export const safeName = (text: string) => text.replace(BAD_NAME, "_");
-const two = (value: number) => String(value).padStart(2, "0");
-// 결과를 만든 시각의 한국 시간(일광 절약 없음)
-export function kstStamp(iso: string): string {
-	const at = new Date(Date.parse(iso) + 9 * 60 * 60 * 1000);
-	return `${at.getUTCFullYear()}${two(at.getUTCMonth() + 1)}${two(at.getUTCDate())}-${two(at.getUTCHours())}${two(at.getUTCMinutes())}`;
-}
 // 이 브라우저의 임시 작업(스펙 2절). 키에 판을 붙이고 필요한 칸만 둔다(client-localstorage-schema). 대본은 입력마다, 나머지는 바뀔 때 쓴다
 export const SCRIPT_KEY = "tts-pilot:studio:v1:script";
 export const SETUP_KEY = "tts-pilot:studio:v1:setup";

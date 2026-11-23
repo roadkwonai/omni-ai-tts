@@ -11,6 +11,7 @@ import {
 	renameSync,
 	rmSync,
 	statSync,
+	writeFileSync,
 	writeSync,
 } from "node:fs";
 import { dirname, extname, join } from "node:path";
@@ -109,43 +110,71 @@ export const checkExtension = (out: string, mime: string) => {
 		throw input(`이 음성은 ${extensionOf(mime)} 파일로 받아야 합니다.`);
 };
 
+export function checkFolder(folder: string, what: string) {
+	try {
+		if (!statSync(folder).isDirectory()) throw new Error();
+		accessSync(folder, constants.W_OK | constants.X_OK);
+	} catch {
+		throw input(`${what}가 없거나 쓸 수 없습니다.`);
+	}
+}
+// 있으면 일반 파일인가. 링크나 폴더면 거절하고, 없으면 크기도 없다
+export function fileSize(out: string, name: string): number | undefined {
+	const found = entry(out);
+	if (found && !found.isFile())
+		throw input(`${name}이 심볼릭 링크나 폴더라 쓸 수 없습니다.`);
+	return found?.size;
+}
 // 유료 요청 전에 출력 경로를 본다
 export function checkOut(
 	out: string,
 	overwrite: boolean,
 	allowed: string[] = Object.keys(MIME),
+	name = "--out",
 ) {
 	if (!allowed.includes(extname(out).toLowerCase()))
-		throw input(`--out은 ${allowed.join("나 ")} 파일이어야 합니다.`);
-	const folder = dirname(out);
-	try {
-		if (!statSync(folder).isDirectory()) throw new Error();
-		accessSync(folder, constants.W_OK | constants.X_OK);
-	} catch {
-		throw input("--out의 폴더가 없거나 쓸 수 없습니다.");
-	}
-	const found = entry(out);
-	if (!found) return;
-	if (!found.isFile())
-		throw input("--out이 심볼릭 링크나 폴더라 쓸 수 없습니다.");
-	if (!overwrite)
-		throw input("--out에 이미 파일이 있습니다. 바꾸려면 --overwrite를 쓰세요.");
+		throw input(`${name}은 ${allowed.join("나 ")} 파일이어야 합니다.`);
+	checkFolder(dirname(out), `${name}의 폴더`);
+	if (fileSize(out, name) !== undefined && !overwrite)
+		throw input(
+			`${name}에 이미 파일이 있습니다. 바꾸려면 --overwrite를 쓰세요.`,
+		);
 }
 
 // 지금 쓰는 임시 파일. Ctrl+C가 지운다
 let temporary: string | undefined;
-export function discard() {
+function discard() {
 	if (temporary) rmSync(temporary, { force: true });
 	temporary = undefined;
 }
+// 그 밖에 Ctrl+C가 정리할 것(결합의 임시 폴더와 자식 프로세스)
+export const cleanups = new Set<() => void>();
+export function discardAll() {
+	discard();
+	for (const run of cleanups) run();
+}
 
-// 같은 폴더의 임시 파일에 쓰고 끝난 뒤에만 게시한다. 실패하면 기존 파일은 그대로다
+// 다 쓴 임시 파일을 게시한다. 실패하면 기존 파일은 그대로다
+function publish(temp: string, out: string, overwrite: boolean) {
+	if (overwrite) {
+		const found = entry(out);
+		if (found && !found.isFile()) throw new Error("일반 파일만 덮어쓸 수 있다");
+		if (found) chmodSync(temp, found.mode & 0o777);
+		renameSync(temp, out);
+	}
+	// shortcut: 하드 링크를 못 쓰는 파일 시스템(exFAT 등)은 게시에 실패한다(7). 그런 볼륨이 필요해지면 copyFile COPYFILE_EXCL로 바꾼다
+	else linkSync(temp, out);
+}
+const tempOf = (out: string) =>
+	join(dirname(out), `.omni-tts-${randomUUID()}.tmp`);
+
+// 같은 폴더의 임시 파일에 쓰고 끝난 뒤에만 게시한다
 export async function save(
 	out: string,
 	overwrite: boolean,
 	parts: AsyncIterable<Uint8Array>,
 ) {
-	const temp = join(dirname(out), `.omni-tts-${randomUUID()}.tmp`);
+	const temp = tempOf(out);
 	try {
 		const fd = openSync(temp, "wx", 0o600);
 		temporary = temp;
@@ -157,24 +186,18 @@ export async function save(
 		} finally {
 			closeSync(fd);
 		}
-		if (overwrite) {
-			const found = entry(out);
-			if (found && !found.isFile())
-				throw new Error("일반 파일만 덮어쓸 수 있다");
-			if (found) chmodSync(temp, found.mode & 0o777);
-			renameSync(temp, out);
-		}
-		// shortcut: 하드 링크를 못 쓰는 파일 시스템(exFAT 등)은 게시에 실패한다(7). 그런 볼륨이 필요해지면 copyFile COPYFILE_EXCL로 바꾼다
-		else linkSync(temp, out);
+		publish(temp, out, overwrite);
 	} finally {
 		discard();
 	}
 }
-export const saveBytes = (out: string, overwrite: boolean, bytes: Uint8Array) =>
-	save(
-		out,
-		overwrite,
-		(async function* () {
-			yield bytes;
-		})(),
-	);
+// 한 번에 쓴다. 동기라 Ctrl+C 처리에서도 쓰고, 다른 save가 쓰는 임시 파일을 건드리지 않는다
+export function saveBytes(out: string, overwrite: boolean, bytes: Uint8Array) {
+	const temp = tempOf(out);
+	try {
+		writeFileSync(temp, bytes, { mode: 0o600, flag: "wx" });
+		publish(temp, out, overwrite);
+	} finally {
+		rmSync(temp, { force: true });
+	}
+}

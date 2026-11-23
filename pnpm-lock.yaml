@@ -250,23 +250,25 @@ importers:
         version: 1.18.0
 
   apps/cli:
-    dependencies:
+    devDependencies:
       '@orpc/client':
         specifier: 'catalog:'
         version: 1.15.4
-      '@tts-pilot-app/api':
-        specifier: workspace:*
-        version: link:../../packages/api
-    devDependencies:
       '@orpc/server':
         specifier: 'catalog:'
         version: 1.15.4(ws@8.22.0)
+      '@tts-pilot-app/api':
+        specifier: workspace:0.0.0
+        version: link:../../packages/api
       '@tts-pilot-app/db':
-        specifier: workspace:*
+        specifier: workspace:0.0.0
         version: link:../../packages/db
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.2
+      rolldown:
+        specifier: 1.2.11
+        version: 1.2.11
       typescript:
         specifier: 'catalog:'
         version: 6.0.3

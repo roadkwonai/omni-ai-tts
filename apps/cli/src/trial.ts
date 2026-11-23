@@ -56,7 +56,7 @@ async function write(
 	overwrite: boolean,
 ): Promise<Pick<Output, "result" | "out" | "mime">> {
 	try {
-		await saveBytes(out, overwrite, new Uint8Array(await audio.arrayBuffer()));
+		saveBytes(out, overwrite, new Uint8Array(await audio.arrayBuffer()));
 	} catch {
 		throw new ClientError(
 			"DOWNLOAD_FAILED",
@@ -72,7 +72,7 @@ async function write(
 	};
 }
 
-async function download(
+export async function download(
 	{ client }: Connection,
 	id: string,
 	out: string,
@@ -100,15 +100,19 @@ const optionsOf = ({ json, url, text, flag }: Args) => ({
 	out: text("out"),
 	overwrite: flag("overwrite"),
 });
-function trialKind({
+type Written = Awaited<ReturnType<typeof write>> | { error: ClientError };
+export function trialKind({
 	json,
 	out = "",
 	overwrite,
-}: ReturnType<typeof optionsOf>) {
+}: Pick<ReturnType<typeof optionsOf>, "json" | "out" | "overwrite">): Kind & {
+	written(): Written | undefined;
+} {
 	// 응답으로 받은 오디오를 파일로 둔 결과. 응답을 받은 뒤에만 있다
-	let written: Awaited<ReturnType<typeof write>> | { error: ClientError };
+	let written: Written | undefined;
 	return {
 		name: "trial",
+		written: () => written,
 		async find({ client }, request) {
 			const found = await client.trialFindMany([request]).catch(manageError);
 			if (!Array.isArray(found)) throw serverError();
@@ -140,16 +144,15 @@ function trialKind({
 		async finish(connection, source, id, requestId) {
 			const kept = requestId ? { requestId } : {};
 			const saved =
-				source === "created"
-					? written
-					: await download(connection, id, out, overwrite);
+				(source === "created" && written) ||
+				(await download(connection, id, out, overwrite));
 			if ("error" in saved) {
 				saved.error.detail = { ...saved.error.detail, ...kept };
 				throw saved.error;
 			}
 			show(json, { origin: connection.origin, source, ...saved, ...kept });
 		},
-	} satisfies Kind as Kind;
+	};
 }
 
 export async function trialGenerate(args: Args) {

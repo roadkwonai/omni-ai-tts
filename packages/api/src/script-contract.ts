@@ -53,27 +53,28 @@ const paragraphSchema = z.object({
 		.optional(),
 });
 
-export const scriptWorkSchema = z
-	.object({
-		defaultVoice: voiceSetupSchema.nullable(),
-		gap: gapSchema,
-		paragraphs: z
-			.array(paragraphSchema)
-			.min(1)
-			.max(PARAGRAPHS_MAX)
-			.refine((ps) => new Set(ps.map((p) => p.id)).size === ps.length, {
-				message: "paragraph_id",
+// 작업의 모양(상한 검사 앞까지). CLI가 로컬 작업 JSON을 검사할 때 쓴다(T20)
+export const scriptWorkShapeSchema = z.object({
+	defaultVoice: voiceSetupSchema.nullable(),
+	gap: gapSchema,
+	paragraphs: z
+		.array(paragraphSchema)
+		.min(1)
+		.max(PARAGRAPHS_MAX)
+		.refine((ps) => new Set(ps.map((p) => p.id)).size === ps.length, {
+			message: "paragraph_id",
+		}),
+	speakers: z
+		.array(
+			z.object({
+				name: speakerNameSchema,
+				voice: voiceSetupSchema.nullable(),
 			}),
-		speakers: z
-			.array(
-				z.object({
-					name: speakerNameSchema,
-					voice: voiceSetupSchema.nullable(),
-				}),
-			)
-			.max(SPEAKERS_MAX)
-			.optional(),
-	})
+		)
+		.max(SPEAKERS_MAX)
+		.optional(),
+});
+export const scriptWorkSchema = scriptWorkShapeSchema
 	// 비지 않은 문단 1개 이상, 글 10,000자, UTF-8 2 MB, NUL 없음(script-rules, 화면 잠금과 같은 규칙)
 	.refine((work) => scriptWorkProblem(work) === null, { message: "work" });
 export type ScriptWorkValue = z.output<typeof scriptWorkSchema>;

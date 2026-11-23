@@ -17,6 +17,9 @@ import {
 	settingsSummary,
 } from "./trial-view";
 
+// CLI와 함께 쓰는 공용 구현(T20)
+export { sameSettings } from "@tts-pilot-app/api/providers/trial-options";
+
 // 프리셋 화면 문구와 계산(T8 스펙 4절). 화면 없이 테스트하는 순수 함수만 둔다.
 // 문구는 브리프(18행 docs/briefs/presets.md)가 정본이고 브리프가 이긴다. 이름 뒤에 조사를 붙이지 않는다(받침을 모른다).
 // 목록을 받는 동작은 '받기', 프리셋을 설정에 적용하는 동작은 '불러오기'로 나눠 쓴다(계획 리뷰 D13)
@@ -108,19 +111,6 @@ export const presetSettingsOf = (voice: Voice, all: SettingsOf) =>
 
 const requestFor = (provider: ProviderId, settings: Settings) =>
 	({ provider, voiceId: "", text: "", settings }) as TrialRequest;
-
-// 그 공급자 칸이 모두 같은가('바뀐 값 있음')
-export function sameSettings(
-	provider: ProviderId,
-	a: Settings,
-	b: Settings,
-): boolean {
-	const x = a as Values;
-	const y = b as Values;
-	return Object.keys(DEFAULT_SETTINGS[provider]).every(
-		(key) => x[key] === y[key],
-	);
-}
 
 type Change = { label: string; from: string; to: string };
 const change = (

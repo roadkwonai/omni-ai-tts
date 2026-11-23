@@ -4,12 +4,24 @@ import {
 	type ActingFamily,
 	applyLine,
 	type Feel,
-	familyOf,
 	hasFeel,
 	snapIntensity,
 	TYPECAST_INTENSITIES,
 } from "@tts-pilot-app/api/drama-acting";
 import type { DramaItem } from "@tts-pilot-app/api/drama-contract";
+import {
+	allFish,
+	type DraftLine,
+	type DraftSpeaker,
+	defaultSpeakerName,
+	newSpeaker,
+	type ReadProblem,
+	requestOf as sceneRequestOf,
+	speakerNameOf,
+	splitOk,
+	usableVoice,
+	voiceOfSpeaker,
+} from "@tts-pilot-app/api/drama-request";
 import {
 	cleanDirection,
 	DRAMA_DIRECTION_MAX,
@@ -26,7 +38,6 @@ import {
 	type DramaModel,
 	type DramaRequest,
 	type DramaSettings,
-	type DramaSpeaker,
 	dramaUsage,
 	pcmSeconds,
 	sceneChars,
@@ -57,29 +68,35 @@ import {
 import type { SavedVoice } from "@tts-pilot-app/api/saved-voice-contract";
 
 import { PROVIDER_IDS, PROVIDER_LABEL } from "./connection-view";
-import type { ReadProblem } from "./drama-read";
-import { speakerLine } from "./script-speaker";
 import { GAP_DEFAULT, gapOf } from "./sound-join";
-import {
-	kstStamp,
-	pressedEmotion,
-	safeName,
-	savedOf,
-	VOICE_ID,
-} from "./studio-view";
+import { kstStamp, pressedEmotion, safeName, VOICE_ID } from "./studio-view";
 import { insertSound } from "./tag-view";
 import {
-	presetsOf,
 	resultWhen,
 	type TrialProblem,
 	trialFallback,
 	trialProblemText,
 	requestOf as trialRequestOf,
-	typecastModelsOf,
 	usageText,
 	valueText,
 } from "./trial-view";
 import { plain, retryTime } from "./voice-view";
+
+// 화자 성우·설정·연기, 장면 요청, 붙여 넣기는 CLI와 함께 쓰는 공용 모듈에 있다(T20)
+export {
+	actingOf,
+	allFish,
+	type DraftLine,
+	type DraftSpeaker,
+	newSpeaker,
+	type PasteResult,
+	parsePaste,
+	speakerNameOf,
+	speakerValue,
+	splitOk,
+	usableSpeakers,
+	voiceOfSpeaker,
+} from "@tts-pilot-app/api/drama-request";
 
 // 드라마 작업실의 화면 문구와 계산(T9.5 스펙 2·4·5절). 화면 없이 테스트하는 순수 함수만 둔다.
 // 값과 대본 조립·나누기는 zod 없는 drama-script에 있고, 계약(drama-contract)은 타입만 가져온다(화면 번들에 zod를 넣지 않는다)
@@ -122,7 +139,7 @@ export const DRAMA_TEXT = {
 	} satisfies Record<DramaModel, string>,
 	speakers: "화자",
 	speakersHelp: "대본에 나오는 화자만 장면에 들어가요 · 최대 4명",
-	speakerName: (i: number) => `화자 ${i}`,
+	speakerName: defaultSpeakerName,
 	nameLabel: (i: number) => `화자 ${i} 이름`,
 	pickVoice: "성우 고르기",
 	removeSpeaker: (i: number) => `화자 ${i} 빼기`,
@@ -534,16 +551,6 @@ export const DRAMA_TEXT = {
 
 // 이 브라우저의 임시 작업(스펙 2절). 키에 판을 붙이고 필요한 칸만 둔다(client-localstorage-schema)
 export const DRAFT_KEY = "tts-pilot:drama:v1";
-// 화자는 다섯 공급자 성우(보관함) 또는 프리셋을 받는다(Part 2). presetId가 있으면 그 프리셋의 성우·설정이다
-export type DraftSpeaker = {
-	name: string;
-	provider: ProviderId;
-	voiceId: string | null;
-	presetId: string | null;
-};
-// feel은 Typecast 감정·Airy 말투(Part 2). 없으면 화자 설정 그대로다.
-// gap은 이 줄 뒤 쉼(초, 0.1 단위, 스펙 15절). 없으면 기본 쉼(Draft.gap)이고 요청에는 넣지 않는다
-export type DraftLine = DramaLine & { id: string; feel?: Feel; gap?: number };
 export type Draft = {
 	sceneName: string;
 	speakers: DraftSpeaker[];
@@ -555,6 +562,8 @@ export type Draft = {
 	// 줄 사이 기본 쉼(초)
 	gap: number;
 };
+// 공용 구현 그대로이고 타입만 초안(Draft)을 받는다(초안에만 있는 picks·gap을 객체 글로 넘길 수 있게)
+export const requestOf: (draft: Draft) => DramaRequest | null = sceneRequestOf;
 
 export const FREE_MODEL = "s2.1-pro-free" satisfies DramaModel;
 // 고를 수 있는 모델. 무료 기간이 끝나면 s2.1-pro-free를 뺀다(첫 값이 처음 모델)
@@ -564,22 +573,6 @@ export const dramaModelsOf = (now = Date.now()): DramaModel[] =>
 export const splitModelOf = (now = Date.now()): DramaModel =>
 	dramaModelsOf(now).includes(FREE_MODEL) ? FREE_MODEL : "s2.1-pro";
 
-// 화면에 보이는 화자 이름(줄 칩·성우 창 제목·붙여 넣기 결과·무대). 다듬은 이름, 비었거나 없는 화자는 번호 이름.
-// 이름 뒤에는 받침 따라 바뀌는 조사를 붙이지 않는다(브리프 8절)
-export const speakerNameOf = (
-	speakers: readonly Pick<DraftSpeaker, "name">[],
-	index: number,
-) =>
-	normalizeText(speakers[index]?.name ?? "") ||
-	DRAMA_TEXT.speakerName(index + 1);
-
-// 성우 없는 새 화자. 공급자 처음 값은 Fish Audio다(성우 창 '전체'의 처음 공급자)
-export const newSpeaker = (name: string): DraftSpeaker => ({
-	name,
-	provider: "fish_audio",
-	voiceId: null,
-	presetId: null,
-});
 const firstSpeakers = (): DraftSpeaker[] =>
 	[1, 2].map((i) => newSpeaker(DRAMA_TEXT.speakerName(i)));
 const emptyLine = (id: () => string): DraftLine => ({
@@ -731,20 +724,6 @@ export function readDraft(
 	};
 }
 
-// 그 공급자로 담은 성우이고 이용 가능(같은 id를 다른 공급자로 담았으면 아니다)
-const usableVoice = (
-	voices: readonly SavedVoice[],
-	voiceId: string | null,
-	provider: ProviderId,
-) => {
-	const saved = savedOf(voices, voiceId, provider);
-	return saved && !saved.unavailable ? saved.voice : null;
-};
-// 화자의 성우: 화자 공급자로 담은 이용 가능한 성우, 아니면 null
-export const voiceOfSpeaker = (
-	speaker: DraftSpeaker,
-	saved: readonly SavedVoice[],
-): Voice | null => usableVoice(saved, speaker.voiceId, speaker.provider);
 // 화자의 성우와 보이는 이름(프리셋이면 '프리셋 이름 · 성우 이름', 브리프 14절 1). 화자 카드 성우 버튼·붙여 넣기 미리 보기가 쓴다.
 // 화자 공급자로 담은 이용 가능한 성우만 본다(voiceOfSpeaker). 없으면 null
 export function speakerVoice(
@@ -764,74 +743,6 @@ export function speakerVoice(
 export function modelText(model: string): string {
 	const drama = DRAMA_MODELS.find((each) => each === model);
 	return drama ? DRAMA_TEXT.modelName[drama] : model;
-}
-// 렌더할 때 쓸 수 없는 성우·프리셋을 비운다. 초안(저장 값)은 그대로 둔다.
-// 프리셋은 목록에 있고 이용 가능하며 그 성우(공급자·id)가 화자 성우와 같을 때만 남는다
-export function usableSpeakers(
-	speakers: readonly DraftSpeaker[],
-	saved: readonly SavedVoice[],
-	presets: readonly Preset[],
-): DraftSpeaker[] {
-	return speakers.map((speaker) => {
-		const voiceId = voiceOfSpeaker(speaker, saved) ? speaker.voiceId : null;
-		const preset = presets.find((item) => item.id === speaker.presetId);
-		const presetId =
-			preset &&
-			!preset.unavailable &&
-			preset.voice?.provider === speaker.provider &&
-			preset.voice.voiceId === voiceId
-				? preset.id
-				: null;
-		return voiceId === speaker.voiceId && presetId === speaker.presetId
-			? speaker
-			: { ...speaker, voiceId, presetId };
-	});
-}
-// 화자의 설정 한 벌: 프리셋이면 그 공급자·설정 짝, 아니면 화자 공급자의 처음 설정.
-// TS가 provider와 settings의 짝을 따라가지 못해 여기서 묶는다(preset-view presetSettingsOf와 같다)
-export function speakerValue(
-	speaker: DraftSpeaker,
-	presets: readonly Preset[],
-): PresetValue {
-	const preset = presets.find((item) => item.id === speaker.presetId);
-	return (
-		preset
-			? { provider: preset.provider, settings: preset.settings }
-			: {
-					provider: speaker.provider,
-					settings: DEFAULT_SETTINGS[speaker.provider],
-				}
-	) as PresetValue;
-}
-// 쓰인 화자(줄의 화자)가 모두 Fish Audio인가. 장면 만들기는 이때만 된다
-export const allFish = (
-	speakers: readonly DraftSpeaker[],
-	lines: readonly Pick<DramaLine, "speaker">[],
-) => lines.every((line) => speakers[line.speaker]?.provider === "fish_audio");
-// 화자의 연기 family·받는 감정(null이면 제한 없음)·모델. 모두 Fish면 Fish 화자는 머리 모델(장면), 아니면 화자 설정의 모델(읽기).
-// Typecast는 성우가 가진 모델로 고치고 감정은 그 성우·모델이 받는 프리셋이다(v30은 smart도 받는다). 성우가 없으면 설정 그대로
-export function actingOf(
-	speaker: DraftSpeaker,
-	voice: Voice | null,
-	value: PresetValue,
-	headerModel: DramaModel,
-	fishOnly: boolean,
-): { family: ActingFamily; emotions: string[] | null; model: string } {
-	let model: string =
-		fishOnly && speaker.provider === "fish_audio"
-			? headerModel
-			: value.settings.model;
-	let emotions: string[] | null = null;
-	if (speaker.provider === "typecast" && voice) {
-		const models = typecastModelsOf(voice);
-		const fixed = models.find((each) => each === model) ?? models[0];
-		if (fixed) {
-			model = fixed;
-			const presets = presetsOf(voice, fixed);
-			emotions = fixed === "ssfm-v30" ? ["smart", ...presets] : presets;
-		}
-	}
-	return { family: familyOf(speaker.provider, model), emotions, model };
 }
 
 // 줄 감정 칸이 고를 값: 그 family 값 중 성우가 받는 것(emotions는 actingOf 값, null이면 전부). 감정이 없는 family는 빈 목록
@@ -910,33 +821,6 @@ export function unusableSpeaker(
 		(speaker) => !usableVoice(voices, speaker.voiceId, "fish_audio"),
 	);
 	return index < 0 ? null : index;
-}
-
-// 보낼 요청. usableSpeakers를 거친 초안을 받는다. 계약은 모든 화자에 성우를 받으므로 대본에 쓰인 화자만 보내고 번호를 다시 매긴다.
-// 쓰인 화자가 모두 Fish Audio가 아니거나 성우가 없으면 null
-export function requestOf(draft: Draft): DramaRequest | null {
-	if (!allFish(draft.speakers, draft.lines)) return null;
-	const speakers: DramaSpeaker[] = [];
-	const renumbered = new Map<number, number>();
-	for (const index of [
-		...new Set(draft.lines.map((line) => line.speaker)),
-	].sort((a, b) => a - b)) {
-		const speaker = draft.speakers[index];
-		if (!speaker || speaker.voiceId === null) return null;
-		renumbered.set(index, speakers.length);
-		speakers.push({ name: speaker.name, voiceId: speaker.voiceId });
-	}
-	return {
-		sceneName: draft.sceneName,
-		speakers,
-		lines: draft.lines.map(({ speaker, direction, text }) => ({
-			speaker: renumbered.get(speaker) ?? 0,
-			direction,
-			text,
-		})),
-		model: draft.model,
-		settings: draft.settings,
-	};
 }
 
 // 막는 이유가 가리키는 칸(그 칸으로 가는 버튼, 디자인 리뷰 D11). 줄은 그 문제가 있는 칸(대사·지시)까지 가리킨다(브리프 5.8).
@@ -1206,71 +1090,6 @@ export function splitWarning(
 export const nextSpeaker = (speaker: number, count: number) =>
 	(speaker + 1) % count;
 
-// 줄 해석 '이름: 대사'는 문단 작업실과 공용(script-speaker.ts). 대사 정리(normalizeText)는 여기서만 한다
-export type PasteResult =
-	| { speakers: DraftSpeaker[]; lines: DraftLine[]; from: (number | null)[] }
-	| { error: "too_many_speakers" | "too_many_lines" | "empty" };
-// 대본 붙여 넣기 '바꾸기'(브리프 5.6 화자 규칙 1~7). 이름은 글자를 하나 이상 품고 20자 이하라 '12:30 회의야'는 이름 없는 줄이다.
-// 이름이 나온 순서대로 화자를 새로 만들고, from[i]는 새 화자 i가 성우(공급자·성우·프리셋)를 잇는 지금 화자의 번호다(없으면 null, Ruling 18).
-// 이름이 하나라도 겹치면 겹친 이름만, 하나도 안 겹치면 차례대로 잇는다. 이름이 하나도 없으면 지금 화자 그대로(from은 제자리).
-// 이름 없는 줄은 앞 줄의 화자(첫 이름 앞이면 첫 화자). 빈 줄과 대사가 빈 이름 줄은 건너뛰고 화자도 만들지 않는다.
-// 대사는 자르지 않고(301자도 그대로, 막는 이유가 말한다) 지시를 읽지 않는다(대사 속 [ ]·< >는 태그 그대로)
-export function parsePaste(
-	raw: string,
-	speakers: readonly DraftSpeaker[],
-	id: () => string,
-): PasteResult {
-	const names: string[] = [];
-	const rows: { name: string | null; text: string }[] = [];
-	for (const row of raw.split(/\r\n|\r|\n/)) {
-		const line = speakerLine(row);
-		const text = normalizeText(line ? line.text : row);
-		if (text === "") continue;
-		if (line && !names.includes(line.name)) names.push(line.name);
-		rows.push({ name: line?.name ?? null, text });
-	}
-	if (names.length > DRAMA_SPEAKERS_MAX) return { error: "too_many_speakers" };
-	if (rows.length > DRAMA_LINES_MAX) return { error: "too_many_lines" };
-	if (rows.length === 0) return { error: "empty" };
-	const lineOf = (speaker: number, text: string): DraftLine => ({
-		id: id(),
-		speaker,
-		direction: "",
-		text,
-	});
-	if (names.length === 0)
-		return {
-			speakers: [...speakers],
-			lines: rows.map((row) => lineOf(0, row.text)),
-			from: speakers.map((_, i) => i),
-		};
-	const current = speakers.map((speaker) => normalizeText(speaker.name));
-	const overlap = names.some((name) => current.includes(name));
-	const from = names.map((name, i) => {
-		const at = overlap ? current.indexOf(name) : i;
-		return at >= 0 && at < speakers.length ? at : null;
-	});
-	let speaker = 0;
-	return {
-		speakers: names.map((name, i) => {
-			const carried = speakers[from[i] ?? -1];
-			return carried
-				? {
-						name,
-						provider: carried.provider,
-						voiceId: carried.voiceId,
-						presetId: carried.presetId,
-					}
-				: newSpeaker(name);
-		}),
-		lines: rows.map((row) => {
-			if (row.name !== null) speaker = names.indexOf(row.name);
-			return lineOf(speaker, row.text);
-		}),
-		from,
-	};
-}
-
 // 범위 뱃지: 고른 글자를 감싸고 안쪽 글자를 고른다. 빈 범위면 빈 쌍을 넣고 커서를 가운데에
 export function wrapSpan(
 	text: string,
@@ -1352,9 +1171,6 @@ export const joinFileName = (sceneName: string, createdAt: string) =>
 export const takeJoinFileName = (sceneName: string, createdAt: string) =>
 	`${sceneOf(sceneName)}_이음_${kstStamp(createdAt)}.wav`;
 
-// 대사별로 나눈 테이크: 완료이고 구간 수 = 줄 수
-export const splitOk = (take: DramaItem) =>
-	take.status === "done" && take.segments?.length === take.request.lines.length;
 // 줄마다 고를 수 있는 테이크(스펙 2절 '테이크 묶기', 계획 리뷰 E5): 같은 대본·같은 성우(takeKey)이고 나눈 테이크, 오래된 순
 export function takeGroup(
 	items: readonly DramaItem[],

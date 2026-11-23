@@ -16,6 +16,7 @@ import {
 	type TrialRequest,
 } from "@tts-pilot-app/api/providers/trial-options";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { fingerprint } from "../src/requests.js";
 import {
 	bytesOf,
 	COOKIE,
@@ -23,6 +24,7 @@ import {
 	spawnCli,
 	spawnTty,
 	studioWorld,
+	USER,
 	until,
 	voiceOf,
 	workspace,
@@ -928,19 +930,107 @@ describe("오류와 경계", { timeout: 60_000 }, () => {
 		expect(w.created[0]?.request.text).toBe("가".repeat(2000));
 	});
 
-	it("대괄호 태그를 원문 그대로 보낸다", async () => {
-		const text = "[웃음] 안녕하세요 [pause]";
-		expect((await run(withInput(text))).code).toBe(0);
-		expect(w.created[0]?.request.text).toBe(text);
+	it("모델이 받지 않는 태그를 빼고 보내고 한글 괄호 글과 받는 태그는 둔다", async () => {
+		const made = await run(withInput("[웃음] 안녕하세요 [pause]"));
+		expect(made.code).toBe(0);
+		expect(made.err).toContain("뺀 태그 1개");
+		expect(w.created[0]?.request.text).toBe("[웃음] 안녕하세요");
+		const fish = withInput("안녕 [pause] 하세요");
+		fish[fish.indexOf("--voice") + 1] = "fish_audio:fish";
+		const kept = await run([...fish, "--overwrite"]);
+		expect(kept.code).toBe(0);
+		expect(kept.err).not.toContain("뺀 태그");
+		expect(w.created[1]?.request.text).toBe("안녕 [pause] 하세요");
 	});
 
-	it("태그가 든 대본은 확인문에 알린다", async () => {
-		const args = withInput("[웃음] 안녕").filter((arg) => arg !== "--yes");
+	it("태그를 뺀 대본은 확인 전에 알린다", async () => {
+		const args = withInput("[pause] 안녕").filter((arg) => arg !== "--yes");
 		const tty = spawnTty(ws.dir, args);
 		await until(() => tty.seen().includes("[y/N]"), "확인 프롬프트");
-		expect(tty.seen()).toContain("태그");
+		expect(tty.seen()).toContain("뺀 태그 1개");
 		tty.write("n\r");
 		await tty.done;
+	});
+
+	it("태그만 있는 대본은 2이고, 길이는 빼기 전 글로 잰다", async () => {
+		for (const text of ["[pause]", `[pause]${"가".repeat(1994)}`]) {
+			const result = await run(withInput(text));
+			expect(result.code).toBe(2);
+			expect(json(result).code).toBe("INPUT");
+		}
+		expect(w.calls).not.toContain("studioCreate");
+	});
+
+	it("태그를 빼기 전 판이 남긴 요청 기록을 복구 대상으로 본다", async () => {
+		const row = w.add(request("안녕 [pause]"));
+		const record = {
+			origin: server.origin,
+			requestId: row.requestId,
+			provider: "typecast",
+			createdAt: "2026-11-24T00:00:00Z",
+		};
+		const key = fingerprint(server.origin, USER, request("안녕 [pause]"));
+		writeFileSync(
+			ws.requestsPath,
+			JSON.stringify({ requests: { [key]: record } }),
+			{ mode: 0o600 },
+		);
+		const dry = await run(withInput("안녕 [pause]", "--dry-run"));
+		expect(json(dry).requestId).toBe(row.requestId);
+		const result = await run(withInput("안녕 [pause]"));
+		expect(result.code).toBe(0);
+		expect(json(result)).toMatchObject({
+			source: "resumed",
+			result: { id: row.id },
+		});
+		expect(ws.records()).toEqual([]);
+		expect(w.synth).toBe(0);
+	});
+
+	it("옛 태그 기록은 --new가 성공한 뒤에만 지우고 다음 실행은 저장본을 받는다", async () => {
+		const row = w.add(request("안녕 [pause]"), { status: "unknown" });
+		const key = fingerprint(server.origin, USER, request("안녕 [pause]"));
+		writeFileSync(
+			ws.requestsPath,
+			JSON.stringify({
+				requests: {
+					[key]: {
+						origin: server.origin,
+						requestId: row.requestId,
+						provider: "typecast",
+						createdAt: "2026-11-24T00:00:00Z",
+					},
+				},
+			}),
+			{ mode: 0o600 },
+		);
+		const ids = () => ws.records().map((item) => item.requestId);
+		// 거절되면 옛 기록은 그대로다
+		w.on.studioCreate = () => {
+			throw new ORPCError("BAD_GATEWAY", { data: { reason: "quota" } });
+		};
+		expect((await run(withInput("안녕 [pause]", "--new"))).code).toBe(5);
+		expect(ids()).toEqual([row.requestId]);
+		// 새 요청이 미확인이면 옛 기록도 새 기록도 남는다
+		w.on.studioCreate = () => {
+			throw new ORPCError("GATEWAY_TIMEOUT", {
+				data: { reason: "unknown_outcome" },
+			});
+		};
+		expect((await run(withInput("안녕 [pause]", "--new"))).code).toBe(6);
+		expect(ids()).toContain(row.requestId);
+		expect(ids()).toHaveLength(2);
+		delete w.on.studioCreate;
+		const made = await run(withInput("안녕 [pause]", "--new"));
+		expect(made.code).toBe(0);
+		expect(ids()).toEqual([]);
+		const again = await run(withInput("안녕 [pause]", "--overwrite"));
+		expect(again.code).toBe(0);
+		expect(json(again)).toMatchObject({
+			source: "saved",
+			result: { id: json(made).result.id },
+		});
+		expect(w.synth).toBe(1);
 	});
 
 	it("옵션 조합을 검사한다", async () => {

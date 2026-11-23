@@ -397,17 +397,25 @@ describe.skipIf(!url)("데모 Context로 모든 프로시저(T15-a2 Task 1b)", (
 	});
 
 	it("dramaCreate와 드라마 조회·지우기: 드라마 PCM이 WAV로 done 저장, 줄 구간 없음", async () => {
-		const made = await demo.dramaCreate({
-			requestId: crypto.randomUUID(),
-			request: {
-				sceneName: "데모",
-				speakers: [{ name: "지연", voiceId: VOICE.fish_audio }],
-				lines: [{ speaker: 0, direction: "", text: "안녕하세요." }],
-				model: "s2.1-pro",
-				settings: DRAMA_SETTINGS,
-			},
-		});
+		const requestId = crypto.randomUUID();
+		const request = {
+			sceneName: "데모",
+			speakers: [{ name: "지연", voiceId: VOICE.fish_audio }],
+			lines: [{ speaker: 0, direction: "", text: "안녕하세요." }],
+			model: "s2.1-pro" as const,
+			settings: DRAMA_SETTINGS,
+		};
+		const made = await demo.dramaCreate({ requestId, request });
 		expect(made.segments).toBeNull();
+		expect(await demo.dramaFind(request)).toEqual({ ...made, status: "done" });
+		expect(await demo.dramaRequest({ requestId })).toEqual({
+			id: made.id,
+			createdAt: made.createdAt,
+			usage: made.usage,
+			bytes: made.bytes,
+			status: "done",
+			reason: null,
+		});
 		const [row] = await db
 			.select()
 			.from(trialGeneration)
