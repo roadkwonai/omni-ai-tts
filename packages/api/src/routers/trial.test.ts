@@ -404,6 +404,38 @@ describe.skipIf(!url)("시험 생성 프로시저", () => {
 				voiceId: "el0001",
 			}),
 		).rejects.toMatchObject({ code: "SERVICE_UNAVAILABLE" });
+		// 조회 실패는 storage이고 '없음'(null)으로 읽히지 않는다(T19)
+		await expect(
+			as(OWNER, { db: failingDb }).trialRequest({
+				requestId: crypto.randomUUID(),
+			}),
+		).rejects.toMatchObject({
+			code: "SERVICE_UNAVAILABLE",
+			data: { reason: "storage" },
+		});
+	});
+
+	it("trialRequest는 공급자를 부르지 않고 실패 사유와 없음(null)을 돌려주고 잘못된 id를 거절한다(T19)", async () => {
+		const requestId = crypto.randomUUID();
+		synthesize.mockRejectedValueOnce(trialError("elevenlabs", "quota"));
+		await expect(
+			as(OWNER).trialCreate({ requestId, request: request() }),
+		).rejects.toMatchObject({ data: { reason: "quota" } });
+		synthesize.mockClear();
+		listModels.mockClear();
+		expect(await as(OWNER).trialRequest({ requestId })).toMatchObject({
+			bytes: 0,
+			status: "failed",
+			reason: "quota",
+		});
+		expect(
+			await as(OWNER).trialRequest({ requestId: crypto.randomUUID() }),
+		).toBeNull();
+		await expect(
+			as(OWNER).trialRequest({ requestId: "x" }),
+		).rejects.toMatchObject({ code: "BAD_REQUEST" });
+		expect(synthesize).not.toHaveBeenCalled();
+		expect(listModels).not.toHaveBeenCalled();
 	});
 
 	it("공급자 응답 뒤 완료 기록이 실패해도 받은 오디오를 돌려준다", async () => {

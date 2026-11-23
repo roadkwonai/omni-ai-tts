@@ -33,11 +33,11 @@ import {
 	claimRow,
 	comboKey,
 	complete,
+	findRequest,
 	findSaved,
 	findStudio,
 	findStudioInfo,
 	findStudioMany,
-	findStudioRequest,
 	type Kind,
 	type LateTarget,
 	listResults,
@@ -347,8 +347,11 @@ describe.skipIf(!url)("작업실 생성 기록", () => {
 	// T18 CLI 조회. 행의 요청 id로 상태를 읽는다
 	const requestOfRow = async (id: string) =>
 		(await rowOf(id))?.requestId as string;
-	const statusRead = async (ownerId: string, id: string) =>
-		findStudioRequest(db, ownerId, await requestOfRow(id));
+	const statusRead = async (
+		ownerId: string,
+		id: string,
+		kind: "studio" | "trial" = "studio",
+	) => findRequest(db, ownerId, await requestOfRow(id), kind);
 	const set = (
 		id: string,
 		values: Partial<typeof trialGeneration.$inferInsert>,
@@ -403,60 +406,79 @@ describe.skipIf(!url)("작업실 생성 기록", () => {
 			});
 	});
 
-	it("요청 상태: 실패·미확인·진행 중을 사유와 함께 읽고, 모르는 사유는 null(T18)", async () => {
-		const failed = await row(A, "studio", "failed");
-		expect(await statusRead(A, failed)).toMatchObject({
-			id: failed,
-			status: "failed",
-			reason: "provider_error",
-			bytes: 0,
+	// T18 작업실, T19 시험 생성: 같은 함수이고 종류만 다르다
+	describe.each([
+		["studio", "trial"],
+		["trial", "studio"],
+	] as const)("요청 상태 %s", (kind, otherKind) => {
+		it("완료·실패·미확인·진행 중을 사유와 함께 읽고 행은 그대로, 모르는 사유는 null", async () => {
+			const done = await row(A, kind, "done");
+			const before = await rowOf(done);
+			expect(await statusRead(A, done, kind)).toEqual({
+				id: done,
+				createdAt: before?.createdAt.toISOString(),
+				usage,
+				bytes: MP3.byteLength,
+				status: "done",
+				reason: null,
+			});
+			expect(await rowOf(done)).toEqual(before);
+			const failed = await row(A, kind, "failed");
+			expect(await statusRead(A, failed, kind)).toMatchObject({
+				id: failed,
+				status: "failed",
+				reason: "provider_error",
+				bytes: 0,
+			});
+			await set(failed, { failureReason: "raw provider message" });
+			expect((await statusRead(A, failed, kind))?.reason).toBeNull();
+			expect(
+				await statusRead(A, await row(A, kind, "unknown"), kind),
+			).toMatchObject({ status: "unknown", reason: "unknown_outcome" });
+			expect(
+				await statusRead(A, await row(A, kind, "pending"), kind),
+			).toMatchObject({ status: "pending", reason: null, bytes: 0 });
 		});
-		await set(failed, { failureReason: "raw provider message" });
-		expect((await statusRead(A, failed))?.reason).toBeNull();
-		expect(
-			await statusRead(A, await row(A, "studio", "unknown")),
-		).toMatchObject({ status: "unknown", reason: "unknown_outcome" });
-		expect(
-			await statusRead(A, await row(A, "studio", "pending")),
-		).toMatchObject({ status: "pending", reason: null, bytes: 0 });
-	});
 
-	it("요청 상태: 5분 넘은 진행 중은 unknown으로 읽되 행은 진행 중 그대로다(T18)", async () => {
-		const id = await row(A, "studio", "pending");
-		await set(id, { createdAt: new Date(Date.now() - 5 * 60_000 - 1000) });
-		const before = await rowOf(id);
-		expect(await statusRead(A, id)).toMatchObject({
-			id,
-			status: "unknown",
-			reason: null,
+		it("5분 넘은 진행 중은 unknown으로 읽되 행은 진행 중 그대로다", async () => {
+			const id = await row(A, kind, "pending");
+			await set(id, { createdAt: new Date(Date.now() - 5 * 60_000 - 1000) });
+			const before = await rowOf(id);
+			expect(await statusRead(A, id, kind)).toMatchObject({
+				id,
+				status: "unknown",
+				reason: null,
+			});
+			expect(await rowOf(id)).toEqual(before);
+			expect(await statusOf(id)).toBe("pending");
 		});
-		expect(await rowOf(id)).toEqual(before);
-		expect(await statusOf(id)).toBe("pending");
+
+		it("만료·남의 것·다른 종류·드라마·없음은 null", async () => {
+			const expired = await row(A, kind, "done", MP3, req("만료"));
+			await set(expired, { expiresAt: new Date(Date.now() - 1000) });
+			for (const id of [
+				expired,
+				await row(B, kind, "done"),
+				await row(A, otherKind, "done"),
+				await dramaRow(A, "done"),
+			])
+				expect(await statusRead(A, id, kind)).toBeNull();
+			expect(await findRequest(db, A, crypto.randomUUID(), kind)).toBeNull();
+		});
 	});
 
-	it("요청 상태: 만료·남의 것·내 문장·드라마·없음은 null(T18)", async () => {
-		const expired = await row(A, "studio", "done", MP3, req("만료"));
-		await set(expired, { expiresAt: new Date(Date.now() - 1000) });
-		for (const id of [
-			expired,
-			await row(B, "studio", "done"),
-			await row(A, "trial", "done"),
-			await dramaRow(A, "done"),
-		])
-			expect(await statusRead(A, id)).toBeNull();
-		expect(await findStudioRequest(db, A, crypto.randomUUID())).toBeNull();
-	});
-
-	it("결과 정보·요청 상태는 오디오 본문을 고르지 않는다: 길이만(T18)", async () => {
+	it("결과 정보·요청 상태는 오디오 본문을 고르지 않는다: 길이만(T18·T19)", async () => {
 		const id = await row(A, "studio", "done");
 		const requestId = await requestOfRow(id);
+		const trialId = await requestOfRow(await row(A, "trial", "done"));
 		const query = vi.spyOn(db.$client, "query");
 		await findStudioInfo(db, A, id);
-		await findStudioRequest(db, A, requestId);
+		await findRequest(db, A, requestId, "studio");
+		await findRequest(db, A, trialId, "trial");
 		const sent = query.mock.calls.map(([q]) =>
 			typeof q === "string" ? q : (q as unknown as { text: string }).text,
 		);
-		expect(sent).toHaveLength(2);
+		expect(sent).toHaveLength(3);
 		for (const text of sent) {
 			expect(text).toMatch(/^select /);
 			expect(text.replace(/octet_length\("[^)]*"\)/, "")).not.toContain(

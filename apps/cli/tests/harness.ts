@@ -54,6 +54,7 @@ export function spawnCli(
 	args: string[],
 	input?: string | Buffer,
 	now?: string,
+	preload?: string,
 ): Started {
 	const child = spawn(
 		process.execPath,
@@ -63,6 +64,9 @@ export function spawnCli(
 				? [
 						`--import=data:text/javascript,Date.now=()=>${Date.parse(now).toString()}`,
 					]
+				: []),
+			...(preload
+				? [`--import=data:text/javascript,${encodeURIComponent(preload)}`]
 				: []),
 			cli,
 			...args,
@@ -157,6 +161,7 @@ export function workspace(origin: string) {
 		dir,
 		files,
 		requestsPath,
+		voicesPath: join(dir, "voices.json"),
 		path: (name: string) => join(files, name),
 		script: (text: string | Buffer, name = "script.txt") => {
 			writeFileSync(join(files, name), text);
@@ -168,6 +173,7 @@ export function workspace(origin: string) {
 			requestId: string;
 			provider: string;
 			createdAt: string;
+			kind?: string;
 		}[] =>
 			existsSync(requestsPath)
 				? Object.values(JSON.parse(readFileSync(requestsPath, "utf8")).requests)
@@ -237,6 +243,8 @@ export const bytesOf = (size: number) =>
 	Buffer.from(Uint8Array.from({ length: size }, (_, i) => (i * 7 + 3) % 251));
 
 type Row = {
+	kind: "studio" | "trial";
+	request: TrialRequest;
 	id: string;
 	requestId: string;
 	status: "pending" | "done" | "failed" | "unknown";
@@ -286,8 +294,14 @@ export function studioWorld() {
 			saved(voiceOf("elevenlabs", "el")),
 		] as object[],
 		presets: [] as object[],
+		// 공급자 목록(voiceList)의 성우
+		catalog: [] as { provider: string }[],
+		// 시험 생성의 완료 저장이 실패하면 응답은 오고 행은 이 상태로 남는다
+		trialStatus: "done" as Row["status"],
 		add(request: TrialRequest, over: Partial<Row> = {}) {
 			const row: Row = {
+				kind: "studio",
+				request,
 				id: crypto.randomUUID(),
 				requestId: crypto.randomUUID(),
 				status: "done",
@@ -315,12 +329,103 @@ export function studioWorld() {
 			const hook = w.on[name];
 			return hook ? hook(input, () => fn(input)) : fn(input);
 		});
-	const done = (id: string) => {
-		const row = w.rows.find((item) => item.id === id && item.status === "done");
+	const done = (id: string, kind: Row["kind"] = "studio") => {
+		const row = w.rows.find(
+			(item) => item.id === id && item.kind === kind && item.status === "done",
+		);
 		if (!row) throw new ORPCError("NOT_FOUND");
 		return row;
 	};
+	const statusOf = (kind: Row["kind"], requestId: string) => {
+		const row = w.rows.find(
+			(item) => item.kind === kind && item.requestId === requestId,
+		);
+		return row ? { ...out(row), status: row.status, reason: row.reason } : null;
+	};
+	const trialOut = (row: Row) => ({
+		id: row.id,
+		createdAt: row.createdAt,
+		usage: row.usage,
+		audio: new File([new Uint8Array(row.audio)], "a", { type: row.audioType }),
+	});
 	const router = {
+		providerStatus: proc("providerStatus", ({ provider }) => ({
+			provider,
+			status: "connected",
+			quota: null,
+			providerCode: null,
+			retryAfterSeconds: null,
+			checkedAt: "2026-11-24T00:00:00.000Z",
+		})),
+		voiceList: proc("voiceList", (input) => ({
+			provider: input.provider,
+			source: input.source ?? "public",
+			voices: w.catalog.filter((voice) => voice.provider === input.provider),
+			next: null,
+			total: null,
+			totalExact: true,
+			windowLimited: false,
+			fetchedAt: "2026-11-24T00:00:00.000Z",
+			stale: null,
+		})),
+		voiceAccents: proc("voiceAccents", ({ language }) => ({
+			language,
+			accents: [{ value: "seoul", name: "Seoul" }],
+			fetchedAt: "2026-11-24T00:00:00.000Z",
+			stale: null,
+		})),
+		voiceListRefresh: proc("voiceListRefresh", () => ({ retryAt: null })),
+		trialFindMany: proc("trialFindMany", (input) =>
+			input.map((request: TrialRequest) => {
+				const row = w.rows.find(
+					(item) =>
+						item.kind === "trial" &&
+						item.status === "done" &&
+						item.combo === comboSignature(request),
+				);
+				if (!row) return null;
+				const { id, createdAt, usage } = row;
+				return { id, createdAt, usage };
+			}),
+		),
+		trialCreate: proc("trialCreate", (input) => {
+			w.created.push(input);
+			w.synth += 1;
+			return trialOut(
+				w.add(input.request, {
+					kind: "trial",
+					requestId: input.requestId,
+					status: w.trialStatus,
+				}),
+			);
+		}),
+		trialRequest: proc("trialRequest", (input) =>
+			statusOf("trial", input.requestId),
+		),
+		trialAudio: proc("trialAudio", (input) =>
+			trialOut(done(input.id, "trial")),
+		),
+		trialList: proc("trialList", (input) =>
+			w.rows
+				.filter(
+					(row) =>
+						row.kind === "trial" &&
+						row.status === "done" &&
+						row.request.provider === input.provider &&
+						row.request.voiceId === input.voiceId,
+				)
+				.map(({ id, createdAt, usage, request }) => ({
+					id,
+					createdAt,
+					usage,
+					request,
+				})),
+		),
+		trialDelete: proc("trialDelete", (input) => {
+			const row = done(input.id, "trial");
+			w.rows.splice(w.rows.indexOf(row), 1);
+			return { deleted: true };
+		}),
 		savedVoiceList: proc("savedVoiceList", () => w.voices),
 		channelList: proc("channelList", () => []),
 		presetList: proc("presetList", () => w.presets),
@@ -330,7 +435,8 @@ export function studioWorld() {
 		studioFindMany: proc("studioFindMany", (input) =>
 			input.map((request: TrialRequest) => {
 				const rows = w.rows.filter(
-					(row) => row.combo === comboSignature(request),
+					(row) =>
+						row.kind === "studio" && row.combo === comboSignature(request),
 				);
 				const row =
 					rows.find((item) => item.status === "done") ??
@@ -343,12 +449,9 @@ export function studioWorld() {
 			w.synth += 1;
 			return out(w.add(input.request, { requestId: input.requestId }));
 		}),
-		studioRequest: proc("studioRequest", (input) => {
-			const row = w.rows.find((item) => item.requestId === input.requestId);
-			return row
-				? { ...out(row), status: row.status, reason: row.reason }
-				: null;
-		}),
+		studioRequest: proc("studioRequest", (input) =>
+			statusOf("studio", input.requestId),
+		),
 		studioInfo: proc("studioInfo", (input) => {
 			const row = done(input.id);
 			return { ...out(row), audioType: row.audioType };

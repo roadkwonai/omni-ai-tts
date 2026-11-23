@@ -4,14 +4,21 @@ import { RPCLink } from "@orpc/client/fetch";
 import { SimpleCsrfProtectionLinkPlugin } from "@orpc/client/plugins";
 import type { TrialFailure } from "@tts-pilot-app/api/providers/trial-contract";
 import type { AppRouterClient } from "@tts-pilot-app/api/routers/index";
+import { note } from "./output.js";
 import {
 	changeRequests as changeRequestsState,
 	change as changeState,
+	changeVoices as changeVoicesState,
 	type Session,
 } from "./session.js";
 
+// 관리 명령만 읽는 충돌 사유. 유료 분류의 허용 목록(REASON_TEXT)에 넣지 않는다
+const CONFLICT_TEXT = {
+	duplicate_name: "같은 이름이 이미 있습니다.",
+	stale: "다른 곳에서 먼저 바뀌었습니다. 다시 보고 실행해 주세요.",
+};
 export type ErrorDetail = {
-	reason?: TrialFailure;
+	reason?: TrialFailure | keyof typeof CONFLICT_TEXT;
 	retryAt?: string;
 	requestId?: string;
 	resultId?: string;
@@ -26,6 +33,9 @@ export class ClientError extends Error {
 		super(message);
 	}
 }
+export const input = (message: string) => new ClientError("INPUT", 2, message);
+export const stale = () =>
+	new ClientError("CONFLICT", 2, CONFLICT_TEXT.stale, { reason: "stale" });
 const unauthorized = (detail?: ErrorDetail) =>
 	new ClientError("UNAUTHORIZED", 3, "로그인이 필요합니다.", detail);
 export const serverError = (message?: string, detail?: ErrorDetail) =>
@@ -52,6 +62,17 @@ export const changeRequests = <T>(
 		changeRequestsState(fn),
 		"요청 기록(requests.json)에 접근하지 못했습니다.",
 	);
+export const changeVoices = <T>(
+	fn: Parameters<typeof changeVoicesState<T>>[0],
+) =>
+	stored(
+		changeVoicesState(fn),
+		"찾은 성우(voices.json)에 접근하지 못했습니다.",
+	);
+const forgetVoices = (origin: string) =>
+	changeVoices(({ voices }) => {
+		delete voices[origin];
+	});
 
 // 서버가 준 사유의 안내. 키가 허용 목록이다(모르는 사유는 사유가 없는 것으로 본다)
 export const REASON_TEXT: Record<TrialFailure, string> = {
@@ -105,7 +126,33 @@ export function rpcError(error: unknown, extra: ErrorDetail = {}): never {
 			REASON_TEXT[detail.reason],
 			detail,
 		);
-	throw serverError(detail.reason && REASON_TEXT[detail.reason], detail);
+	const reason = reasonOf(detail.reason);
+	throw serverError(reason && REASON_TEXT[reason], detail);
+}
+// 관리 명령과 과금 전 조회의 오류. 합성 요청의 오류에는 쓰지 않는다
+export function manageError(error: unknown, extra: ErrorDetail = {}): never {
+	if (error instanceof ORPCError) {
+		const detail = { ...detailOf(error), ...extra };
+		const raw = (error.data as { reason?: unknown } | null | undefined)?.reason;
+		if (error.code === "BAD_REQUEST" && !detail.reason)
+			throw new ClientError(
+				"INPUT",
+				2,
+				"작업실이 입력을 받지 않았습니다. 값을 확인해 주세요.",
+				detail,
+			);
+		if (
+			error.code === "CONFLICT" &&
+			(raw === "duplicate_name" || raw === "stale")
+		)
+			throw new ClientError("CONFLICT", 2, CONFLICT_TEXT[raw], {
+				...detail,
+				reason: raw,
+			});
+		if (error.code === "NOT_FOUND" && !extra.resultId)
+			throw new ClientError("NOT_FOUND", 4, "찾을 수 없습니다.", detail);
+	}
+	rpcError(error, extra);
 }
 
 export function normalizeOrigin(input: string): string {
@@ -228,6 +275,7 @@ async function owner(origin: string, session: Session) {
 		return {
 			client,
 			userId: valid.userId,
+			version: valid.session.version,
 			voices: await client.savedVoiceList(),
 		};
 	} catch (error) {
@@ -268,12 +316,18 @@ export async function login(
 	} catch (error) {
 		rpcError(error);
 	}
+	// 다른 계정으로 다시 로그인했을 수 있다. 지우지 못하면 세션을 바꾸지 않는다
+	await forgetVoices(origin);
 	await change((state) => {
 		if (state.sessions[origin]?.version !== previousVersion)
 			throw unauthorized();
 		state.sessions[origin] = session;
 		state.current = origin;
 	});
+	// 그사이 끝난 옛 세션의 검색이 다시 썼을 수 있다. 지금부터는 세션 버전이 막는다
+	await forgetVoices(origin).catch(() =>
+		note("찾은 성우(voices.json)를 지우지 못했습니다."),
+	);
 	return { origin };
 }
 
@@ -301,9 +355,9 @@ export const currentOrigin = async (input?: string) =>
 // 작업실 명령의 연결. 요청 지문에 쓸 사용자 id가 없으면 만들기 전에 끝낸다
 export async function connect(input?: string) {
 	const { origin, session } = await selected(input);
-	const { client, userId, voices } = await owner(origin, session);
+	const { client, userId, version, voices } = await owner(origin, session);
 	if (!userId) throw unauthorized();
-	return { origin, client, userId, voices };
+	return { origin, client, userId, version, voices };
 }
 export type Connection = Awaited<ReturnType<typeof connect>>;
 
@@ -312,21 +366,27 @@ export async function logout(input?: string): Promise<{ origin: string }> {
 		const raw = input ?? state.current;
 		const origin = raw ? normalizeOrigin(raw) : undefined;
 		const session = origin ? state.sessions[origin] : undefined;
-		if (!origin || !session?.cookie) throw unauthorized();
+		if (!origin) throw unauthorized();
 		delete state.sessions[origin];
 		return { origin, session };
 	});
+	// 지우지 못해도 서버 로그아웃은 한다
+	const cleared = await forgetVoices(origin).catch((error: unknown) => error);
+	if (!session?.cookie) throw cleared ?? unauthorized();
 	let ok = false;
 	try {
 		ok = (await auth(origin, "sign-out", session.cookie, {})).ok;
 	} catch {
 		/* session is already cleared */
 	}
-	if (!ok)
+	if (!ok) {
+		if (cleared) note("찾은 성우(voices.json)를 지우지 못했습니다.");
 		throw new ClientError(
 			"LOGOUT_UNCONFIRMED",
 			5,
 			"로컬 세션을 지웠지만 서버 로그아웃을 확인하지 못했습니다.",
 		);
+	}
+	if (cleared) throw cleared;
 	return { origin };
 }

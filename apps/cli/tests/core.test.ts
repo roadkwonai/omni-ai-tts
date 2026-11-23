@@ -1,23 +1,58 @@
 import { spawn } from "node:child_process";
-import { chmodSync, mkdtempSync, rmSync } from "node:fs";
+import {
+	chmodSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	statSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { ORPCError } from "@orpc/client";
 import {
 	DEFAULT_SETTINGS,
 	type TrialRequest,
 } from "@tts-pilot-app/api/providers/trial-options";
-import { describe, expect, it } from "vitest";
-import { login, logout, normalizeOrigin, status } from "../src/client.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+	login,
+	logout,
+	manageError,
+	normalizeOrigin,
+	status,
+} from "../src/client.js";
+import { checkOut, readInput, readJson, readSettings } from "../src/files.js";
 import { clean, jsonText, usageText } from "../src/output.js";
 import {
 	claim,
 	fingerprint,
+	kindOf,
 	recordOf,
 	recordsOf,
 	release,
 } from "../src/requests.js";
 import { change } from "../src/session.js";
+import { parseRef, remember, remembered } from "../src/voices.js";
+import { voiceOf } from "./harness.js";
+
+// 세션 변경 직전에 한 번 끼어드는 길(겹친 실행을 재현한다)
+const hooks = vi.hoisted(() => ({
+	beforeChange: undefined as (() => Promise<void>) | undefined,
+}));
+vi.mock("../src/session.js", async (load) => {
+	const real = await load<typeof import("../src/session.js")>();
+	return {
+		...real,
+		change: async (fn: Parameters<typeof real.change>[0]) => {
+			const before = hooks.beforeChange;
+			hooks.beforeChange = undefined;
+			await before?.();
+			return real.change(fn);
+		},
+	};
+});
 
 describe("작업실 주소", () => {
 	it("HTTPS와 루프백 HTTP를 허용하고 외부 HTTP를 거절한다", () => {
@@ -111,6 +146,14 @@ describe("요청 기록", () => {
 		expect(fingerprint("https://a.example", "v", request("가"))).not.toBe(base);
 		expect(fingerprint("https://a.example", "u", request("나"))).not.toBe(base);
 	});
+	it("시험 생성의 지문은 다르고 작업실의 지문과 옛 기록은 T18과 같다", () => {
+		const of = (kind?: "studio" | "trial") =>
+			fingerprint("https://a.example", "u", request("가"), kind);
+		expect(of()).toBe(of("studio"));
+		expect(of("trial")).not.toBe(of("studio"));
+		expect(kindOf(record("1"))).toBe("studio");
+		expect(kindOf({ ...record("1"), kind: "trial" })).toBe("trial");
+	});
 	it("기록이 없을 때만 선점하고 내 것만 지우거나 되돌린다", async () => {
 		const dir = mkdtempSync(join(tmpdir(), "omni-cli-requests-"));
 		process.env.OMNI_TTS_CONFIG_DIR = dir;
@@ -139,6 +182,259 @@ describe("요청 기록", () => {
 			rmSync(dir, { recursive: true, force: true });
 		}
 	});
+});
+
+describe("찾은 성우(voices.json)", () => {
+	const origin = "https://a.example";
+	let dir = "";
+	const path = () => join(dir, "voices.json");
+	const voices = (count: number, prefix = "v") =>
+		Array.from({ length: count }, (_, i) =>
+			voiceOf("elevenlabs", `${prefix}${i}`),
+		) as never[];
+	beforeEach(async () => {
+		dir = mkdtempSync(join(tmpdir(), "omni-cli-voices-"));
+		process.env.OMNI_TTS_CONFIG_DIR = dir;
+		await change((state) => {
+			state.sessions[origin] = { cookie: "c", version: "v1" };
+			state.sessions["https://b.example"] = { cookie: "c", version: "v1" };
+		});
+	});
+	afterEach(() => {
+		vi.restoreAllMocks();
+		delete process.env.OMNI_TTS_CONFIG_DIR;
+		rmSync(dir, { recursive: true, force: true });
+	});
+	const put = (found: never[], version = "v1", at = origin) =>
+		remember({ origin: at, version }, found);
+
+	it("origin마다 최근 500명을 0600으로 두고 같은 성우는 하나다", async () => {
+		await put(voices(400));
+		await put(voices(1, "b"), "v1", "https://b.example");
+		await put(voices(150, "n"));
+		await put([voiceOf("elevenlabs", "n0", { name: "새 이름" }) as never]);
+		expect(statSync(path()).mode & 0o777).toBe(0o600);
+		const stored = JSON.parse(readFileSync(path(), "utf8")).voices;
+		expect(stored[origin]).toHaveLength(500);
+		expect(stored["https://b.example"]).toHaveLength(1);
+		expect(await remembered(origin, "elevenlabs:v0")).toBeUndefined();
+		expect(await remembered(origin, "elevenlabs:v399")).toBeDefined();
+		expect(await remembered(origin, "elevenlabs:n0")).toMatchObject({
+			name: "새 이름",
+		});
+		expect(await remembered(origin, "elevenlabs:b0")).toBeUndefined();
+	});
+	it("24시간이 지나면 없는 것으로 본다", async () => {
+		const start = Date.now();
+		await put(voices(1));
+		const now = vi.spyOn(Date, "now");
+		now.mockReturnValue(start + 23 * 60 * 60 * 1000);
+		expect(await remembered(origin, "elevenlabs:v0")).toBeDefined();
+		now.mockReturnValue(start + 24 * 60 * 60 * 1000 + 60_000);
+		expect(await remembered(origin, "elevenlabs:v0")).toBeUndefined();
+		await put(voices(1, "n"));
+		expect(readFileSync(path(), "utf8")).not.toContain('"v0"');
+	});
+	it("세션 버전이 다르거나 없으면 쓰지 않는다", async () => {
+		await put(voices(1), "old");
+		expect(await remembered(origin, "elevenlabs:v0")).toBeUndefined();
+		await change((state) => {
+			delete state.sessions[origin];
+		});
+		await put(voices(1));
+		expect(await remembered(origin, "elevenlabs:v0")).toBeUndefined();
+	});
+	it("느슨한 권한의 파일은 7이고, 로그아웃은 서버 로그아웃까지 한 뒤 알린다", async () => {
+		await put(voices(1));
+		chmodSync(path(), 0o644);
+		await expect(remembered(origin, "elevenlabs:v0")).rejects.toMatchObject({
+			code: "STORAGE_ERROR",
+			exitCode: 7,
+		});
+		const fetched = vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(new Response("{}"));
+		await expect(logout(origin)).rejects.toMatchObject({ exitCode: 7 });
+		expect(String(fetched.mock.calls[0]?.[0])).toContain("sign-out");
+		await expect(status(origin)).rejects.toMatchObject({ exitCode: 3 });
+	});
+	it("로그인에 성공하면 그 주소의 찾은 성우만 지운다", async () => {
+		await put(voices(1));
+		await put(voices(1), "v1", "https://b.example");
+		let ok = false;
+		vi.spyOn(globalThis, "fetch").mockImplementation(async (request) => {
+			const path = request instanceof Request ? request.url : String(request);
+			if (path.includes("/api/rpc"))
+				return Response.json({ json: [] }, { status: 200 });
+			if (path.includes("sign-in") && !ok)
+				return new Response("{}", { status: 401 });
+			return Response.json(
+				{ session: {}, user: { id: "u" } },
+				{ headers: { "set-cookie": "session=new; Path=/" } },
+			);
+		});
+		const again = () => login(origin, "owner@example.com", "password");
+		await expect(again()).rejects.toMatchObject({ exitCode: 3 });
+		expect(await remembered(origin, "elevenlabs:v0")).toBeDefined();
+		ok = true;
+		await again();
+		expect(await remembered(origin, "elevenlabs:v0")).toBeUndefined();
+		expect(
+			await remembered("https://b.example", "elevenlabs:v0"),
+		).toBeDefined();
+		// 앞 세션의 늦은 검색도 다시 쓰지 않는다
+		await put(voices(1));
+		expect(await remembered(origin, "elevenlabs:v0")).toBeUndefined();
+	});
+	it("찾은 성우를 지우지 못하면 로그인은 세션을 바꾸지 않고 7이다", async () => {
+		await put(voices(1));
+		chmodSync(path(), 0o644);
+		vi.spyOn(globalThis, "fetch").mockImplementation(async (request) =>
+			request instanceof Request
+				? Response.json({ json: [] })
+				: Response.json(
+						{ session: {}, user: { id: "u" } },
+						{ headers: { "set-cookie": "session=new; Path=/" } },
+					),
+		);
+		await expect(
+			login(origin, "owner@example.com", "password"),
+		).rejects.toMatchObject({ exitCode: 7 });
+		expect(await change((state) => state.sessions[origin])).toEqual({
+			cookie: "c",
+			version: "v1",
+		});
+	});
+	it("로그인의 지우기와 세션 저장 사이에 끝난 옛 검색도 지우고, 그 실패는 알리기만 한다", async () => {
+		const err = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+		vi.spyOn(globalThis, "fetch").mockImplementation(async (request) => {
+			if (!(request instanceof Request))
+				return Response.json(
+					{ session: {}, user: { id: "u" } },
+					{ headers: { "set-cookie": "session=new; Path=/" } },
+				);
+			// 다음 세션 변경(새 세션 저장) 직전에 옛 세션의 늦은 검색이 끝난다
+			hooks.beforeChange = late;
+			return Response.json({ json: [] });
+		});
+		let late = () => put(voices(1));
+		await login(origin, "owner@example.com", "password");
+		expect(await remembered(origin, "elevenlabs:v0")).toBeUndefined();
+		expect(err).not.toHaveBeenCalled();
+		late = async () => chmodSync(path(), 0o644);
+		await login(origin, "owner@example.com", "password");
+		expect(err.mock.calls.join()).toContain("voices.json");
+	});
+	it("세션이 없어도 로그아웃은 그 주소의 찾은 성우를 지운다", async () => {
+		await put(voices(1));
+		await put(voices(1), "v1", "https://b.example");
+		await change((state) => {
+			delete state.sessions[origin];
+		});
+		const fetched = vi.spyOn(globalThis, "fetch");
+		await expect(logout(origin)).rejects.toMatchObject({ exitCode: 3 });
+		expect(fetched).not.toHaveBeenCalled();
+		expect(await remembered(origin, "elevenlabs:v0")).toBeUndefined();
+		expect(
+			await remembered("https://b.example", "elevenlabs:v0"),
+		).toBeDefined();
+	});
+	it("서버 로그아웃을 확인하지 못해도 찾은 성우를 지우지 못한 것을 알린다", async () => {
+		await put(voices(1));
+		chmodSync(path(), 0o644);
+		vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("끊김"));
+		const err = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+		await expect(logout(origin)).rejects.toMatchObject({
+			code: "LOGOUT_UNCONFIRMED",
+		});
+		expect(err.mock.calls.join()).toContain("voices.json");
+	});
+	it("REF는 첫 콜론에서 나누고 모르는 공급자와 빈 ID는 거절한다", () => {
+		expect(parseRef("gemini:a:b")).toEqual({
+			provider: "gemini",
+			voiceId: "a:b",
+		});
+		for (const ref of ["", "gemini", "gemini:", ":a", "openai:a"])
+			expect(() => parseRef(ref)).toThrow();
+	});
+});
+
+it.each([
+	["BAD_REQUEST", undefined, "INPUT", 2],
+	["BAD_REQUEST", "provider_input", "SERVER_ERROR", 5],
+	["CONFLICT", "duplicate_name", "CONFLICT", 2],
+	["CONFLICT", "stale", "CONFLICT", 2],
+	["CONFLICT", "모름", "SERVER_ERROR", 5],
+	["BAD_GATEWAY", "stale", "SERVER_ERROR", 5],
+	["NOT_FOUND", undefined, "NOT_FOUND", 4],
+	["UNAUTHORIZED", undefined, "UNAUTHORIZED", 3],
+	["TOO_MANY_REQUESTS", "rate_limit", "SERVER_ERROR", 5],
+])("관리 명령의 오류 %s %s → %s %i", (code, reason, expected, exitCode) => {
+	let thrown: unknown;
+	try {
+		manageError(new ORPCError(code, { data: reason ? { reason } : undefined }));
+	} catch (error) {
+		thrown = error;
+	}
+	expect(thrown).toMatchObject({ code: expected, exitCode });
+	if (expected === "CONFLICT")
+		expect(thrown).toMatchObject({ detail: { reason } });
+});
+
+it("파일의 확장자와 입력 상한을 인자로 받는다", async () => {
+	const dir = mkdtempSync(join(tmpdir(), "omni-cli-files-"));
+	try {
+		const big = join(dir, "big.json");
+		writeFileSync(big, JSON.stringify({ text: "a".repeat(1024 * 1024) }));
+		await expect(readInput(big)).rejects.toMatchObject({ exitCode: 2 });
+		await expect(readJson(big, 3 * 1024 * 1024)).resolves.toMatchObject({
+			text: expect.any(String),
+		});
+		expect(() => checkOut(join(dir, "a.txt"), false)).toThrow(
+			"--out은 .mp3나 .wav 파일이어야 합니다.",
+		);
+		checkOut(join(dir, "a.txt"), false, [".txt", ".json"]);
+		expect(() => checkOut(join(dir, "a.mp3"), false, [".txt"])).toThrow();
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+it("설정 파일의 고정 선택지 오타는 2로 거절한다", async () => {
+	const dir = mkdtempSync(join(tmpdir(), "omni-cli-settings-"));
+	const file = join(dir, "settings.json");
+	const read = (
+		provider: "typecast" | "airy" | "elevenlabs",
+		value: object,
+	) => {
+		writeFileSync(file, JSON.stringify(value));
+		return readSettings(provider, file);
+	};
+	try {
+		for (const [provider, value] of [
+			["airy", { language: "kr" }],
+			["airy", { style: "soft" }],
+			["airy", { model: "airy" }],
+			["airy", { language: "toString" }],
+			["typecast", { emotion: "auto" }],
+			["typecast", { preset: "joy" }],
+			["typecast", { language: "ko" }],
+			["elevenlabs", { model: "v4" }],
+		] as const)
+			await expect(read(provider, value)).rejects.toMatchObject({
+				exitCode: 2,
+				message: expect.stringContaining(Object.keys(value)[0] ?? ""),
+			});
+		await expect(
+			read("airy", { language: "en", style: "calm" }),
+		).resolves.toMatchObject({ language: "en", style: "calm" });
+		// 같은 이름의 다른 공급자 칸은 선택지가 아니다
+		await expect(read("elevenlabs", { style: 0.3 })).resolves.toMatchObject({
+			style: 0.3,
+		});
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
 });
 
 // 소스에 보이지 않는 글자를 두지 않게 코드로 만든다

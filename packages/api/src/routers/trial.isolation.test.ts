@@ -66,6 +66,26 @@ describe.skipIf(!url)("시험 생성 소유자 격리(AC15)", () => {
 		expect((await as(A).trialAudio({ id: made.id })).id).toBe(made.id);
 	});
 
+	it("A의 요청 상태는 B에게 null이고 A는 읽는다. 행은 그대로, 공급자 0회(T19)", async () => {
+		const requestId = crypto.randomUUID();
+		const made = await as(A).trialCreate({ requestId, request });
+		const before = await db.select().from(trialGeneration);
+		synthesize.mockClear();
+		expect(await as(B).trialRequest({ requestId })).toBeNull();
+		expect(await as(A).trialRequest({ requestId })).toEqual({
+			id: made.id,
+			createdAt: made.createdAt,
+			usage: made.usage,
+			bytes: 4,
+			status: "done",
+			reason: null,
+		});
+		// 작업실 조회로는 시험 생성 요청이 보이지 않는다
+		expect(await as(A).studioRequest({ requestId })).toBeNull();
+		expect(await db.select().from(trialGeneration)).toEqual(before);
+		expect(synthesize).not.toHaveBeenCalled();
+	});
+
 	it("같은 요청 id를 A와 B가 써도 섞이지 않는다(Review Focus 5)", async () => {
 		const id = crypto.randomUUID();
 		const a = await as(A).trialCreate({ requestId: id, request });
@@ -74,6 +94,8 @@ describe.skipIf(!url)("시험 생성 소유자 격리(AC15)", () => {
 			request: { ...request, text: "다른 문장" },
 		});
 		expect(b.id).not.toBe(a.id);
+		expect((await as(A).trialRequest({ requestId: id }))?.id).toBe(a.id);
+		expect((await as(B).trialRequest({ requestId: id }))?.id).toBe(b.id);
 		expect(synthesize).toHaveBeenCalledTimes(2);
 	});
 
@@ -100,7 +122,7 @@ describe.skipIf(!url)("시험 생성 소유자 격리(AC15)", () => {
 		await pending;
 	});
 
-	it("소유자가 없으면 여섯 프로시저 모두 UNAUTHORIZED이고 공급자 0회(AC14)", async () => {
+	it("소유자가 없으면 여덟 프로시저 모두 UNAUTHORIZED이고 공급자 0회(AC14)", async () => {
 		dbTouches = 0;
 		const unauthorized = { code: "UNAUTHORIZED" };
 		const id = crypto.randomUUID();
@@ -121,6 +143,9 @@ describe.skipIf(!url)("시험 생성 소유자 격리(AC15)", () => {
 				provider: "typecast",
 				voiceId: "tc_0001",
 			}),
+		).rejects.toMatchObject(unauthorized);
+		await expect(
+			as(null, failingDb).trialRequest({ requestId: id }),
 		).rejects.toMatchObject(unauthorized);
 		await expect(as(null, failingDb).trialAudio({ id })).rejects.toMatchObject(
 			unauthorized,

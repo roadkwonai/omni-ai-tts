@@ -324,10 +324,8 @@ describe.skipIf(!url)("데모 Context로 모든 프로시저(T15-a2 Task 1b)", (
 	it("trialCreate와 저장본 조회·지우기: 공급자마다 샘플이 done으로 저장된다", async () => {
 		for (const provider of PROVIDERS) {
 			const request = requestOf(provider);
-			const made = await demo.trialCreate({
-				requestId: crypto.randomUUID(),
-				request,
-			});
+			const requestId = crypto.randomUUID();
+			const made = await demo.trialCreate({ requestId, request });
 			expect(made.audio.type).toBe(
 				provider === "gemini" ? "audio/wav" : "audio/mpeg",
 			);
@@ -350,6 +348,14 @@ describe.skipIf(!url)("데모 Context로 모든 프로시저(T15-a2 Task 1b)", (
 			expect(
 				await bytes((await demo.trialAudio({ id: made.id })).audio),
 			).toEqual(SAMPLES[provider]);
+			expect(await demo.trialRequest({ requestId })).toEqual({
+				id: made.id,
+				createdAt: made.createdAt,
+				usage: made.usage,
+				bytes: SAMPLES[provider].byteLength,
+				status: "done",
+				reason: null,
+			});
 			await demo.trialDelete({ id: made.id });
 		}
 	});

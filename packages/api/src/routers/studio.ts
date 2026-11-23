@@ -35,10 +35,10 @@ import {
 	audioTypeOf,
 	claim,
 	comboKey,
+	findRequest,
 	findStudio,
 	findStudioInfo,
 	findStudioMany,
-	findStudioRequest,
 	type LateTarget,
 	recordFailure,
 	recordSuccess,
@@ -269,7 +269,8 @@ export const studioRouter = {
 		.handler(({ input, context }) =>
 			withStorage(
 				undefined,
-				() => findStudioRequest(context.db, context.ownerId, input.requestId),
+				() =>
+					findRequest(context.db, context.ownerId, input.requestId, "studio"),
 				PREFIX,
 			),
 		),

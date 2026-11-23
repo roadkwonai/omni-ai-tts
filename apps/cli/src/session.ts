@@ -15,6 +15,7 @@ import {
 } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import type { Voice } from "@tts-pilot-app/api/providers/contract";
 
 export type Session = { cookie: string; version: string };
 type State = { current?: string; sessions: Record<string, Session> };
@@ -24,8 +25,13 @@ export type RequestRecord = {
 	requestId: string;
 	provider: string;
 	createdAt: string;
+	// 없으면 작업실(T18 기록)
+	kind?: "trial";
 };
 export type Requests = { requests: Record<string, RequestRecord> };
+// 검색에 나온 성우(T19). 담기·샘플·시험 생성이 REF로 찾는다
+export type CachedVoice = { voice: Voice; savedAt: number };
+export type Voices = { voices: Record<string, CachedVoice[]> };
 
 function directory(): string {
 	const path =
@@ -46,12 +52,44 @@ export const change = <T>(fn: (state: State) => T) =>
 	changeFile("sessions", { sessions: {} } as State, fn);
 export const changeRequests = <T>(fn: (state: Requests) => T) =>
 	changeFile("requests", { requests: {} } as Requests, fn);
+// 같은 잠금 아래에서 지금 세션도 본다(로그아웃과 겹친 늦은 쓰기를 버린다)
+export const changeVoices = <T>(
+	fn: (state: Voices, sessions: State["sessions"]) => T,
+) =>
+	changeFile("voices", { voices: {} } as Voices, (state, dir) =>
+		fn(state, readState(dir, "sessions", { sessions: {} } as State).sessions),
+	);
+
+function readState<S extends object>(
+	dir: string,
+	name: keyof S & string,
+	empty: S,
+): S {
+	const path = join(dir, `${name}.json`);
+	try {
+		const stat = lstatSync(path);
+		if (
+			!stat.isFile() ||
+			stat.isSymbolicLink() ||
+			(stat.mode & 0o077) !== 0 ||
+			stat.uid !== process.getuid?.()
+		)
+			throw new Error("세션 파일 권한이 올바르지 않습니다.");
+		const state = JSON.parse(readFileSync(path, "utf8")) as S;
+		if (!state[name] || typeof state[name] !== "object")
+			throw new Error("세션 파일이 올바르지 않습니다.");
+		return state;
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+		return empty;
+	}
+}
 
 // 한 잠금 아래에서 <name>.json을 읽고 바꾼다. fn은 동기라 네트워크를 기다리며 잠금을 잡지 않는다
 async function changeFile<S extends object, T>(
 	name: keyof S & string,
 	empty: S,
-	fn: (state: S) => T,
+	fn: (state: S, dir: string) => T,
 ): Promise<T> {
 	if (process.platform !== "darwin" && process.platform !== "linux") {
 		throw new Error("지원하지 않는 운영체제입니다.");
@@ -98,24 +136,9 @@ async function changeFile<S extends object, T>(
 	});
 	try {
 		const path = join(dir, `${name}.json`);
-		let state = empty;
-		try {
-			const stat = lstatSync(path);
-			if (
-				!stat.isFile() ||
-				stat.isSymbolicLink() ||
-				(stat.mode & 0o077) !== 0 ||
-				stat.uid !== process.getuid?.()
-			)
-				throw new Error("세션 파일 권한이 올바르지 않습니다.");
-			state = JSON.parse(readFileSync(path, "utf8")) as S;
-			if (!state[name] || typeof state[name] !== "object")
-				throw new Error("세션 파일이 올바르지 않습니다.");
-		} catch (error) {
-			if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-		}
+		const state = readState(dir, name, empty);
 		const original = JSON.stringify(state);
-		const result = fn(state);
+		const result = fn(state, dir);
 		const serialized = JSON.stringify(state);
 		if (serialized === original) return result;
 		const temp = join(dir, `.${randomUUID()}.tmp`);

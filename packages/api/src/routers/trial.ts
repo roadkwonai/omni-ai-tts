@@ -20,6 +20,10 @@ import {
 	isFreeModel,
 } from "../providers/trial-options";
 import {
+	studioRequestStatusInputSchema,
+	studioRequestStatusSchema,
+} from "../studio-contract";
+import {
 	audioFile,
 	audioOf,
 	audioTypeOf,
@@ -28,6 +32,7 @@ import {
 	comboKey,
 	complete,
 	findMany,
+	findRequest,
 	findSaved,
 	listResults,
 	recordFailure,
@@ -71,6 +76,15 @@ export const trialRouter = {
 					context.ownerId,
 					input.map((request) => comboKey(request)),
 				),
+			),
+		),
+	// 요청 id의 상태(T19 CLI 중단 복구, studioRequest와 같은 모양). 없거나 남의 것이면 null. 공급자를 부르지 않고 쓰지 않는다
+	trialRequest: protectedProcedure
+		.input(studioRequestStatusInputSchema)
+		.output(studioRequestStatusSchema.nullable())
+		.handler(({ input, context }) =>
+			withStorage(undefined, () =>
+				findRequest(context.db, context.ownerId, input.requestId, "trial"),
 			),
 		),
 	trialCreate: protectedProcedure

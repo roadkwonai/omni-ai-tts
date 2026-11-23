@@ -6,15 +6,19 @@ import {
 import { changeRequests } from "./client.js";
 import type { RequestRecord } from "./session.js";
 
+export type KindName = "studio" | "trial";
 export const fingerprint = (
 	origin: string,
 	userId: string,
 	request: TrialRequest,
+	kind: KindName = "studio",
 ) =>
 	createHash("sha256")
-		.update(JSON.stringify([origin, userId, "studio", comboSignature(request)]))
+		.update(JSON.stringify([origin, userId, kind, comboSignature(request)]))
 		.digest("hex");
 
+export const kindOf = (record: RequestRecord): KindName =>
+	record.kind ?? "studio";
 export const recordOf = (key: string) =>
 	changeRequests(({ requests }) => requests[key]);
 export const recordsOf = (origin: string) =>

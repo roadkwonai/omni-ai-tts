@@ -637,11 +637,13 @@ export async function findStudioInfo(
 	};
 }
 
-// 요청 id의 상태(T18). 없거나 남의 것·다른 화면·만료면 null. 5분 넘은 진행 중은 미확인으로 읽기만 한다(옮기는 쓰기는 replayStudio·claimRow)
-export async function findStudioRequest(
+// 요청 id의 상태(T18 작업실, T19 시험 생성). 없거나 남의 것·다른 화면·만료면 null. 5분 넘은 진행 중은 미확인으로 읽기만 한다(옮기는 쓰기는 replayStudio·replayRequest·claimRow)
+// (소유자, 요청 id) 유니크로 찾으므로 kind는 매개변수다(부분 인덱스와 상관없다)
+export async function findRequest(
 	db: Database,
 	ownerId: string,
 	requestId: string,
+	kind: "studio" | "trial",
 ): Promise<StudioRequestStatus | null> {
 	const [row] = await db
 		.select({
@@ -654,7 +656,7 @@ export async function findStudioRequest(
 			and(
 				eq(t.ownerId, ownerId),
 				eq(t.requestId, requestId),
-				studioRow,
+				eq(t.kind, kind),
 				gt(t.expiresAt, new Date()),
 			),
 		);

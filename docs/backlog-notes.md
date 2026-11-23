@@ -306,5 +306,10 @@ T5 구현 계획 실행 (Codex, 2026-10-05)
 ### CLI (T18에서 남긴 것, 2026-11-24)
 
 - [ ] T18-01 (P3, 보안 low) CLI oRPC 응답 본문에 크기 상한이 없다. 로그인한 작업실 서버가 변조된 거대한 응답을 보내면 CLI 프로세스 메모리가 소진될 수 있다(로컬 프로세스 종료에 그침). 조각 상한을 넘는 응답을 끊는 TransformStream을 client.ts의 fetch 래퍼에 둔다.
-- [ ] T18-02 (P3, T17부터) 잘못된 --url이 auth login 밖에서는 2가 아니라 7(STORAGE_ERROR)이고, 모르는 옵션은 "명령을 처리하지 못했습니다."로만 나온다.
+- [x] T18-02 (T19에서 해결) (P3, T17부터) 잘못된 --url이 auth login 밖에서는 2가 아니라 7(STORAGE_ERROR)이고, 모르는 옵션은 "명령을 처리하지 못했습니다."로만 나온다.
 - [ ] T18-03 (관찰) SIGTERM·SIGKILL은 출력 폴더에 임시 파일을 남긴다. Linux는 확인하지 않았다. apps/cli/tests는 tsconfig include 밖이라 타입 검사를 받지 않는다.
+
+### CLI (T19에서 남긴 것, 2026-11-24)
+
+- [ ] T19-01 (관찰) 채널·분류·프리셋 고치기와 scripts save --force는 읽기와 쓰기 사이 웹 변경을 잃을 수 있다(단일 소유자 한계). 글 조각 20,000개를 넘는 대본은 .txt 왕복이 안 되고 --work를 쓴다.
+- [ ] T19-02 (관찰) 기본 샘플은 2026-11-24에 Fish Audio·Gemini·ElevenLabs·Typecast 담은 성우 한 명씩만 실제로 받아 봤다(ElevenLabs 보관 서버는 MP3를 text/plain으로 준다). Airy와 리다이렉트하는 샘플 주소는 보지 않았다.

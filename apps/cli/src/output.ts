@@ -1,3 +1,4 @@
+import { createInterface } from "node:readline";
 import type { Usage } from "@tts-pilot-app/api/providers/trial-options";
 import { ClientError } from "./client.js";
 
@@ -25,9 +26,48 @@ export function usageText({ unit, amount }: Usage): string {
 export function print(json: boolean, result: unknown, text: string) {
 	process.stdout.write(json ? `${jsonText(result)}\n` : `${text}\n`);
 }
+// 탭으로 나눈 표. 칸마다 제어 문자를 지운다
+export const table = (head: string[], rows: (string | number)[][]) =>
+	[head, ...rows]
+		.map((row) => row.map((cell) => clean(String(cell))).join("\t"))
+		.join("\n");
 export const note = (message: string) => {
 	process.stderr.write(`${clean(message)}\n`);
 };
+
+export const canceled = () => new ClientError("CANCELED", 2, "취소했습니다.");
+export const confirmRequired = (message: string) =>
+	new ClientError("CONFIRM_REQUIRED", 2, message);
+// 터미널에서 y를 눌렀는가. Ctrl+C와 입력 끝은 아니요다
+export async function ask(question: string): Promise<boolean> {
+	const answer = await new Promise<string>((done) => {
+		const prompt = createInterface({
+			input: process.stdin,
+			output: process.stderr,
+		});
+		prompt.once("SIGINT", () => prompt.close());
+		prompt.once("close", () => done(""));
+		prompt.question(question, (value) => {
+			done(value);
+			prompt.close();
+		});
+	});
+	return answer.trim().toLowerCase() === "y";
+}
+// 지우기 전에 대상과 영향을 보이고 확인받는다. --yes가 대신한다
+export async function confirmRemoval(
+	lines: string[],
+	yes: boolean,
+	what = "지우는 명령입니다.",
+	question = "지울까요?",
+	interactive = process.stdin.isTTY,
+) {
+	for (const line of lines) note(line);
+	if (yes) return;
+	if (!interactive)
+		throw confirmRequired(`${what} 확인했으면 --yes를 붙여 실행하세요.`);
+	if (!(await ask(`${question} [y/N] `))) throw canceled();
+}
 
 // 실패를 알리고 종료 코드를 돌려준다
 export function report(error: unknown): number {

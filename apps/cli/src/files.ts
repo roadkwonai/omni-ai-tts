@@ -14,13 +14,25 @@ import {
 	writeSync,
 } from "node:fs";
 import { dirname, extname, join } from "node:path";
-import { ClientError } from "./client.js";
+import type { ProviderId } from "@tts-pilot-app/api/providers/contract";
+import {
+	AIRY_LANGUAGES,
+	AIRY_STYLES,
+	DEFAULT_SETTINGS,
+	EMOTION_PRESETS,
+	FIELDS,
+	type SettingsOf,
+} from "@tts-pilot-app/api/providers/trial-options";
+import { input } from "./client.js";
 
-const input = (message: string) => new ClientError("INPUT", 2, message);
 // 대본 상한 2,000자는 UTF-8로 8KB다. 앞뒤 공백을 넉넉히 받아도 이보다 크면 대본이 아니다
 const INPUT_BYTES_MAX = 1024 * 1024;
 
-export async function readInput(path: string): Promise<string> {
+export async function readInput(
+	path: string,
+	max = INPUT_BYTES_MAX,
+	what = "대본",
+): Promise<string> {
 	const chunks: Buffer[] = [];
 	let size = 0;
 	try {
@@ -28,21 +40,64 @@ export async function readInput(path: string): Promise<string> {
 			? process.stdin
 			: createReadStream(path)) {
 			size += chunk.length;
-			if (size > INPUT_BYTES_MAX) break;
+			if (size > max) break;
 			chunks.push(Buffer.from(chunk));
 		}
 	} catch {
-		throw input("대본을 읽지 못했습니다.");
+		throw input(`${what}을 읽지 못했습니다.`);
 	}
-	if (size > INPUT_BYTES_MAX) throw input("대본이 너무 깁니다.");
+	if (size > max) throw input(`${what}이 너무 깁니다.`);
 	try {
 		// 앞의 BOM은 해석기가 뺀다
 		return new TextDecoder("utf-8", { fatal: true }).decode(
 			Buffer.concat(chunks),
 		);
 	} catch {
-		throw input("대본이 UTF-8이 아닙니다.");
+		throw input(`${what}이 UTF-8이 아닙니다.`);
 	}
+}
+export async function readJson(path: string, max?: number): Promise<unknown> {
+	const text = await readInput(path, max, "JSON 파일");
+	try {
+		return JSON.parse(text);
+	} catch {
+		throw input("JSON 파일의 형식이 올바르지 않습니다.");
+	}
+}
+
+// 모델 말고 고정 선택지인 칸(서버 계약 trial-contract.ts와 같다)
+const CHOICES: Partial<Record<ProviderId, Record<string, readonly unknown[]>>> =
+	{
+		typecast: {
+			emotion: ["smart", "preset"],
+			preset: EMOTION_PRESETS,
+			language: ["auto", "kor"],
+		},
+		airy: { language: AIRY_LANGUAGES, style: AIRY_STYLES },
+	};
+// 공급자 설정 JSON(일부여도 된다). 서버는 모르는 칸을 조용히 버리고 모르는 모델·프리셋은 보정되므로 여기서 거절한다
+export async function readSettings<P extends ProviderId>(
+	provider: P,
+	path: string,
+): Promise<SettingsOf[P]> {
+	const value = await readJson(path);
+	if (!value || typeof value !== "object" || Array.isArray(value))
+		throw input("설정 파일은 JSON 객체여야 합니다.");
+	const base: Record<string, unknown> = DEFAULT_SETTINGS[provider];
+	const unknown = Object.keys(value).filter((key) => !Object.hasOwn(base, key));
+	if (unknown.length)
+		throw input(`설정 파일에 모르는 칸이 있습니다: ${unknown.join(", ")}`);
+	const bad = Object.entries(value)
+		.filter(
+			([key, item]) =>
+				typeof item !== typeof base[key] ||
+				(key === "model" && !Object.hasOwn(FIELDS[provider], item)) ||
+				CHOICES[provider]?.[key]?.includes(item) === false,
+		)
+		.map(([key]) => key);
+	if (bad.length)
+		throw input(`설정 파일의 값을 확인해 주세요: ${bad.join(", ")}`);
+	return { ...DEFAULT_SETTINGS[provider], ...value };
 }
 
 const entry = (path: string) => lstatSync(path, { throwIfNoEntry: false });
@@ -55,9 +110,13 @@ export const checkExtension = (out: string, mime: string) => {
 };
 
 // 유료 요청 전에 출력 경로를 본다
-export function checkOut(out: string, overwrite: boolean) {
-	if (!Object.hasOwn(MIME, extname(out).toLowerCase()))
-		throw input("--out은 .mp3나 .wav 파일이어야 합니다.");
+export function checkOut(
+	out: string,
+	overwrite: boolean,
+	allowed: string[] = Object.keys(MIME),
+) {
+	if (!allowed.includes(extname(out).toLowerCase()))
+		throw input(`--out은 ${allowed.join("나 ")} 파일이어야 합니다.`);
 	const folder = dirname(out);
 	try {
 		if (!statSync(folder).isDirectory()) throw new Error();
@@ -111,3 +170,11 @@ export async function save(
 		discard();
 	}
 }
+export const saveBytes = (out: string, overwrite: boolean, bytes: Uint8Array) =>
+	save(
+		out,
+		overwrite,
+		(async function* () {
+			yield bytes;
+		})(),
+	);

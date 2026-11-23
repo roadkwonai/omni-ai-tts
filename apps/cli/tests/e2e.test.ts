@@ -40,7 +40,20 @@ describe.skipIf(!url)("실제 라우터 E2E", { timeout: 60_000 }, () => {
 	});
 	let audio = bytesOf(2048);
 	const synthesize = vi.fn(async (_request: TrialRequest) => audio);
-	const client = { checkStatus: vi.fn(), synthesize };
+	const listVoices = async () => ({
+		voices: [
+			{
+				...emptyVoice("typecast", "public"),
+				voiceId: "tc_free",
+				name: "담지 않은 성우",
+			},
+		],
+		next: null,
+		total: 1,
+		totalExact: true,
+		windowLimited: false,
+	});
+	const client = { checkStatus: vi.fn(), synthesize, listVoices };
 	const providers = { typecast: client, gemini: client };
 	let hook: ServeHook | undefined;
 	let server: Awaited<ReturnType<typeof serve>>;
@@ -260,6 +273,147 @@ describe.skipIf(!url)("실제 라우터 E2E", { timeout: 60_000 }, () => {
 		expect(synthesize).toHaveBeenCalledTimes(2);
 		expect((await run(...gen("--yes", "--new"))).code).toBe(0);
 		expect(synthesize).toHaveBeenCalledTimes(3);
+	});
+
+	// 시험 생성(T19). 담지 않은 성우를 목록에서 찾는다
+	const trial = (...extra: string[]) => [
+		"trial",
+		"generate",
+		"--voice",
+		"typecast:tc_free",
+		"--text",
+		text,
+		"--out",
+		ws.path("trial.mp3"),
+		...extra,
+	];
+	it("성우를 찾아 시험 생성하고 목록·내려받기·지우기를 한다", async () => {
+		const found = json(
+			await run(...["casting", "search", "--provider", "typecast", "--json"]),
+		);
+		expect(found.voices).toMatchObject([{ ref: "typecast:tc_free" }]);
+		const made = json(await run(...trial("--yes", "--json")));
+		expect(made.source).toBe("created");
+		expect(readFileSync(ws.path("trial.mp3")).equals(audio)).toBe(true);
+		expect(ws.records()).toEqual([]);
+		const { id } = made.result;
+		const list = json(
+			await run(...["trial", "list", "--voice", "typecast:tc_free", "--json"]),
+		);
+		expect(list.results).toMatchObject([{ id, request: { text } }]);
+		const again = await run(
+			...["trial", "download", id, "--out", ws.path("again.mp3"), "--json"],
+		);
+		expect(json(again).result).toEqual(made.result);
+		expect(readFileSync(ws.path("again.mp3")).equals(audio)).toBe(true);
+		// 작업실의 결과가 아니다
+		expect(
+			(await run("studio", "download", id, "--out", ws.path("s.mp3"))).code,
+		).toBe(4);
+		expect(json(await run(...trial("--json", "--overwrite"))).source).toBe(
+			"saved",
+		);
+		const owned = ownerId;
+		ownerId = `${OWNER}-other`;
+		for (const args of [
+			["trial", "download", id, "--out", ws.path("other.mp3")],
+			["trial", "remove", id, "--yes"],
+		])
+			expect((await run(...args)).code).toBe(4);
+		ownerId = owned;
+		expect((await run("trial", "remove", id, "--yes")).code).toBe(0);
+		expect((await run("trial", "remove", id, "--yes")).code).toBe(4);
+		expect(synthesize).toHaveBeenCalledTimes(1);
+	});
+
+	it("시험 생성의 동시 실행과 응답 유실에서 합성은 1회다", async () => {
+		let open!: () => void;
+		const held = new Promise<void>((done) => {
+			open = done;
+		});
+		synthesize.mockImplementationOnce(async () => {
+			await held;
+			return audio;
+		});
+		hook = (path, _request, response) => {
+			if (path.includes("trialCreate"))
+				response.writeHead = (() => {
+					response.destroy();
+					return response;
+				}) as never;
+			return false;
+		};
+		const first = spawnCli(ws.dir, trial("--yes", "--json"));
+		await until(() => synthesize.mock.calls.length === 1, "합성 시작");
+		expect((await run(...trial("--yes"))).code).toBe(6);
+		open();
+		const lost = await first.done;
+		expect(lost.code).toBe(6);
+		hook = undefined;
+		const { requestId } = json(lost);
+		expect((await run("studio", "resume", requestId)).code).toBe(2);
+		const resumed = await run(...trial("--json"));
+		expect(json(resumed).source).toBe("resumed");
+		expect(readFileSync(ws.path("trial.mp3")).equals(audio)).toBe(true);
+		expect(ws.records()).toEqual([]);
+		expect(synthesize).toHaveBeenCalledTimes(1);
+	});
+
+	it("서버가 완료를 저장하지 못하면 파일은 받고 기록을 남겨 다시 합성하지 않는다", async () => {
+		// 완료 저장(UPDATE … done)만 실패시킨다
+		const query = db.$client.query.bind(db.$client);
+		const spy = vi.spyOn(db.$client, "query").mockImplementation(((
+			...args: unknown[]
+		) => {
+			const [config] = args as [{ text?: string; values?: unknown[] }];
+			if (
+				/^update "trial_generation"/.test(config?.text ?? "") &&
+				config.values?.includes("done")
+			)
+				return Promise.reject(new Error("저장 실패"));
+			return (query as (...rest: unknown[]) => unknown)(...args);
+		}) as never);
+		const made = await run(...trial("--yes", "--json"));
+		spy.mockRestore();
+		expect(made.code).toBe(0);
+		expect(readFileSync(ws.path("trial.mp3")).equals(audio)).toBe(true);
+		const { requestId } = json(made);
+		expect(ws.records()).toMatchObject([{ requestId, kind: "trial" }]);
+		const pending = await run(...trial("--yes", "--overwrite", "--json"));
+		expect(pending.code).toBe(6);
+		// 5분이 지나 미확인이 돼도 기록이 막는다
+		await db.$client.query(
+			"update trial_generation set created_at = now() - interval '6 minutes' where request_id = $1",
+			[requestId],
+		);
+		expect((await run(...trial("--yes", "--overwrite"))).code).toBe(6);
+		expect((await run("trial", "resume", requestId)).code).toBe(6);
+		expect(synthesize).toHaveBeenCalledTimes(1);
+		await db.$client.query(
+			"delete from trial_generation where request_id = $1",
+			[requestId],
+		);
+	});
+
+	it("서버가 거절한 시험 생성 설정은 합성 없이 2, --new면 5다", async () => {
+		const file = ws.script('{"tempo":99}', "settings.json");
+		const args = trial("--yes", "--settings", file);
+		expect((await run(...args)).code).toBe(2);
+		expect((await run(...args, "--new")).code).toBe(5);
+		expect(
+			(
+				await run(
+					"casting",
+					"search",
+					"--provider",
+					"elevenlabs",
+					"--sort",
+					"x",
+				)
+			).code,
+		).toBe(2);
+		expect(ws.records()).toEqual([]);
+		expect(synthesize).not.toHaveBeenCalled();
 	});
 
 	it("비소유자는 3이고 합성하지 않는다. 남의 결과는 4다", async () => {
