@@ -5,9 +5,11 @@ import {
 	closeSync,
 	constants,
 	createReadStream,
+	fstatSync,
 	linkSync,
 	lstatSync,
 	openSync,
+	readSync,
 	renameSync,
 	rmSync,
 	statSync,
@@ -64,6 +66,38 @@ export async function readJson(path: string, max?: number): Promise<unknown> {
 	} catch {
 		throw input("JSON 파일의 형식이 올바르지 않습니다.");
 	}
+}
+
+// 일반 파일(링크면 대상이)을 한 번 열어 상한까지 읽는다. hint는 너무 클 때 덧붙이는 안내다
+export function readBytes(
+	path: string,
+	max: number,
+	what: string,
+	hint: string,
+): Buffer {
+	const bytes = Buffer.alloc(max + 1);
+	let size = 0;
+	try {
+		// 파이프를 열며 기다리지 않는다
+		const fd = openSync(path, constants.O_RDONLY | constants.O_NONBLOCK);
+		try {
+			if (!fstatSync(fd).isFile()) throw new Error("일반 파일이 아니다");
+			let read = -1;
+			while (read !== 0 && size < bytes.length) {
+				read = readSync(fd, bytes, size, bytes.length - size, null);
+				size += read;
+			}
+		} finally {
+			closeSync(fd);
+		}
+	} catch {
+		throw input(`${what} 파일을 읽지 못했습니다. 일반 파일이어야 합니다.`);
+	}
+	if (size > max)
+		throw input(
+			`${what} 파일이 너무 큽니다. ${max.toLocaleString("ko-KR")}바이트까지 보낼 수 있습니다. ${hint}`,
+		);
+	return bytes.subarray(0, size);
 }
 
 // 모델 말고 고정 선택지인 칸(서버 계약 trial-contract.ts와 같다)

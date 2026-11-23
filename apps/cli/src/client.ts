@@ -17,11 +17,19 @@ const CONFLICT_TEXT = {
 	duplicate_name: "같은 이름이 이미 있습니다.",
 	stale: "다른 곳에서 먼저 바뀌었습니다. 다시 보고 실행해 주세요.",
 };
+// 내 보이스(T21)에만 있는 사유. 글은 clones.ts에 있다
+export type CloneFailure =
+	| "quality"
+	| "not_found"
+	| "audio_format"
+	| "audio_length"
+	| "consent_audio_missing";
 export type ErrorDetail = {
-	reason?: TrialFailure | keyof typeof CONFLICT_TEXT;
+	reason?: TrialFailure | keyof typeof CONFLICT_TEXT | CloneFailure;
 	retryAt?: string;
 	requestId?: string;
 	resultId?: string;
+	cloneId?: string;
 	// 문단 묶음(T20): 멈춘 문단과, 여러 문단을 함께 알릴 때의 목록
 	paragraph?: number;
 	paragraphs?: {
@@ -356,16 +364,10 @@ export async function status(input?: string): Promise<{ origin: string }> {
 	return { origin };
 }
 
-export async function savedVoices(input?: string, includeChannels = false) {
+export async function savedVoices(input?: string) {
 	const { origin, session } = await selected(input);
 	const { client, voices } = await owner(origin, session);
-	let channels: Awaited<ReturnType<AppRouterClient["channelList"]>> = [];
-	try {
-		if (includeChannels) channels = await client.channelList();
-	} catch (error) {
-		rpcError(error);
-	}
-	return { origin, voices, channels };
+	return { origin, client, voices };
 }
 
 export const currentOrigin = async (input?: string) =>

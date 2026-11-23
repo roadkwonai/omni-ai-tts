@@ -1,6 +1,6 @@
 ---
 name: omni-tts
-description: 터미널에서 작업실(TTS Pilot)의 성우를 찾고 담고, 채널·분류·프리셋·대본을 관리하고, 한국어 대본으로 음성을 만들어 파일로 받고, 끊긴 요청을 다시 확인할 때 쓴다. 유료 생성과 지우기가 들어 있어 사용자의 확인이 필요하다.
+description: 터미널에서 작업실(TTS Pilot)의 성우를 찾고 담고, 채널·분류·프리셋·대본을 관리하고, 한국어 대본으로 음성을 만들어 파일로 받고, 본인 목소리 클론(내 보이스)을 만들고 지우고, 끊긴 요청을 다시 확인할 때 쓴다. 유료 생성과 지우기가 들어 있어 사용자의 확인이 필요하다.
 ---
 
 # omni-tts
@@ -20,7 +20,7 @@ description: 터미널에서 작업실(TTS Pilot)의 성우를 찾고 담고, �
 | `trial generate --voice REF (--text TEXT \| --input FILE\|-) --out PATH [--settings FILE] [--overwrite] [--yes] [--new] [--dry-run]` | 200자까지 시험 생성 | **요금이 나올 수 있음** |
 | `trial list --voice REF` / `trial download RESULT_ID --out PATH` / `trial resume [REQUEST_ID] [--out PATH]` | 시험 생성 결과와 복구 | |
 | `trial remove RESULT_ID [--yes]` | 시험 생성 결과 지우기 | **지움** |
-| `voices list [--provider ID] [--channel NAME \| --channel-id ID] [--favorite] [--frequent]` / `voices show REF` / `voices check` | 담은 성우. `ref`가 `--voice` 값 | |
+| `voices list [--provider ID] [--channel NAME \| --channel-id ID] [--favorite] [--frequent] [--preset] [--q TEXT] [--category-id ID]... [--type-id ID]... [--gender KEY] [--age KEY] [--content KEY]... [--mood KEY]... [--sort recent\|used\|count\|name\|popular]` / `voices show REF` / `voices check` | 담은 성우. `ref`가 `--voice` 값. 모르는 키를 주면 2와 함께 쓸 수 있는 키를 알린다 | |
 | `voices save REF` / `voices update REF` `[--favorite\|--no-favorite] [--frequent\|--no-frequent] [--memo TEXT]` | 담기·고치기. `update`는 `[--channel-id ID\|none]... [--classification-id ID\|none]...`도 받고 준 종류를 통째로 바꾼다 | |
 | `voices remove REF [--yes]` | 보관함에서 빼기 | **지움** |
 | `channels`·`categories`·`types` `list` / `create --name NAME [--memo TEXT]` / `update ID [--name] [--memo]` | 채널과 분류(채널만 `--link URL`) | |
@@ -44,10 +44,13 @@ description: 터미널에서 작업실(TTS Pilot)의 성우를 찾고 담고, �
 | `numbers check (--input FILE\|- \| --work FILE.json \| --script-id ID)` / `numbers apply … --out FILE [--certain] [--decisions FILE.json] [--overwrite]` | 한국어 숫자 검수와 교정 | |
 | `drama generate --input FILE.json\|FILE.txt --out FILE.wav [--voice NAME=REF]... [--model M] [--yes] [--new] [--overwrite] [--dry-run]` | Fish Audio 장면 하나를 만들어 WAV로 | **요금이 나올 수 있음** |
 | `drama list` / `drama download RESULT_ID --out FILE.wav [--overwrite]` / `drama resume [REQUEST_ID] [--out FILE.wav] [--overwrite]` | 테이크 목록, 받기, 응답을 잃은 요청 확인 | |
-| `drama split RESULT_ID --out-dir DIR [--overwrite]` | 줄마다 `001-화자.wav` | `list`의 `split`이 참인 테이크만 |
+| `drama split RESULT_ID --out-dir DIR [--join FILE.wav [--input FILE.json]] [--overwrite]` | 줄마다 `001-화자.wav`, `--join`이면 쉼을 넣어 한 WAV로도(쉼은 `--input` 장면 파일, 없으면 0.3초) | `list`의 `split`이 참인 테이크만. `--join`은 ffmpeg나 afconvert 필요 |
 | `drama remove RESULT_ID [--yes]` | 테이크 지우기 | **지움** |
 | `drama read --input FILE.json --out-dir DIR [--only 1,3-5] [--join FILE.wav] [--yes] [--overwrite] [--retry-unconfirmed] [--dry-run]` | 줄마다 시험 생성으로 읽기(다섯 공급자) | **요금이 나올 수 있음** |
 | `drama autotag --input FILE.json --out FILE.json [--yes] [--overwrite] [--dry-run]` | 자동 태그를 적용한 장면 파일 | **요금(최대 4회)** |
+| `clones list` / `clones check ID` / `clones save ID` / `clones resume [REQUEST_ID]` | 내 보이스(클론) 목록, 처리 중 확인, 보관함에 다시 담기, 응답을 잃은 요청 확인 | |
+| `clones create --provider fish_audio\|gemini --name NAME --source FILE.wav [--consent-audio FILE.wav] --consent [--yes] [--new] [--dry-run]` | 본인 목소리 클론 만들기 | **공급자 계정에 남음, 요금 정보 없음, 본인 동의** |
+| `clones remove ID [--yes]` | 공급자 계정에서도 지우기 | **지움, 되돌릴 수 없음** |
 
 ## 에이전트 규칙
 
@@ -64,13 +67,15 @@ description: 터미널에서 작업실(TTS Pilot)의 성우를 찾고 담고, �
 11. `batch`가 6이면 `paragraphs`의 요청을 `studio resume`으로 확인한다. `--retry-unconfirmed`는 요금이 다시 나올 수 있으니 사용자가 그 문단에 대해 따로 승인할 때만 쓴다.
 12. `studio autotag` 전에는 `--dry-run --json`의 `batches`와 `maxCalls`를 보이고 승인을 받는다. 실패 JSON에 `remaining`이 있으면 `out` 파일로 그 문단만 이어 받는다(새 승인 필요). 다시 부르는 것은 사용자가 정한다.
 13. 자동 태그·숫자 결과 작업 JSON은 파일일 뿐이다. 대본에 남기려면 `scripts save ID --version N --work FILE.json`을 쓴다.
-14. 드라마 장면 파일은 `{ version: 1, sceneName?, speakers: [{ name, voice?, presetId? }], lines: [{ speaker, direction?, text, feel? }], model?, settings? }`이고 `speaker`는 0부터 센다. 실패 JSON의 `lines`에 잘못된 줄 번호와 이유가 모두 있다. `drama read`는 10·11번을 문단 대신 줄로 따르고 `trial resume`으로 확인한다. `drama autotag`는 12번과 같다.
+14. 드라마 장면 파일은 `{ version: 1, sceneName?, gap?, speakers: [{ name, voice?, presetId? }], lines: [{ speaker, direction?, text, feel?, gap? }], model?, settings? }`이고 `speaker`는 0부터 센다. `gap`은 쉼(초, 0~5의 0.1 단위)이고 줄 → 장면 → 0.3초 순서로 잇는 데만 쓴다(바꿔도 다시 만들지 않는다). 실패 JSON의 `lines`에 잘못된 줄 번호와 이유가 모두 있다. `drama read`는 10·11번을 문단 대신 줄로 따르고 `trial resume`으로 확인한다. `drama autotag`는 12번과 같다.
+15. `--consent`는 사용자가 동의 문장(`--consent` 없이 실행하면 stderr에 보인다)을 읽고 그 파일과 공급자에 대해 직접 동의했을 때만 붙인다. 다른 승인(`--yes`)으로 대신하지 않는다. `clones create`는 `--dry-run --json`으로 검사한 뒤 보낼 것·가는 곳·요금 정보 없음을 보이고 승인을 받아야 `--yes`를 붙인다.
+16. `clones create`가 6이면 다시 만들지 않는다. `requestId`가 있으면 `clones resume`, `cloneId`가 있으면 `clones list`의 그 줄을 사용자에게 알린다. 사용자가 공급자 웹에서 확인하고 `clones remove`로 치운 뒤 따로 승인할 때만 다시 만들거나 `--new`를 쓴다. 7(`OUTPUT_STOPPED`)이면 `clones list`로 본다.
 
 `estimate.unit`: `credit` 크레딧, `byte` 바이트, `usd_micro` 추정 백만분의 1달러, `free` 무료. `rateKnown`이 거짓이면 ElevenLabs 배율을 확인하지 못한 값이다.
 
 ## 종료 코드
 
-0 성공, 2 입력·확인 필요(같은 이름·판 충돌 포함), 3 로그인·소유자, 4 찾을 수 없음·이용 불가, 5 공급자·서비스 실패, 6 처리 여부 미확인, 7 로컬 파일 실패. 실패 JSON은 `{ code, message, reason?, retryAt?, requestId?, resultId?, paragraph?, paragraphs?, line?, lines?, out?, remaining? }`이고 `retryAt` 전에는 다시 부르지 않는다.
+0 성공, 2 입력·확인 필요(같은 이름·판 충돌 포함), 3 로그인·소유자, 4 찾을 수 없음·이용 불가, 5 공급자·서비스 실패, 6 처리 여부 미확인, 7 로컬 파일 실패. 실패 JSON은 `{ code, message, reason?, retryAt?, requestId?, resultId?, cloneId?, paragraph?, paragraphs?, line?, lines?, out?, remaining? }`이고 `retryAt` 전에는 다시 부르지 않는다.
 
 ## 예시
 

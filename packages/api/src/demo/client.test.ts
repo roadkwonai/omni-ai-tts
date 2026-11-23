@@ -475,7 +475,8 @@ describe.skipIf(!url)("데모 Context로 모든 프로시저(T15-a2 Task 1b)", (
 		);
 	});
 
-	it("내 보이스: 목록은 클론 불가, 처리 중 클론의 확인·지우기는 no_key, 다시 담기는 NOT_FOUND", async () => {
+	it("내 보이스: 목록은 클론 불가, 요청 조회는 행 그대로, 처리 중 클론의 확인·지우기는 no_key, 다시 담기는 NOT_FOUND", async () => {
+		const requestId = crypto.randomUUID();
 		const [row] = await db
 			.insert(myVoice)
 			.values({
@@ -484,7 +485,7 @@ describe.skipIf(!url)("데모 Context로 모든 프로시저(T15-a2 Task 1b)", (
 				providerVoiceId: "fa_clone",
 				name: "시드 클론",
 				status: "processing",
-				requestId: crypto.randomUUID(),
+				requestId,
 				fingerprint: "f",
 				consentAt: new Date(),
 				consentVersion: "v1",
@@ -495,6 +496,13 @@ describe.skipIf(!url)("데모 Context로 모든 프로시저(T15-a2 Task 1b)", (
 			fish_audio: false,
 			gemini: false,
 		});
+		expect(await demo.myVoiceRequest({ requestId })).toMatchObject({
+			id,
+			status: "processing",
+		});
+		expect(
+			await demo.myVoiceRequest({ requestId: crypto.randomUUID() }),
+		).toBeNull();
 		for (const call of [
 			() => demo.myVoiceCheck({ id }),
 			() => demo.myVoiceDelete({ id }),

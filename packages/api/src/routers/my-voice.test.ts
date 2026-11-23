@@ -9,7 +9,15 @@ import { voicePreset } from "@tts-pilot-app/db/schema/preset";
 import { providerCooldown } from "@tts-pilot-app/db/schema/provider-cache";
 import { savedVoice } from "@tts-pilot-app/db/schema/saved-voice";
 import { eq } from "drizzle-orm";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import {
+	afterAll,
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	vi,
+} from "vitest";
 
 import type { Context } from "../context";
 import { wavHeader } from "../drama-script";
@@ -345,6 +353,152 @@ describe.skipIf(!url)("내 보이스 만들기 myVoiceCreate", () => {
 			"ready",
 			"unknown",
 		]);
+	});
+});
+
+describe.skipIf(!url)("내 보이스 요청 조회 myVoiceRequest(T21)", () => {
+	beforeEach(clean);
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+	afterAll(clean);
+
+	const seed = async (over: Partial<typeof myVoice.$inferInsert> = {}) => {
+		const [row] = await db
+			.insert(myVoice)
+			.values({
+				ownerId: OWNER,
+				provider: "fish_audio",
+				name: "요청한 목소리",
+				status: "sending",
+				requestId: crypto.randomUUID(),
+				fingerprint: "x",
+				consentAt: new Date(),
+				consentVersion: "2026-11-18",
+				...over,
+			})
+			.returning();
+		return row as typeof myVoice.$inferSelect;
+	};
+
+	it.each([
+		["sending", null, null],
+		["processing", FISH_ID, null],
+		["ready", FISH_ID, null],
+		["failed", FISH_ID, "quality"],
+		["unknown", null, "unknown_outcome"],
+		["deleting", FISH_ID, "rate_limit"],
+	] as const)(
+		"%s 행을 그대로 읽는다: 공급자 0회·쓰기 0·보관함 담기 0",
+		async (status, providerVoiceId, reason) => {
+			const row = await seed({ status, providerVoiceId, reason });
+			const item = await me.myVoiceRequest({ requestId: row.requestId });
+			expect(item).toMatchObject({
+				id: row.id,
+				name: "요청한 목소리",
+				status,
+				reason,
+				savedVoiceId: null,
+				presets: [],
+			});
+			expect(item?.voice?.voiceId ?? null).toBe(
+				status === "ready" ? FISH_ID : null,
+			);
+			// 목록 줄과 같은 계약이다(내부 칸 없음)
+			expect(item).toEqual((await me.myVoiceList()).items[0]);
+			expect(await rowOf(row.id)).toEqual(row);
+			expect(await savedRows()).toEqual([]);
+			expect(fetchMock).not.toHaveBeenCalled();
+		},
+	);
+
+	it("5분 넘은 sending만 unknown·unknown_outcome으로 읽고 행은 sending 그대로", async () => {
+		const row = await seed();
+		const read = (age: number) => {
+			vi.spyOn(Date, "now").mockReturnValue(row.createdAt.getTime() + age);
+			return me.myVoiceRequest({ requestId: row.requestId });
+		};
+		expect(await read(5 * 60_000)).toMatchObject({
+			status: "sending",
+			reason: null,
+		});
+		expect(await read(5 * 60_000 + 1)).toMatchObject({
+			status: "unknown",
+			reason: "unknown_outcome",
+		});
+		expect(await rowOf(row.id)).toEqual(row);
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it("오래된 processing은 미확인으로 바꾸지 않는다", async () => {
+		const row = await seed({
+			status: "processing",
+			providerVoiceId: FISH_ID,
+			createdAt: new Date(Date.now() - 60 * 60_000),
+		});
+		expect(await me.myVoiceRequest({ requestId: row.requestId })).toMatchObject(
+			{ status: "processing", reason: null },
+		);
+	});
+
+	it("보관함 행과 쓰는 프리셋 이름이 목록과 같다. 보관함에서 빼면 null이고 다시 담지 않는다", async () => {
+		fetchMock.mockResolvedValueOnce(json(201, fishModel()));
+		const input = fishInput();
+		const made = await me.myVoiceCreate(input);
+		for (const name of ["해설", "낭독"])
+			await me.presetCreate({
+				name,
+				channelId: null,
+				channelDefault: false,
+				voice: made.voice as Voice,
+				provider: "fish_audio",
+				settings: DEFAULT_SETTINGS.fish_audio,
+			});
+		fetchMock.mockClear();
+		const { requestId } = input;
+		expect(await me.myVoiceRequest({ requestId })).toEqual({
+			...made,
+			presets: ["낭독", "해설"],
+		});
+		await me.savedVoiceRemove({ id: made.savedVoiceId as string });
+		expect(await me.myVoiceRequest({ requestId })).toEqual({
+			...made,
+			savedVoiceId: null,
+			presets: [],
+		});
+		expect(await savedRows()).toEqual([]);
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it("만드는 중에 부르면 sending이고 만들기를 방해하지 않는다", async () => {
+		const held = gate();
+		fetchMock.mockReturnValueOnce(held.promise);
+		const input = fishInput();
+		const making = me.myVoiceCreate(input);
+		await expect.poll(() => calls("POST")).toBe(1);
+		const { requestId } = input;
+		expect(await me.myVoiceRequest({ requestId })).toMatchObject({
+			status: "sending",
+		});
+		held.release(json(201, fishModel()));
+		const made = await making;
+		expect(await me.myVoiceRequest({ requestId })).toEqual(made);
+		expect(
+			await me.myVoiceRequest({ requestId: crypto.randomUUID() }),
+		).toBeNull();
+		expect(calls("POST")).toBe(1);
+	});
+
+	it("uuid가 아니면 BAD_REQUEST, 공급자 키가 없어도 읽는다", async () => {
+		await expect(me.myVoiceRequest({ requestId: "x" })).rejects.toMatchObject({
+			code: "BAD_REQUEST",
+		});
+		const row = await seed();
+		expect(
+			await as(OWNER, { providers: createProviders({}) }).myVoiceRequest({
+				requestId: row.requestId,
+			}),
+		).toMatchObject({ id: row.id });
 	});
 });
 

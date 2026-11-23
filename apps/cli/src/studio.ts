@@ -38,6 +38,7 @@ import {
 	onInterrupt,
 	type PaidOptions,
 	recover,
+	resultOf,
 	runPaid,
 	show,
 	showRecords,
@@ -258,7 +259,7 @@ export async function resume(
 	await checkKind("studio", options.url, requestId);
 	const connection = await connect(options.url);
 	const kind = studioKind(options);
-	const result = await recover(kind, connection, requestId);
+	const result = resultOf(await recover(kind, connection, requestId));
 	if (out !== undefined) return kind.finish(connection, "resumed", result.id);
 	show(json, {
 		origin: connection.origin,

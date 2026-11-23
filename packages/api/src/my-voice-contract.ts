@@ -74,6 +74,7 @@ export const myVoiceCreateInputSchema = z.object({
 	consentAudio: z.file().max(CONSENT_BYTES_MAX).optional(),
 });
 export const myVoiceIdInputSchema = z.object({ id: z.uuid() });
+export const myVoiceRequestInputSchema = z.object({ requestId: z.uuid() });
 
 export const myVoiceSchema = z.object({
 	id: z.uuid(),

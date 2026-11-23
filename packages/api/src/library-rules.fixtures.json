@@ -1,0 +1,134 @@
+{
+	"rules": {
+		"genderLabel": "female,여성 male,남성 neutral,중성",
+		"ageKeyLabel": "child,어린이 teenager,청소년 young,청년 middle,중년 old,노년",
+		"providerKeys": [
+			"child,child teenager,teenager young_adult,young middle_age,middle elder,old",
+			"young,young middle_aged,middle middle-aged,middle old,old",
+			"female,female male,male",
+			"young,young middle-aged,middle old,old"
+		],
+		"elDescriptive": [
+			18,
+			"fdeb481ea499c76ac4cc297d6451e1c74c156493acdf9e59769366dd89c47c2d"
+		],
+		"fishMood": [
+			16,
+			"3c8916e049daec0f142df65d14130dbec6c58d7e02f823fe87e0ea834b1f73d0"
+		],
+		"contentTags": [
+			9,
+			"4003631a58b07d70a0656da7202a3a7e4a0ae8f48e7fbd1361786e320b65ddaf"
+		],
+		"moodTags": [
+			"calm 차분함 | calm | calm | 0",
+			"casual 편안함 | casual |  | 0",
+			"confident 자신감 | confident | confident | 0",
+			"crisp 또렷함 | crisp | clear | 0",
+			"gentle 다정함 | gentle | gentle | 0",
+			"classy 고급스러움 | classy |  | 0",
+			"deep 깊음 | deep | deep | 0",
+			"neutral 담담함 | neutral |  | 0",
+			"relaxed 느긋함 | relaxed |  | 0",
+			"cute 귀여움 | cute |  | 0",
+			"serious 진지함 | serious |  | 0",
+			"upbeat 밝고 경쾌함 | upbeat | energetic,bright,cheerful | 0",
+			"formal 격식 | formal |  | 0",
+			"chill 여유로움 | chill |  | 0",
+			"soft 부드러움 | soft | soft | 0",
+			"professional 전문적 | professional | professional | 0",
+			"pleasant 상냥함 | pleasant |  | 0",
+			"mature 성숙함 | mature |  | 0",
+			"friendly 친근함 |  | friendly | 0",
+			"expressive 표현력 |  | expressive | 0",
+			"smooth 매끄러움 |  | smooth | 0",
+			"warm 따뜻함 |  | warm | 0",
+			"playful 장난스러움 |  | playful | 0",
+			"authoritative 권위 있음 |  | authoritative | 0"
+		],
+		"librarySorts": [
+			"recent 최근 담은 순",
+			"used 최근 쓴 순",
+			"count 사용 횟수순",
+			"name 이름순",
+			"popular 서비스 인기순"
+		],
+		"emptyFilters": "{\"q\":\"\",\"view\":\"all\",\"provider\":null,\"channel\":[],\"category\":[],\"type\":[],\"gender\":null,\"age\":null,\"content\":[],\"mood\":[],\"sort\":\"recent\"}",
+		"keyLabels": [
+			"young,청년 middle_aged,중년 middle-aged,중년 old,노년",
+			"a,모르는 키"
+		],
+		"labelOf": ["남성", "x"],
+		"providerValue": ["middle_aged", "elder", null, null],
+		"anyOf": [true, false, false, true, false],
+		"keysOf": [
+			"t1 / female / young / narration,entertainment / ",
+			"t2 / male / middle / news / ",
+			"t3 / neutral / old / entertainment / ",
+			"t4 /  / child /  / ",
+			"t5 / male /  /  / ",
+			"e1 / female / middle / narration,conversation / calm,upbeat",
+			"e2 / male / middle / ads,social / casual,deep",
+			"e3 / female / young /  / ",
+			"f1 / female / young / narration / calm,upbeat",
+			"f2 / male / old / ads,entertainment / deep",
+			"f3 /  / middle /  / upbeat,professional",
+			"a1 / female /  /  / ",
+			"g1 / female /  / conversation,education,ads / ",
+			"g2 / male /  / entertainment / "
+		],
+		"foldName": ["news", "경제 한 입", "하늘", "àbc", ""],
+		"filterSaved": {
+			"none": "t1 t2 t3 t4 t5 e1 e2 e3 f1 f2 f3 a1 g1 g2",
+			"viewFavorite": "t1 e1 f2",
+			"viewFrequent": "t2 e1",
+			"viewPreset": "t2 f2 g1",
+			"provider": "f1 f2 f3",
+			"channel": "t1 e2",
+			"channelOr": "t1 e2 f1 g1",
+			"category": "t2 t3 e2",
+			"type": "t3 f2",
+			"categoryAndType": "t3 e2",
+			"genderFemale": "t1 e1 e3 f1 a1 g1",
+			"genderNeutral": "t3",
+			"genderUnknown": "",
+			"ageChild": "t4",
+			"ageYoung": "t1 e3 f1",
+			"ageMiddle": "t2 e1 e2 f3",
+			"ageOld": "t3 f2",
+			"people": "t2 e2",
+			"contentNarration": "t1 e1 f1",
+			"contentOr": "t2 e2 f2 g1",
+			"contentUnknown": "",
+			"moodCalm": "e1 f1",
+			"moodBright": "e1 e2 f1 f2 f3",
+			"tagsAnd": "e1 e2 f1 f2",
+			"q": "t1",
+			"qCase": "e1",
+			"qMemo": "f2",
+			"qMemoCase": "t3",
+			"qNfd": "f1 f2",
+			"qBlank": "t1 t2 t3 t4 t5 e1 e2 e3 f1 f2 f3 a1 g1 g2",
+			"qNone": "",
+			"mixed": "e2",
+			"sortIgnored": "t1 e1 f2"
+		},
+		"filterSavedNoPresets": "",
+		"sortSaved": {
+			"recent": "t1 t2 t3 t4 t5 e1 e2 e3 f1 f2 f3 a1 g1 g2",
+			"used": "e1 g1 t1 t4 f1 t2 t3 t5 e2 e3 f2 f3 a1 g2",
+			"count": "f1 t1 t2 e1 g1 t3 t4 t5 e2 e3 f2 f3 a1 g2",
+			"name": "g2 t3 t5 t1 t4 a1 t2 f1 f2 f3 e2 g1 e1 e3",
+			"popular": "e2 e1 f2 f1 t1 t2 t3 t4 t5 e3 f3 a1 g1 g2"
+		},
+		"sortSavedReversed": {
+			"recent": "g2 g1 a1 f3 f2 f1 e3 e2 e1 t5 t4 t3 t2 t1",
+			"used": "g1 e1 t4 t1 f1 g2 a1 f3 f2 e3 e2 t5 t3 t2",
+			"count": "f1 t2 t1 g1 e1 g2 a1 f3 f2 e3 e2 t5 t4 t3",
+			"name": "g2 t3 t5 t1 t4 a1 t2 f2 f1 f3 e2 g1 e1 e3",
+			"popular": "e2 e1 f2 f1 g2 g1 a1 f3 e3 t5 t4 t3 t2 t1"
+		},
+		"sortSavedPure": true,
+		"isSilent": [true, true, false, false, true, true, false, true]
+	}
+}

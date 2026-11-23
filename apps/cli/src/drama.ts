@@ -67,7 +67,7 @@ import {
 	requestOf as trialRequestOf,
 	utf8Bytes,
 } from "@tts-pilot-app/api/providers/trial-options";
-import { GAP_DEFAULT } from "@tts-pilot-app/api/sound-join";
+import { GAP_DEFAULT, GAP_MAX, gapOf } from "@tts-pilot-app/api/sound-join";
 import type { StudioResult } from "@tts-pilot-app/api/studio-contract";
 import {
 	CALLS_PER_BATCH,
@@ -129,6 +129,7 @@ import {
 	onInterrupt,
 	recover,
 	releaseOrWarn,
+	resultOf,
 	runRequest,
 	show,
 	showRecords,
@@ -141,11 +142,13 @@ import { parseRef } from "./voices.js";
 import { type Check, judge, onlyOf, onlyText } from "./work.js";
 
 type Speaker = { name: string; voice?: string; presetId?: string };
-type Line = Omit<DraftLine, "id" | "gap">;
+type Line = Omit<DraftLine, "id">;
 // 장면·읽기 파일의 정리된 값. 빠진 칸은 없는 채로 둔다
 export type Scene = {
 	version: 1;
 	sceneName?: string;
+	// 줄 뒤 쉼의 장면 기본(초). 잇는 데만 쓴다
+	gap?: number;
 	speakers: Speaker[];
 	lines: Line[];
 	model?: DramaModel;
@@ -162,6 +165,12 @@ const unknownKeys = (value: Raw, allowed: readonly string[]) =>
 const isModel = (value: unknown): value is DramaModel =>
 	DRAMA_MODELS.some((model) => model === value);
 const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+// 쉼은 0~5초, 0.1초 단위의 수다. 맞추지 않고 거절한다
+const isGap = (value: unknown): value is number | undefined =>
+	value === undefined || (typeof value === "number" && gapOf(value) === value);
+// 줄 뒤의 쉼: 줄 → 장면 → 기본(웹과 같다)
+const gapAfter = (scene: Scene | undefined, n: number) =>
+	scene?.lines[n - 1]?.gap ?? scene?.gap ?? GAP_DEFAULT;
 
 type Bad = { n: number; reason: string };
 // 잘못된 줄을 모두 알린다
@@ -200,8 +209,10 @@ function speakerOf(value: unknown, n: number): Speaker {
 function lineOf(value: unknown, speakers: number): Line | string {
 	const raw = objectOf(value);
 	if (!raw) return "모양";
-	const { speaker, direction = "", text, feel } = raw;
-	const unknown = unknownKeys(raw, ["speaker", "direction", "text", "feel"]);
+	const { speaker, direction = "", text, feel, gap } = raw;
+	const unknown = unknownKeys(raw, [
+		...["speaker", "direction", "text", "feel", "gap"],
+	]);
 	if (unknown.length) return `모르는 칸 ${unknown.join(", ")}`;
 	if (
 		typeof speaker !== "number" ||
@@ -214,11 +225,13 @@ function lineOf(value: unknown, speakers: number): Line | string {
 	if (typeof text !== "string") return "대사";
 	const parsed = feelSchema.optional().safeParse(feel);
 	if (!parsed.success) return "감정";
+	if (!isGap(gap)) return "쉼";
 	return {
 		speaker,
 		direction,
 		text,
 		...(parsed.data ? { feel: parsed.data } : {}),
+		...(gap === undefined ? {} : { gap }),
 	};
 }
 // 모양이 틀린 줄(bad)은 빈 줄로 자리만 두고, 쓰는 명령이 글의 오류와 함께 알린다
@@ -228,14 +241,17 @@ function sceneOf(value: unknown): Read {
 	const raw = objectOf(value);
 	if (raw?.version !== 1)
 		throw input("장면 파일은 version이 1인 JSON 객체여야 합니다.");
-	const { sceneName, speakers, lines, model, settings } = raw;
+	const { sceneName, gap, speakers, lines, model, settings } = raw;
 	const unknown = unknownKeys(raw, [
-		...["version", "sceneName", "speakers", "lines", "model", "settings"],
+		...["version", "sceneName", "gap", "speakers", "lines", "model"],
+		"settings",
 	]);
 	if (unknown.length)
 		throw input(`장면 파일에 모르는 칸이 있습니다: ${unknown.join(", ")}`);
 	if (sceneName !== undefined && typeof sceneName !== "string")
 		throw input("sceneName을 확인해 주세요.");
+	if (!isGap(gap))
+		throw input(`gap은 0~${GAP_MAX}초, 0.1초 단위의 수여야 합니다.`);
 	if (model !== undefined && !isModel(model))
 		throw input(`model은 ${DRAMA_MODELS.join(", ")} 중 하나여야 합니다.`);
 	const given = settings === undefined ? {} : objectOf(settings);
@@ -266,6 +282,7 @@ function sceneOf(value: unknown): Read {
 	const scene: Scene = {
 		version: 1,
 		...(sceneName === undefined ? {} : { sceneName }),
+		...(gap === undefined ? {} : { gap }),
 		speakers: who,
 		lines: said,
 		...(model === undefined ? {} : { model }),
@@ -603,13 +620,33 @@ export async function dramaDownload(id: string, args: Args) {
 	);
 }
 
+// 링크로 본 같은 폴더나 대소문자·한글 조합만 다른 이름도 같은 파일일 수 있다
+function checkJoin(joined: string, dir: string, files: readonly string[]) {
+	const fold = (name: string) => name.normalize("NFC").toLowerCase();
+	if (
+		realpathSync.native(dirname(joined)) === realpathSync.native(dir) &&
+		files.some((file) => fold(file) === fold(basename(joined)))
+	)
+		throw input("--join은 줄 파일과 다른 경로여야 합니다.");
+}
 const cannotSplit = (message: string, resultId: string) =>
 	new ClientError("NOT_SPLIT", 4, message, { resultId });
 export async function dramaSplit(id: string, args: Args) {
 	const { json, url, text, flag } = args;
 	const dir = resolve(text("out-dir") ?? "");
 	const overwrite = flag("overwrite");
+	const joined = text("join");
+	const path = text("input");
 	checkFolder(dir, "--out-dir의 폴더");
+	if (path !== undefined && joined === undefined)
+		throw input("--input의 쉼은 --join과 함께 씁니다.");
+	const draft = path === undefined ? undefined : await readDraft(path);
+	if (draft?.bad.length) throw badLines(draft.bad);
+	const scene = draft?.scene;
+	if (joined !== undefined) {
+		checkOut(joined, overwrite, [".wav"], "--join");
+		decoderOf();
+	}
 	const connection = await connect(url);
 	const take = (await takesOf(connection)).find((item) => item.id === id);
 	if (!take)
@@ -622,6 +659,10 @@ export async function dramaSplit(id: string, args: Args) {
 	const { request, segments } = take;
 	if (!splitOk(take) || !segments)
 		throw cannotSplit("줄 구간이 줄과 맞지 않아 나눌 수 없습니다.", id);
+	if (scene && scene.lines.length !== request.lines.length)
+		throw input(
+			`장면 파일의 줄 수가 테이크와 다릅니다(${scene.lines.length}/${request.lines.length}줄).`,
+		);
 	const cuts = request.lines.map((line, i) => {
 		const speaker = request.speakers[line.speaker]?.name ?? "";
 		const file = `${String(i + 1).padStart(3, "0")}-${safeName(speaker)}.wav`;
@@ -635,6 +676,12 @@ export async function dramaSplit(id: string, args: Args) {
 		throw input(
 			`이미 있는 파일이 있습니다: ${taken.map(({ file }) => file).join(", ")}. 바꾸려면 --overwrite를 쓰세요.`,
 		);
+	if (joined !== undefined)
+		checkJoin(
+			joined,
+			dir,
+			cuts.map(({ file }) => file),
+		);
 	onInterrupt(() => downloadStopped("drama", id));
 	const parts: Uint8Array[] = [];
 	const source = await takeParts(connection, id);
@@ -644,30 +691,69 @@ export async function dramaSplit(id: string, args: Args) {
 		throw downloadFailed(error, id, "drama");
 	}
 	const wav = new Uint8Array(Buffer.concat(parts));
+	const bodies = segments.map((span) => Buffer.concat(cutWav(wav, span)));
+	// 잇기를 끝낸 뒤에 게시한다
+	const whole =
+		joined === undefined
+			? undefined
+			: await joinSounds(
+					(async function* () {
+						for (const [i, bytes] of bodies.entries())
+							yield {
+								bytes,
+								mime: MIME[".wav"],
+								gap: gapAfter(scene, i + 1),
+							};
+					})(),
+				);
+	const wholeBytes =
+		whole && Buffer.from(await new Blob(whole.chunks).arrayBuffer());
 	const fresh: string[] = [];
 	const lines = [];
+	// 게시는 동기라 Ctrl+C가 끼어들지 않는다
 	try {
 		for (const [i, { n, speaker, file, out }] of cuts.entries()) {
-			const span = segments[i];
-			if (!span) throw new Error("줄 구간이 없다");
-			const body = Buffer.concat(cutWav(wav, span));
+			const body = bodies[i];
+			if (!body) throw new Error("줄 구간이 없다");
 			const isNew = fileSize(out, file) === undefined;
 			saveBytes(out, overwrite, body);
 			if (isNew) fresh.push(out);
 			lines.push({ n, speaker, out, bytes: body.byteLength });
 		}
+		if (joined !== undefined && wholeBytes)
+			saveBytes(joined, overwrite, wholeBytes);
 	} catch (error) {
 		// 이번에 새로 만든 조각을 남기지 않는다
 		for (const path of fresh) rmSync(path, { force: true });
 		throw downloadFailed(error, id, "drama");
 	}
+	const made =
+		joined === undefined || !whole || !wholeBytes
+			? undefined
+			: {
+					out: resolve(joined),
+					bytes: wholeBytes.byteLength,
+					seconds: whole.spans.at(-1)?.end ?? 0,
+					lines: lines.map(({ n }, i) => ({ n, ...whole.spans[i] })),
+				};
 	print(
 		json,
-		{ origin: connection.origin, resultId: id, outDir: dir, lines },
-		table(
-			["줄", "화자", "파일"],
-			lines.map(({ n, speaker, out }) => [n, speaker, out]),
-		),
+		{
+			origin: connection.origin,
+			resultId: id,
+			outDir: dir,
+			lines,
+			...(made ? { join: made } : {}),
+		},
+		[
+			table(
+				["줄", "화자", "파일"],
+				lines.map(({ n, speaker, out }) => [n, speaker, out]),
+			),
+			...(made
+				? [`결합 ${clean(made.out)} (${made.seconds.toFixed(1)}초)`]
+				: []),
+		].join("\n"),
 	);
 }
 
@@ -845,15 +931,12 @@ export async function dramaRead(args: Args) {
 			result: hit ? { id: hit.id } : undefined,
 		};
 	});
-	// 링크로 본 같은 폴더나 대소문자만 다른 이름도 같은 파일일 수 있다
-	if (
-		joined !== undefined &&
-		realpathSync.native(dirname(joined)) === realpathSync.native(dir) &&
-		jobs.some(
-			({ n, mime }) => fileName(n, mime) === basename(joined).toLowerCase(),
-		)
-	)
-		throw input("--join은 줄 파일과 다른 경로여야 합니다.");
+	if (joined !== undefined)
+		checkJoin(
+			joined,
+			dir,
+			jobs.map(({ n, mime }) => fileName(n, mime)),
+		);
 	if (!retry && !dryRun)
 		refuseUnconfirmed(
 			LINE,
@@ -915,7 +998,9 @@ export async function dramaRead(args: Args) {
 		},
 	);
 	const result =
-		joined === undefined ? null : await joinLines(done, joined, overwrite);
+		joined === undefined
+			? null
+			: await joinLines(done, scene, joined, overwrite);
 	print(
 		json,
 		{
@@ -936,19 +1021,20 @@ export async function dramaRead(args: Args) {
 // 받은 줄 파일을 드라마 쉼으로 잇는다
 async function joinLines(
 	done: readonly Done[],
+	scene: Scene,
 	path: string,
 	overwrite: boolean,
 ) {
 	const { chunks, spans } = await joinSounds(
 		(async function* () {
-			for (const { out, mime, resultId } of done) {
+			for (const { n, out, mime, resultId } of done) {
 				let bytes: Buffer;
 				try {
 					bytes = readFileSync(out);
 				} catch (error) {
 					throw downloadFailed(error, resultId, "trial");
 				}
-				yield { bytes, mime, gap: GAP_DEFAULT };
+				yield { bytes, mime, gap: gapAfter(scene, n) };
 			}
 		})(),
 	);
@@ -1238,7 +1324,7 @@ export async function dramaResume(requestId: string | undefined, args: Args) {
 	await checkKind("drama", url, requestId);
 	const connection = await connect(url);
 	const kind = dramaKind(options);
-	const result = await recover(kind, connection, requestId);
+	const result = resultOf(await recover(kind, connection, requestId));
 	if (wanted) return kind.finish(connection, "resumed", result.id);
 	show(json, {
 		origin: connection.origin,

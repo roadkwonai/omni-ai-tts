@@ -380,6 +380,64 @@ describe.skipIf(!url)("드라마 실제 라우터 E2E", { timeout: 60_000 }, () 
 		expect(ws.records()).toEqual([]);
 	});
 
+	it("쉼이 든 장면: 요청은 그대로이고 나누며 잇고, 읽어 잇고, 자동 태그가 쉼을 지킨다(T21)", async () => {
+		segments = [
+			{ text: `하나 ${mark}`, start: 0.1, end: 0.4 },
+			{ text: "둘", start: 0.5, end: 0.9 },
+		];
+		const { id } = json(await run(...gen("--yes"))).result;
+		const [first, second] = scene().lines;
+		const gapped = {
+			...scene(),
+			gap: 1.1,
+			lines: [{ ...first, gap: 2 }, second],
+		};
+		// 쉼이 있어도 같은 장면이라 저장된 테이크를 받는다
+		const same = await run(
+			...["drama", "generate", "--input", file(gapped, "gap.json"), "--json"],
+			...["--out", ws.path("same.wav")],
+		);
+		expect(json(same)).toMatchObject({ source: "saved", result: { id } });
+		expect(synthesizeScene).toHaveBeenCalledTimes(1);
+		const cut = await run(
+			...["drama", "split", id, "--out-dir", ws.path("out"), "--json"],
+			...["--join", ws.path("split.wav"), "--input", ws.path("gap.json")],
+		);
+		expect(cut.code).toBe(0);
+		const gapOf = (lines: { start: number; end: number }[]) =>
+			(lines[1]?.start ?? 0) - (lines[0]?.end ?? 0);
+		// 앞뒤 숨 0.02초씩이 쉼에 든다
+		expect(gapOf(json(cut).join.lines)).toBeCloseTo(1.96, 3);
+		expect(readFileSync(ws.path("split.wav")).length).toBe(
+			json(cut).join.bytes,
+		);
+		const lines = readArgs("--yes", "--join", ws.path("read.wav"));
+		file(
+			{ ...read(), gap: 0.5, lines: read().lines.map((l) => ({ ...l })) },
+			"read.json",
+		);
+		const joined = json(await run(...lines)).join;
+		expect(gapOf(joined.lines)).toBeCloseTo(0.46, 3);
+		suggestActing.mockResolvedValueOnce(
+			JSON.stringify({
+				lines: [
+					{
+						...{ index: 1, direction: "warmly", text: `둘 ${mark}` },
+						...{ emotion: "", intensity: null },
+					},
+				],
+			}),
+		);
+		const tagged = await run(
+			...["drama", "autotag", "--input", ws.path("read.json"), "--yes"],
+			...["--out", ws.path("tagged.json"), "--json"],
+		);
+		expect(tagged.code).toBe(0);
+		expect(JSON.parse(readFileSync(ws.path("tagged.json"), "utf8")).gap).toBe(
+			0.5,
+		);
+	});
+
 	it("공급자가 답하지 않은 줄은 6이고 --retry-unconfirmed만 다시 만든다", async () => {
 		synthesize.mockRejectedValueOnce(trialError("typecast", "unknown_outcome"));
 		const first = await run(...readArgs("--yes"));

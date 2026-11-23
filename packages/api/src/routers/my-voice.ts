@@ -6,7 +6,17 @@ import type { Database } from "@tts-pilot-app/db";
 import { myVoice } from "@tts-pilot-app/db/schema/my-voice";
 import { voicePreset } from "@tts-pilot-app/db/schema/preset";
 import { savedVoice } from "@tts-pilot-app/db/schema/saved-voice";
-import { and, desc, eq, inArray, isNull, lt, ne, sql } from "drizzle-orm";
+import {
+	and,
+	desc,
+	eq,
+	inArray,
+	isNull,
+	lt,
+	ne,
+	type SQL,
+	sql,
+} from "drizzle-orm";
 import { z } from "zod";
 
 import { protectedProcedure } from "../index";
@@ -18,6 +28,7 @@ import {
 	myVoiceCreateInputSchema,
 	myVoiceIdInputSchema,
 	myVoiceListSchema,
+	myVoiceRequestInputSchema,
 	myVoiceSchema,
 } from "../my-voice-contract";
 import type { Voice } from "../providers/contract";
@@ -76,11 +87,11 @@ const expireSending = (db: Database, ownerId: string) =>
 			),
 		);
 
-// 목록 줄. 보관함 행은 (소유자, 공급자, 공급자 id)로 찾고 프리셋은 그 행을 쓰는 이름들이다
+// 목록 줄(only로 한 행만). 보관함 행은 (소유자, 공급자, 공급자 id)로 찾고 프리셋은 그 행을 쓰는 이름들이다
 async function itemsOf(
 	db: Database,
 	ownerId: string,
-	id?: string,
+	only?: SQL,
 ): Promise<MyVoice[]> {
 	const rows = await db
 		.select({
@@ -106,7 +117,7 @@ async function itemsOf(
 				eq(voicePreset.ownerId, m.ownerId),
 			),
 		)
-		.where(id ? mine(ownerId, id) : eq(m.ownerId, ownerId))
+		.where(and(eq(m.ownerId, ownerId), only))
 		.groupBy(m.id, savedVoice.id)
 		.orderBy(desc(m.createdAt));
 	return rows.map(({ row, savedVoiceId, presets }) => ({
@@ -124,7 +135,21 @@ async function itemsOf(
 	}));
 }
 const one = async (db: Database, ownerId: string, id: string) =>
-	found((await itemsOf(db, ownerId, id))[0]);
+	found((await itemsOf(db, ownerId, eq(m.id, id)))[0]);
+
+// 요청 id의 행. 쓰지 않으므로 5분 지난 sending은 목록(expireSending)과 같은 값으로 읽기만 한다
+async function requested(
+	db: Database,
+	ownerId: string,
+	requestId: string,
+): Promise<MyVoice | null> {
+	const [item] = await itemsOf(db, ownerId, eq(m.requestId, requestId));
+	if (!item) return null;
+	return item.status === "sending" &&
+		Date.parse(item.createdAt) < Date.now() - STALE_SENDING_MS
+		? { ...item, status: "unknown", reason: "unknown_outcome" }
+		: item;
+}
 
 async function rowOf(db: Database, ownerId: string, id: string) {
 	const [row] = await db.select().from(m).where(mine(ownerId, id));
@@ -236,6 +261,13 @@ export const myVoiceRouter = {
 				gemini: Boolean(providers?.gemini?.cloneCreate),
 			},
 		})),
+	// 요청 id의 행(T21 CLI 중단 복구). 없거나 남의 것이면 null. 공급자를 부르지 않고 쓰지 않는다
+	myVoiceRequest: protectedProcedure
+		.input(myVoiceRequestInputSchema)
+		.output(myVoiceSchema.nullable())
+		.handler(({ input: { requestId }, context: { db, ownerId } }) =>
+			withStorage(undefined, () => requested(db, ownerId, requestId), PREFIX),
+		),
 	myVoiceCreate: protectedProcedure
 		.input(myVoiceCreateInputSchema)
 		.output(myVoiceSchema)

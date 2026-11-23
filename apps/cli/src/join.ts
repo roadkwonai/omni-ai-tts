@@ -61,7 +61,7 @@ export function decoderOf(): { name: "ffmpeg" | "afconvert"; path: string } {
 }
 
 // RIFF/WAVE의 조각을 차례로 본다
-function wavChunks(bytes: Buffer) {
+export function wavChunks(bytes: Buffer) {
 	if (
 		bytes.length < 12 ||
 		bytes.toString("latin1", 0, 4) !== "RIFF" ||

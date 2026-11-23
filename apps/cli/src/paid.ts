@@ -17,6 +17,7 @@ import {
 	type Connection,
 	currentOrigin,
 	detailOf,
+	type ErrorDetail,
 	manageError,
 	REASON_TEXT,
 	reasonOf,
@@ -53,8 +54,13 @@ export type PaidOptions = {
 };
 export type Source = "created" | "saved" | "resumed";
 export type Found = { id: string; status: "done" | "unknown" };
-// 종류(작업실·시험 생성)마다 다른 것. R은 보낼 요청의 모양이다
-export type Kind<R = TrialRequest> = {
+// 흐름이 읽는 요청의 상태. done·failed 말고는 처리 여부를 모르는 것이다
+export type StatusRow = { id: string; status: string; reason: string | null };
+// 종류(작업실·시험 생성)마다 다른 것. R은 보낼 요청, S는 요청 상태의 모양이다
+export type Kind<
+	R = TrialRequest,
+	S extends StatusRow = StudioRequestStatus,
+> = {
 	name: KindName;
 	// 저장 결과 조회. 배열이 아닌 응답은 던진다
 	find(connection: Connection, request: R): Promise<Found | null>;
@@ -63,10 +69,9 @@ export type Kind<R = TrialRequest> = {
 		connection: Connection,
 		input: { requestId: string; request: R },
 	): Promise<{ id: string }>;
-	status(
-		connection: Connection,
-		requestId: string,
-	): Promise<StudioRequestStatus | null>;
+	status(connection: Connection, requestId: string): Promise<S | null>;
+	// 확정 실패의 오류를 종류가 고른다. raw는 서버가 준 사유, row는 실패로 남은 요청이다. 없으면 공통 글이다
+	failure?(raw: unknown, detail: ErrorDetail, row?: S): ClientError | undefined;
 	// 완료 확인: 응답을 받은 뒤 기록을 지워도 되는가. 던지지 않는다
 	settle(
 		connection: Connection,
@@ -91,7 +96,9 @@ export const unconfirmed = (
 		"UNCONFIRMED",
 		6,
 		message ??
-			`처리 여부를 확인하지 못했습니다. ${kind} resume으로 다시 확인하세요. 새로 만들려면 --new를 쓰세요(요금이 다시 나올 수 있습니다).`,
+			(kind === "clones"
+				? "처리 여부를 확인하지 못했습니다. clones resume으로 다시 확인하세요. 그래도 모르면 공급자 웹에서 확인하고 clones remove로 줄을 치운 뒤 필요할 때만 --new를 쓰세요(클론이 또 만들어질 수 있습니다)."
+				: `처리 여부를 확인하지 못했습니다. ${kind} resume으로 다시 확인하세요. 새로 만들려면 --new를 쓰세요(요금이 다시 나올 수 있습니다).`),
 		{ requestId },
 	);
 export const downloadStopped = (
@@ -99,12 +106,20 @@ export const downloadStopped = (
 	resultId: string,
 	requestId?: string,
 ) =>
-	new ClientError(
-		"DOWNLOAD_STOPPED",
-		7,
-		`내려받기를 멈췄습니다. ${kind} download로 다시 받을 수 있습니다.`,
-		{ ...(requestId ? { requestId } : {}), resultId },
-	);
+	kind === "clones"
+		? // 받을 파일이 없다. 클론은 만들어졌고 알리지 못했을 뿐이다
+			new ClientError(
+				"OUTPUT_STOPPED",
+				7,
+				"결과를 알리기 전에 멈췄습니다. clones list로 확인해 주세요.",
+				{ cloneId: resultId },
+			)
+		: new ClientError(
+				"DOWNLOAD_STOPPED",
+				7,
+				`내려받기를 멈췄습니다. ${kind} download로 다시 받을 수 있습니다.`,
+				{ ...(requestId ? { requestId } : {}), resultId },
+			);
 
 // 지금 Ctrl+C를 누르면 알릴 결과. 선점, 응답, 내려받기 단계마다 바꾼다
 let interrupted: () => ClientError = canceled;
@@ -145,22 +160,23 @@ export async function releaseOrWarn(...args: Parameters<typeof release>) {
 }
 
 // 요청 UUID 하나의 상태만 본다. 합성하지 않는다. 같은 조합의 다른 결과는 이 요청의 완료가 아니다
-export async function recover(
-	kind: Pick<Kind<never>, "name" | "status">,
+export async function recover<S extends StatusRow>(
+	kind: Pick<Kind<never, S>, "name" | "status" | "failure">,
 	connection: Connection,
 	requestId: string,
-): Promise<StudioResult> {
+): Promise<S> {
 	const { origin } = connection;
 	onInterrupt(() => unconfirmed(kind.name, requestId));
 	const row = await kind.status(connection, requestId).catch(() => null);
 	if (row?.status === "done") {
 		onInterrupt(() => downloadStopped(kind.name, row.id));
 		await releaseOrWarn(origin, requestId);
-		const { id, createdAt, usage, bytes } = row;
-		return { id, createdAt, usage, bytes };
+		return row;
 	}
 	if (row?.status === "failed") {
 		await releaseOrWarn(origin, requestId);
+		const failure = kind.failure?.(row.reason, { requestId }, row);
+		if (failure) throw failure;
 		const reason = reasonOf(row.reason);
 		throw new ClientError(
 			"CREATE_FAILED",
@@ -172,6 +188,11 @@ export async function recover(
 	throw unconfirmed(kind.name, requestId);
 }
 
+// 요청 상태에서 알릴 결과 정보만
+export const resultOf = (row: StudioResult): StudioResult => {
+	const { id, createdAt, usage, bytes } = row;
+	return { id, createdAt, usage, bytes };
+};
 export type Output = {
 	origin: string;
 	source: Source;
@@ -256,7 +277,7 @@ const isNotFound = (error: unknown) =>
 	error.code === "NOT_FOUND" &&
 	!detailOf(error).reason;
 async function isRejected(
-	kind: Pick<Kind<never>, "name" | "status">,
+	kind: Pick<Kind<never, StatusRow>, "name" | "status">,
 	connection: Connection,
 	requestId: string,
 	error: unknown,
@@ -286,8 +307,8 @@ async function isRejected(
 export type Mode = "reuse" | "new" | { retry: string | undefined };
 
 // 합성 요청을 보내는 유일한 곳. 먼저 선점하고, 보내는 것은 한 번뿐이다
-export async function create<R>(
-	kind: Kind<R>,
+export async function create<R, S extends StatusRow>(
+	kind: Kind<R, S>,
 	connection: Connection,
 	{ key, provider, request }: { key: string; provider: string; request: R },
 	mode: Mode,
@@ -344,6 +365,9 @@ export async function create<R>(
 					4,
 					"지금 쓸 수 없는 성우입니다.",
 				);
+			const raw = error instanceof ORPCError ? error.data?.reason : undefined;
+			const failure = kind.failure?.(raw, detailOf(error));
+			if (failure) throw failure;
 			rpcError(error);
 		}
 		const unknown = unconfirmed(kind.name, requestId);
@@ -419,15 +443,15 @@ export async function runPaid(
 }
 
 // 종류와 상관없는 흐름. describe는 저장 결과가 없거나 dry-run일 때만 불려 무엇을 만드는지 보인다
-export async function runRequest<R>(
-	kind: Kind<R>,
+export async function runRequest<R, S extends StatusRow>(
+	kind: Kind<R, S>,
 	connection: Connection,
 	target: { key: string; provider: string; request: R },
 	options: PaidOptions,
 	describe: () => Promise<{
 		lines: string[];
 		request: object;
-		estimate: Usage;
+		estimate?: Usage;
 		rateKnown?: boolean;
 		needsConfirm: boolean;
 	}>,

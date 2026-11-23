@@ -21,8 +21,11 @@ import { dramaRequestSchema } from "@tts-pilot-app/api/drama-contract";
 import {
 	type DramaRequest,
 	type LineSpan,
+	wavHeader,
 	wavOf,
 } from "@tts-pilot-app/api/drama-script";
+import { CLONE_SAMPLE_RATE } from "@tts-pilot-app/api/my-voice-contract";
+import { emptyVoice } from "@tts-pilot-app/api/providers/list";
 import {
 	comboSignature,
 	STUDIO_PART_BYTES,
@@ -253,6 +256,56 @@ export async function serve(
 export const bytesOf = (size: number) =>
 	Buffer.from(Uint8Array.from({ length: size }, (_, i) => (i * 7 + 3) % 251));
 
+// 클론 원본: 24kHz 모노 16비트. amp는 모든 샘플의 값, size는 뒤를 채워 맞출 파일 크기다
+export function cloneWav(
+	samples: number,
+	{
+		amp = 8000,
+		rate = CLONE_SAMPLE_RATE,
+		size = 0,
+	}: { amp?: number; rate?: number; size?: number } = {},
+) {
+	const sample = Buffer.alloc(2);
+	sample.writeInt16LE(amp);
+	const bytes = 44 + samples * 2;
+	return Buffer.concat([
+		wavHeader(samples * 2, rate),
+		Buffer.alloc(samples * 2, sample),
+		Buffer.alloc(Math.max(0, size - bytes)),
+	]);
+}
+
+// 같은 소리를 확장형 머리(태그 0xFFFE, fmt 40바이트)로 싼 파일. sub는 하위 형식(1 PCM, 3 실수)이다
+export function extensible(wav: Buffer, sub = 1) {
+	const head = Buffer.alloc(68);
+	wav.copy(head, 0, 0, 36);
+	head.writeUInt32LE(wav.length + 24 - 8, 4);
+	head.writeUInt32LE(40, 16);
+	head.writeUInt16LE(0xfffe, 20);
+	head.writeUInt16LE(22, 36);
+	head.writeUInt16LE(16, 38);
+	head.writeUInt32LE(4, 40);
+	Buffer.from("0000000000001000800000aa00389b71", "hex").copy(head, 44);
+	head.writeUInt16LE(sub, 44);
+	wav.copy(head, 60, 36, 44);
+	return Buffer.concat([head, wav.subarray(44)]);
+}
+export const META = "SECRET-META";
+// 같은 소리에 부가 정보를 더한 파일: 앞의 LIST 조각(홀수 길이)과 data 뒤의 조각·남은 바이트
+export function withMeta(wav: Buffer) {
+	const chunk = (name: string) => {
+		const body = Buffer.from(`INFOINAM${META}\0\0`);
+		const head = Buffer.alloc(8);
+		head.write(name);
+		head.writeUInt32LE(body.length, 4);
+		return Buffer.concat([head, body, Buffer.alloc(body.length % 2)]);
+	};
+	return Buffer.concat([
+		...[wav.subarray(0, 36), chunk("LIST"), wav.subarray(36)],
+		...[chunk("id3 "), Buffer.from(META)],
+	]);
+}
+
 type Row = {
 	kind: "studio" | "trial";
 	request: TrialRequest;
@@ -310,6 +363,8 @@ export function studioWorld() {
 			saved(voiceOf("elevenlabs", "el")),
 		] as object[],
 		presets: [] as object[],
+		channels: [] as object[],
+		classes: [] as object[],
 		scripts: [] as { id: string; work: object }[],
 		// 최근 대본에 남긴 것과 자동 태그로 받은 입력
 		recent: [] as { workId: string; channelId: string | null; work: object }[],
@@ -318,6 +373,36 @@ export function studioWorld() {
 		takes: [] as Take[],
 		scenes: [] as { requestId: string; request: DramaRequest }[],
 		dramaTagged: [] as Any[],
+		// 내 보이스(requestId는 응답에 없다)와 만들기로 받은 입력
+		clones: [] as Any[],
+		cloned: [] as Any[],
+		cloneProviders: { fish_audio: true, gemini: true },
+		// 만들기가 남기는 줄의 값
+		cloneMade: {} as object,
+		clone(over: object = {}) {
+			const row: Any = {
+				requestId: crypto.randomUUID(),
+				id: crypto.randomUUID(),
+				provider: "fish_audio",
+				name: "내 목소리",
+				status: "ready",
+				reason: null,
+				createdAt: new Date().toISOString(),
+				savedVoiceId: null,
+				presets: [],
+				...over,
+			};
+			row.voice =
+				row.status === "ready"
+					? {
+							...emptyVoice(row.provider, "account"),
+							voiceId: `clone-${row.id}`,
+							name: row.name,
+						}
+					: null;
+			w.clones.unshift(row);
+			return row;
+		},
 		take(request: DramaRequest, over: Partial<Take> = {}) {
 			const take: Take = {
 				request,
@@ -398,6 +483,13 @@ export function studioWorld() {
 			(item) => item.kind === kind && item.requestId === requestId,
 		);
 		return row ? { ...out(row), status: row.status, reason: row.reason } : null;
+	};
+	const cloneOf = (id: string, status?: string) => {
+		const row = w.clones.find(
+			(item) => item.id === id && (!status || item.status === status),
+		);
+		if (!row) throw new ORPCError("NOT_FOUND");
+		return row;
 	};
 	const trialOut = (row: Row) => ({
 		id: row.id,
@@ -558,8 +650,43 @@ export function studioWorld() {
 				skipped: 0,
 			};
 		}),
+		myVoiceList: proc("myVoiceList", () => ({
+			items: w.clones,
+			providers: w.cloneProviders,
+		})),
+		myVoiceCreate: proc("myVoiceCreate", async (input) => {
+			const read = async (file?: File) =>
+				file && {
+					name: file.name,
+					type: file.type,
+					bytes: Buffer.from(await file.arrayBuffer()),
+				};
+			const { requestId, provider, name, consent } = input;
+			w.cloned.push({
+				...{ requestId, provider, name, consent },
+				source: await read(input.source),
+				consentAudio: await read(input.consentAudio),
+			});
+			return w.clone({ requestId, provider, name, ...w.cloneMade });
+		}),
+		myVoiceRequest: proc(
+			"myVoiceRequest",
+			({ requestId }) =>
+				w.clones.find((item) => item.requestId === requestId) ?? null,
+		),
+		myVoiceCheck: proc("myVoiceCheck", ({ id }) => cloneOf(id)),
+		myVoiceSave: proc("myVoiceSave", ({ id }) =>
+			Object.assign(cloneOf(id, "ready"), {
+				savedVoiceId: crypto.randomUUID(),
+			}),
+		),
+		myVoiceDelete: proc("myVoiceDelete", ({ id }) => {
+			w.clones.splice(w.clones.indexOf(cloneOf(id)), 1);
+			return { deleted: true };
+		}),
 		savedVoiceList: proc("savedVoiceList", () => w.voices),
-		channelList: proc("channelList", () => []),
+		channelList: proc("channelList", () => w.channels),
+		classificationList: proc("classificationList", () => w.classes),
 		presetList: proc("presetList", () => w.presets),
 		trialModels: proc("trialModels", () => ({
 			rates: [{ model: "eleven_v4", multiplier: 1.5 }],

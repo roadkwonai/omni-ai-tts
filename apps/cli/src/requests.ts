@@ -6,7 +6,7 @@ import {
 import { changeRequests } from "./client.js";
 import type { RequestRecord } from "./session.js";
 
-export type KindName = "studio" | "trial" | "drama";
+export type KindName = "studio" | "trial" | "drama" | "clones";
 // 조합 서명이 같은 요청의 지문. 드라마 장면은 정리한 요청의 서명을 쓴다
 export const fingerprintOf = (
 	origin: string,

@@ -1,4 +1,29 @@
 import type { Voice } from "@tts-pilot-app/api/providers/contract";
+import {
+	AGE_KEY_LABEL,
+	anyOf,
+	GENDER_LABEL,
+	keyLabels,
+	labelOf,
+	providerValue,
+	TYPECAST_AGE_KEY,
+} from "@tts-pilot-app/api/voice-filter";
+
+// 성별·연령 키와 이름표는 CLI와 함께 쓰는 공용 모듈에 있다(T21)
+export {
+	AGE_KEY_LABEL,
+	ageKeyOf,
+	anyOf,
+	EL_AGE_KEY,
+	FISH_AGE_KEY,
+	FISH_GENDER_KEY,
+	GENDER_LABEL,
+	genderKeyOf,
+	keyLabels,
+	labelOf,
+	providerValue,
+	TYPECAST_AGE_KEY,
+} from "@tts-pilot-app/api/voice-filter";
 
 // 성우 캐스팅의 검색·필터·선반(T3 스펙 5절, 브리프 5·6절). 화면 없이 테스트하는 순수 함수만 둔다.
 
@@ -17,50 +42,7 @@ export const EMPTY_FILTERS: VoiceFilters = {
 	useCases: [],
 };
 
-// 브리프 6절 표. Map의 순서가 선택지 순서다. 성별은 키가 공통 키다('전체' 탭·보관함 조건)
-export const GENDER_LABEL = new Map([
-	["female", "여성"],
-	["male", "남성"],
-	["neutral", "중성"],
-]);
-// 공통 연령 키('전체' 탭·보관함 조건, 메타 줄 이름표)
-export const AGE_KEY_LABEL = new Map([
-	["child", "어린이"],
-	["teenager", "청소년"],
-	["young", "청년"],
-	["middle", "중년"],
-	["old", "노년"],
-]);
-// 공급자 값 → 공통 키. 공통 키를 공급자 값으로 바꿀 때는 표의 첫 값이다(providerValue). 공급자 이름표(AGE_LABEL·EL_AGE·FISH_AGE)도 이 표에서 만든다
-export const TYPECAST_AGE_KEY = new Map([
-	["child", "child"],
-	["teenager", "teenager"],
-	["young_adult", "young"],
-	["middle_age", "middle"],
-	["elder", "old"],
-]);
-export const EL_AGE_KEY = new Map([
-	["young", "young"],
-	["middle_aged", "middle"],
-	["middle-aged", "middle"],
-	["old", "old"],
-]);
-export const FISH_GENDER_KEY = new Map([
-	["female", "female"],
-	["male", "male"],
-]);
-export const FISH_AGE_KEY = new Map([
-	["young", "young"],
-	["middle-aged", "middle"],
-	["old", "old"],
-]);
-// 공급자 값 → 한국어 이름(공통 키의 이름표)
-export const keyLabels = (
-	keys: Map<string, string>,
-	labels: Map<string, string>,
-) => new Map([...keys].map(([value, key]) => [value, labelOf(labels, key)]));
-export const providerValue = (keys: Map<string, string>, key: string | null) =>
-	[...keys].find(([, common]) => common === key)?.[0] ?? null;
+// 브리프 6절 표. Map의 순서가 선택지 순서다
 export const AGE_LABEL = keyLabels(TYPECAST_AGE_KEY, AGE_KEY_LABEL);
 export const USE_CASE_LABEL = new Map([
 	["Ads/Promotion", "광고·홍보"],
@@ -77,38 +59,6 @@ export const USE_CASE_LABEL = new Map([
 	["News Reporter", "뉴스 리포터"],
 	["Rapper", "랩"],
 ]);
-
-// 모르는 값은 공급자 값 그대로 보인다(브리프 6절).
-export function labelOf(labels: Map<string, string>, value: string) {
-	return labels.get(value) ?? value;
-}
-
-const tagKey = (keys: Map<string, string>, tags: readonly string[]) => {
-	const tag = tags.find((value) => keys.has(value));
-	return tag === undefined ? null : (keys.get(tag) ?? null);
-};
-// 성우의 공통 성별·연령 키. 모르는 값과 값 없음은 null이다. Fish Audio는 태그, Airy·Gemini는 연령이 없다.
-// 메타 줄(voice-view personOf)도 이 판단으로 이름을 붙인다
-export function genderKeyOf(
-	voice: Pick<Voice, "provider" | "gender" | "tags">,
-): string | null {
-	// 계약의 성별 값(male·female·neutral)이 공통 키다
-	if (voice.provider === "fish_audio")
-		return tagKey(FISH_GENDER_KEY, voice.tags);
-	return voice.gender;
-}
-export function ageKeyOf(
-	voice: Pick<Voice, "provider" | "age" | "tags">,
-): string | null {
-	if (voice.provider === "fish_audio") return tagKey(FISH_AGE_KEY, voice.tags);
-	const keys =
-		voice.provider === "typecast"
-			? TYPECAST_AGE_KEY
-			: voice.provider === "elevenlabs"
-				? EL_AGE_KEY
-				: null;
-	return (keys && voice.age && keys.get(voice.age)) || null;
-}
 
 const normalize = (text: string) => text.normalize("NFC").trim().toLowerCase();
 
@@ -134,14 +84,6 @@ export function typecastPeople(
 		ages: typecastAge ? [typecastAge] : [],
 	};
 }
-
-// 고른 값이 없는 축은 거르지 않는다. 값이 없는(null) 성우는 그 축을 고르면 빠진다.
-export const anyOf = (
-	selected: readonly string[],
-	values: readonly (string | null)[],
-) =>
-	selected.length === 0 ||
-	values.some((value) => value !== null && selected.includes(value));
 
 // 같은 축은 OR, 다른 축은 AND(REQ-02). 검색은 한글·영문 이름 부분 일치.
 export function filterVoices(

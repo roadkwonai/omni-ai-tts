@@ -161,6 +161,7 @@ describe("요청 기록", () => {
 		expect(kindOf(record("1"))).toBe("studio");
 		expect(kindOf({ ...record("1"), kind: "trial" })).toBe("trial");
 		expect(kindOf({ ...record("1"), kind: "drama" })).toBe("drama");
+		expect(kindOf({ ...record("1"), kind: "clones" })).toBe("clones");
 	});
 	it("서명으로 만든 지문은 T18 식 그대로이고 종류마다 다르다", () => {
 		const signature = comboSignature(request("가"));

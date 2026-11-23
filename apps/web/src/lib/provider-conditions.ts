@@ -3,6 +3,7 @@ import type {
 	VoiceListInput,
 	VoiceSource,
 } from "@tts-pilot-app/api/providers/contract";
+import { EL_DESCRIPTIVE, FISH_MOOD } from "@tts-pilot-app/api/voice-filter";
 
 import {
 	AGE_KEY_LABEL,
@@ -14,6 +15,9 @@ import {
 	type Option,
 	providerValue,
 } from "./voice-filter";
+
+// 분위기 이름표는 CLI와 함께 쓰는 공용 모듈에 있다(T21)
+export { EL_DESCRIPTIVE, FISH_MOOD } from "@tts-pilot-app/api/voice-filter";
 
 // ElevenLabs·Fish Audio 조건 줄(T4 브리프 6절). 조건은 공급자 입력의 query 그대로 들고, 서버가 공급자에게 그대로 보낸다.
 export type ElPublicQuery = Extract<
@@ -77,26 +81,6 @@ export const EL_USE_CASE = new Map([
 	["entertainment_tv", "엔터테인먼트·TV"],
 	["advertisement", "광고"],
 ]);
-export const EL_DESCRIPTIVE = new Map([
-	["calm", "차분함"],
-	["casual", "편안함"],
-	["confident", "자신감"],
-	["crisp", "또렷함"],
-	["gentle", "다정함"],
-	["classy", "고급스러움"],
-	["deep", "깊음"],
-	["neutral", "담담함"],
-	["relaxed", "느긋함"],
-	["cute", "귀여움"],
-	["serious", "진지함"],
-	["upbeat", "경쾌함"],
-	["formal", "격식"],
-	["chill", "여유로움"],
-	["soft", "부드러움"],
-	["professional", "전문적"],
-	["pleasant", "상냥함"],
-	["mature", "성숙함"],
-]);
 export const EL_PUBLIC_CATEGORY = new Map([
 	["professional", "전문 클론"],
 	["famous", "유명인"],
@@ -135,24 +119,6 @@ export const FISH_CONTENT = new Map([
 	["gaming", "게임"],
 	["podcast", "팟캐스트"],
 	["anime", "애니메이션"],
-]);
-export const FISH_MOOD = new Map([
-	["friendly", "친근함"],
-	["clear", "또렷함"],
-	["energetic", "활기참"],
-	["professional", "전문적"],
-	["calm", "차분함"],
-	["bright", "밝음"],
-	["soft", "부드러움"],
-	["expressive", "표현력"],
-	["smooth", "매끄러움"],
-	["gentle", "다정함"],
-	["cheerful", "명랑함"],
-	["confident", "자신감"],
-	["warm", "따뜻함"],
-	["playful", "장난스러움"],
-	["authoritative", "권위 있음"],
-	["deep", "깊음"],
 ]);
 const LANGUAGES = ["ko", "en", "ja", "zh"];
 

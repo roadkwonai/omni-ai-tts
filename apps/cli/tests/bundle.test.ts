@@ -18,7 +18,7 @@ import { join, resolve } from "node:path";
 import { rolldown } from "rolldown";
 import { describe, expect, it } from "vitest";
 import config from "../rolldown.config.js";
-import { cli, studioWorld, workspace } from "./harness.js";
+import { cli, cloneWav, studioWorld, workspace } from "./harness.js";
 
 const manifest = JSON.parse(readFileSync("package.json", "utf8"));
 const hashOf = () =>
@@ -102,6 +102,8 @@ describe("묶음 빌드", { timeout: 120_000 }, () => {
 				...["studio autotag", "numbers check", "numbers apply"],
 				...["drama generate", "drama list", "drama download", "drama resume"],
 				...["drama split", "drama remove", "drama read", "drama autotag"],
+				...["clones list", "clones create", "clones check", "clones save"],
+				...["clones remove", "clones resume"],
 			])
 				expect(help.stdout).toContain(`omni-tts ${command}`);
 			const { spawn } = await import("node:child_process");
@@ -165,6 +167,18 @@ describe("묶음 빌드", { timeout: 120_000 }, () => {
 			).toEqual([{ speaker: 0, direction: "", text: "[laughs] 설치본" }]);
 			expect((await run("drama", "list")).code).toBe(0);
 			expect((await run("drama", "remove", take.id, "--yes")).code).toBe(0);
+			// 설치한 명령의 클론: 만들기 → 지우기
+			const source = cloneWav(12 * 24_000);
+			const cloned = await run(
+				...["clones", "create", "--provider", "fish_audio", "--yes", "--json"],
+				...["--name", "설치본", "--source", ws.script(source, "원본.wav")],
+				"--consent",
+			);
+			expect(cloned.code).toBe(0);
+			expect(w.cloned[0].source.bytes.equals(source)).toBe(true);
+			const { id } = JSON.parse(cloned.out).clone;
+			expect((await run("clones", "remove", id, "--yes")).code).toBe(0);
+			expect(w.clones).toEqual([]);
 			expect(resolve(bin).startsWith(resolve("."))).toBe(false);
 		} finally {
 			server.close();

@@ -2,15 +2,12 @@
 // 녹음·파일을 서버가 받는 24kHz 모노 16비트 WAV로 바꾼다(T13 스펙 5.3). 브라우저에서만 돈다.
 import { wavHeader } from "@tts-pilot-app/api/drama-script";
 import { CLONE_SAMPLE_RATE } from "@tts-pilot-app/api/my-voice-contract";
+import { isSilent } from "@tts-pilot-app/api/sound-join";
 
-import { monoOf, pcm16, SILENCE } from "./sound-join";
+import { monoOf, pcm16 } from "./sound-join";
 
-// 최대 진폭이 −50 dBFS 미만이면 무음이다. 문턱은 float32 기준이다(배열 값이 float32라서)
-export function isSilent(samples: Float32Array): boolean {
-	const floor = Math.fround(SILENCE);
-	for (const s of samples) if (Math.abs(s) >= floor) return false;
-	return true;
-}
+// 무음 판정은 CLI와 함께 쓰는 공용 모듈에 있다(T21)
+export { isSilent } from "@tts-pilot-app/api/sound-join";
 
 export function wavFromSamples(samples: Float32Array): {
 	wav: Blob;

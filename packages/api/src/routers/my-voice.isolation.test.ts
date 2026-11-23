@@ -39,7 +39,31 @@ async function clean() {
 	await db.delete(myVoice);
 }
 
+let dbTouches = 0;
+const failingDb = new Proxy(
+	{},
+	{
+		get() {
+			dbTouches += 1;
+			throw new Error("db");
+		},
+	},
+) as Context["db"];
+
 useFetchMock();
+
+describe("내 보이스 요청 조회: 소유자 없음", () => {
+	it("myVoiceRequest는 UNAUTHORIZED, 공급자·DB 0회", async () => {
+		const none = createRouterClient(appRouter, {
+			context: { db: failingDb, ownerId: null, providers } as Context,
+		});
+		await expect(
+			none.myVoiceRequest({ requestId: crypto.randomUUID() }),
+		).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+		expect(dbTouches).toBe(0);
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+});
 
 describe.skipIf(!url)("내 보이스 소유자 격리", () => {
 	beforeEach(clean);
@@ -91,6 +115,54 @@ describe.skipIf(!url)("내 보이스 소유자 격리", () => {
 		expect(fetchMock).not.toHaveBeenCalled();
 		expect(await as(A).myVoiceList()).toEqual(before);
 		expect(await as(B).savedVoiceList()).toEqual([]);
+	});
+
+	it("요청 조회: B는 A의 요청 id로 null, A는 자기 행, 공급자 0회·쓰기 0(T21)", async () => {
+		const { fish } = await aVoices();
+		const rows = () => db.select().from(myVoice).orderBy(myVoice.id);
+		const before = await rows();
+		for (const { requestId } of before)
+			expect(await as(B).myVoiceRequest({ requestId })).toBeNull();
+		const requestId = before.find((row) => row.id === fish.id)
+			?.requestId as string;
+		expect(await as(A).myVoiceRequest({ requestId })).toEqual(fish);
+		expect(fetchMock).not.toHaveBeenCalled();
+		expect(await rows()).toEqual(before);
+	});
+
+	it("요청 조회: 요청 id가 같아도 소유자마다 자기 행만, 남의 5분 지난 sending도 null(T21)", async () => {
+		const requestId = crypto.randomUUID();
+		const stale = crypto.randomUUID();
+		const row = (ownerId: string, id: string, createdAt = new Date()) => ({
+			ownerId,
+			provider: "fish_audio" as const,
+			name: ownerId,
+			status: "sending" as const,
+			requestId: id,
+			fingerprint: "f",
+			consentAt: new Date(),
+			consentVersion: "v1",
+			createdAt,
+		});
+		await db
+			.insert(myVoice)
+			.values([
+				{ ...row(A, requestId), status: "processing" as const },
+				row(B, requestId),
+				row(A, stale, new Date(Date.now() - 6 * 60_000)),
+			]);
+		expect(await as(A).myVoiceRequest({ requestId })).toMatchObject({
+			name: A,
+			status: "processing",
+		});
+		expect(await as(B).myVoiceRequest({ requestId })).toMatchObject({
+			name: B,
+			status: "sending",
+		});
+		expect(await as(B).myVoiceRequest({ requestId: stale })).toBeNull();
+		expect(await as(A).myVoiceRequest({ requestId: stale })).toMatchObject({
+			status: "unknown",
+		});
 	});
 
 	it("B는 A의 Gemini 클론 id를 보관함·프리셋에 담을 수 없다(매핑은 A의 것)", async () => {

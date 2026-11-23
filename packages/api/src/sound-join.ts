@@ -38,6 +38,13 @@ export function monoOf(channels: readonly Float32Array[]): Float32Array {
 	return out;
 }
 
+// 최대 진폭이 −50 dBFS 미만이면 무음이다. 문턱은 float32 기준이다(배열 값이 float32라서)
+export function isSilent(samples: Float32Array): boolean {
+	const floor = Math.fround(SILENCE);
+	for (const s of samples) if (Math.abs(s) >= floor) return false;
+	return true;
+}
+
 // 앞뒤 무음을 자르고 숨만 남긴 뷰. 문턱은 float32 기준이다(배열 값이 float32라서)
 export function trimSilence(
 	samples: Float32Array,

@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util";
+import { TAG_LABEL } from "@tts-pilot-app/api/library-filter";
+import { GEMINI_CONSENT_SENTENCE } from "@tts-pilot-app/api/my-voice-contract";
+import { AGE_KEY_LABEL, GENDER_LABEL } from "@tts-pilot-app/api/voice-filter";
 import { authLogin, authLogout, authStatus } from "./auth.js";
 import { studioAutoTag } from "./autotag.js";
 import { studioBatch, studioPlan } from "./batch.js";
@@ -11,6 +14,14 @@ import {
 	search,
 } from "./casting.js";
 import { input, normalizeOrigin } from "./client.js";
+import {
+	clonesCheck,
+	clonesCreate,
+	clonesList,
+	clonesRemove,
+	clonesResume,
+	clonesSave,
+} from "./clones.js";
 import {
 	dramaAutoTag,
 	dramaDownload,
@@ -82,7 +93,9 @@ const help = `Omni AI TTS CLI
   omni-tts trial download RESULT_ID --out PATH [--overwrite]
   omni-tts trial resume [REQUEST_ID] [--out PATH] [--overwrite]
   omni-tts trial remove RESULT_ID [--yes]
-  omni-tts voices list [--url URL] [--provider ID] [--channel NAME | --channel-id ID] [--favorite] [--frequent] [--json]
+  omni-tts voices list [--url URL] [--provider ID] [--channel NAME | --channel-id ID] [--favorite] [--frequent] [--preset]
+                       [--q TEXT] [--category-id ID]... [--type-id ID]... [--gender KEY] [--age KEY]
+                       [--content KEY]... [--mood KEY]... [--sort recent|used|count|name|popular] [--json]
   omni-tts voices show REF
   omni-tts voices check
   omni-tts voices save REF [--favorite | --no-favorite] [--frequent | --no-frequent] [--memo TEXT]
@@ -128,11 +141,18 @@ const help = `Omni AI TTS CLI
   omni-tts drama list
   omni-tts drama download RESULT_ID --out FILE.wav [--overwrite]
   omni-tts drama resume [REQUEST_ID] [--out FILE.wav] [--overwrite]
-  omni-tts drama split RESULT_ID --out-dir DIR [--overwrite]
+  omni-tts drama split RESULT_ID --out-dir DIR [--join FILE.wav [--input FILE.json]] [--overwrite]
   omni-tts drama remove RESULT_ID [--yes]
   omni-tts drama read --input FILE.json --out-dir DIR [--only 1,3-5] [--join FILE.wav] [--yes] [--overwrite]
                       [--retry-unconfirmed] [--dry-run]
   omni-tts drama autotag --input FILE.json --out FILE.json [--yes] [--overwrite] [--dry-run]
+  omni-tts clones list
+  omni-tts clones create --provider fish_audio|gemini --name NAME --source FILE.wav [--consent-audio FILE.wav]
+                         --consent [--yes] [--new] [--dry-run]
+  omni-tts clones check ID
+  omni-tts clones save ID
+  omni-tts clones remove ID [--yes]
+  omni-tts clones resume [REQUEST_ID]
 
   모든 명령은 --url URL과 --json을 받습니다. 공급자 ID는 ${PROVIDERS.join(", ")}입니다.
   REF는 공급자:성우 ID입니다(예: typecast:voice-123).
@@ -147,6 +167,11 @@ const help = `Omni AI TTS CLI
   remove는 대상과 영향을 보이고 터미널에서 확인하거나 --yes가 필요합니다.
   voices save      보관함 성우나 casting search의 성우를 담거나, 담긴 성우의 준 칸을 바꿉니다
   voices update    담긴 성우만 바꿉니다. 연결은 준 종류를 통째로 바꿉니다
+  voices list      조건은 웹 보관함과 같습니다(같은 조건 여럿은 하나라도, 다른 조건끼리는 모두). --preset은 프리셋에 쓰는 성우,
+                   --q는 이름·메모입니다. 보기(--favorite, --frequent, --preset)를 함께 주면 모두 맞는 성우만 남습니다
+                   --gender ${[...GENDER_LABEL.keys()].join("|")}  --age ${[...AGE_KEY_LABEL.keys()].join("|")}
+                   --content ${[...TAG_LABEL.content.keys()].join("|")}
+                   --mood의 키는 모르는 키를 주면 모두 보입니다(예: calm, upbeat)
   voices check     하루에 한 번 이용 가능 여부를 공급자에 확인하고 바뀐 성우를 보입니다
   presets update   채널이 바뀌고 --default가 없으면 채널 기본 지정을 끕니다
   presets create   --settings가 없으면 그 성우의 기본 설정입니다
@@ -156,7 +181,8 @@ const help = `Omni AI TTS CLI
                    --work는 작업 전체를 바꿉니다
 
 음성 만들기 (studio generate, trial generate)
-  요금이 나올 수 있는 명령은 이 둘과 studio batch, studio autotag, drama generate, drama read, drama autotag뿐입니다.
+  요금이 나올 수 있는 명령은 이 둘과 studio batch, studio autotag, drama generate, drama read, drama autotag,
+  clones create뿐입니다.
   터미널에서 확인을 받고, 비대화 실행이나 --input -에서는 --yes가 필요합니다.
   Fish Audio 무료 모델은 무료 기간 안에서 묻지 않습니다. 자동으로 다시 만들지 않습니다.
   trial generate는 200자까지의 시험 생성입니다. 성우를 담지 않아도 됩니다.
@@ -194,9 +220,23 @@ const help = `Omni AI TTS CLI
                    모델을 주지 않으면 무료 기간에는 s2.1-pro-free, 아니면 s2.1-pro입니다(--model은 drama-3도 받습니다)
   drama list       최근 테이크 20개. split·remove·download의 결과 ID를 봅니다
   drama split      테이크를 줄마다 DIR/001-화자.wav로 자릅니다. 최근 20개 안의, 줄 구간이 맞는 테이크만 됩니다
+                   --join은 조각의 앞뒤 무음을 줄이고 쉼을 넣어 한 WAV에도 잇습니다. 쉼은 --input 장면 파일의 값이고 없으면 0.3초입니다
   drama read       다섯 공급자 화자의 줄을 시험 생성(줄마다 200자)으로 읽어 DIR/001.mp3로 받습니다. 규칙은 studio batch와 같습니다
-                   화자에 presetId, 줄에 feel을 더 줄 수 있습니다. --join은 줄을 0.3초 쉼으로 한 WAV에 잇습니다
+                   화자에 presetId, 줄에 feel을 더 줄 수 있습니다. --join은 줄을 쉼을 넣어 한 WAV에 잇습니다
+                   쉼은 줄의 gap(그 줄 뒤), 없으면 장면의 gap, 둘 다 없으면 0.3초입니다(0~5초, 0.1초 단위)
   drama autotag    자동 태그를 한 번 받아 적용한 같은 모양의 파일을 씁니다(유료 텍스트 호출 최대 4회)
+
+내 보이스 (클론. 공급자 계정에 남고 공급자 문서에 요금 정보가 없습니다)
+  clones create    본인 목소리 녹음으로 클론을 만듭니다. --consent(본인 동의)와 확인(--yes)이 모두 필요합니다
+                   원본은 24kHz 모노 16비트 WAV(3,000,000바이트까지)이고 Fish Audio는 10~60초, Gemini는 10~30초입니다
+                   Gemini는 아래 문장을 읽은 동의 녹음(--consent-audio, 1~20초, 1,000,000바이트까지)이 더 필요합니다
+                   "${GEMINI_CONSENT_SENTENCE}"
+                   같은 공급자에 같은 이름의 클론이 있으면 2, 만들어졌을 수 있는 줄이 있으면 6이고 만들지 않습니다
+                   --new는 이 검사와 확인하지 못한 요청을 건너뜁니다. 자동으로 다시 만들지 않습니다
+  clones check     처리 중인 클론을 공급자에 한 번 확인합니다
+  clones save      사용 가능한 클론을 보관함에 다시 담습니다. 들어 보기는 trial generate --voice REF입니다
+  clones remove    공급자 계정에서도 지웁니다. 터미널에서 확인하거나 --yes가 필요합니다
+  clones resume    응답을 받지 못한 만들기를 다시 확인합니다. ID가 없으면 남은 요청을 보입니다
 
 내려받기와 복구 (요금 없음)
   studio download, trial download  결과 ID의 파일을 받습니다
@@ -223,6 +263,7 @@ const help = `Omni AI TTS CLI
   omni-tts studio join --script-id SCRIPT_ID --out 내레이션.wav --srt 내레이션.srt
   omni-tts drama generate --input 장면.txt --voice 민수=fish_audio:VOICE_ID --out 장면.wav
   omni-tts drama read --input 읽기.json --out-dir 줄 --join 읽기.wav
+  omni-tts clones create --provider fish_audio --name "내 목소리" --source 원본.wav --consent
 `;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -258,7 +299,7 @@ const FLAGS = [
 	...["json", "favorite", "frequent", "overwrite", "yes", "new", "dry-run"],
 	...["featured", "licensed", "no-favorite", "no-frequent"],
 	...["default", "no-default", "recent", "force"],
-	...["retry-unconfirmed", "certain"],
+	...["retry-unconfirmed", "certain", "consent", "preset"],
 ];
 const OUT = ["out", "overwrite"];
 const WORK = ["work", "script-id"];
@@ -352,7 +393,11 @@ const COMMANDS: Record<string, Command> = {
 		run: (args) => trialRemove(resultId(args), args),
 	},
 	"voices list": {
-		options: ["provider", "channel", "channel-id", "favorite", "frequent"],
+		options: [
+			...["provider", "channel", "channel-id", "favorite", "frequent"],
+			...["preset", "q", "category-id", "type-id", "gender", "age"],
+			...["content", "mood", "sort"],
+		],
 		run: voicesList,
 	},
 	"voices show": { extra: 1, run: voicesShow },
@@ -466,7 +511,7 @@ const COMMANDS: Record<string, Command> = {
 		run: (args) => dramaDownload(resultId(args), args),
 	},
 	"drama split": {
-		options: ["out-dir", "overwrite"],
+		options: ["out-dir", "join", "input", "overwrite"],
 		required: ["out-dir"],
 		extra: 1,
 		run: (args) => dramaSplit(resultId(args), args),
@@ -493,6 +538,22 @@ const COMMANDS: Record<string, Command> = {
 		options: OUT,
 		extra: 1,
 		run: (args) => dramaResume(requestId(args), args),
+	},
+	"clones list": { run: clonesList },
+	"clones create": {
+		options: [
+			...["provider", "name", "source", "consent-audio", "consent"],
+			...["yes", "new", "dry-run"],
+		],
+		required: ["provider", "name", "source"],
+		run: clonesCreate,
+	},
+	"clones check": { extra: 1, run: clonesCheck },
+	"clones save": { extra: 1, run: clonesSave },
+	"clones remove": { options: ["yes"], extra: 1, run: clonesRemove },
+	"clones resume": {
+		extra: 1,
+		run: (args) => clonesResume(requestId(args), args),
 	},
 	"numbers check": { options: [...WORK, "input"], run: numbersCheck },
 	"numbers apply": {

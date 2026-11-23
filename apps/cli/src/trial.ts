@@ -33,6 +33,7 @@ import {
 	type Output,
 	onInterrupt,
 	recover,
+	resultOf,
 	runPaid,
 	show,
 	showRecords,
@@ -214,7 +215,7 @@ export async function trialResume(requestId: string | undefined, args: Args) {
 	await checkKind("trial", options.url, requestId);
 	const connection = await connect(options.url);
 	const kind = trialKind(options);
-	const result = await recover(kind, connection, requestId);
+	const result = resultOf(await recover(kind, connection, requestId));
 	if (options.out !== undefined)
 		return kind.finish(connection, "resumed", result.id);
 	show(options.json, {

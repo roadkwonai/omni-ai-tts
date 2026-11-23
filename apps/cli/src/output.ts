@@ -82,10 +82,11 @@ export function report(error: unknown): number {
 	else {
 		note(result.message);
 		if (known) {
-			const { requestId, resultId, retryAt } = error.detail;
+			const { requestId, resultId, cloneId, retryAt } = error.detail;
 			if (retryAt) note(`다음 요청 가능 시각 ${retryAt}`);
 			if (requestId) note(`요청 ID ${requestId}`);
 			if (resultId) note(`결과 ID ${resultId}`);
+			if (cloneId) note(`클론 ID ${cloneId}`);
 		}
 	}
 	return known ? error.exitCode : 2;

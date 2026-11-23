@@ -26,7 +26,7 @@ export type RequestRecord = {
 	provider: string;
 	createdAt: string;
 	// 없으면 작업실(T18 기록)
-	kind?: "trial" | "drama";
+	kind?: "trial" | "drama" | "clones";
 };
 export type Requests = { requests: Record<string, RequestRecord> };
 // 검색에 나온 성우(T19). 담기·샘플·시험 생성이 REF로 찾는다
