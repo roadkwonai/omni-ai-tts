@@ -35,7 +35,9 @@ import {
 	complete,
 	findSaved,
 	findStudio,
+	findStudioInfo,
 	findStudioMany,
+	findStudioRequest,
 	type Kind,
 	type LateTarget,
 	listResults,
@@ -340,6 +342,128 @@ describe.skipIf(!url)("작업실 생성 기록", () => {
 		const [hit] = await findStudioMany(db, A, [comboKey(req(), "studio")]);
 		expect(hit?.bytes).toBe(MP3.byteLength);
 		expect((await rowOf(id))?.expiresAt).toEqual(before);
+	});
+
+	// T18 CLI 조회. 행의 요청 id로 상태를 읽는다
+	const requestOfRow = async (id: string) =>
+		(await rowOf(id))?.requestId as string;
+	const statusRead = async (ownerId: string, id: string) =>
+		findStudioRequest(db, ownerId, await requestOfRow(id));
+	const set = (
+		id: string,
+		values: Partial<typeof trialGeneration.$inferInsert>,
+	) => db.update(trialGeneration).set(values).where(eq(trialGeneration.id, id));
+
+	it("결과 정보: 완료만 길이·형식과 함께 돌려주고 행(만료 시각 포함)은 그대로다(T18)", async () => {
+		const id = await row(A, "studio", "done");
+		const before = await rowOf(id);
+		expect(await findStudioInfo(db, A, id)).toEqual({
+			id,
+			createdAt: before?.createdAt.toISOString(),
+			usage,
+			bytes: MP3.byteLength,
+			audioType: "audio/mpeg",
+		});
+		expect(await statusRead(A, id)).toEqual({
+			id,
+			createdAt: before?.createdAt.toISOString(),
+			usage,
+			bytes: MP3.byteLength,
+			status: "done",
+			reason: null,
+		});
+		expect(await rowOf(id)).toEqual(before);
+	});
+
+	it("결과 정보: WAV는 audio/wav, 옛 null 형식은 audio/mpeg(T18)", async () => {
+		const id = await row(A, "studio", "done");
+		await set(id, { audioType: "audio/wav" });
+		expect((await findStudioInfo(db, A, id)).audioType).toBe("audio/wav");
+		await set(id, { audioType: null });
+		expect((await findStudioInfo(db, A, id)).audioType).toBe("audio/mpeg");
+	});
+
+	it("결과 정보: 실패·미확인·진행 중·만료·남의 것·내 문장·드라마·없음은 모두 NOT_FOUND(T18)", async () => {
+		const expired = await row(A, "studio", "done", MP3, req("만료"));
+		await set(expired, { expiresAt: new Date(Date.now() - 1000) });
+		const ids = [
+			expired,
+			await row(A, "studio", "failed"),
+			await row(A, "studio", "unknown"),
+			await row(B, "studio", "done"),
+			await row(A, "trial", "done"),
+			await dramaRow(A, "done"),
+			crypto.randomUUID(),
+			// 진행 중 행은 소유자의 다음 선점을 막으므로 마지막에 둔다
+			await row(A, "studio", "pending"),
+		];
+		for (const id of ids)
+			await expect(findStudioInfo(db, A, id)).rejects.toMatchObject({
+				code: "NOT_FOUND",
+			});
+	});
+
+	it("요청 상태: 실패·미확인·진행 중을 사유와 함께 읽고, 모르는 사유는 null(T18)", async () => {
+		const failed = await row(A, "studio", "failed");
+		expect(await statusRead(A, failed)).toMatchObject({
+			id: failed,
+			status: "failed",
+			reason: "provider_error",
+			bytes: 0,
+		});
+		await set(failed, { failureReason: "raw provider message" });
+		expect((await statusRead(A, failed))?.reason).toBeNull();
+		expect(
+			await statusRead(A, await row(A, "studio", "unknown")),
+		).toMatchObject({ status: "unknown", reason: "unknown_outcome" });
+		expect(
+			await statusRead(A, await row(A, "studio", "pending")),
+		).toMatchObject({ status: "pending", reason: null, bytes: 0 });
+	});
+
+	it("요청 상태: 5분 넘은 진행 중은 unknown으로 읽되 행은 진행 중 그대로다(T18)", async () => {
+		const id = await row(A, "studio", "pending");
+		await set(id, { createdAt: new Date(Date.now() - 5 * 60_000 - 1000) });
+		const before = await rowOf(id);
+		expect(await statusRead(A, id)).toMatchObject({
+			id,
+			status: "unknown",
+			reason: null,
+		});
+		expect(await rowOf(id)).toEqual(before);
+		expect(await statusOf(id)).toBe("pending");
+	});
+
+	it("요청 상태: 만료·남의 것·내 문장·드라마·없음은 null(T18)", async () => {
+		const expired = await row(A, "studio", "done", MP3, req("만료"));
+		await set(expired, { expiresAt: new Date(Date.now() - 1000) });
+		for (const id of [
+			expired,
+			await row(B, "studio", "done"),
+			await row(A, "trial", "done"),
+			await dramaRow(A, "done"),
+		])
+			expect(await statusRead(A, id)).toBeNull();
+		expect(await findStudioRequest(db, A, crypto.randomUUID())).toBeNull();
+	});
+
+	it("결과 정보·요청 상태는 오디오 본문을 고르지 않는다: 길이만(T18)", async () => {
+		const id = await row(A, "studio", "done");
+		const requestId = await requestOfRow(id);
+		const query = vi.spyOn(db.$client, "query");
+		await findStudioInfo(db, A, id);
+		await findStudioRequest(db, A, requestId);
+		const sent = query.mock.calls.map(([q]) =>
+			typeof q === "string" ? q : (q as unknown as { text: string }).text,
+		);
+		expect(sent).toHaveLength(2);
+		for (const text of sent) {
+			expect(text).toMatch(/^select /);
+			expect(text.replace(/octet_length\("[^)]*"\)/, "")).not.toContain(
+				'"audio"',
+			);
+			expect(text).toContain("octet_length");
+		}
 	});
 
 	it("조각: 3MiB를 넘는 오디오의 조각을 이으면 원본이고, 범위 밖·남의 것은 NOT_FOUND, 0번 조각이 보관을 30일로 늘린다", async () => {

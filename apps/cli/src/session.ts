@@ -18,6 +18,14 @@ import { join } from "node:path";
 
 export type Session = { cookie: string; version: string };
 type State = { current?: string; sessions: Record<string, Session> };
+// 과금될 수 있는 요청의 로컬 기록(T18). 대본과 쿠키는 두지 않는다
+export type RequestRecord = {
+	origin: string;
+	requestId: string;
+	provider: string;
+	createdAt: string;
+};
+export type Requests = { requests: Record<string, RequestRecord> };
 
 function directory(): string {
 	const path =
@@ -34,7 +42,17 @@ function directory(): string {
 	return path;
 }
 
-export async function change<T>(fn: (state: State) => T): Promise<T> {
+export const change = <T>(fn: (state: State) => T) =>
+	changeFile("sessions", { sessions: {} } as State, fn);
+export const changeRequests = <T>(fn: (state: Requests) => T) =>
+	changeFile("requests", { requests: {} } as Requests, fn);
+
+// 한 잠금 아래에서 <name>.json을 읽고 바꾼다. fn은 동기라 네트워크를 기다리며 잠금을 잡지 않는다
+async function changeFile<S extends object, T>(
+	name: keyof S & string,
+	empty: S,
+	fn: (state: S) => T,
+): Promise<T> {
 	if (process.platform !== "darwin" && process.platform !== "linux") {
 		throw new Error("지원하지 않는 운영체제입니다.");
 	}
@@ -79,8 +97,8 @@ export async function change<T>(fn: (state: State) => T): Promise<T> {
 		);
 	});
 	try {
-		const path = join(dir, "sessions.json");
-		let state: State = { sessions: {} };
+		const path = join(dir, `${name}.json`);
+		let state = empty;
 		try {
 			const stat = lstatSync(path);
 			if (
@@ -90,8 +108,8 @@ export async function change<T>(fn: (state: State) => T): Promise<T> {
 				stat.uid !== process.getuid?.()
 			)
 				throw new Error("세션 파일 권한이 올바르지 않습니다.");
-			state = JSON.parse(readFileSync(path, "utf8")) as State;
-			if (!state.sessions || typeof state.sessions !== "object")
+			state = JSON.parse(readFileSync(path, "utf8")) as S;
+			if (!state[name] || typeof state[name] !== "object")
 				throw new Error("세션 파일이 올바르지 않습니다.");
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;

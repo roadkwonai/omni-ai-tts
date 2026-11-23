@@ -12,6 +12,7 @@ import {
 	fishSettingsSchema,
 	geminiSettingsSchema,
 	textSchemaOf,
+	trialFailureSchema,
 	typecastSettingsSchema,
 	usageSchema,
 	voiceIdSchema,
@@ -95,6 +96,23 @@ export const studioFindManyInputSchema = z
 	.array(studioRequestSchema)
 	.min(1)
 	.max(PARAGRAPHS_MAX);
+
+// 결과 하나의 정보(T18 CLI 내려받기). 조각을 받기 전에 길이와 형식을 안다
+export const studioInfoInputSchema = z.object({ id: z.uuid() });
+export const studioInfoSchema = studioResultSchema.extend({
+	audioType: z.enum(["audio/mpeg", "audio/wav"]),
+});
+export type StudioInfo = z.infer<typeof studioInfoSchema>;
+
+// 요청 id의 상태(T18 CLI 중단 복구). studioRequestSchema(만들 요청의 내용)와 다르다
+export const studioRequestStatusInputSchema = z.object({
+	requestId: z.uuid(),
+});
+export const studioRequestStatusSchema = studioResultSchema.extend({
+	status: z.enum(["pending", "done", "failed", "unknown"]),
+	reason: trialFailureSchema.nullable(),
+});
+export type StudioRequestStatus = z.infer<typeof studioRequestStatusSchema>;
 
 // 조각 하나. 번호는 0부터 32MiB 결과의 마지막 조각(10)까지
 export const studioAudioInputSchema = z.object({

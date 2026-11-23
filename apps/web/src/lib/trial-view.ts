@@ -16,28 +16,21 @@ import {
 	codePoints,
 	DEFAULT_SETTINGS,
 	ELEVENLABS_MODELS,
-	EMOTION_PRESETS,
-	type EmotionPreset,
-	FISH_MODELS,
-	type FishModel,
+	fishModelsOf,
 	fishUsd,
-	freeModelOpen,
 	GEMINI_CHARS_PER_SECOND,
 	GEMINI_MODELS,
 	GEMINI_TOKENS_PER_SECOND,
 	geminiSeconds,
 	geminiUsdPerMillion,
 	isFreeModel,
+	needsConfirm,
 	normalizeText,
-	type SettingsOf,
 	sentText,
 	type TrialRequest,
-	TYPECAST_MODELS,
-	type TypecastModel,
-	type TypecastSettings,
+	typecastModelsOf,
 	type Usage,
 	usedSettings,
-	V21_PRESETS,
 } from "@tts-pilot-app/api/providers/trial-options";
 
 import { creditNumber, PROVIDER_LABEL } from "./connection-view";
@@ -45,6 +38,15 @@ import { languageName } from "./provider-conditions";
 import { problemCopy, retryAtOf } from "./voice-failure";
 import { labelOf } from "./voice-filter";
 import { agoText, EMOTION_KO, plain, retryTime } from "./voice-view";
+
+// 성우에 맞춘 요청 보정은 CLI와 함께 쓴다(T18)
+export {
+	fishModelsOf,
+	needsConfirm,
+	presetsOf,
+	requestOf,
+	typecastModelsOf,
+} from "@tts-pilot-app/api/providers/trial-options";
 
 // 시험 생성('내 문장 듣기')의 화면 문구와 계산(T5 브리프 12절, 스펙 3·6절). 화면 없이 테스트하는 순수 함수만 둔다.
 // 문자열(알림·설명·접근 이름)에는 '▷'를 쓰지 않는다. 화면 글자 사이의 재생 기호는 Play 아이콘(aria-hidden)이다(계획 리뷰 D22)
@@ -98,25 +100,6 @@ export const FISH_TAGS = [
 	{ value: "whispering", label: "속삭임" },
 ];
 
-// 그 성우가 지원하는 Typecast 모델(성우 데이터 models). 정보가 없으면 둘 다
-export function typecastModelsOf(voice: Voice): TypecastModel[] {
-	const offered = TYPECAST_MODELS.filter((model) =>
-		voice.models.some((m) => m.model === model),
-	);
-	return offered.length > 0 ? offered : [...TYPECAST_MODELS];
-}
-// 그 성우·모델이 지원하는 프리셋. v21은 넷까지. 정보가 없으면 모델의 전체 목록
-export function presetsOf(voice: Voice, model: TypecastModel): EmotionPreset[] {
-	const allowed = model === "ssfm-v30" ? EMOTION_PRESETS : V21_PRESETS;
-	const emotions = voice.models.find((m) => m.model === model)?.emotions;
-	const list = emotions
-		? allowed.filter((preset) => emotions.includes(preset))
-		: [...allowed];
-	return list.length > 0 ? list : ["normal"];
-}
-// 고를 수 있는 Fish Audio 모델. 무료 기간이 끝나면 유료만
-export const fishModelsOf = (now = Date.now()): FishModel[] =>
-	freeModelOpen(now) ? [...FISH_MODELS] : ["s2.1-pro"];
 // 패널 '모델' 메뉴의 선택지. 무료 모델에는 '무료' 배지(free)
 export function modelOptionsOf(
 	voice: Voice,
@@ -138,79 +121,6 @@ export function modelOptionsOf(
 			: { value: model, label: model },
 	);
 }
-
-// 공급자 설정은 공급자마다 하나다. 이 성우가 받지 않는 값만 이 요청에서 보정한다(공급자 설정 자체는 바꾸지 않는다)
-function typecastFor(
-	voice: Voice,
-	settings: TypecastSettings,
-): TypecastSettings {
-	const models = typecastModelsOf(voice);
-	const model = models.includes(settings.model)
-		? settings.model
-		: (models[0] ?? "ssfm-v30");
-	const presets = presetsOf(voice, model);
-	return {
-		...settings,
-		model,
-		emotion: model === "ssfm-v21" ? "preset" : settings.emotion,
-		preset: presets.includes(settings.preset)
-			? settings.preset
-			: (presets[0] ?? "normal"),
-	};
-}
-export function requestOf(
-	voice: Voice,
-	text: string,
-	settings: SettingsOf,
-	now = Date.now(),
-): TrialRequest {
-	const { voiceId } = voice;
-	switch (voice.provider) {
-		case "typecast":
-			return {
-				provider: "typecast",
-				voiceId,
-				text,
-				settings: typecastFor(voice, settings.typecast),
-			};
-		case "elevenlabs":
-			return {
-				provider: "elevenlabs",
-				voiceId,
-				text,
-				settings: settings.elevenlabs,
-			};
-		case "fish_audio": {
-			const fish = settings.fish_audio;
-			return {
-				provider: "fish_audio",
-				voiceId,
-				text,
-				settings: fishModelsOf(now).includes(fish.model)
-					? fish
-					: { ...fish, model: "s2.1-pro" },
-			};
-		}
-		case "airy":
-			return {
-				provider: "airy",
-				voiceId,
-				text,
-				settings: settings.airy,
-			};
-		case "gemini":
-			return {
-				provider: "gemini",
-				voiceId,
-				text,
-				settings: settings.gemini,
-			};
-	}
-}
-
-// 확인 창이 필요한가(스펙 2절: 누를 때마다, Fish Audio 무료 모델은 묻지 않는다)
-export const needsConfirm = (request: TrialRequest, now = Date.now()) =>
-	!(isFreeModel(request) && freeModelOpen(now));
 
 // '내 문장 듣기'를 막는 이유(브리프 12절 상태 표). 없으면 null. key는 이 버튼의 성우, busyKey는 **만드는 중**인 성우다.
 // 저장된 결과를 찾는 동안(0.3초 안팎)은 busyKey를 넘기지 않는다: 다른 버튼을 흐리지 않고 누른 버튼 안 진행 표시만 둔다(계획 리뷰 D10)

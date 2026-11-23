@@ -1,5 +1,7 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import { emptyVoice } from "./list";
 import {
 	codePoints,
 	comboSignature,
@@ -13,6 +15,8 @@ import {
 	GEMINI_PRICE_UP_AT,
 	type GeminiModel,
 	geminiUsdPerMillion,
+	needsConfirm,
+	requestOf,
 	sentText,
 	snap,
 	type TrialRequest,
@@ -215,6 +219,70 @@ describe("sentText와 예상 사용량", () => {
 		expect(comboSignature(airy({ style: "calm" }))).not.toBe(
 			comboSignature(airy()),
 		);
+	});
+});
+
+// 웹과 CLI가 함께 쓰는 설정 보정(T18). 자세한 경우는 apps/web의 trial-view 테스트가 본다
+describe("requestOf (T18)", () => {
+	const voice = (
+		provider: "typecast" | "fish_audio",
+		models: { model: string; emotions: string[] }[] = [],
+	) => ({
+		...emptyVoice(provider, "public"),
+		voiceId: "v1",
+		name: "민지",
+		models,
+	});
+	it("Typecast v21만 되는 성우는 모델을 v21로, 감정을 직접·그 성우의 프리셋으로 맞춘다. 공급자 설정은 그대로다", () => {
+		const settings = {
+			...DEFAULT_SETTINGS,
+			typecast: {
+				...DEFAULT_SETTINGS.typecast,
+				emotion: "smart" as const,
+				preset: "whisper" as const,
+			},
+		};
+		const before = structuredClone(settings);
+		expect(
+			requestOf(
+				voice("typecast", [{ model: "ssfm-v21", emotions: ["normal", "sad"] }]),
+				"안녕",
+				settings,
+			),
+		).toEqual({
+			provider: "typecast",
+			voiceId: "v1",
+			text: "안녕",
+			settings: {
+				...settings.typecast,
+				model: "ssfm-v21",
+				emotion: "preset",
+				preset: "normal",
+			},
+		});
+		expect(settings).toEqual(before);
+	});
+	it("Fish 무료 모델은 종료 전에는 그대로(확인 없음), 종료 뒤에는 유료 모델로 바뀌고 확인이 필요하다", () => {
+		const settings = {
+			...DEFAULT_SETTINGS,
+			fish_audio: {
+				...DEFAULT_SETTINGS.fish_audio,
+				model: "s2.1-pro-free" as const,
+			},
+		};
+		const at = (now: number) => {
+			const request = requestOf(voice("fish_audio"), "안녕", settings, now);
+			return [request.settings.model, needsConfirm(request, now)];
+		};
+		expect(at(FISH_FREE_UNTIL - 1)).toEqual(["s2.1-pro-free", false]);
+		expect(at(FISH_FREE_UNTIL)).toEqual(["s2.1-pro", true]);
+	});
+	it("값 import가 없다: 화면 번들과 Node 타입 제거로 바로 실행하는 CLI가 쓴다", () => {
+		const source = readFileSync(
+			new URL("./trial-options.ts", import.meta.url),
+			"utf8",
+		);
+		expect(source.match(/^import (?!type )/gm)).toBeNull();
 	});
 });
 

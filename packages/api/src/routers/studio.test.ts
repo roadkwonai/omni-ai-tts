@@ -186,6 +186,16 @@ describe("음성 작업실 프로시저: DB 없이(스펙 5절)", () => {
 		await expect(broken.studioFindMany([request()])).rejects.toMatchObject({
 			code: "SERVICE_UNAVAILABLE",
 		});
+		// 조회 실패는 storage이고 '없음'(NOT_FOUND·null)으로 읽히지 않는다(T18)
+		const id = crypto.randomUUID();
+		const storage = {
+			code: "SERVICE_UNAVAILABLE",
+			data: { reason: "storage" },
+		};
+		await expect(broken.studioInfo({ id })).rejects.toMatchObject(storage);
+		await expect(broken.studioRequest({ requestId: id })).rejects.toMatchObject(
+			storage,
+		);
 		expect(calls()).toEqual(only());
 	});
 
@@ -765,6 +775,54 @@ describe.skipIf(!url)("음성 작업실 프로시저(T9 스펙 3·9절)", () => 
 			},
 			null,
 		]);
+		expect(calls()).toEqual(before);
+	});
+
+	it("studioInfo·studioRequest는 공급자를 부르지 않고 만든 결과·실패 사유를 돌려준다(T18)", async () => {
+		const requestId = crypto.randomUUID();
+		const made = await me.studioCreate({
+			requestId,
+			request: requestOf("gemini"),
+		});
+		const failedId = crypto.randomUUID();
+		synthesize.mockRejectedValueOnce(trialError("typecast", "quota"));
+		await expect(create(undefined, failedId)).rejects.toMatchObject({
+			data: { reason: "quota" },
+		});
+		const before = calls();
+		expect(await me.studioInfo({ id: made.id })).toEqual({
+			...made,
+			audioType: "audio/wav",
+		});
+		expect(await me.studioRequest({ requestId })).toEqual({
+			...made,
+			status: "done",
+			reason: null,
+		});
+		const failed = await me.studioRequest({ requestId: failedId });
+		expect(failed).toEqual({
+			id: expect.any(String),
+			createdAt: expect.any(String),
+			usage: { unit: "credit", amount: 5 },
+			bytes: 0,
+			status: "failed",
+			reason: "quota",
+		});
+		await expect(
+			me.studioInfo({ id: failed?.id as string }),
+		).rejects.toMatchObject({ code: "NOT_FOUND" });
+		await expect(
+			me.studioInfo({ id: crypto.randomUUID() }),
+		).rejects.toMatchObject({ code: "NOT_FOUND" });
+		expect(
+			await me.studioRequest({ requestId: crypto.randomUUID() }),
+		).toBeNull();
+		await expect(me.studioInfo({ id: "x" })).rejects.toMatchObject({
+			code: "BAD_REQUEST",
+		});
+		await expect(me.studioRequest({ requestId: "x" })).rejects.toMatchObject({
+			code: "BAD_REQUEST",
+		});
 		expect(calls()).toEqual(before);
 	});
 

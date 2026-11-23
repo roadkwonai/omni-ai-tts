@@ -19,7 +19,11 @@ import {
 	studioCreateInputSchema,
 	studioFindManyInputSchema,
 	studioFoundSchema,
+	studioInfoInputSchema,
+	studioInfoSchema,
 	studioRequestSchema,
+	studioRequestStatusInputSchema,
+	studioRequestStatusSchema,
 } from "./studio-contract";
 import { comboKey } from "./trial";
 
@@ -118,6 +122,48 @@ const reqOf = (provider: (typeof PROVIDERS)[number], text: string) => ({
 	voiceId: "v_0001",
 	text,
 	settings: DEFAULT_SETTINGS[provider],
+});
+
+describe("결과 정보와 요청 상태(T18)", () => {
+	const result = {
+		id: crypto.randomUUID(),
+		createdAt: new Date().toISOString(),
+		usage: { unit: "credit", amount: 5 },
+		bytes: 6,
+	};
+	it("입력은 uuid만 받는다", () => {
+		const id = crypto.randomUUID();
+		expect(studioInfoInputSchema.safeParse({ id }).success).toBe(true);
+		expect(studioInfoInputSchema.safeParse({ id: "x" }).success).toBe(false);
+		const requestId = id;
+		expect(
+			studioRequestStatusInputSchema.safeParse({ requestId }).success,
+		).toBe(true);
+		expect(
+			studioRequestStatusInputSchema.safeParse({ requestId: "x" }).success,
+		).toBe(false);
+	});
+	it("결과 정보의 형식은 MP3·WAV만", () => {
+		const info = (audioType: unknown) =>
+			studioInfoSchema.safeParse({ ...result, audioType }).success;
+		expect([
+			info("audio/mpeg"),
+			info("audio/wav"),
+			info("audio/ogg"),
+			info(null),
+		]).toEqual([true, true, false, false]);
+	});
+	it("요청 상태는 네 가지이고 사유는 정한 값이나 null", () => {
+		const status = (value: string, reason: unknown = null) =>
+			studioRequestStatusSchema.safeParse({ ...result, status: value, reason })
+				.success;
+		expect(
+			["pending", "done", "failed", "unknown"].map((value) => status(value)),
+		).toEqual([true, true, true, true]);
+		expect(status("expired")).toBe(false);
+		expect(status("failed", "quota")).toBe(true);
+		expect(status("failed", "raw provider message")).toBe(false);
+	});
 });
 
 describe("작업실 요청 다섯 공급자(T10 스펙 4.1절)", () => {

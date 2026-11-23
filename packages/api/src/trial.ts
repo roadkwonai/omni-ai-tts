@@ -35,7 +35,12 @@ import {
 	type Usage,
 	usedSettings,
 } from "./providers/trial-options";
-import type { StudioFound, StudioResult } from "./studio-contract";
+import type {
+	StudioFound,
+	StudioInfo,
+	StudioRequestStatus,
+	StudioResult,
+} from "./studio-contract";
 import { cacheKey, guard, logDbFailure, recordCooldown } from "./voice-cache";
 
 // 생성 기록과 결과(ADR 0003 '듣기 결과', T5 스펙 5절, T9 작업실). 모든 읽기·쓰기에 소유자 조건을 넣는다(prokit-api 불변식 3).
@@ -604,6 +609,63 @@ export async function findStudioMany(
 		best.set(row.comboKey, { ...studioOf(row), status });
 	}
 	return keys.map((key) => best.get(key) ?? null);
+}
+
+// 결과 하나의 길이와 형식(T18). audioPart와 같은 조건이고 아니면 모두 NOT_FOUND. 오디오를 읽지 않고 보관 기한도 늘리지 않는다
+export async function findStudioInfo(
+	db: Database,
+	ownerId: string,
+	id: string,
+): Promise<StudioInfo> {
+	const [row] = await db
+		.select({ ...studioColumns, audioType: t.audioType })
+		.from(t)
+		.where(
+			and(
+				eq(t.id, id),
+				eq(t.ownerId, ownerId),
+				studioRow,
+				eq(t.status, "done"),
+				gt(t.expiresAt, new Date()),
+			),
+		);
+	if (!row) throw new ORPCError("NOT_FOUND");
+	return {
+		...studioOf(row),
+		// 쓰는 값은 audioTypeOf의 둘뿐이고 출력 스키마가 다시 검사한다. 옛 null 행은 toAudio와 같이 MP3다
+		audioType: (row.audioType ?? "audio/mpeg") as StudioInfo["audioType"],
+	};
+}
+
+// 요청 id의 상태(T18). 없거나 남의 것·다른 화면·만료면 null. 5분 넘은 진행 중은 미확인으로 읽기만 한다(옮기는 쓰기는 replayStudio·claimRow)
+export async function findStudioRequest(
+	db: Database,
+	ownerId: string,
+	requestId: string,
+): Promise<StudioRequestStatus | null> {
+	const [row] = await db
+		.select({
+			...studioColumns,
+			status: t.status,
+			failureReason: t.failureReason,
+		})
+		.from(t)
+		.where(
+			and(
+				eq(t.ownerId, ownerId),
+				eq(t.requestId, requestId),
+				studioRow,
+				gt(t.expiresAt, new Date()),
+			),
+		);
+	if (!row) return null;
+	return {
+		...studioOf(row),
+		status: (isStale(row)
+			? "unknown"
+			: row.status) as StudioRequestStatus["status"],
+		reason: trialFailureSchema.safeParse(row.failureReason).data ?? null,
+	};
 }
 
 // ── 드라마 작업실(T9.5) ──

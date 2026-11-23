@@ -357,10 +357,8 @@ describe.skipIf(!url)("데모 Context로 모든 프로시저(T15-a2 Task 1b)", (
 	it("studioCreate와 작업실 조회: 공급자마다 샘플이 done으로 저장된다", async () => {
 		for (const provider of PROVIDERS) {
 			const request = requestOf(provider);
-			const made = await demo.studioCreate({
-				requestId: crypto.randomUUID(),
-				request,
-			});
+			const requestId = crypto.randomUUID();
+			const made = await demo.studioCreate({ requestId, request });
 			const [row] = await db
 				.select()
 				.from(trialGeneration)
@@ -376,6 +374,16 @@ describe.skipIf(!url)("데모 Context로 모든 프로시저(T15-a2 Task 1b)", (
 			expect(await demo.studioFindMany([request])).toMatchObject([
 				{ id: made.id },
 			]);
+			expect(await demo.studioInfo({ id: made.id })).toEqual({
+				...made,
+				bytes: SAMPLES[provider].byteLength,
+				audioType: provider === "gemini" ? "audio/wav" : "audio/mpeg",
+			});
+			expect(await demo.studioRequest({ requestId })).toEqual({
+				...made,
+				status: "done",
+				reason: null,
+			});
 			expect(
 				await bytes(await demo.studioAudio({ id: made.id, part: 0 })),
 			).toEqual(SAMPLES[provider]);

@@ -16,10 +16,12 @@
 		"test": "tsc && vitest run"
 	},
 	"dependencies": {
-		"@orpc/client": "catalog:"
+		"@orpc/client": "catalog:",
+		"@tts-pilot-app/api": "workspace:*"
 	},
 	"devDependencies": {
-		"@tts-pilot-app/api": "workspace:*",
+		"@orpc/server": "catalog:",
+		"@tts-pilot-app/db": "workspace:*",
 		"@types/node": "catalog:",
 		"typescript": "catalog:",
 		"vitest": "^5.0.2"

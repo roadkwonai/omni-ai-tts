@@ -3,8 +3,20 @@ import { chmodSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import {
+	DEFAULT_SETTINGS,
+	type TrialRequest,
+} from "@tts-pilot-app/api/providers/trial-options";
 import { describe, expect, it } from "vitest";
 import { login, logout, normalizeOrigin, status } from "../src/client.js";
+import { clean, jsonText, usageText } from "../src/output.js";
+import {
+	claim,
+	fingerprint,
+	recordOf,
+	recordsOf,
+	release,
+} from "../src/requests.js";
 import { change } from "../src/session.js";
 
 describe("작업실 주소", () => {
@@ -76,6 +88,80 @@ it("인증 API가 데모 404를 반환하면 로그인 세션을 저장하지 �
 		delete process.env.OMNI_TTS_CONFIG_DIR;
 		rmSync(dir, { recursive: true, force: true });
 	}
+});
+
+describe("요청 기록", () => {
+	const request = (text: string): TrialRequest => ({
+		provider: "airy",
+		voiceId: "a",
+		text,
+		settings: DEFAULT_SETTINGS.airy,
+	});
+	const record = (requestId: string, origin = "https://a.example") => ({
+		origin,
+		requestId,
+		provider: "airy",
+		createdAt: "2026-01-01T00:00:00Z",
+	});
+	it("지문은 주소·사용자·조합마다 다르고 앞뒤 공백에는 같다", () => {
+		const base = fingerprint("https://a.example", "u", request("가"));
+		expect(base).toMatch(/^[0-9a-f]{64}$/);
+		expect(fingerprint("https://a.example", "u", request(" 가\n"))).toBe(base);
+		expect(fingerprint("https://b.example", "u", request("가"))).not.toBe(base);
+		expect(fingerprint("https://a.example", "v", request("가"))).not.toBe(base);
+		expect(fingerprint("https://a.example", "u", request("나"))).not.toBe(base);
+	});
+	it("기록이 없을 때만 선점하고 내 것만 지우거나 되돌린다", async () => {
+		const dir = mkdtempSync(join(tmpdir(), "omni-cli-requests-"));
+		process.env.OMNI_TTS_CONFIG_DIR = dir;
+		const ignore = () => {};
+		try {
+			expect(await claim("k", record("1"), false, ignore)).toMatchObject({
+				claimed: true,
+			});
+			expect(await claim("k", record("2"), false, ignore)).toMatchObject({
+				claimed: false,
+				previous: { requestId: "1" },
+			});
+			await release("https://a.example", "2");
+			await release("https://b.example", "1");
+			expect(await recordOf("k")).toMatchObject({ requestId: "1" });
+			const { previous } = await claim("k", record("3"), true, ignore);
+			await release("https://a.example", "1");
+			expect(await recordOf("k")).toMatchObject({ requestId: "3" });
+			await release("https://a.example", "3", previous);
+			expect(await recordOf("k")).toMatchObject({ requestId: "1" });
+			expect(await recordsOf("https://b.example")).toEqual([]);
+			await release("https://a.example", "1");
+			expect(await recordOf("k")).toBeUndefined();
+		} finally {
+			delete process.env.OMNI_TTS_CONFIG_DIR;
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+});
+
+// 소스에 보이지 않는 글자를 두지 않게 코드로 만든다
+const HIDDEN = String.fromCodePoint(
+	...[0x7f, 0x80, 0x9f, 0x202a, 0x202b, 0x202c, 0x202d, 0x202e],
+	...[0x2066, 0x2067, 0x2068, 0x2069, 0x200e, 0x200f, 0x061c],
+);
+it("사람용 글에서 제어 문자와 방향 제어 문자를 지운다", () => {
+	expect(clean(`가\u0000\n\u001b${HIDDEN}나 é`)).toBe("가나 é");
+});
+it("JSON의 제어 문자와 방향 제어 문자를 이스케이프해도 값은 같다", () => {
+	const value = { name: `가\n${HIDDEN}나` };
+	const text = jsonText(value, 2);
+	expect(text).toContain("\\u007f\\u0080\\u009f\\u202a\\u202b");
+	for (const char of HIDDEN) expect(text).not.toContain(char);
+	expect(JSON.parse(text)).toEqual(value);
+});
+
+it("사용량을 단위마다 다르게 보인다", () => {
+	expect(usageText({ unit: "credit", amount: 1200 })).toBe("1,200크레딧");
+	expect(usageText({ unit: "byte", amount: 30 })).toBe("30바이트");
+	expect(usageText({ unit: "usd_micro", amount: 1234 })).toBe("추정 $0.0013");
+	expect(usageText({ unit: "free", amount: 0 })).toBe("무료");
 });
 
 it("세션이 없으면 인증 오류를 반환한다", async () => {

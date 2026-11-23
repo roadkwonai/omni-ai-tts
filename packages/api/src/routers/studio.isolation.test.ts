@@ -74,7 +74,7 @@ const failingDb = new Proxy(
 describe("작업실 소유자 없음(AC13)", () => {
 	beforeEach(() => synthesize.mockClear());
 
-	it("소유자가 없으면 네 프로시저 모두 UNAUTHORIZED이고 DB 접근·공급자 0회", async () => {
+	it("소유자가 없으면 여섯 프로시저 모두 UNAUTHORIZED이고 DB 접근·공급자 0회", async () => {
 		dbTouches = 0;
 		const none = as(null, failingDb);
 		const id = crypto.randomUUID();
@@ -87,6 +87,10 @@ describe("작업실 소유자 없음(AC13)", () => {
 			unauthorized,
 		);
 		await expect(none.studioAudio({ id, part: 0 })).rejects.toMatchObject(
+			unauthorized,
+		);
+		await expect(none.studioInfo({ id })).rejects.toMatchObject(unauthorized);
+		await expect(none.studioRequest({ requestId: id })).rejects.toMatchObject(
 			unauthorized,
 		);
 		expect(dbTouches).toBe(0);
@@ -118,6 +122,39 @@ describe.skipIf(!url)("작업실 소유자 격리(AC13)", () => {
 			{ ...made, status: "done" },
 		]);
 		expect((await as(A).studioAudio({ id: made.id, part: 0 })).size).toBe(4);
+	});
+
+	it("A의 결과 정보와 요청 상태는 A만 읽는다. B는 정보가 NOT_FOUND, 요청 상태가 null이고 A의 행은 그대로다(T18)", async () => {
+		await keep(A);
+		const requestId = crypto.randomUUID();
+		const made = await as(A).studioCreate({ requestId, request });
+		const before = await db.select().from(trialGeneration);
+		synthesize.mockClear();
+		await expect(as(B).studioInfo({ id: made.id })).rejects.toMatchObject({
+			code: "NOT_FOUND",
+		});
+		expect(await as(B).studioRequest({ requestId })).toBeNull();
+		expect(await as(A).studioInfo({ id: made.id })).toEqual({
+			...made,
+			audioType: "audio/mpeg",
+		});
+		expect(await as(A).studioRequest({ requestId })).toEqual({
+			...made,
+			status: "done",
+			reason: null,
+		});
+		expect(await db.select().from(trialGeneration)).toEqual(before);
+		expect(synthesize).not.toHaveBeenCalled();
+	});
+
+	it("요청 id가 같아도 소유자마다 자기 요청만 본다(T18)", async () => {
+		await keep(A);
+		await keep(B);
+		const requestId = crypto.randomUUID();
+		const a = await as(A).studioCreate({ requestId, request });
+		const b = await as(B).studioCreate({ requestId, request });
+		expect((await as(A).studioRequest({ requestId }))?.id).toBe(a.id);
+		expect((await as(B).studioRequest({ requestId }))?.id).toBe(b.id);
 	});
 
 	it("B가 A가 담은 Fish 성우로 studioCreate하면 voice_unavailable, 공급자 0회", async () => {

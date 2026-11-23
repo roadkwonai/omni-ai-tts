@@ -22,7 +22,11 @@ import {
 	studioCreateInputSchema,
 	studioFindManyInputSchema,
 	studioFoundSchema,
+	studioInfoInputSchema,
+	studioInfoSchema,
 	studioRequestSchema,
+	studioRequestStatusInputSchema,
+	studioRequestStatusSchema,
 	studioResultSchema,
 } from "../studio-contract";
 import {
@@ -32,7 +36,9 @@ import {
 	claim,
 	comboKey,
 	findStudio,
+	findStudioInfo,
 	findStudioMany,
+	findStudioRequest,
 	type LateTarget,
 	recordFailure,
 	recordSuccess,
@@ -242,6 +248,28 @@ export const studioRouter = {
 						context.ownerId,
 						input.map((request) => comboKey(request, "studio")),
 					),
+				PREFIX,
+			),
+		),
+	// 결과 하나의 길이·형식(T18 CLI 내려받기). 공급자를 부르지 않고 쓰지 않는다
+	studioInfo: protectedProcedure
+		.input(studioInfoInputSchema)
+		.output(studioInfoSchema)
+		.handler(({ input, context }) =>
+			withStorage(
+				undefined,
+				() => findStudioInfo(context.db, context.ownerId, input.id),
+				PREFIX,
+			),
+		),
+	// 요청 id의 상태(T18 CLI 중단 복구). 없거나 남의 것이면 null. 공급자를 부르지 않고 쓰지 않는다
+	studioRequest: protectedProcedure
+		.input(studioRequestStatusInputSchema)
+		.output(studioRequestStatusSchema.nullable())
+		.handler(({ input, context }) =>
+			withStorage(
+				undefined,
+				() => findStudioRequest(context.db, context.ownerId, input.requestId),
 				PREFIX,
 			),
 		),

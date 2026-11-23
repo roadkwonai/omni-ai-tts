@@ -1,4 +1,4 @@
-import type { ProviderId } from "./contract";
+import type { ProviderId, Voice } from "./contract";
 
 // 시험 생성('내 문장 듣기', T5 스펙 4절)의 모델·옵션 범위·기본값과 순수 계산이다. 화면과 서버가 함께 쓴다.
 // zod·SDK·서버 모듈을 import하지 않는다(화면 번들에 들어간다). 입력 검증 스키마는 trial-contract.ts가 이 값으로 만든다.
@@ -371,3 +371,97 @@ export function estimate(
 	return { unit: "credit", amount: Math.ceil(chars * rate) };
 }
 export const fishUsd = (bytes: number) => bytes * FISH_USD_PER_BYTE;
+
+// ── 성우에 맞춘 요청(T18). 웹(trial-view)과 CLI가 같은 보정을 쓴다 ──
+// 그 성우가 지원하는 Typecast 모델(성우 데이터 models). 정보가 없으면 둘 다
+export function typecastModelsOf(voice: Voice): TypecastModel[] {
+	const offered = TYPECAST_MODELS.filter((model) =>
+		voice.models.some((m) => m.model === model),
+	);
+	return offered.length > 0 ? offered : [...TYPECAST_MODELS];
+}
+// 그 성우·모델이 지원하는 프리셋. v21은 넷까지. 정보가 없으면 모델의 전체 목록
+export function presetsOf(voice: Voice, model: TypecastModel): EmotionPreset[] {
+	const allowed = model === "ssfm-v30" ? EMOTION_PRESETS : V21_PRESETS;
+	const emotions = voice.models.find((m) => m.model === model)?.emotions;
+	const list = emotions
+		? allowed.filter((preset) => emotions.includes(preset))
+		: [...allowed];
+	return list.length > 0 ? list : ["normal"];
+}
+// 고를 수 있는 Fish Audio 모델. 무료 기간이 끝나면 유료만
+export const fishModelsOf = (now = Date.now()): FishModel[] =>
+	freeModelOpen(now) ? [...FISH_MODELS] : ["s2.1-pro"];
+
+// 공급자 설정은 공급자마다 하나다. 이 성우가 받지 않는 값만 이 요청에서 보정한다(공급자 설정 자체는 바꾸지 않는다)
+function typecastFor(
+	voice: Voice,
+	settings: TypecastSettings,
+): TypecastSettings {
+	const models = typecastModelsOf(voice);
+	const model = models.includes(settings.model)
+		? settings.model
+		: (models[0] ?? "ssfm-v30");
+	const presets = presetsOf(voice, model);
+	return {
+		...settings,
+		model,
+		emotion: model === "ssfm-v21" ? "preset" : settings.emotion,
+		preset: presets.includes(settings.preset)
+			? settings.preset
+			: (presets[0] ?? "normal"),
+	};
+}
+export function requestOf(
+	voice: Voice,
+	text: string,
+	settings: SettingsOf,
+	now = Date.now(),
+): TrialRequest {
+	const { voiceId } = voice;
+	switch (voice.provider) {
+		case "typecast":
+			return {
+				provider: "typecast",
+				voiceId,
+				text,
+				settings: typecastFor(voice, settings.typecast),
+			};
+		case "elevenlabs":
+			return {
+				provider: "elevenlabs",
+				voiceId,
+				text,
+				settings: settings.elevenlabs,
+			};
+		case "fish_audio": {
+			const fish = settings.fish_audio;
+			return {
+				provider: "fish_audio",
+				voiceId,
+				text,
+				settings: fishModelsOf(now).includes(fish.model)
+					? fish
+					: { ...fish, model: "s2.1-pro" },
+			};
+		}
+		case "airy":
+			return {
+				provider: "airy",
+				voiceId,
+				text,
+				settings: settings.airy,
+			};
+		case "gemini":
+			return {
+				provider: "gemini",
+				voiceId,
+				text,
+				settings: settings.gemini,
+			};
+	}
+}
+
+// 확인 창이 필요한가(스펙 2절: 누를 때마다, Fish Audio 무료 모델은 묻지 않는다)
+export const needsConfirm = (request: TrialRequest, now = Date.now()) =>
+	!(isFreeModel(request) && freeModelOpen(now));
