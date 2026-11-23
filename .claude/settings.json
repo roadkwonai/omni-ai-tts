@@ -65,7 +65,8 @@
     "oh-my-claudecode@omc": false,
     "ponytail@ponytail": true,
     "agent-skills@addy-agent-skills": true,
-    "superpowers@claude-plugins-official": false
+    "superpowers@claude-plugins-official": false,
+    "pstack@cursor-plugins": true
   },
   "extraKnownMarketplaces": {
     "claude-plugins-official": {
@@ -84,6 +85,12 @@
       "source": {
         "source": "github",
         "repo": "addyosmani/agent-skills"
+      }
+    },
+    "cursor-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "cursor/plugins"
       }
     }
   }

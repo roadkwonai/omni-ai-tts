@@ -1,5 +1,5 @@
 {
-	"brain": "agent-skills",
+	"brain": ["agent-skills", "pstack"],
 	"simplicity": "ponytail",
 	"todoPath": "tasks/todo.md",
 	"archiveDir": "tasks/archive",
