@@ -1,0 +1,27 @@
+{
+	"name": "@tts-pilot-app/cli",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"files": [
+		"dist"
+	],
+	"bin": {
+		"omni-tts": "./dist/cli.js"
+	},
+	"scripts": {
+		"build": "tsc",
+		"cli": "node dist/cli.js",
+		"check-types": "tsc --noEmit",
+		"test": "tsc && vitest run"
+	},
+	"dependencies": {
+		"@orpc/client": "catalog:"
+	},
+	"devDependencies": {
+		"@tts-pilot-app/api": "workspace:*",
+		"@types/node": "catalog:",
+		"typescript": "catalog:",
+		"vitest": "^5.0.2"
+	}
+}
