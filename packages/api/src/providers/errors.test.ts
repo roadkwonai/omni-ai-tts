@@ -14,7 +14,9 @@ import {
 	TRIAL_TIMEOUT_MS,
 	trialReason,
 } from "./errors";
+import { createProviders } from "./index";
 import { fetchMock, json, useFetchMock } from "./test-utils";
+import { DEFAULT_SETTINGS, type TrialRequest } from "./trial-options";
 
 describe("reasonFromHttp", () => {
 	it("상태 코드를 tts-provider 표의 사유로 바꾼다", () => {
@@ -349,6 +351,61 @@ describe("runTrial", () => {
 		expect(onLate).not.toHaveBeenCalled();
 	});
 });
+
+// 상태 코드는 200인데 오디오가 아닌 응답(게이트웨이 점검 화면 등). 저장하면 재생되지 않는 유료 결과가 저장본으로 남는다(P1)
+describe.each(["typecast", "elevenlabs", "fish_audio", "airy"] as const)(
+	"%s 생성의 오디오가 아닌 200",
+	(provider) => {
+		useFetchMock();
+		afterEach(() => vi.restoreAllMocks());
+		const synthesize = () =>
+			createProviders({ [provider]: "audio-test-key-0001" })[
+				provider
+			]?.synthesize?.({
+				provider,
+				voiceId: "v1",
+				text: "안녕하세요",
+				settings: DEFAULT_SETTINGS[provider],
+			} as TrialRequest);
+
+		it.each([
+			["빈 본문", "", "audio/mpeg"],
+			["JSON", '{"error":"upstream"}', "application/json"],
+			["HTML", "<html>maintenance</html>", "text/html"],
+			["빈 줄 뒤 HTML", "\r\n<!doctype html>", "audio/mpeg"],
+		])("%s: 처리 여부 미확인이고 다시 부르지 않는다", async (_, body, type) => {
+			const log = vi.spyOn(console, "error").mockImplementation(() => {});
+			const headers = { "content-type": type };
+			fetchMock.mockImplementation(
+				async () => new Response(body, { status: 200, headers }),
+			);
+			await expect(synthesize()).rejects.toMatchObject({
+				code: "GATEWAY_TIMEOUT",
+				data: { provider, reason: "unknown_outcome" },
+			});
+			expect(fetchMock).toHaveBeenCalledTimes(1);
+			expect(log.mock.calls.flat().join(" ")).not.toMatch(
+				/upstream|maintenance|doctype/,
+			);
+		});
+
+		it.each([
+			["MP3 프레임", [0xff, 0xfb, 0x90, 0x64, 0x7b, 0x3c]],
+			["MP3 ID3", [0x49, 0x44, 0x33, 4, 0, 0]],
+			["WAV", [0x52, 0x49, 0x46, 0x46, 1, 2]],
+			["OGG", [0x4f, 0x67, 0x67, 0x53, 0, 2]],
+		])("%s 바이트는 그대로 돌려준다", async (_name, bytes) => {
+			fetchMock.mockImplementation(
+				async () =>
+					new Response(new Uint8Array(bytes), {
+						status: 200,
+						headers: { "content-type": "audio/mpeg" },
+					}),
+			);
+			await expect(synthesize()).resolves.toEqual(new Uint8Array(bytes));
+		});
+	},
+);
 
 describe("Google(Gemini) 오류 코드(T7.6 스펙 6절)", () => {
 	it("API_KEY_INVALID는 상태와 상관없이 키 오류다", () => {

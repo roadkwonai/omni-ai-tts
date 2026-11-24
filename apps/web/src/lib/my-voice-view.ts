@@ -1,12 +1,14 @@
 // apps/web/src/lib/my-voice-view.ts
 // 내 보이스 줄·창의 표시 규칙(브리프 my-voices.md 5절). 순수 함수만 둔다.
+import type {
+	MyVoice,
+	MyVoiceStatus,
+} from "@tts-pilot-app/api/my-voice-contract";
 import {
 	CLONE_LIMITS,
 	type CloneProvider,
 	cloneLengthProblem,
-	type MyVoice,
-	type MyVoiceStatus,
-} from "@tts-pilot-app/api/my-voice-contract";
+} from "@tts-pilot-app/api/my-voice-rules";
 
 import { PROVIDER_LABEL } from "./connection-view";
 import { MY_VOICE_TEXT as T } from "./my-voice-text";
@@ -72,7 +74,8 @@ const REASON: Record<string, (provider: string) => string> = {
 	quality: () => T.reasonQuality,
 	provider_input: () => T.reasonProviderInput,
 	unknown_outcome: T.reasonUnknown,
-	provider_error: () => T.reasonProviderError,
+	// 5xx는 만들어진 뒤에 왔을 수 있다(CLI clones와 같은 뜻)
+	provider_error: T.reasonUnknown,
 	not_found: () => T.reasonNotFound,
 	audio_format: () => T.reasonAudioFormat,
 	audio_length: () => T.reasonAudioLength,
@@ -87,6 +90,14 @@ export function reasonText(
 		? REASON[reason](PROVIDER_LABEL[provider])
 		: FALLBACK;
 }
+
+// 실패 줄 치우기 확인의 설명. provider_error는 공급자 id가 없어 앱 줄만 지워진다
+export const dismissText = (
+	item: Pick<MyVoice, "reason" | "provider">,
+): string =>
+	(item.reason === "provider_error" ? T.dismissUnsure : T.dismissDescription)(
+		PROVIDER_LABEL[item.provider],
+	);
 
 // 줄의 사유 한 줄(브리프 5절 3번). 실패·미확인·삭제 대기만 있다
 export function rowNoteOf(

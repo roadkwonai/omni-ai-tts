@@ -28,7 +28,7 @@ import {
 	extensionOf,
 	MIME,
 	save,
-	saveBytes,
+	saveOr7,
 } from "./files.js";
 import { byteText, clean, print } from "./output.js";
 import { downloadFailed, infoOf, partsFrom } from "./studio.js";
@@ -272,22 +272,20 @@ export async function studioJoin(args: Args) {
 	}
 	const { chunks, spans } = await joinSounds(sounds());
 	const bytes = await saveJoined(out, overwrite, chunks);
-	if (srt !== undefined)
-		try {
-			const cues = items.map((item, i) => ({
-				start: spans[i]?.start ?? 0,
-				end: spans[i]?.end ?? 0,
-				text: stripTags(item.text),
-			}));
-			saveBytes(srt, overwrite, Buffer.from(srtOf(cues)));
-		} catch {
-			throw new ClientError(
-				"DOWNLOAD_FAILED",
-				7,
-				"자막을 저장하지 못했습니다. WAV는 저장했습니다.",
-				{ out: resolve(out) },
-			);
-		}
+	if (srt !== undefined) {
+		const cues = items.map((item, i) => ({
+			start: spans[i]?.start ?? 0,
+			end: spans[i]?.end ?? 0,
+			text: stripTags(item.text),
+		}));
+		saveOr7(
+			srt,
+			overwrite,
+			Buffer.from(srtOf(cues)),
+			"자막을 저장하지 못했습니다. WAV는 저장했습니다.",
+			{ out: resolve(out) },
+		);
+	}
 	const seconds = spans.at(-1)?.end ?? 0;
 	print(
 		json,

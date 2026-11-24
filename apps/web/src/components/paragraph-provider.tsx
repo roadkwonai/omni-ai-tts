@@ -875,8 +875,10 @@ export function WorkProvider({ children }: { children: ReactNode }) {
 						parts: [new Uint8Array(await blobs[i].arrayBuffer())],
 					})),
 				);
-				if (mounted.current)
+				if (mounted.current) {
 					saveBlob(zipStore(files), workFileName(first, at, "zip"));
+					toast(PARAGRAPH_TEXT.received);
+				}
 				return;
 			}
 			const joined = await joinOf(items, blobs);
@@ -908,6 +910,7 @@ export function WorkProvider({ children }: { children: ReactNode }) {
 					key: joined.key,
 				});
 			}
+			if (kind !== "play") toast(PARAGRAPH_TEXT.received);
 		} catch (error) {
 			if (mounted.current) missing(error, resultId);
 		} finally {

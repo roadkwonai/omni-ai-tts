@@ -182,7 +182,7 @@ export const CHECK_REASON_TEXT = {
 	product: "제품명·버전은 숫자 규칙으로 바꾸지 않아요",
 	negative: "영하인지 마이너스인지 정해 주세요",
 	unit: "단위를 어떻게 읽을지 정해 주세요",
-	list: "쉼표로 이은 수는 어떻게 읽을지 정해 주세요",
+	list: "이어 쓴 수는 어떻게 읽을지 정해 주세요",
 	time: "시각인지 비율·점수인지 정해 주세요",
 	large: "아주 큰 수나 긴 소수는 직접 정해 주세요",
 	precision: "아주 큰 수나 긴 소수는 직접 정해 주세요",
@@ -400,12 +400,6 @@ export function dramaLineAt(seconds: number): number | null {
 	);
 	return index < 0 ? null : index;
 }
-
-// 태그라인 문구(tagline.tsx는 다른 세션 파일이라 컴포넌트와 이 상수를 그대로 두고, 4판 페이지에서는 쓰지 않는다)
-export const TAGLINE_LINES = [
-	"마음에 드는 목소리를 찾을 때까지,",
-	"한 대본으로 계속 들어 봅니다.",
-] as const;
 
 // 화면마다 라이트·다크 × 데스크톱·휴대폰(390px) 네 장(브리프 3절 5번)
 export type TourTab = {

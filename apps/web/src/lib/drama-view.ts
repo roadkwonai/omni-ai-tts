@@ -405,7 +405,8 @@ export const DRAMA_TEXT = {
 	// 다시 받는 창(6분)이 지난 미확인 줄(studio-view unknownNoteOf의 만료 문구 인자)
 	unknownExpired:
 		"확인 시간이 지났어요. 크레딧 사용 여부는 Fish Audio 사용 기록에서 확인해 주세요.",
-	takesCap: "최근 20개까지 보여요",
+	takesCap:
+		"최근 20개까지 보여요. 마지막으로 듣거나 받은 날부터 30일 동안 보관해요.",
 	remove: "지우기",
 	removeQuestion: "이 테이크를 지울까요?",
 	removeDetail:

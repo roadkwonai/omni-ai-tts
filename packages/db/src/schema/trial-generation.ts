@@ -78,7 +78,7 @@ export const trialGeneration = pgTable(
 			t.createdAt.desc(),
 		),
 		// 작업실 이전 결과(소유자, 최신순). 작업실 행만 담는다(query-partial-indexes).
-		// trial.ts listStudio가 같은 조건 글자(kind = 'studio', 매개변수 아님)로 찾는다
+		// trial.ts findStudioMany가 같은 조건 글자(kind = 'studio', 매개변수 아님)로 찾는다
 		index("trial_generation_studio")
 			.on(t.ownerId, t.createdAt.desc())
 			.where(sql`${t.kind} = 'studio'`),

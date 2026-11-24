@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # 공개 데모는 공급자 키 없는 별도 배포로 연다

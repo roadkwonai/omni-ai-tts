@@ -6,7 +6,7 @@ import {
 } from "@tts-pilot-app/db/schema/classification";
 import { script } from "@tts-pilot-app/db/schema/script";
 import { eq } from "drizzle-orm";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Context } from "../context";
 import { DEFAULT_SETTINGS } from "../providers/trial-options";
@@ -266,6 +266,100 @@ describe.skipIf(!url)("대본 보관함 프로시저(T12 계획 2.2)", () => {
 		expect(second.next).toBeNull();
 		const ids = new Set([...first.items, ...second.items].map((s) => s.id));
 		expect(ids.size).toBe(31);
+	});
+
+	it("목록 순서는 최신순, 같은 시각은 id 내림차순이고 쪽을 넘어도 같다(D4)", async () => {
+		const at = (i: number) =>
+			new Date(Date.parse("2026-11-18T00:00:00.000Z") + Math.floor(i / 4));
+		const made = await db
+			.insert(script)
+			.values(
+				Array.from({ length: 70 }, (_, i) => ({
+					kind: "saved" as const,
+					title: `대본 ${i}`,
+					work: many(1),
+					body: "가",
+					paragraphCount: 1,
+					charCount: 1,
+					updatedAt: at(i),
+					ownerId: OWNER,
+				})),
+			)
+			.returning({ id: script.id, updatedAt: script.updatedAt });
+		const expected = made
+			.sort(
+				(a, b) =>
+					b.updatedAt.getTime() - a.updatedAt.getTime() ||
+					(a.id < b.id ? 1 : -1),
+			)
+			.map((row) => row.id);
+		const got: string[] = [];
+		const sizes: number[] = [];
+		for (let cursor: { at: string; id: string } | undefined; ; ) {
+			const page = await me.scriptList({ kind: "saved", cursor });
+			got.push(...page.items.map((item) => item.id));
+			sizes.push(page.items.length);
+			if (!page.next) break;
+			cursor = page.next;
+		}
+		expect(sizes).toEqual([30, 30, 10]);
+		expect(got).toEqual(expected);
+	});
+
+	// 인덱스는 NULLS LAST로 만들어져 있다. 정렬 글자가 다르면 대본을 모두 읽고 정렬한다(D4)
+	it("목록 질의(첫 쪽·커서)는 script_owner_list를 타고 정렬하지 않는다", async () => {
+		const query = vi.spyOn(db.$client, "query");
+		await me.scriptList({ kind: "saved" });
+		await me.scriptList({
+			kind: "saved",
+			cursor: { at: new Date().toISOString(), id: MISSING },
+		});
+		const lists = query.mock.calls.flatMap((call) => {
+			const [config, values] = call as unknown as [
+				{ text?: string },
+				unknown[]?,
+			];
+			return config.text?.includes('from "script"')
+				? [{ text: config.text, values: values ?? [] }]
+				: [];
+		});
+		query.mockRestore();
+		expect(lists).toHaveLength(2);
+		const client = await db.$client.connect();
+		try {
+			await client.query("begin");
+			// 작은 표에서는 순차 읽기나 다른 인덱스 + 정렬을 고르므로 끄고 본다. 인덱스 순서와 맞지 않으면 꺼도 Sort가 남는다
+			for (const node of ["seqscan", "bitmapscan", "sort"])
+				await client.query(`set local enable_${node} = off`);
+			for (const { text, values } of lists) {
+				const { rows } = await client.query<{ "QUERY PLAN": string }>(
+					`explain ${text}`,
+					values,
+				);
+				const plan = rows.map((row) => row["QUERY PLAN"]).join("\n");
+				expect(plan).toContain("script_owner_list");
+				expect(plan).not.toContain("Sort");
+			}
+		} finally {
+			await client.query("rollback");
+			client.release();
+		}
+	});
+
+	it("검색은 한글 조합형(NFD)과 완성형(NFC)을 같게 보고 작업 글은 그대로 둔다(D6)", async () => {
+		const nfd = "커피 이야기".normalize("NFD");
+		const nfc = "커피 이야기".normalize("NFC");
+		const a = await create("조합형", { work: many(1, nfd) });
+		const b = await create("완성형", { work: many(1, nfc) });
+		for (const q of [nfc, nfd])
+			expect(
+				new Set(
+					(await me.scriptList({ kind: "saved", q })).items.map((s) => s.id),
+				),
+			).toEqual(new Set([a.id, b.id]));
+		expect((await me.scriptGet({ id: a.id })).work.paragraphs[0]?.text).toBe(
+			nfd,
+		);
 	});
 
 	it("목록 줄: 요약만 있고 work가 없다", async () => {

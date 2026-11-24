@@ -51,16 +51,44 @@ export type MakeItem = {
 	signature: string;
 };
 
+export type Lookup = { request: StudioRequest; signature: string };
+// 문단의 저장 결과를 찾을 서명(찾는 순서). 마지막이 만들 요청이다. Fish 무료 모델 종료로 유료로 보정되는 문단은 보정 전(무료) 요청이 앞에 선다:
+// 끝나기 전에 무료로 만든 결과(보관 30일)를 다시 쓴다. 요청을 만들 수 없으면 빈 목록
+export function lookupsOf(
+	p: Paragraph,
+	work: Work,
+	voices: readonly SavedVoice[] | null,
+	now: number,
+): Lookup[] {
+	const request = paragraphRequest(p, work, voices, now);
+	if (!request) return [];
+	const lookup = (each: StudioRequest): Lookup => ({
+		request: each,
+		signature: comboSignature(each),
+	});
+	const setup = voiceOf(p, work);
+	return request.provider === "fish_audio" &&
+		setup?.provider === "fish_audio" &&
+		setup.settings.model !== request.settings.model
+		? [lookup({ ...request, settings: setup.settings }), lookup(request)]
+		: [lookup(request)];
+}
+// 만들 요청과 서명. found를 주면 완료를 찾은 서명이 먼저다(저장된 결과를 볼 때)
 export const signatureOf = (
 	p: Paragraph,
 	work: Work,
 	voices: readonly SavedVoice[] | null,
 	now: number,
-) => {
-	const request = paragraphRequest(p, work, voices, now);
-	return request && { request, signature: comboSignature(request) };
+	found?: FoundMap,
+): Lookup | null => {
+	const lookups = lookupsOf(p, work, voices, now);
+	return (
+		lookups.find(({ signature }) => found?.get(signature)?.status === "done") ??
+		lookups.at(-1) ??
+		null
+	);
 };
-// 찾을 수 있는 문단(15): 요청이 있고 계약 상한 안이며, all이 아니면 표에 아직 키가 없다. 길이는 blockOf가 아니라 tooLongOf로 본다
+// 문단에서 찾을 것(15): 요청이 있고 계약 상한 안이며, all이 아니면 완료를 찾지 못했고 표에 아직 키가 없는 것. 길이는 blockOf가 아니라 tooLongOf로 본다
 // (blockOf는 이용 불가를 길이보다 먼저 돌려준다, 상한을 넘는 요청 하나로 studioFindMany 배치 전체가 거절된다). 이용 불가 성우는 빼지 않는다(16)
 function findable(
 	p: Paragraph,
@@ -69,13 +97,14 @@ function findable(
 	found: FoundMap,
 	all: boolean,
 	now: number,
-) {
-	const target = signatureOf(p, work, voices, now);
-	return target &&
-		!tooLongOf(spokenOf(p), target.request.provider) &&
-		(all || !found.has(target.signature))
-		? target
-		: null;
+): Lookup[] {
+	const lookups = lookupsOf(p, work, voices, now);
+	const [first] = lookups;
+	if (!first || tooLongOf(spokenOf(p), first.request.provider)) return [];
+	if (all) return lookups;
+	return found.get(first.signature)?.status === "done"
+		? []
+		: lookups.filter(({ signature }) => !found.has(signature));
 }
 
 // 저장된 결과(완료)가 있으면 막는 이유를 보지 않는다('스펙과 다른 점' 16). 이용 불가 성우는 찾기 대상이라 찾기 전에는 확인 중이다(27).
@@ -90,13 +119,13 @@ export function paragraphStatus(
 ): ParagraphStatus {
 	if (blankFor(p, work)) return "empty";
 	if (!voices) return "checking";
-	const target = signatureOf(p, work, voices, now);
+	const target = signatureOf(p, work, voices, now, found);
 	const hit = target ? found.get(target.signature) : undefined;
 	if (hit?.status === "done") return "made";
 	const mine = target ? live.get(target.signature) : undefined;
 	if (mine?.state === "making") return "making";
 	// 찾기 대상인데 아직 찾지 않았다
-	const pending = findable(p, work, voices, found, false, now) !== null;
+	const pending = findable(p, work, voices, found, false, now).length > 0;
 	const block = blockOf(p, work, voices);
 	if (block === "unavailable" && pending) return "checking";
 	if (block) return "blocked";
@@ -117,12 +146,12 @@ export function findTargets(
 ): StudioRequest[] {
 	const seen = new Set<string>();
 	const targets: StudioRequest[] = [];
-	for (const p of ps) {
-		const hit = findable(p, work, voices, found, all, now);
-		if (!hit || seen.has(hit.signature)) continue;
-		seen.add(hit.signature);
-		targets.push(hit.request);
-	}
+	for (const p of ps)
+		for (const hit of findable(p, work, voices, found, all, now)) {
+			if (seen.has(hit.signature)) continue;
+			seen.add(hit.signature);
+			targets.push(hit.request);
+		}
 	return targets;
 }
 
@@ -210,7 +239,7 @@ export function makePlan(
 	const seen = new Set<string>();
 	for (const [i, p] of ps.entries()) {
 		if (blankFor(p, work)) continue;
-		const hit = signatureOf(p, work, voices, now);
+		const hit = signatureOf(p, work, voices, now, found);
 		const result = hit && found.get(hit.signature);
 		if (result?.status === "done") {
 			plan.reused += 1;
@@ -281,7 +310,7 @@ export function madeOf(
 	found: FoundMap,
 	now: number,
 ): { found: Found; voiceName: string } | null {
-	const sig = signatureOf(p, work, voices, now)?.signature;
+	const sig = signatureOf(p, work, voices, now, found)?.signature;
 	const hit = sig === undefined ? undefined : found.get(sig);
 	if (hit?.status !== "done") return null;
 	const setup = voiceOf(p, work);

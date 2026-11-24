@@ -19,7 +19,6 @@ import {
 const PARAGRAPH_ID = /^[A-Za-z0-9_-]{1,100}$/;
 const SPEAKERS_MAX = 20;
 const SPEAKER_NAME_MAX = 20;
-const DECISIONS_MAX = 500;
 const GAP_MAX = 5;
 // 글은 코드 포인트로 scriptWorkProblem이 센다. 여기의 max는 그 앞에서 UTF-16 길이로 거르는 상한이다(코드 포인트 10,000 ≤ UTF-16 20,000)
 const rawText = z.string().max(SCRIPT_TEXT_MAX * 2);
@@ -32,12 +31,13 @@ const voiceSetupSchema = z.object({
 });
 const gapSchema = z.number().min(0).max(GAP_MAX);
 const speakerNameSchema = z.string().min(1).max(SPEAKER_NAME_MAX);
+// 결정 수와 읽기·원문 길이에 더 좁은 상한을 두지 않는다: 화면이 막지 않는 작업을 서버만 거절하게 된다. 크기는 작업 2 MB 상한이 막는다
 const decisionSchema = z.object({
 	start: z.number().int(),
 	end: z.number().int(),
-	original: z.string().min(1).max(100),
+	original: rawText.min(1),
 	choice: z.enum(["apply", "keep", "manual"]),
-	reading: z.string().max(200).optional(),
+	reading: rawText.optional(),
 });
 const paragraphSchema = z.object({
 	id: z.string().regex(PARAGRAPH_ID),
@@ -48,7 +48,7 @@ const paragraphSchema = z.object({
 	fixes: z
 		.object({
 			text: rawText,
-			decisions: z.array(decisionSchema).max(DECISIONS_MAX),
+			decisions: z.array(decisionSchema),
 		})
 		.optional(),
 });
@@ -103,7 +103,7 @@ const cursorSchema = z.object({ at: z.iso.datetime(), id: z.uuid() });
 // 목록. 거르기·검색·커서는 저장한 대본에만 쓴다(최근 대본은 최대 20개를 한 번에). 검색어는 앞뒤 공백을 빼고 비면 없는 것으로 본다
 export const scriptListInputSchema = z.object({
 	kind: kindSchema,
-	q: z.string().trim().max(100).optional(),
+	q: z.string().trim().normalize("NFC").max(100).optional(),
 	channel: z.union([z.uuid(), z.literal("none")]).optional(),
 	category: z.array(z.uuid()).max(SCRIPT_LINKS_MAX).optional(),
 	type: z.array(z.uuid()).max(SCRIPT_LINKS_MAX).optional(),

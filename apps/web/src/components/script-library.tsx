@@ -188,11 +188,13 @@ export function ScriptLibrary() {
 		setSeenQ(raw.q);
 		setQuery(raw.q);
 	}
+	// 주소의 검색어가 밖에서 바뀌면 대기 중인 옛 검색어가 주소를 되돌리지 않게 타이머를 지운다(보관함과 같다)
+	// biome-ignore lint/correctness/useExhaustiveDependencies: raw.q가 바뀔 때마다 정리 함수가 돌아야 한다
 	useEffect(
 		() => () => {
 			if (timerRef.current) clearTimeout(timerRef.current);
 		},
-		[],
+		[raw.q],
 	);
 
 	// 지워진 채널·분류의 id(옛 링크)는 두 목록이 다 온 뒤 버린다. 버리지 않으면 보이지 않는 조건이 목록을 비운다
@@ -421,6 +423,7 @@ function ScriptBody({
 	const duplicateMutate = duplicate.mutate;
 	const askEdit = useCallback(
 		(row: ScriptSummary, trigger: HTMLButtonElement | null) => {
+			nextRef.current = neighborId(idsRef.current, row.id);
 			openerRef.current = trigger;
 			setEditing({ mode: row.kind === "saved" ? "edit" : "recent", row });
 		},
@@ -456,6 +459,12 @@ function ScriptBody({
 		},
 		[duplicateMutate],
 	);
+
+	// 줄이 사라진 뒤 포커스: 다음 줄의 '열기' → 앞 줄 → 구역 전환(neighborId가 다음 줄 우선)
+	const focusNear = () =>
+		(nextRef.current &&
+			document.getElementById(openButtonId(nextRef.current))) ||
+		document.getElementById(viewId(view));
 
 	let body: React.ReactNode;
 	if (query.isLoadingError)
@@ -572,8 +581,10 @@ function ScriptBody({
 				<ScriptEditDialog
 					mode={editing.mode}
 					row={editing.row}
+					channelNames={channelNames}
 					classes={classes}
 					openerRef={openerRef}
+					focusWhenGone={focusNear}
 					onClose={() => setEditing(null)}
 				/>
 			) : null}
@@ -600,12 +611,7 @@ function ScriptBody({
 					pending={remove.isPending}
 					send={(handlers) => remove.mutate({ id: removing.id }, handlers)}
 					openerRef={openerRef}
-					// 다음 줄의 '열기' → 앞 줄 → 구역 전환(neighborId가 다음 줄 우선)
-					focusAfterDone={() =>
-						(nextRef.current &&
-							document.getElementById(openButtonId(nextRef.current))) ||
-						document.getElementById(viewId(view))
-					}
+					focusAfterDone={focusNear}
 					onClose={() => setRemoving(null)}
 				/>
 			) : null}
@@ -742,29 +748,26 @@ type Saved =
 	| { ok: false; reason: "duplicate" | "not_found" | "failed" };
 
 // 컴포넌트 밖에 둔다: 컴포넌트 안 try/catch는 React Compiler가 그 컴포넌트를 건너뛴다.
-// 고치기는 scriptUpdate, '보관함에 저장'은 최근 대본의 작업을 받아(scriptGet) 새 저장 대본으로 만든다(scriptCreate)
+// 고치기는 바꾼 칸만 scriptUpdate로 보낸다: 목록이 오래됐으면 모르는 연결이 있어 다 보내면 지워진다(audit C7).
+// '보관함에 저장'은 최근 대본의 작업을 받아(scriptGet) 새 저장 대본으로 만든다(scriptCreate)
+type Values = {
+	title: string;
+	channelId: string | null;
+	classificationIds: string[];
+};
 async function saveScript(
 	mode: "edit" | "recent",
 	id: string,
-	values: { title: string; channelId: string | null; ids: string[] },
+	values: Values,
+	changed: Partial<Values>,
 ): Promise<Saved> {
 	try {
 		if (mode === "edit") {
-			await client.scriptUpdate({
-				id,
-				title: values.title,
-				channelId: values.channelId,
-				classificationIds: values.ids,
-			});
-			return { ok: true, title: cleanText(values.title) };
+			await client.scriptUpdate({ id, ...changed });
+			return { ok: true, title: values.title };
 		}
 		const { work } = await client.scriptGet({ id });
-		const made = await client.scriptCreate({
-			title: values.title,
-			channelId: values.channelId,
-			classificationIds: values.ids,
-			work,
-		});
+		const made = await client.scriptCreate({ ...values, work });
 		return { ok: true, title: made.title };
 	} catch (error) {
 		return { ok: false, reason: saveFailure(error) };
@@ -772,17 +775,21 @@ async function saveScript(
 }
 
 // 고치기('대본 고치기')와 최근 대본의 '보관함에 저장' 창. 칸은 '새 대본으로 저장' 창과 같다(ScriptFields). 열 때만 마운트된다
-function ScriptEditDialog({
+export function ScriptEditDialog({
 	mode,
 	row,
+	channelNames,
 	classes,
 	openerRef,
+	focusWhenGone,
 	onClose,
 }: {
 	mode: "edit" | "recent";
 	row: ScriptSummary;
+	channelNames: ReadonlyMap<string, string>;
 	classes: readonly ClassItem[];
 	openerRef: RefObject<HTMLElement | null>;
+	focusWhenGone: () => HTMLElement | null;
 	onClose: () => void;
 }) {
 	const queryClient = useQueryClient();
@@ -793,10 +800,17 @@ function ScriptEditDialog({
 				row.title ?? firstSentenceTitle([{ text: row.preview }]).slice(0, 100),
 			category: row.classificationIds.filter((id) => kindOf(id) === "category"),
 			type: row.classificationIds.filter((id) => kindOf(id) === "type"),
+			// 목록에 아직 없는 분류(다른 탭에서 만듦). 고를 수 없어도 연결은 그대로 보낸다(audit C7)
+			unknown: row.classificationIds.filter((id) => !kindOf(id)),
 		};
 	});
+	// 없어진 채널·분류로 한 번 거절됐다. 그 뒤로는 다시 받은 목록에 있는 채널·분류만 보낸다
+	const [linksGone, setLinksGone] = useState(false);
 	const [title, setTitle] = useState(first.title);
 	const [channelId, setChannelId] = useState<string | null>(row.channelId);
+	// 보이는 채널과 보내는 채널은 이 값 하나다
+	const channel =
+		linksGone && channelId && !channelNames.has(channelId) ? null : channelId;
 	const [category, setCategory] = useState<string[]>(first.category);
 	const [type, setType] = useState<string[]>(first.type);
 	const [problem, setProblem] = useState<string | null>(null);
@@ -805,6 +819,10 @@ function ScriptEditDialog({
 	const titleRef = useRef<HTMLInputElement>(null);
 	const sendingRef = useRef(false);
 	const tooLong = codePoints(cleanText(title)) > SCRIPT_TITLE_MAX;
+	const titleChanged = title !== first.title;
+	const channelChanged = channelId !== row.channelId;
+	const classesChanged =
+		!sameIds(category, first.category) || !sameIds(type, first.type);
 
 	function toggle(group: Group, entry: Named, on: boolean) {
 		const flip = (ids: string[]) =>
@@ -828,13 +846,22 @@ function ScriptEditDialog({
 			titleRef.current?.focus();
 			return;
 		}
+		const values: Values = {
+			title: cleaned,
+			channelId: channel,
+			classificationIds: [...category, ...type, ...first.unknown].filter(
+				(id) => !linksGone || classes.some((item) => item.id === id),
+			),
+		};
+		const changed: Partial<Values> = {
+			...(titleChanged && { title: values.title }),
+			...(channelChanged && { channelId: values.channelId }),
+			...(classesChanged && { classificationIds: values.classificationIds }),
+		};
+		const sent = mode === "edit" ? changed : values;
 		sendingRef.current = true;
 		setPending(true);
-		void saveScript(mode, row.id, {
-			title: cleaned,
-			channelId,
-			ids: [...category, ...type],
-		})
+		void saveScript(mode, row.id, values, changed)
 			.then((result) => {
 				if (result.ok) {
 					void queryClient.invalidateQueries({
@@ -851,13 +878,20 @@ function ScriptEditDialog({
 				if (result.reason === "duplicate") {
 					setProblem(SCRIPT_TEXT.duplicateName);
 				} else if (result.reason === "not_found") {
-					// 지워진 대본(또는 채널·분류)에 동작: 알리고 목록을 다시 받는다
-					void queryClient.invalidateQueries({
-						queryKey: orpc.scriptList.key(),
-					});
-					toast.error(SCRIPT_TEXT.gone);
-					onClose();
-					return;
+					// 지워진 채널·분류나 대본이다(응답은 같다). 저장 창처럼 창을 닫지 않고 고친 제목을 남기며 목록을 다시 받는다(audit N10).
+					// 보낸 연결이 없거나 빼고도 거절되면 대본이 지워진 것이다
+					for (const list of [
+						orpc.scriptList,
+						orpc.channelList,
+						orpc.classificationList,
+					])
+						void queryClient.invalidateQueries({ queryKey: list.key() });
+					setLinksGone(true);
+					setFailure(
+						linksGone || (!sent.channelId && !sent.classificationIds?.length)
+							? SCRIPT_TEXT.gone
+							: SCRIPT_TEXT.channelGone,
+					);
 				} else {
 					setFailure(SCRIPT_TEXT.saveFailed);
 				}
@@ -873,12 +907,7 @@ function ScriptEditDialog({
 		<Dialog
 			open
 			// 제목만이 아니라 채널·분류를 바꿨어도 창 밖 클릭으로 닫지 않는다
-			disablePointerDismissal={
-				title !== first.title ||
-				channelId !== row.channelId ||
-				!sameIds(category, first.category) ||
-				!sameIds(type, first.type)
-			}
+			disablePointerDismissal={titleChanged || channelChanged || classesChanged}
 			onOpenChange={(open) => {
 				if (!open && !pending) onClose();
 			}}
@@ -888,7 +917,12 @@ function ScriptEditDialog({
 					titleRef.current?.select();
 					return titleRef.current ?? true;
 				}}
-				finalFocus={() => openerRef.current ?? true}
+				// 지워진 대본이면 다시 받은 목록에서 그 줄이 사라진다
+				finalFocus={() =>
+					(openerRef.current?.isConnected
+						? openerRef.current
+						: focusWhenGone()) ?? true
+				}
 				className="md:flex md:max-w-lg md:flex-col"
 			>
 				<form
@@ -932,7 +966,7 @@ function ScriptEditDialog({
 							tooLong={tooLong}
 							titleRef={titleRef}
 							pending={pending}
-							channelId={channelId}
+							channelId={channel}
 							onChannel={setChannelId}
 							category={category}
 							type={type}

@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, test, vi } from "vitest";
@@ -32,7 +31,6 @@ import { FlowSection } from "./flow-section";
 import { Hero } from "./hero";
 import { LandingBar, NavLink } from "./landing-bar";
 import { LandingFooter } from "./landing-footer";
-import { Tagline } from "./tagline";
 import { Tour } from "./tour";
 import { TrySection } from "./try-section";
 
@@ -438,39 +436,6 @@ test("바닥 글·스택 배지는 번역하지 않는다", () => {
 	expect(renderToStaticMarkup(createElement(LandingFooter))).toContain(
 		'translate="no"',
 	);
-});
-
-test("태그라인은 서버 그림에서 모든 어절이 진하다(JS 없이도 읽힌다)", () => {
-	const html = renderToStaticMarkup(
-		createElement(Tagline, {
-			lines: ["다섯 곳의 목소리를", "한 대본에 담는다."],
-		}),
-	);
-	expect(count(html, /landing-word/g)).toBe(6);
-	expect(html).not.toContain("data-armed");
-	expect(html).not.toContain("data-on");
-});
-
-test("태그라인 스크롤 채움은 큰 화면·정밀 포인터·움직임 허용일 때만 걸리고, 안 채운 어절은 opacity 0.71(muted 수준, 3:1 이상)이고 opacity만 전환한다", () => {
-	const css = readFileSync(new URL("./landing.css", import.meta.url), "utf8");
-	const armed = css.slice(css.indexOf(".landing-tagline[data-armed]"));
-	// 포매터가 조건을 여러 줄로 나눌 수 있어 공백을 하나로 모은다
-	const guard = css
-		.slice(
-			css.lastIndexOf("@media", css.indexOf(".landing-tagline[data-armed]")),
-			css.indexOf(".landing-tagline[data-armed]"),
-		)
-		.replace(/\s+/g, "");
-	// 공백을 지웠으므로 아래 기대도 공백 없이 쓴다
-	expect(guard).toContain("(min-width:768px)");
-	expect(guard).toContain("(pointer:fine)");
-	expect(guard).toContain("(prefers-reduced-motion:no-preference)");
-	const block = armed.slice(0, armed.indexOf("/* 누름"));
-	// 안 채운 어절은 opacity 0.71(foreground 알파 0.85 × 0.71 ≈ muted-foreground 0.6)이고 opacity만 전환한다(color 전환은 단어마다 다시 칠한다)
-	expect(block).toMatch(/opacity:\s*0\.71/);
-	expect(block).toMatch(/transition:\s*opacity 300ms/);
-	expect(block).not.toMatch(/transition:\s*color/);
-	expect(block).not.toMatch(/opacity:\s*0\.3\b/);
 });
 
 test("막대 로고는 이미지 요청 없이 인라인 SVG 심볼(aria-hidden)과 진짜 글자라 링크 이름이 'Omni AI TTS'다", () => {

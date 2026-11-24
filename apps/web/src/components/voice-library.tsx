@@ -83,16 +83,14 @@ function Library() {
 	}
 	const [announced, setAnnounced] = useState("");
 	const [chosen, setChosen] = useState<string | null>(null);
-	// 화면을 열 때 한 번(서버가 24시간·40명 규칙으로 거른다). 창 포커스·재연결로 다시 부르지 않는다. 결과 목록으로 캐시를 바꾼다(계획 리뷰 P2)
+	// 화면을 열 때 한 번(서버가 24시간·40명 규칙으로 거른다). 창 포커스·재연결로 다시 부르지 않는다(계획 리뷰 P2)
 	const check = useQuery({
 		...OWNED_LIST,
 		queryKey: ["savedVoiceCheck"],
 		queryFn: async () => {
-			const fresh = await client.savedVoiceCheck();
-			// 진행 중인 담기·연결이 있으면 그 낙관적 갱신을 덮지 않고, 끝난 뒤 값으로 다시 받게 한다
-			if (queryClient.isMutating({ mutationKey: ["savedVoice"] }) === 0)
-				queryClient.setQueryData(savedListKey, fresh);
-			else void queryClient.invalidateQueries({ queryKey: savedListKey });
+			// null이면 확인할 성우가 없어 받아 둔 목록 그대로다. 확인하는 동안 담거나 뺀 것을 옛 목록으로 덮지 않게 다시 받기만 한다
+			if ((await client.savedVoiceCheck()) !== null)
+				void queryClient.invalidateQueries({ queryKey: savedListKey });
 			return true;
 		},
 		enabled: list.isSuccess,

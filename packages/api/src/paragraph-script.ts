@@ -75,13 +75,16 @@ export type ParagraphBlock =
 	| { kind: "too_long"; length: number; max: number };
 
 const newId = () => crypto.randomUUID();
-const isBlank = (text: string) => text.trim() === "";
+// 복사한 글에 딸려 오는 보이지 않는 글자(폭 없는 공백·단어 결합자·BOM)를 지운다. 이모지를 잇는 U+200D(ZWJ)는 남긴다
+export const dropZeroWidth = (text: string) =>
+	text.replace(/[\u{200B}\u{2060}\u{FEFF}]/gu, "");
+export const isBlank = (text: string) => dropZeroWidth(text).trim() === "";
 const SPACE = /\s/;
 const SENTENCE_END = /[.!?。…]/;
 
-// 빈 줄(공백만인 줄 포함) 하나 이상을 경계로 나눈 덩어리
+// 빈 줄(공백·보이지 않는 글자만인 줄 포함) 하나 이상을 경계로 나눈 덩어리
 export const splitBlocks = (raw: string) =>
-	raw
+	dropZeroWidth(raw)
 		.replace(/\r\n?/g, "\n")
 		.split(/\n\s*\n/)
 		.map((block) => block.trim())
@@ -227,7 +230,7 @@ export function pasteAt(
 	if (!p) return null;
 	const segments = segmentsOf(raw);
 	const before = p.text.slice(0, sel.start);
-	const blankBefore = before.trim() === "";
+	const blankBefore = isBlank(before);
 	if (segments.length < 2 && !(blankBefore && segments[0]?.named)) return null;
 	const { all } = partsOf(segments, (speaker) =>
 		speaker === undefined
@@ -628,13 +631,13 @@ const sendOf = (
 	text: string,
 ) => sendText(familyOf(voice.provider, voice.settings.model), text);
 
-// 빈 문단: 원문이 공백뿐이거나, 성우가 있고 보낼 글(태그를 뺀 글)이 빈다(스펙 15.2 '보낼 글이 비는 문단').
+// 빈 문단: 원문이 공백·보이지 않는 글자뿐이거나, 성우가 있고 보낼 글(태그를 뺀 글)이 빈다(스펙 15.2 '보낼 글이 비는 문단').
 // 성우 설정의 모델로 본다. requestOf가 바꾸는 모델(Typecast v30↔v21, Fish 무료→유료)은 태그 판정이 같다
 export function blankFor(p: Paragraph, work: Work): boolean {
 	const text = spokenOf(p);
 	if (isBlank(text)) return true;
 	const setup = voiceOf(p, work);
-	return setup !== null && normalizeText(sendOf(setup, text)) === "";
+	return setup !== null && isBlank(sendOf(setup, text));
 }
 
 // 문단 요청. 성우나 성우 목록이 아직 없거나 빈 문단(blankFor)이면 null. 글은 보낼 글이다(받지 않는 태그가 없으면 원문 그대로라 조합 키가 같다)

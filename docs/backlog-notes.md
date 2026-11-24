@@ -174,7 +174,7 @@
 
 - [ ] T10-01 (28행 ponytail F1~F3·#7·M1) 파일 나누기: `paragraph-card.tsx`(약 1,000줄)는 ⋯ 메뉴·설정 칸을 형제 파일로 나누고, 카드·레일의 설정 칸은 `VoiceSettingFields` 하나(+`VoiceMissingNote`)로, `VoiceName`은 성우 버튼과 함께 둔다. `paragraph-provider.tsx`(약 870줄)는 듣기·받기 훅을 뺀다. `paragraph-rails.tsx`(약 750줄)는 설정·요약으로 나눈다(막대가 `SummarySheet` 하나 때문에 레일 파일 전체를 가져온다). 순수 이동이라 QA 뒤에 한다.
 - [ ] T10-02 (28행 우려) 문단마다 받기 zip에 zip64가 없어 4GiB를 넘으면 깨진 파일이 된다(이론 200문단 × 32MiB = 6.25GiB, `zip-store.ts` `shortcut:` 주석).
-- [ ] T10-04 (Task 3·14) `findStudioMany`는 미확인도 보므로 완료만 담은 부분 인덱스 `trial_generation_find`를 못 타고 `trial_generation_studio`로 간다. 지우거나 `(owner_id, combo_key) where kind='studio'` 인덱스로 바꿀지는 EXPLAIN으로 확인한 뒤 정한다. 스키마 주석 `packages/db/src/schema/trial-generation.ts:81`이 지운 `listStudio`를 가리킨다(db 파일이라 이 라운드에서 고치지 않았다).
+- [x] T10-04 (전체 검수에서 측정, 인덱스를 바꿔도 이득이 없어 그대로 둔다. 스키마 주석은 `findStudioMany`로 고침) (Task 3·14) `findStudioMany`는 미확인도 보므로 완료만 담은 부분 인덱스 `trial_generation_find`를 못 타고 `trial_generation_studio`로 간다. 지우거나 `(owner_id, combo_key) where kind='studio'` 인덱스로 바꿀지는 EXPLAIN으로 확인한 뒤 정한다. 스키마 주석 `packages/db/src/schema/trial-generation.ts:81`이 지운 `listStudio`를 가리킨다(db 파일이라 이 라운드에서 고치지 않았다).
 - [ ] T10-05 (24행 critique·25행 audit, 사용자가 이번에 고르지 않음) 작은 화면 정리: 머리 '문단 8 · 81자'와 요약 '글자 81자' 중복(3·2단), 확인 창 '남은 크레딧 14,936크레딧' 단위 반복과 만든 뒤 남을 값, 카드 설정 칸 모델 선택만 가운데 정렬, 390 빈 상태 막대 판이 화면 중간, 320 막대 약 156/640px, 비어 있을 때 '받기'는 또렷하고 '이어 듣기'만 흐림, 문단 시작 시각·40문단 실행 남은 시간 없음(critique 질문).
 - [ ] T10-06 (23·24행 web-design-guidelines) 곧은 작은따옴표 → 둥근 따옴표는 앱 전체 문구를 한 번에 바꾼다. 문장 안 공급자 이름(`freeLine`, `unknownOutcome` 계열, 막대 멈춤 줄)에 `translate="no"`가 없다. `trial-view` `usageText`의 `$…toFixed(4)`를 Intl로(앱 공통).
 - [ ] T10-07 (31행 code 리뷰 low) 여러 탭을 쓸 때 30초 안의 오래된 담은 성우 목록 캐시로 /studio를 열면, 다른 탭에서 막 담아 고른 성우를 비운 작업이 바로 저장된다(같은 탭은 `saved-voices.tsx`가 캐시를 고친다. 이전에도 다음 편집 때 저장되던 결과).
@@ -269,7 +269,7 @@
 
 - [ ] T15b-05 (2026-11-19: 원인을 가리려면 공급자에 그 성우 모델 상세를 실제로 조회해야 함 — 무료 조회지만 본인용 키로 하므로 사용자와 함께 확인) Fish Audio 담은 성우 '진우-기쁨-'으로 작업실 생성 시 400 provider_input("Fish Audio가 이 요청을 받지 않았어요"). 공개 성우는 같은 무료 모델로 성공. 그 성우의 모델 상태(비공개·삭제·학습 중 등)를 담기 확인(savedVoiceCheck)에서 잡을 수 있는지 본다. (본인용 검수)
 - [ ] T15b-16 global-error는 대개 수화 뒤 클라이언트 오류로 그려지는데, next-themes가 그리는 script 태그 때문에 개발 모드에서 React가 'Encountered a script tag…' 경고를 한 번 찍을 수 있다(동작 문제 없음, code 리뷰 low). 개발 모드에서 global-error를 띄우는 QA는 이 경고를 알려진 라이브러리 경고로 분류한다.
-- [ ] T15b-15 데모 QA 관찰: 채널·카테고리 삭제 확인의 연결 수가 성우만 센다(대본·프리셋 미표시), voiceList가 끊기면 /casting 전체가 오류 경계로 바뀐다, ego-browser에서만 /drama 768 다크 ResizeObserver loop 콘솔 오류(5회 중 2회), 데모 결과 행을 지울 화면이 없음(매일 초기화로 정리). 스펙 9절 '저장 10,000자'는 문단당 상한이다.
+- [ ] T15b-15 데모 QA 관찰: voiceList가 끊기면 /casting 전체가 오류 경계로 바뀐다, ego-browser에서만 /drama 768 다크 ResizeObserver loop 콘솔 오류(5회 중 2회), 데모 결과 행을 지울 화면이 없음(매일 초기화로 정리). 스펙 9절 '저장 10,000자'는 문단당 상한이다.
 
 ### 성별·연령 필터 (캐스팅 '전체' 탭·보관함 라운드에서 미룬 것, 2026-11-20)
 

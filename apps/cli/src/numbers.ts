@@ -8,8 +8,8 @@ import {
 	type Work,
 } from "@tts-pilot-app/api/paragraph-script";
 import type { Args } from "./cli.js";
-import { ClientError, connect, input } from "./client.js";
-import { checkOut, readInput, readJson, saveBytes } from "./files.js";
+import { connect, input } from "./client.js";
+import { checkOut, readInput, readJson, saveOr7 } from "./files.js";
 import { clean, print, table } from "./output.js";
 import { WORK_BYTES_MAX } from "./scripts.js";
 import { resolveWork, sourceOf, workJson } from "./work.js";
@@ -158,11 +158,7 @@ export async function numbersApply(args: Args) {
 	const body = plain
 		? Buffer.from(paragraphs.map(spokenOf).join(""))
 		: workJson({ ...work, paragraphs });
-	try {
-		saveBytes(out, overwrite, body);
-	} catch {
-		throw new ClientError("DOWNLOAD_FAILED", 7, "결과를 저장하지 못했습니다.");
-	}
+	saveOr7(out, overwrite, body, "결과를 저장하지 못했습니다.");
 	const count = items.filter((item) => item.decision).length;
 	print(
 		json,

@@ -123,7 +123,7 @@ export async function cooldownOf(
 	return row?.until ?? null;
 }
 
-// 429 대기 시각을 적는다(목록과 시험 생성이 함께 쓴다). 1시간 뒤까지만(계획 리뷰 E16)
+// 429 대기 시각을 적는다(목록과 시험 생성이 함께 쓴다). 1시간 뒤까지만(계획 리뷰 E16). 늦게 온 짧은 대기가 긴 대기를 줄이지 않는다
 export async function recordCooldown(
 	db: Database,
 	provider: ProviderId,
@@ -135,7 +135,10 @@ export async function recordCooldown(
 	await db
 		.insert(providerCooldown)
 		.values({ provider, until })
-		.onConflictDoUpdate({ target: providerCooldown.provider, set: { until } });
+		.onConflictDoUpdate({
+			target: providerCooldown.provider,
+			set: { until: sql`greatest(${providerCooldown.until}, excluded.until)` },
+		});
 }
 
 export async function cachedList<T>(

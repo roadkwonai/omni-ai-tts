@@ -42,6 +42,7 @@ import { MY_VOICE_TEXT as T } from "@/lib/my-voice-text";
 import {
 	badgeOf,
 	dismissNeedsConfirm,
+	dismissText,
 	type MenuAction,
 	menuOf,
 	primaryActionOf,
@@ -59,12 +60,13 @@ import { CREATE_ID, MyVoiceCreate, ProviderText } from "./my-voice-create";
 import { MyVoiceListen } from "./my-voice-listen";
 import { Notice, SignInNotice } from "./notice";
 import { SamplePlayerProvider } from "./sample-player";
-import { savedListKey } from "./saved-voices";
+import { invalidateClasses, savedListKey } from "./saved-voices";
 import { menuItem } from "./voice-conditions";
 import { lockedButton, ReloadRow } from "./voice-problem";
 
 const primaryId = (id: string) => `my-voice-${id}-primary`;
 const menuId = (id: string) => `my-voice-${id}-menu`;
+const LOCKED_ID = "my-voices-locked";
 
 // 지운 뒤 포커스: 다음 줄의 주 동작 → 그 줄의 ⋯ → '만들기'(브리프 6절)
 const focusAfterRemove = (nextId: string | null) =>
@@ -88,6 +90,8 @@ function failureText(error: unknown, provider: MyVoice["provider"]): string {
 	if (error instanceof ORPCError) {
 		if (error.code === "CONFLICT") return T.busySending;
 		const reason = (error.data as { reason?: unknown } | undefined)?.reason;
+		// 만들기 실패 줄의 '만들어졌을 수 있어요'는 상태 확인·다시 담기에 맞지 않는다(audit N3)
+		if (reason === "provider_error") return T.reasonProviderError;
 		if (typeof reason === "string") return reasonText(reason, provider);
 	}
 	return T.reasonFallback;
@@ -105,6 +109,8 @@ function refresh(queryClient: QueryClient) {
 	void queryClient.invalidateQueries({ queryKey: orpc.myVoiceList.key() });
 	void queryClient.invalidateQueries({ queryKey: savedListKey });
 	void queryClient.invalidateQueries({ queryKey: orpc.presetList.key() });
+	// 지운 클론은 보관함에서도 빠져 '성우 N명'이 바뀐다(audit C4)
+	invalidateClasses(queryClient);
 }
 
 type Asking = { item: MyVoice; mode: "delete" | "dismiss" };
@@ -186,7 +192,7 @@ function MyVoicesList() {
 	const noProvider = providers
 		? !providers.fish_audio && !providers.gemini
 		: false;
-	// 진행 중인 줄 하나(확인·지우기·다시 담기)는 그 줄 동작을 잠근다
+	// 진행 중인 줄이 있으면(확인·지우기·다시 담기) 모든 줄을 잠근다: 다른 줄을 누르면 같은 mutation이 앞 줄의 잠금과 알림을 잃는다(audit C4)
 	const workingId = [check, remove, save].find((m) => m.isPending)?.variables
 		?.id;
 
@@ -312,6 +318,7 @@ function MyVoicesList() {
 						key={item.id}
 						item={item}
 						busy={workingId === item.id}
+						locked={workingId !== undefined}
 						thisYear={thisYear}
 						onPrimary={run}
 						onMenu={menu}
@@ -322,17 +329,27 @@ function MyVoicesList() {
 
 	return (
 		<div className="flex max-w-3xl flex-col gap-4">
-			<Button
-				id={CREATE_ID}
-				size="lg"
-				className={cn("self-start", lockedButton(true))}
-				focusableWhenDisabled
-				disabled={!providers || noProvider}
-				onClick={() => setCreating(true)}
-			>
-				<Plus data-icon="inline-start" aria-hidden="true" />
-				{T.create}
-			</Button>
+			{/* 잠긴 이유는 '만들기'(44px) 옆이라 나타나도 목록이 밀리지 않는다 */}
+			<div className="flex items-center gap-3">
+				<Button
+					id={CREATE_ID}
+					size="lg"
+					className={cn("shrink-0", lockedButton(true))}
+					focusableWhenDisabled
+					disabled={!providers || noProvider}
+					onClick={() => setCreating(true)}
+				>
+					<Plus data-icon="inline-start" aria-hidden="true" />
+					{T.create}
+				</Button>
+				<p
+					id={LOCKED_ID}
+					role="status"
+					className="min-w-0 break-keep text-muted-foreground text-sm"
+				>
+					{workingId !== undefined && items.length > 1 ? T.lockedReason : null}
+				</p>
+			</div>
 			{noProvider ? (
 				<Notice title={T.noProviderTitle}>
 					<Link
@@ -376,11 +393,7 @@ function MyVoicesList() {
 				<ConfirmDialog
 					title={T.deleteTitle(asking.item.name)}
 					description={
-						<DeleteDescription
-							mode={asking.mode}
-							provider={asking.item.provider}
-							presets={asking.item.presets}
-						/>
+						<DeleteDescription mode={asking.mode} item={asking.item} />
 					}
 					action={asking.mode === "delete" ? T.delete : T.dismiss}
 					pendingText={T.deletingNow}
@@ -412,18 +425,11 @@ function MyVoicesList() {
 
 // 지우기 확인 설명. 프리셋 이름은 문장에 묻지 않게 줄 바꾼 목록(말줄임)으로 보인다.
 // AlertDialogDescription이 <p>라 ul을 넣을 수 없어 role로 목록을 나타낸다
-function DeleteDescription({
-	mode,
-	provider,
-	presets,
-}: {
-	mode: Asking["mode"];
-	provider: MyVoice["provider"];
-	presets: readonly string[];
-}) {
-	const label = PROVIDER_LABEL[provider];
+function DeleteDescription({ mode, item }: Asking) {
+	const { presets } = item;
+	const label = PROVIDER_LABEL[item.provider];
 	if (mode === "dismiss")
-		return <ProviderText text={T.dismissDescription(label)} name={label} />;
+		return <ProviderText text={dismissText(item)} name={label} />;
 	return (
 		<>
 			<ProviderText text={T.deleteDescription(label)} name={label} />{" "}
@@ -468,12 +474,14 @@ const MENU_TEXT: Record<MenuAction, string> = {
 function MyVoiceRow({
 	item,
 	busy,
+	locked,
 	thisYear,
 	onPrimary,
 	onMenu,
 }: {
 	item: MyVoice;
 	busy: boolean;
+	locked: boolean;
 	thisYear: number;
 	onPrimary: (
 		item: MyVoice,
@@ -491,6 +499,7 @@ function MyVoiceRow({
 	const note = rowNoteOf(item);
 	const primary = primaryActionOf(item);
 	const actions = menuOf(item);
+	const lockedBy = locked && !busy ? LOCKED_ID : undefined;
 	return (
 		<li className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:gap-4">
 			<div className="min-w-0 flex-1">
@@ -529,9 +538,10 @@ function MyVoiceRow({
 							variant="neutral"
 							size="lg"
 							focusableWhenDisabled
-							disabled={busy}
+							disabled={locked}
 							aria-busy={busy || undefined}
-							className={lockedButton(false)}
+							aria-describedby={lockedBy}
+							className={lockedButton(!busy)}
 							onClick={(event) => onPrimary(item, primary, event.currentTarget)}
 						>
 							{busy ? (
@@ -550,8 +560,9 @@ function MyVoiceRow({
 										variant="ghost"
 										size="icon-lg"
 										focusableWhenDisabled
-										disabled={busy}
+										disabled={locked}
 										aria-label={T.rowActions(item.name)}
+										aria-describedby={lockedBy}
 										className={cn(
 											"text-muted-foreground hover:text-foreground focus-visible:text-foreground aria-expanded:text-foreground",
 											// 진행 중 표시는 주 동작의 스피너가 맡고 ⋯는 그냥 잠긴 것이라 흐리게 한다

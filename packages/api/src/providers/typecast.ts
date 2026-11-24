@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import type { Voice, VoiceSource } from "./contract";
 import {
+	audioBytes,
 	nullOnStatus,
 	type ProviderClient,
 	ProviderHttpError,
@@ -131,7 +132,7 @@ export function createTypecast(apiKey: string): ProviderClient {
 							},
 						})
 						.catch(toHttpError);
-					return new Uint8Array(audioData);
+					return audioBytes(audioData);
 				},
 				options,
 			),

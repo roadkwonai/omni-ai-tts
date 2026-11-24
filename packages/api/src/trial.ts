@@ -901,7 +901,7 @@ export type LateTarget = {
 	voiceIds: readonly string[];
 };
 
-// 늦은 결과 저장: 시간 초과로 미확인이 된 그 소유자·그 화면의 행만 완료로 바꾼다. 그사이 지웠거나 다른 상태면 바뀌는 행이 없다
+// 늦은 결과 저장: 시간 초과로 미확인이 됐거나 미확인 기록이 실패해 진행 중으로 남은 그 소유자·그 화면의 행만 완료로 바꾼다. 그사이 지웠거나 다른 상태면 바뀌는 행이 없다
 async function completeLate(
 	db: Database,
 	target: LateTarget,
@@ -925,7 +925,7 @@ async function completeLate(
 					eq(t.id, target.id),
 					eq(t.ownerId, target.ownerId),
 					eq(t.kind, target.kind),
-					eq(t.status, "unknown"),
+					inArray(t.status, ["pending", "unknown"]),
 				),
 			),
 	);
@@ -933,7 +933,7 @@ async function completeLate(
 }
 
 // 늦은 결과(T5-02, T9 스펙 2절). 성공이면 같은 기록을 완료로 바꾸고 사용 이력을 올린다. 실패·32MiB 초과는 미확인 그대로다.
-// 부르는 쪽은 미확인 기록(recordFailure)을 쓴 뒤에 부른다(미확인 행만 완료로 바꾸므로, 먼저 부르면 아직 진행 중인 행이라 늦은 결과를 잃는다). 던지지 않는다(로그 한 줄, 접두는 화면).
+// 부르는 쪽은 미확인 기록(recordFailure)을 쓴 뒤에 부른다(먼저 부르면 완료 행에 미확인을 쓰다 trial_generation_audio 제약에 걸려 실패 로그가 남는다). 던지지 않는다(로그 한 줄, 접두는 화면).
 // 부르는 쪽은 돌려준 약속을 응답 뒤 작업(context.defer, 배포는 Next after)으로 넘긴다.
 // shortcut: 함수 수명(Vercel Hobby 300초, /api/rpc maxDuration) 안에 온 결과만 받는다. 장면은 270초 상한(SCENE_LATE_MAX_MS)이고 300초를 넘는 Typecast 응답은 잃는다(ADR 0013). 그런 응답이 실제로 생기면 플랜을 다시 본다
 export function saveLate(

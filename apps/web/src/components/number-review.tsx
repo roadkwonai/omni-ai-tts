@@ -54,7 +54,7 @@ import {
 	unreviewedList,
 } from "@/lib/paragraph-script";
 import { NUMBER_TEXT, PARAGRAPH_TEXT } from "@/lib/studio-text";
-import { STUDIO_TEXT } from "@/lib/studio-view";
+import { reviewIndexOf, STUDIO_TEXT } from "@/lib/studio-view";
 
 import { fieldClass, isComposingEnter } from "./class-form-dialog";
 import { DialogCloseButton } from "./dialog-close-button";
@@ -408,7 +408,7 @@ function ReviewBody({
 	const radioName = useId();
 	const listId = useId();
 	const inputRef = useRef<HTMLInputElement>(null);
-	// 지금 항목의 key, 모두 검수했으면 "done"
+	// 고른 항목의 key, 모두 검수했으면 "done"(보일 항목은 reviewIndexOf)
 	const [view, setView] = useState(() => {
 		const mine = paragraphId
 			? rows.filter((r) => r.p.id === paragraphId)
@@ -436,15 +436,16 @@ function ReviewBody({
 		};
 	}, [originals]);
 
+	const index = reviewIndexOf(rows, view);
+	const row = index < 0 ? null : rows[index];
+	const currentKey = row?.key;
 	// 지금 항목이 목록에서 보이게(긴 대본). 항목이 바뀔 때만
 	useEffect(() => {
 		document
-			.getElementById(`${listId}${view}`)
+			.getElementById(`${listId}${currentKey}`)
 			?.scrollIntoView({ block: "nearest" });
-	}, [listId, view]);
+	}, [listId, currentKey]);
 
-	const index = view === "done" ? -1 : rows.findIndex((r) => r.key === view);
-	const row = index < 0 ? null : rows[index];
 	const finished = row === null;
 	// 한 번 돌아 센다(js-combine-iterations). 직접 입력을 칠 때마다 다시 세지 않게 rows가 바뀔 때만
 	const { open, certain } = useMemo(() => {
@@ -589,7 +590,7 @@ function ReviewBody({
 					className="-mx-1 hidden min-h-0 w-56 shrink-0 flex-col gap-0.5 overflow-y-auto overscroll-contain px-1 md:flex"
 				>
 					{rows.map((r) => {
-						const current = r.key === view;
+						const current = r === row;
 						return (
 							<li key={r.key}>
 								<button

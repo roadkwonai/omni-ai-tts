@@ -12,6 +12,8 @@ let browserQueryClient: QueryClient | undefined;
 export function getQueryClient() {
 	const create = () =>
 		new QueryClient({
+			// 오프라인에서 누른 유료·상태 변경이 대기하다 재연결 때 저절로 나가지 않게 바로 보내 실패시킨다(T9-11)
+			defaultOptions: { mutations: { networkMode: "always" } },
 			queryCache: new QueryCache({
 				onError: (_error, query) => {
 					// meta.toast가 false인 조회는 화면이 오류를 직접 보인다(연결 상태 카드).

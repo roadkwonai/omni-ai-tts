@@ -18,6 +18,8 @@ import {
 import {
 	checkExtension,
 	checkOut,
+	type FileOptions,
+	fileOf,
 	MIME,
 	readInput,
 	readSettings,
@@ -25,20 +27,18 @@ import {
 } from "./files.js";
 import { confirmRemoval, print, table, usageText } from "./output.js";
 import {
-	checkKind,
 	downloadStopped,
 	type Kind,
 	mutate,
 	noteChanged,
 	type Output,
 	onInterrupt,
-	recover,
-	resultOf,
+	resumeRequest,
 	runPaid,
 	show,
-	showRecords,
 	unconfirmed,
 } from "./paid.js";
+import { downloadFailed } from "./studio.js";
 import { parseRef, resolveVoice } from "./voices.js";
 
 // 서버가 받는 시험 생성 오디오 상한(packages/api routers/trial.ts MAX_AUDIO_BYTES)
@@ -58,13 +58,8 @@ async function write(
 ): Promise<Pick<Output, "result" | "out" | "mime">> {
 	try {
 		saveBytes(out, overwrite, new Uint8Array(await audio.arrayBuffer()));
-	} catch {
-		throw new ClientError(
-			"DOWNLOAD_FAILED",
-			7,
-			"음성 파일을 저장하지 못했습니다. trial download로 다시 받을 수 있습니다.",
-			{ resultId: id },
-		);
+	} catch (error) {
+		throw downloadFailed(error, id, "trial");
 	}
 	return {
 		result: { id, createdAt, usage, bytes: audio.size },
@@ -95,20 +90,12 @@ export async function download(
 	return write(result, out, overwrite);
 }
 
-const optionsOf = ({ json, url, text, flag }: Args) => ({
-	url,
-	json,
-	out: text("out"),
-	overwrite: flag("overwrite"),
-});
 type Written = Awaited<ReturnType<typeof write>> | { error: ClientError };
 export function trialKind({
 	json,
 	out = "",
 	overwrite,
-}: Pick<ReturnType<typeof optionsOf>, "json" | "out" | "overwrite">): Kind & {
-	written(): Written | undefined;
-} {
+}: FileOptions): Kind & { written(): Written | undefined } {
 	// 응답으로 받은 오디오를 파일로 둔 결과. 응답을 받은 뒤에만 있다
 	let written: Written | undefined;
 	return {
@@ -159,7 +146,7 @@ export function trialKind({
 export async function trialGenerate(args: Args) {
 	const { text, flag } = args;
 	const options = {
-		...optionsOf(args),
+		...fileOf(args),
 		input: text("input"),
 		yes: flag("yes"),
 		fresh: flag("new"),
@@ -201,30 +188,15 @@ export async function trialGenerate(args: Args) {
 }
 
 export async function trialDownload(id: string, args: Args) {
-	const options = optionsOf(args);
+	const options = fileOf(args);
 	checkOut(options.out ?? "", options.overwrite);
 	const connection = await connect(options.url);
 	await trialKind(options).finish(connection, "saved", id);
 }
 
 export async function trialResume(requestId: string | undefined, args: Args) {
-	const options = optionsOf(args);
-	if (requestId === undefined)
-		return showRecords("trial", options.url, options.json);
-	if (options.out !== undefined) checkOut(options.out, options.overwrite);
-	await checkKind("trial", options.url, requestId);
-	const connection = await connect(options.url);
-	const kind = trialKind(options);
-	const result = resultOf(await recover(kind, connection, requestId));
-	if (options.out !== undefined)
-		return kind.finish(connection, "resumed", result.id);
-	show(options.json, {
-		origin: connection.origin,
-		source: "resumed",
-		result,
-		out: null,
-		mime: null,
-	});
+	const options = fileOf(args);
+	await resumeRequest(trialKind(options), requestId, options);
 }
 
 export async function trialList({ json, url, text }: Args) {

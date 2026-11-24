@@ -191,7 +191,7 @@ describe("Fish Audio 클론 만들기(상태 변경)", () => {
 describe("Fish Audio 클론 조회·지우기", () => {
 	const client = () => createFishAudio(FISH_KEY);
 
-	it("GET /model/{id}의 state를 돌려주고 403·404는 null이다", async () => {
+	it("GET /model/{id}의 state를 돌려주고 404는 null, 403은 provider_auth다(P3)", async () => {
 		fetchMock.mockResolvedValueOnce(
 			json(200, fishModel({ state: "training" })),
 		);
@@ -199,10 +199,14 @@ describe("Fish Audio 클론 조회·지우기", () => {
 			state: "processing",
 		});
 		expect(calledUrl().href).toBe(`${FISH}/model/abc_1`);
-		for (const status of [403, 404]) {
-			fetchMock.mockResolvedValueOnce(json(status, { status, message: "x" }));
-			await expect(client().cloneGet?.("abc_1")).resolves.toBeNull();
-		}
+		fetchMock.mockResolvedValueOnce(json(404, { status: 404, message: "x" }));
+		await expect(client().cloneGet?.("abc_1")).resolves.toBeNull();
+		// 키·계정 문제일 수 있어 '없음'으로 굳히지 않는다
+		fetchMock.mockResolvedValueOnce(json(403, { status: 403, message: "x" }));
+		await expect(client().cloneGet?.("abc_1")).rejects.toMatchObject({
+			code: "BAD_GATEWAY",
+			data: { provider: "fish_audio", reason: "provider_auth" },
+		});
 	});
 
 	it("조회는 10초에 끊는다(처리 여부 미확인)", async () => {

@@ -2,7 +2,6 @@
 
 import { Button } from "@tts-pilot-app/ui/components/button";
 import { Skeleton } from "@tts-pilot-app/ui/components/skeleton";
-import { Spinner } from "@tts-pilot-app/ui/components/spinner";
 import {
 	Tooltip,
 	TooltipContent,
@@ -45,22 +44,17 @@ export type ClassItem = {
 };
 
 // 행의 아이콘 버튼(44px, 툴팁). 접근 이름은 '{이름} 고치기'처럼 항목 이름을 담는다(사용자 결정 2026-10-06, T5 결과 행과 같다).
-// busy(작업실 이전 결과의 받는 중)면 같은 버튼의 아이콘만 스피너로 바꾼다(다른 요소로 바꾸면 포커스를 잃는다, 브리프 5.8). busy·disabled면 포커스는 받고 눌리지 않는다
 export function RowAction({
 	id,
 	label,
 	tip,
 	icon: Icon,
-	busy = false,
-	disabled = false,
 	onClick,
 }: {
 	id?: string;
 	label: string;
 	tip: string;
 	icon: LucideIcon;
-	busy?: boolean;
-	disabled?: boolean;
 	onClick: (button: HTMLButtonElement) => void;
 }) {
 	return (
@@ -71,17 +65,14 @@ export function RowAction({
 						id={id}
 						variant="ghost"
 						size="icon-lg"
-						focusableWhenDisabled
-						disabled={busy || disabled}
-						aria-busy={busy || undefined}
 						// 행 이름보다 가볍게 회색으로 두고 가리키거나 포커스하면 진해진다(critique P2)
-						className="text-muted-foreground hover:text-foreground focus-visible:text-foreground aria-disabled:pointer-events-none"
+						className="text-muted-foreground hover:text-foreground focus-visible:text-foreground"
 						aria-label={label}
 						onClick={(event) => onClick(event.currentTarget)}
 					/>
 				}
 			>
-				{busy ? <Spinner aria-hidden="true" /> : <Icon aria-hidden="true" />}
+				<Icon aria-hidden="true" />
 			</TooltipTrigger>
 			<TooltipContent>{tip}</TooltipContent>
 		</Tooltip>

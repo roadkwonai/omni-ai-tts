@@ -13,6 +13,7 @@ import {
 	chipsOf,
 	failShortOf,
 	makeProblemText,
+	NUMBER_TEXT,
 	PARAGRAPH_AUTO_TAG_TEXT,
 	PARAGRAPH_TEXT,
 	paragraphTagGroups,
@@ -215,6 +216,19 @@ describe("PARAGRAPH_TEXT(브리프 9절)", () => {
 		expect(PARAGRAPH_TEXT.aboutLength(1860)).toBe("약 31분");
 		expect(PARAGRAPH_TEXT.summaryChip(12, 40, 1860)).toBe("12/40 · 약 31분");
 		expect(PARAGRAPH_TEXT.madeOf(1200, 2000)).toBe("1,200 / 2,000");
+	});
+	it("모두 만든 뒤 도움 줄은 크레딧 0과 결과 보관 기한을 말한다(GLOSSARY '저장된 결과')", () => {
+		expect(PARAGRAPH_TEXT.receiveFree).toMatch(
+			/크레딧 0.*마지막으로 듣거나 받은 날부터 30일/,
+		);
+	});
+	it("list 사유는 쉼표 목록과 한글 단위 나열을 함께 가리킨다", () => {
+		expect(NUMBER_TEXT.reasons.list).toBe(
+			"이어 쓴 수는 어떻게 읽을지 정해 주세요",
+		);
+	});
+	it("받기가 끝나면 만들기 끝처럼 토스트로 알린다", () => {
+		expect(PARAGRAPH_TEXT).toHaveProperty("received", "파일을 받았어요");
 	});
 	it("막대(브리프 4·5.7): 잠긴 주 버튼, 한 줄 칸, 결과 칸 안내와 캡션", () => {
 		expect(PARAGRAPH_TEXT.makeAllPlain).toBe("전체 만들기");

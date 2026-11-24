@@ -18,10 +18,12 @@ import {
 	type VoiceSetup,
 	type Work,
 } from "./paragraph-script";
+import { dirtyOf, fingerprintOf } from "./script-work";
 import {
 	checkedWork,
 	droppedVoices,
 	migrateV1,
+	openAfterSave,
 	readWork,
 	settingsOf,
 	usableDefaultVoice,
@@ -89,6 +91,43 @@ const work = (over: Partial<Work> = {}): Work => ({
 	...over,
 });
 const raw = (value: unknown) => JSON.stringify(value);
+
+describe("openAfterSave(‘저장하고 바꾸기’ 뒤 화면)", () => {
+	// 서버가 준 대본(넣기 창이 저장 전에 받았다)
+	const opened = (scriptId: string, version: number, text: string) => {
+		const source = work({ paragraphs: [{ id: "a", text }] });
+		return {
+			work: source,
+			linked: {
+				scriptId,
+				title: "경제",
+				version,
+				fingerprint: fingerprintOf(source),
+			},
+		};
+	};
+	// 판 2로 저장한 지금 작업
+	const saved = opened("s-a", 2, "한 시간 동안 고친 글");
+	it("연결된 같은 대본을 열었으면 저장한 글이 그대로이고 연결 판이 서버 판이다", () => {
+		const before = opened("s-a", 1, "옛 글");
+		// 그사이 다른 곳에서 바꾼 제목은 받은 것이 맞다
+		const next = openAfterSave(
+			{ ...before, linked: { ...before.linked, title: "새 제목" } },
+			saved,
+		);
+		expect(next.work).toBe(saved.work);
+		expect(next.linked).toMatchObject({ version: 2, title: "새 제목" });
+		expect(dirtyOf(next.work, next.linked)).toBe(false);
+	});
+	it("다른 대본이면 연 대본과 그 판으로 바꾼다", () => {
+		const other = opened("s-b", 7, "다른 글");
+		expect(openAfterSave(other, saved)).toEqual(other);
+	});
+	it("최근 만든 대본(연결 없음)이면 연 작업으로 바꾸고 연결하지 않는다", () => {
+		const recent = { work: work({ id: "w9" }), linked: undefined };
+		expect(openAfterSave(recent, saved)).toEqual(recent);
+	});
+});
 
 describe("readWork(임시 작업 v2)", () => {
 	it("깨진 JSON·모양 밖 값은 null", () => {

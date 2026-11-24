@@ -24,7 +24,7 @@ import {
 	type SynthesizeOptions,
 	trialError,
 } from "../providers/errors";
-import type { Providers } from "../providers/index";
+import { createProviders, type Providers } from "../providers/index";
 import { emptyVoice } from "../providers/list";
 import {
 	AIRY_TEXT_MAX,
@@ -1151,6 +1151,36 @@ describe.skipIf(!url)("음성 작업실 프로시저(T9 스펙 3·9절)", () => 
 		expect((await rows()).map((row) => row.status)).toEqual(["pending"]);
 	});
 
+	it.each(["typecast", "elevenlabs", "fish_audio", "airy"] as const)(
+		"%s: 오디오가 아닌 200은 미확인으로 남고 저장본으로 잡히지 않으며 사용 이력도 그대로다(P1)",
+		async (provider) => {
+			vi.spyOn(console, "error").mockImplementation(() => {});
+			const real = as(OWNER, {
+				providers: createProviders({ [provider]: "audio-test-key-0001" }),
+			});
+			try {
+				for (const [i, body] of ["", '{"error":"x"}', "<html>"].entries()) {
+					vi.stubGlobal("fetch", async (input: unknown) =>
+						String(input).endsWith("/v1/models")
+							? Response.json([])
+							: new Response(body, { status: 200 }),
+					);
+					const request = requestOf(provider, `문장 ${i}`);
+					await expect(
+						real.studioCreate({ requestId: crypto.randomUUID(), request }),
+					).rejects.toMatchObject({ data: { reason: "unknown_outcome" } });
+					expect(await real.studioFind(request)).toBeNull();
+				}
+			} finally {
+				vi.unstubAllGlobals();
+			}
+			expect((await rows()).map((row) => [row.status, row.audio])).toEqual(
+				Array.from({ length: 3 }, () => ["unknown", null]),
+			);
+			expect(await used(VOICE[provider])).toMatchObject({ useCount: 0 });
+		},
+	);
+
 	it("대기 중이면 새 요청은 rate_limit(공급자 0회·기록 없음)이고, 같은 요청 id 재생과 성우 검사는 대기 시각보다 먼저다(순서 고정, 수정 F1)", async () => {
 		await db
 			.insert(providerCooldown)
@@ -1196,11 +1226,11 @@ describe.skipIf(!url)("음성 작업실 프로시저(T9 스펙 3·9절)", () => 
 		expect(synthesize).not.toHaveBeenCalled();
 	});
 
-	it("늦은 결과는 미확인 기록을 쓴 뒤에 받는다: 미확인 쓰기가 늦어도 행은 완료, 사용 이력 1회(라우터 순서 고정, 수정 F2)", async () => {
+	it("미확인 쓰기가 늦어도 늦은 결과로 행은 완료, 사용 이력 1회(수정 F2)", async () => {
 		let deliver: (audio: Uint8Array) => void = () => {};
 		let slowNext = false;
 		// 실패 기록(settle)의 update 하나만 늦춘다: 실행 직전에 늦은 오디오를 먼저 보내고 실제 쓰기는 50ms 뒤.
-		// saveLate를 settle 앞으로 옮기면 늦은 저장이 아직 진행 중인 행을 만나 오디오를 잃고 행은 미확인으로 남는다
+		// 늦은 결과와 미확인 기록이 겹쳐도 오디오를 잃지 않아야 한다
 		const slow = (builder: object): object =>
 			new Proxy(builder, {
 				get(target, key) {
@@ -1247,6 +1277,48 @@ describe.skipIf(!url)("음성 작업실 프로시저(T9 스펙 3·9절)", () => 
 		await vi.waitFor(async () =>
 			expect(await used()).toMatchObject({ useCount: 1 }),
 		);
+	});
+
+	it("미확인 기록이 DB 오류로 실패해 진행 중으로 남아도 늦은 성공은 완료로 저장된다(P2)", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		let failNext = false;
+		const settleFailingDb = new Proxy(db, {
+			get(target, key, receiver) {
+				if (key !== "update" || !failNext)
+					return Reflect.get(target, key, receiver);
+				failNext = false;
+				return () => {
+					throw new Error("Query read timeout");
+				};
+			},
+		}) as Context["db"];
+		let deliver: (audio: Uint8Array) => void = () => {};
+		synthesize.mockImplementationOnce(async (_request, options) => {
+			options?.onLate?.(
+				new Promise<Uint8Array>((resolve) => {
+					deliver = resolve;
+				}),
+			);
+			failNext = true;
+			throw trialError("typecast", "unknown_outcome");
+		});
+		const deferred: Promise<unknown>[] = [];
+		await expect(
+			as(OWNER, {
+				db: settleFailingDb,
+				defer: (task) => {
+					deferred.push(task);
+				},
+			}).studioCreate({ requestId: crypto.randomUUID(), request: request() }),
+		).rejects.toMatchObject({ code: "GATEWAY_TIMEOUT" });
+		expect((await rows()).map((row) => row.status)).toEqual(["pending"]);
+		deliver(MP3);
+		await Promise.all(deferred);
+		expect((await rows())[0]).toMatchObject({
+			status: "done",
+			audio: Buffer.from(MP3),
+		});
+		expect(await used()).toMatchObject({ useCount: 1 });
 	});
 
 	it("자동 태그 추천은 대기 시각 표를 쓰지도 읽지도 않는다: 429 뒤 행 0개, Gemini 대기 중에도 부른다(T10 스펙 15.3)", async () => {

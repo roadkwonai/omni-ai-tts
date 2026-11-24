@@ -85,6 +85,21 @@ export function writeBack(queryClient: QueryClient, saved: SavedVoice) {
 	});
 }
 
+// 변경 전에 읽은 목록이 늦게 와 낙관적 갱신이나 저장 결과를 덮지 않게 끊는다. 끊은 조회는 마지막 변경이 끝난 뒤 다시 받는다(audit C1)
+const cutLists = new WeakSet<QueryClient>();
+async function cutList(queryClient: QueryClient) {
+	if (queryClient.isFetching({ queryKey: savedListKey }) === 0) return;
+	cutLists.add(queryClient);
+	await queryClient.cancelQueries({ queryKey: savedListKey });
+}
+function refetchCut(queryClient: QueryClient) {
+	if (
+		queryClient.isMutating({ mutationKey: ["savedVoice"] }) === 1 &&
+		cutLists.delete(queryClient)
+	)
+		void queryClient.invalidateQueries({ queryKey: savedListKey });
+}
+
 // 실패하면 성공으로 보이지 않는다: 알리고 서버 값으로 되돌린다(목록을 다시 받는다). 없어진 채널·분류는 '찾을 수 없어요'(스펙 5절)
 function useFailure() {
 	const queryClient = useQueryClient();
@@ -121,14 +136,20 @@ export function useSaveVoice(voice: Voice) {
 		mutationFn: (change: SaveChange) =>
 			client.savedVoiceSave({ voice, ...change }),
 		// 메모는 서버가 정리하므로 결과로만 바꾼다
-		onMutate: ({ favorite, frequent }) =>
+		onMutate: async ({ favorite, frequent }) => {
+			await cutList(queryClient);
 			patch(queryClient, key, (item) => ({
 				...item,
 				favorite: favorite ?? item.favorite,
 				frequent: frequent ?? item.frequent,
-			})),
-		onSuccess: (saved) => writeBack(queryClient, saved),
+			}));
+		},
+		onSuccess: async (saved) => {
+			await cutList(queryClient);
+			writeBack(queryClient, saved);
+		},
 		onError: fail,
+		onSettled: () => refetchCut(queryClient),
 	});
 }
 
@@ -167,7 +188,8 @@ export function useLinkVoice(voice: Voice) {
 						: applyLink(classificationIds, change),
 			});
 		},
-		onMutate: (change) =>
+		onMutate: async (change) => {
+			await cutList(queryClient);
 			patch(queryClient, key, (item) =>
 				change.group === "channel"
 					? { ...item, channelIds: applyLink(item.channelIds, change) }
@@ -175,10 +197,17 @@ export function useLinkVoice(voice: Voice) {
 							...item,
 							classificationIds: applyLink(item.classificationIds, change),
 						},
-			),
-		onSuccess: (saved) => writeBack(queryClient, saved),
+			);
+		},
+		onSuccess: async (saved) => {
+			await cutList(queryClient);
+			writeBack(queryClient, saved);
+		},
 		onError: fail,
-		onSettled: () => invalidateClasses(queryClient),
+		onSettled: () => {
+			invalidateClasses(queryClient);
+			refetchCut(queryClient);
+		},
 	});
 }
 

@@ -27,8 +27,9 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { toast } from "sonner";
 
-import type { LinkedScript, Work } from "@/lib/paragraph-script";
+import type { Work } from "@/lib/paragraph-script";
 import {
 	EMPTY_SCRIPT_FILTERS,
 	recentTitle,
@@ -42,8 +43,10 @@ import {
 	dirtyOf,
 	fingerprintOf,
 	fromScript,
+	isBlankEnd,
 	type ScriptWork,
 } from "@/lib/script-work";
+import { type LinkedWork, openAfterSave } from "@/lib/studio-draft";
 import { PARAGRAPH_TEXT } from "@/lib/studio-text";
 import { STUDIO_TEXT } from "@/lib/studio-view";
 import { client, orpc, QUIET } from "@/utils/orpc";
@@ -67,16 +70,28 @@ const viewItem =
 const sourceItem =
 	"min-h-11 shrink-0 px-4 text-muted-foreground focus-visible:z-10 data-pressed:bg-card data-pressed:font-bold data-pressed:text-foreground data-pressed:ring-1 data-pressed:ring-border";
 
-type Before = { work: Work; linked: LinkedScript | undefined };
-
 const titleOf = (script: Script) =>
 	script.title ??
 	recentTitle(script.work.paragraphs.map((p) => p.text).join("\n\n"));
 // 서버가 검증한 작업이라 공급자 설정 칸이 느슨한 타입(Record<string, unknown>)으로 온다. 작업 모양으로 읽는 길은 WorkProvider의 checkedFor(readWork)다
 const workOf = (script: Script): Work =>
 	fromScript({ ...script, work: script.work as ScriptWork });
-const blankEnd = (ps: readonly { text: string }[]) =>
-	ps.at(-1)?.text.trim() === "";
+// 받은 대본을 열었을 때의 작업과 연결
+function openedOf(script: Script): LinkedWork {
+	const source = workOf(script);
+	return {
+		work: source,
+		linked:
+			script.kind === "saved" && script.title
+				? {
+						scriptId: script.id,
+						title: script.title,
+						version: script.version,
+						fingerprint: fingerprintOf(source),
+					}
+				: undefined,
+	};
+}
 
 // 받은 대본을 작업에 바꿔 넣는다/이어 넣는다. 둘 다 '되돌리기' 알림을 띄우고 넣은 첫 문단 id를 돌려준다(없으면 undefined).
 // 되돌리기는 바꾸기 전 작업 전체(문단·id·linked·화자·기본 성우·쉼·채널)로 돌아간다(계획 2.3).
@@ -84,21 +99,11 @@ const blankEnd = (ps: readonly { text: string }[]) =>
 export function useScriptInsert() {
 	const work = useWork();
 	const { undoable } = useParagraphs();
-	function replace(script: Script, before?: Before) {
+	function replace(script: Script, before?: LinkedWork) {
 		const previous = before?.work ?? work.snapshot();
 		const previousLinked = before ? before.linked : work.linked;
-		const source = workOf(script);
-		work.replaceWork(source, {
-			linked:
-				script.kind === "saved" && script.title
-					? {
-							scriptId: script.id,
-							title: script.title,
-							version: script.version,
-							fingerprint: fingerprintOf(source),
-						}
-					: undefined,
-		});
+		const opened = openedOf(script);
+		work.replaceWork(opened.work, { linked: opened.linked });
 		undoable(SCRIPT_TEXT.replaced(titleOf(script)), () =>
 			work.replaceWork(previous, { linked: previousLinked }),
 		);
@@ -107,7 +112,7 @@ export function useScriptInsert() {
 	function append(script: Script) {
 		const previous = work.snapshot();
 		const previousLinked = work.linked;
-		const at = blankEnd(previous.paragraphs)
+		const at = isBlankEnd(previous.paragraphs)
 			? previous.paragraphs.length - 1
 			: previous.paragraphs.length;
 		const dropped = work.appendWork(workOf(script));
@@ -343,7 +348,9 @@ function InsertBody({
 	const hasScript = paragraphs.some((p) => p.text.trim() !== "");
 	const replacing = locked || !hasScript || mode === "replace";
 	const noRoom = !replacing && appendRoom(paragraphs) === 0;
-	const kept = blankEnd(paragraphs) ? paragraphs.length - 1 : paragraphs.length;
+	const kept = isBlankEnd(paragraphs)
+		? paragraphs.length - 1
+		: paragraphs.length;
 	const notes =
 		script && !replacing
 			? appendNotes({ ...work.work, paragraphs }, workOf(script))
@@ -353,7 +360,7 @@ function InsertBody({
 		setPicked(id);
 		setRow(next);
 	}
-	function run(before?: Before) {
+	function run(before?: LinkedWork) {
 		if (!script) return;
 		onInserted(replacing ? replace(script, before) : append(script));
 	}
@@ -367,7 +374,7 @@ function InsertBody({
 	}
 	function saveThenReplace() {
 		const link = work.linked;
-		if (!link) return;
+		if (!link || !script) return;
 		const snap = work.snapshot();
 		setGuard({ pending: true, failed: false });
 		void sendSave(link, snap, false).then((sent) => {
@@ -375,14 +382,21 @@ function InsertBody({
 				void queryClient.invalidateQueries({
 					queryKey: orpc.scriptList.key(),
 				});
-				run({
+				const saved = {
 					work: snap,
 					linked: {
 						...link,
 						version: sent.version,
 						fingerprint: fingerprintOf(snap),
 					},
-				});
+				};
+				const next = openAfterSave(openedOf(script), saved);
+				// 연결된 같은 대본을 열었다: 화면의 글이 방금 저장한 판이라 바꾸지 않는다
+				if (next.work === snap && next.linked) {
+					work.markSaved(next.linked);
+					toast.success(SCRIPT_TEXT.savedIn(next.linked.title));
+					onInserted(snap.paragraphs[0]?.id);
+				} else run(saved);
 			} else if (sent.reason === "failed") {
 				setGuard({ pending: false, failed: true });
 			} else {

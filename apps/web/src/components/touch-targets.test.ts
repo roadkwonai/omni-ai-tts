@@ -25,3 +25,17 @@ test("검색 칸 상자는 레이아웃을 차지하는 테두리 없이 안쪽 
 	// 포커스 중에도 안쪽 링 테두리는 남는다(바깥 2px 윤곽선만 더해진다)
 	expect(box).not.toContain("ring-0");
 });
+
+// 문장 속 링크: 글자 상자가 16px(14px 글자)이라 위아래 14px를 더해 44px다. 줄이 나뉘면 after의 기준 상자가 어긋나므로 나누지 않는다
+test("프리셋 설명의 '성우 캐스팅' 링크는 눌림 영역이 위아래 44px다", () => {
+	const src = read("../app/(app)/presets/page.tsx");
+	const link = src.match(/href="\/casting"\s*className="([^"]*)"/)?.[1] ?? "";
+	for (const name of [
+		"relative",
+		"whitespace-nowrap",
+		"after:absolute",
+		"after:inset-x-0",
+		"after:-inset-y-3.5",
+	])
+		expect(link.split(" ")).toContain(name);
+});

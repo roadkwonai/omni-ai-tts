@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { blobUrls } from "@/lib/blob-urls";
 import { saveBlob } from "@/lib/browser";
 import {
+	findLines,
 	interrupted,
 	isReadKey,
 	JOIN_KEY,
@@ -181,8 +182,6 @@ export function DramaReadProvider({ children }: { children: ReactNode }) {
 	const create = useMutation({
 		...orpc.trialCreate.mutationOptions(),
 		retry: false,
-		// 같은 출처로만 붙으니 브라우저 offline 판단으로 멈추지 않게 한다(drama-provider와 같다)
-		networkMode: "always",
 	});
 	const [state, setState] = useState<ReadState>(READ_IDLE);
 	const stateRef = useRef<ReadState>(READ_IDLE);
@@ -531,7 +530,7 @@ export function DramaReadProvider({ children }: { children: ReactNode }) {
 		const requests = read.lines.map((line) => line.request);
 		try {
 			const [found, rates] = await Promise.all([
-				client.trialFindMany(requests),
+				findLines(read.lines, (each) => client.trialFindMany(each)),
 				ratesOf(requests),
 			]);
 			const latest = stateRef.current;
@@ -543,7 +542,7 @@ export function DramaReadProvider({ children }: { children: ReactNode }) {
 				run,
 				sceneName: drama.sceneName,
 				lines: read.lines.map((line, i) => {
-					const signature = comboSignature(line.request);
+					const signature = found[i]?.signature ?? comboSignature(line.request);
 					return {
 						...line,
 						index: order.get(line.id) ?? i,

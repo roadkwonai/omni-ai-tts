@@ -397,6 +397,15 @@ export async function fetchOk(
 	return response;
 }
 
+// 생성 응답의 바이트. 200인데 비었거나 점검 화면(HTML)·오류 JSON이면 과금됐는지 모르므로 던진다(runTrial이 처리 여부 미확인으로 바꾼다).
+// 머리말이 아는 오디오인지는 보지 않는다. 모르는 머리말의 유료 결과를 버리면 다시 만들어 두 번 과금된다
+export function audioBytes(body: ArrayBuffer) {
+	const bytes = new Uint8Array(body);
+	if (/^\s*([{<]|$)/.test(new TextDecoder().decode(bytes.subarray(0, 64))))
+		throw new Error("오디오가 아닌 응답");
+	return bytes;
+}
+
 export async function fetchJson(
 	url: string,
 	headers: Record<string, string>,

@@ -631,6 +631,23 @@ describe.skipIf(!url)("작업실 생성 기록", () => {
 		expect(await used(A)).toMatchObject({ useCount: 0 });
 	});
 
+	it("늦은 성공은 미확인을 적지 못해 진행 중으로 남은 행도 완료로 바꾸고, 실패 행은 바꾸지 않는다(P2)", async () => {
+		await keep(A);
+		const failed = await row(A, "studio", "failed");
+		await saveLate(db, studioLate(A, failed), mp3());
+		expect(await rowOf(failed)).toMatchObject({
+			status: "failed",
+			failureReason: "provider_error",
+			audio: null,
+		});
+		expect(await used(A)).toMatchObject({ useCount: 0 });
+		const pending = await row(A, "studio", "pending");
+		await saveLate(db, studioLate(A, pending), mp3());
+		expect(await statusOf(pending)).toBe("done");
+		expect(await bytesOf(await audioPart(db, A, pending, 0))).toEqual(MP3);
+		expect(await used(A)).toMatchObject({ useCount: 1 });
+	});
+
 	it("늦은 결과는 작업실 행에만 쓴다: 내 문장(trial)의 미확인 행은 바뀌지 않는다(계획 리뷰 E12)", async () => {
 		await keep(A);
 		const trial = await row(A, "trial", "unknown");

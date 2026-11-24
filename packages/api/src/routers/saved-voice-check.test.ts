@@ -48,8 +48,8 @@ async function saveStale(
 		.where(eq(savedVoice.id, item.id));
 	return item;
 }
-const byId = <T extends { voice: Voice }>(list: T[], id: string) =>
-	list.find((item) => item.voice.voiceId === id);
+const byId = <T extends { voice: Voice }>(list: T[] | null, id: string) =>
+	list?.find((item) => item.voice.voiceId === id);
 
 describe.skipIf(!url)("이용 가능 확인(T7 스펙 2·3절)", () => {
 	beforeEach(async () => {
@@ -125,7 +125,7 @@ describe.skipIf(!url)("이용 가능 확인(T7 스펙 2·3절)", () => {
 		});
 		const as = setup({ typecast: { checkStatus: vi.fn(), getVoice } })(OWNER);
 		await saveStale(as, tc("a"));
-		expect((await as.savedVoiceCheck())[0]?.unavailable).toBe(false);
+		expect((await as.savedVoiceCheck())?.[0]?.unavailable).toBe(false);
 		await as.savedVoiceCheck();
 		expect(getVoice).toHaveBeenCalledTimes(2);
 	});
@@ -138,7 +138,7 @@ describe.skipIf(!url)("이용 가능 확인(T7 스펙 2·3절)", () => {
 		for (const id of ["t1", "t2", "t3", "t4"]) await saveStale(as, tc(id));
 		const list = await as.savedVoiceCheck();
 		expect(getVoice.mock.calls.length).toBeLessThanOrEqual(2);
-		expect(list.every((item) => !item.unavailable)).toBe(true);
+		expect(list?.every((item) => !item.unavailable)).toBe(true);
 		expect(await db.select().from(providerCooldown)).toHaveLength(0);
 	});
 
@@ -205,6 +205,53 @@ describe.skipIf(!url)("이용 가능 확인(T7 스펙 2·3절)", () => {
 		await as.savedVoiceCheck();
 		expect(getVoice).toHaveBeenCalledTimes(40);
 		expect(getVoice.mock.calls.map((call) => call[1])).toContain("oldest");
+	});
+
+	it.each([
+		["키 없음", undefined],
+		[
+			"계속 401",
+			{
+				checkStatus: vi.fn(),
+				getVoice: async () => {
+					throw providerError("airy", "provider_auth");
+				},
+			},
+		],
+	])(
+		"확인하지 못하는 공급자(%s)의 오래된 성우 40명이 있어도 다른 공급자 성우를 확인한다(D3)",
+		async (_name, airy) => {
+			const getVoice = vi.fn(async () => null);
+			const as = setup({
+				airy,
+				fish_audio: { checkStatus: vi.fn(), getVoice },
+			})(OWNER);
+			for (let i = 0; i < 40; i++)
+				await saveStale(
+					as,
+					voiceOf("airy", "public", `a${i}`),
+					new Date(Date.now() - 10 * DAY),
+				);
+			await saveStale(as, fish("f1"));
+			await as.savedVoiceCheck();
+			expect(getVoice).toHaveBeenCalledTimes(1);
+			const list = await as.savedVoiceList();
+			expect(byId(list, "f1")?.unavailable).toBe(true);
+			expect(list.filter((item) => item.unavailable)).toHaveLength(1);
+		},
+	);
+
+	it("확인할 성우가 없으면 목록을 다시 보내지 않고 null이다(키 없는 공급자의 성우만 남아도 같다, D5)", async () => {
+		const getVoice = vi.fn(async (_s: string, id: string) => tc(id));
+		const as = setup({ typecast: { checkStatus: vi.fn(), getVoice } })(OWNER);
+		expect(await as.savedVoiceCheck()).toBeNull();
+		await as.savedVoiceSave({ voice: tc("fresh") });
+		expect(await as.savedVoiceCheck()).toBeNull();
+		await saveStale(as, fish("nokey"));
+		expect(await as.savedVoiceCheck()).toBeNull();
+		await saveStale(as, tc("stale"));
+		expect(await as.savedVoiceCheck()).toEqual(await as.savedVoiceList());
+		expect(getVoice).toHaveBeenCalledTimes(1);
 	});
 
 	it("키가 없는 공급자는 건너뛰고, 다른 소유자의 행은 확인하지 않는다", async () => {

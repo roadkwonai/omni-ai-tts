@@ -17,7 +17,12 @@ import { z } from "zod";
 
 import { providerError } from "./providers/errors";
 import { testDb as db, testDatabaseUrl as url } from "./test-db";
-import { cachedList, cacheKey, expireProvider } from "./voice-cache";
+import {
+	cachedList,
+	cacheKey,
+	expireProvider,
+	recordCooldown,
+} from "./voice-cache";
 
 const schema = z.object({ names: z.array(z.string()) });
 const value = (...names: string[]) => ({ names });
@@ -366,5 +371,17 @@ describe.skipIf(!url)("목록 캐시(테스트 DB)", () => {
 		).rejects.toMatchObject({ data: { reason: "rate_limit" } });
 		const [row] = await db.select().from(providerCooldown);
 		expect(row?.until.getTime()).toBe(T0.getTime() + HOUR);
+	});
+
+	// 먼저 나간 요청의 429가 늦게 오면 짧은 값이 나중에 적힐 수 있다(P6)
+	it("긴 대기 뒤에 짧은 대기를 적어도 긴 값이 남고, 더 긴 대기는 늘린다", async () => {
+		const untilAfter = async (ms: number) => {
+			await recordCooldown(db, "airy", new Date(T0.getTime() + ms));
+			const [row] = await db.select().from(providerCooldown);
+			return (row?.until.getTime() ?? 0) - T0.getTime();
+		};
+		expect(await untilAfter(30 * 60_000)).toBe(30 * 60_000);
+		expect(await untilAfter(1_000)).toBe(30 * 60_000);
+		expect(await untilAfter(40 * 60_000)).toBe(40 * 60_000);
 	});
 });

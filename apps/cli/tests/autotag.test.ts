@@ -1,4 +1,10 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import {
+	existsSync,
+	readFileSync,
+	rmSync,
+	statSync,
+	writeFileSync,
+} from "node:fs";
 import { ORPCError } from "@orpc/server";
 import {
 	applyAutoTag,
@@ -278,6 +284,37 @@ describe("문단 자동 태그", { timeout: 60_000 }, () => {
 		if (nth === 2) expect(outFile().paragraphs[0].text).toContain("[laughs]");
 		expect(ws.leftovers()).toEqual([]);
 	});
+
+	it.each(["ENOTSUP", "EPERM"])(
+		"하드 링크를 못 쓰는 볼륨(%s)에서도 받은 제안을 두고 그사이 생긴 파일은 덮어쓰지 않는다",
+		async (code) => {
+			const noLink = `fs.linkSync=()=>{throw Object.assign(new Error("링크 없음"),{code:${JSON.stringify(code)}})};`;
+			const noRename =
+				'const real=fs.renameSync;fs.renameSync=(a,b)=>{if(b.endsWith("out.json"))throw new Error("중간 실패");real(a,b)};';
+			const start = (patch = noLink) =>
+				spawnCli(
+					...[ws.dir, tag(long(), "--yes", "--json"), "", undefined],
+					`import fs from "node:fs";import { syncBuiltinESMExports } from "node:module";${patch}syncBuiltinESMExports();`,
+				).done;
+			expect((await start(noLink + noRename)).code).toBe(7);
+			expect(existsSync(ws.path("out.json"))).toBe(false);
+			const made = await start();
+			expect([made.code, made.out]).toEqual([
+				0,
+				expect.stringContaining("out.json"),
+			]);
+			expect(outFile().paragraphs[2].text).toContain("[laughs]");
+			expect(statSync(ws.path("out.json")).mode & 0o777).toBe(0o600);
+			rmSync(ws.path("out.json"));
+			w.on.studioAutoTag = (_input, next) => {
+				writeFileSync(ws.path("out.json"), "남의 파일");
+				return next();
+			};
+			expect((await start()).code).toBe(7);
+			expect(readFileSync(ws.path("out.json"), "utf8")).toBe("남의 파일");
+			expect(ws.leftovers()).toEqual([]);
+		},
+	);
 
 	it("출력 경로와 보낼 문단을 먼저 검사한다", async () => {
 		writeFileSync(ws.path("out.json"), "있음");

@@ -350,6 +350,22 @@ describe("voices list 조건", { timeout: 60_000 }, () => {
 		await body(5, "--category-id", CAT1);
 	});
 
+	it("이용 가능 확인에 볼 성우가 없으면(null) 보관함을 그대로 보인다", async () => {
+		w.on.savedVoiceCheck = () => null;
+		const { code, out } = await spawnCli(ws.dir, ["voices", "check", "--json"])
+			.done;
+		expect([code, JSON.parse(out)]).toMatchObject([
+			0,
+			{
+				changed: [],
+				voices: ITEMS.map(({ id, voice }) => ({
+					id,
+					ref: `${voice.provider}:${voice.voiceId}`,
+				})),
+			},
+		]);
+	});
+
 	it("도움말에 조건과 키를 안내한다", async () => {
 		const { out } = await spawnCli(ws.dir, ["--help"]).done;
 		for (const text of [

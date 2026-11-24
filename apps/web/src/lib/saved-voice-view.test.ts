@@ -21,6 +21,7 @@ import {
 	linkedNote,
 	linkMessage,
 	MOOD_TAGS,
+	memoAfterSave,
 	peopleOptions,
 	popularGroups,
 	queryFromFilters,
@@ -557,6 +558,20 @@ describe("공통 태그(콘텐츠·분위기, 브리프 B4-2)", () => {
 				content: ["podcast"],
 			}).content.map((o) => o.value),
 		).toContain("podcast");
+	});
+});
+
+describe("memoAfterSave", () => {
+	it("저장하는 동안 이어 쓴 메모는 응답이 지우지 않는다(audit C5)", () => {
+		expect(
+			memoAfterSave("뉴스에 좋음 / 쇼핑은 별로", "뉴스에 좋음", "뉴스에 좋음"),
+		).toBe("뉴스에 좋음 / 쇼핑은 별로");
+		// 저장하는 동안 다 지운 것도 이어 쓴 것이다
+		expect(memoAfterSave("", "뉴스에 좋음", "뉴스에 좋음")).toBe("");
+	});
+	it("그사이 손대지 않았으면 서버가 정리한 값으로 맞춘다", () => {
+		expect(memoAfterSave("  뉴스  ", "  뉴스  ", "뉴스")).toBe("뉴스");
+		expect(memoAfterSave("   ", "   ", null)).toBe("");
 	});
 });
 

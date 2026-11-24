@@ -20,7 +20,7 @@ import {
 } from "@tts-pilot-app/api/studio-contract";
 import type { Args } from "./cli.js";
 import { ClientError, connect, detailOf, input, rpcError } from "./client.js";
-import { checkOut, saveBytes } from "./files.js";
+import { checkOut, saveOr7 } from "./files.js";
 import { clean, note, print, table } from "./output.js";
 import { BEFORE_PROVIDER, confirm, onInterrupt } from "./paid.js";
 import {
@@ -147,15 +147,8 @@ export async function studioAutoTag(args: Args) {
 			changes,
 			new Set(changes.map(({ id }) => id)),
 		);
-		try {
-			saveBytes(out, overwrite, workJson({ ...work, paragraphs }));
-		} catch {
-			throw new ClientError(
-				"DOWNLOAD_FAILED",
-				7,
-				"자동 태그 결과를 저장하지 못했습니다.",
-			);
-		}
+		const body = workJson({ ...work, paragraphs });
+		saveOr7(out, overwrite, body, "자동 태그 결과를 저장하지 못했습니다.");
 	};
 	// 멈춘 묶음의 안내. 앞에서 받은 묶음이 있으면 먼저 게시한다
 	const stopped = (error: ClientError): ClientError => {

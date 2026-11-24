@@ -26,8 +26,6 @@ export const fingerprint = (
 
 export const kindOf = (record: RequestRecord): KindName =>
 	record.kind ?? "studio";
-export const recordOf = (key: string) =>
-	changeRequests(({ requests }) => requests[key]);
 export const recordsFor = (keys: readonly string[]) =>
 	changeRequests(({ requests }) => keys.map((key) => requests[key]));
 export const recordsOf = (origin: string) =>

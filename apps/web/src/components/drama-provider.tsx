@@ -419,8 +419,6 @@ export function DramaProvider({ children }: { children: ReactNode }) {
 	const create = useMutation({
 		...orpc.dramaCreate.mutationOptions(),
 		retry: false,
-		// 같은 출처로만 붙으니 브라우저 offline 판단으로 멈추지 않게 한다(utils/orpc.ts QUIET와 같다)
-		networkMode: "always",
 	});
 	// 초안의 줄 밖 칸. null이면 아직 읽지 않았다. metaRef·linesRef는 이벤트가 읽고 쓰는 최신 값이다(렌더는 state를 읽는다)
 	const [meta, setMeta] = useState<Meta | null>(null);
@@ -780,9 +778,12 @@ export function DramaProvider({ children }: { children: ReactNode }) {
 		}
 		try {
 			const item = await client.savedVoiceSave({ voice });
+			// 담기 전에 읽은 목록이 늦게 와 방금 담은 성우를 지우지 않게 끊고 다시 받는다(saved-voices cutList와 같다)
+			const cut = queryClient.isFetching({ queryKey: savedListKey }) > 0;
+			if (cut) await queryClient.cancelQueries({ queryKey: savedListKey });
 			writeBack(queryClient, item);
 			// 목록 캐시가 없으면(받기 실패) writeBack이 쓸 곳이 없어 고른 성우가 렌더에서 비워진다. 다시 받는다
-			if (!queryClient.getQueryData(savedListKey)) void saved.refetch();
+			if (cut || !queryClient.getQueryData(savedListKey)) void saved.refetch();
 			if (item.unavailable) {
 				toast.error(DRAMA_TEXT.voiceUnusable);
 				return false;

@@ -26,7 +26,21 @@ import {
 	FIELDS,
 	type SettingsOf,
 } from "@tts-pilot-app/api/providers/trial-options";
-import { input } from "./client.js";
+import type { Args } from "./cli.js";
+import { ClientError, type ErrorDetail, input } from "./client.js";
+
+export type FileOptions = {
+	url?: string;
+	json: boolean;
+	out?: string;
+	overwrite: boolean;
+};
+export const fileOf = ({ url, json, text, flag }: Args): FileOptions => ({
+	url,
+	json,
+	out: text("out"),
+	overwrite: flag("overwrite"),
+});
 
 // 대본 상한 2,000자는 UTF-8로 8KB다. 앞뒤 공백을 넉넉히 받아도 이보다 크면 대본이 아니다
 const INPUT_BYTES_MAX = 1024 * 1024;
@@ -154,7 +168,12 @@ export function checkFolder(folder: string, what: string) {
 }
 // 있으면 일반 파일인가. 링크나 폴더면 거절하고, 없으면 크기도 없다
 export function fileSize(out: string, name: string): number | undefined {
-	const found = entry(out);
+	let found: ReturnType<typeof entry>;
+	try {
+		found = entry(out);
+	} catch {
+		throw input(`${name}의 이름이 너무 길거나 볼 수 없는 경로입니다.`);
+	}
 	if (found && !found.isFile())
 		throw input(`${name}이 심볼릭 링크나 폴더라 쓸 수 없습니다.`);
 	return found?.size;
@@ -166,7 +185,8 @@ export function checkOut(
 	allowed: string[] = Object.keys(MIME),
 	name = "--out",
 ) {
-	if (!allowed.includes(extname(out).toLowerCase()))
+	// extname은 끝 빗금을 무시한다
+	if (out.endsWith("/") || !allowed.includes(extname(out).toLowerCase()))
 		throw input(`${name}은 ${allowed.join("나 ")} 파일이어야 합니다.`);
 	checkFolder(dirname(out), `${name}의 폴더`);
 	if (fileSize(out, name) !== undefined && !overwrite)
@@ -194,10 +214,22 @@ function publish(temp: string, out: string, overwrite: boolean) {
 		const found = entry(out);
 		if (found && !found.isFile()) throw new Error("일반 파일만 덮어쓸 수 있다");
 		if (found) chmodSync(temp, found.mode & 0o777);
-		renameSync(temp, out);
+		return renameSync(temp, out);
 	}
-	// shortcut: 하드 링크를 못 쓰는 파일 시스템(exFAT 등)은 게시에 실패한다(7). 그런 볼륨이 필요해지면 copyFile COPYFILE_EXCL로 바꾼다
-	else linkSync(temp, out);
+	try {
+		linkSync(temp, out);
+	} catch (error) {
+		const { code = "" } = error as NodeJS.ErrnoException;
+		if (!["ENOTSUP", "EPERM"].includes(code)) throw error;
+		// 하드 링크를 못 쓰는 볼륨(exFAT 등). 빈 파일로 이름을 잡고 바꿔 치워 남의 파일을 덮지도 반쪽 파일을 남기지도 않는다
+		closeSync(openSync(out, "wx", 0o600));
+		try {
+			renameSync(temp, out);
+		} catch (failed) {
+			rmSync(out, { force: true });
+			throw failed;
+		}
+	}
 }
 const tempOf = (out: string) =>
 	join(dirname(out), `.omni-tts-${randomUUID()}.tmp`);
@@ -233,5 +265,19 @@ export function saveBytes(out: string, overwrite: boolean, bytes: Uint8Array) {
 		publish(temp, out, overwrite);
 	} finally {
 		rmSync(temp, { force: true });
+	}
+}
+// 저장하지 못하면 종료 코드 7이다
+export function saveOr7(
+	out: string,
+	overwrite: boolean,
+	bytes: Uint8Array,
+	message: string,
+	detail?: ErrorDetail,
+) {
+	try {
+		saveBytes(out, overwrite, bytes);
+	} catch {
+		throw new ClientError("DOWNLOAD_FAILED", 7, message, detail);
 	}
 }

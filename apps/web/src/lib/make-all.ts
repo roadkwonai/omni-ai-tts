@@ -2,6 +2,7 @@
 import {
 	type Found,
 	type FoundMap,
+	lookupsOf,
 	type MakeItem,
 	type MakePlan,
 	makePlan,
@@ -60,7 +61,9 @@ export function pruneFound(
 ): FoundMap {
 	if (!voices) return found;
 	const current = new Set(
-		ps.map((p) => signatureOf(p, work, voices, now)?.signature),
+		ps.flatMap((p) =>
+			lookupsOf(p, work, voices, now).map(({ signature }) => signature),
+		),
 	);
 	const next = new Map(
 		[...found].filter(([sig, value]) => value !== null || current.has(sig)),
@@ -380,7 +383,7 @@ export function summaryOf(
 	const filled = ps.filter((p) => !blankFor(p, work));
 	const chars = filled.reduce((sum, p) => sum + scriptCount(spokenOf(p)), 0);
 	const made = filled.filter((p) => {
-		const sig = signatureOf(p, work, voices, now)?.signature;
+		const sig = signatureOf(p, work, voices, now, found)?.signature;
 		return sig !== undefined && found.get(sig)?.status === "done";
 	}).length;
 	return {

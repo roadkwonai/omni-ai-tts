@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import {
 	existsSync,
 	mkdirSync,
@@ -21,6 +22,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { fingerprint } from "../src/requests.js";
 import {
 	bytesOf,
+	cli,
 	saved,
 	type serve,
 	spawnCli,
@@ -384,6 +386,34 @@ describe("과금 막기", { timeout: 60_000 }, () => {
 		).done;
 		expect(asked.code).toBe(2);
 		expect(w.synth).toBe(1);
+	});
+
+	it("무료 모델이 끝난 뒤에도 무료로 만든 문단을 쓰고 없는 문단만 유료로 만든다", async () => {
+		const work = workOf(["하나", "둘"], {
+			defaultVoice: setup("fish_audio", "fish"),
+		});
+		const at = (time: string, list: string[]) =>
+			spawnCli(ws.dir, list, "", `2026-11-${time}+09:00`).done;
+		const first = batch(work, "--only", "1", "--json");
+		expect((await at("29T23:59:00", first)).code).toBe(0);
+		const planned = json(await at("30T00:01:00", plan(work)));
+		expect(planned).toMatchObject({
+			paragraphs: [
+				{ n: 1, status: "saved", resultId: w.rows[0]?.id },
+				{ n: 2, status: "make" },
+			],
+			...{ make: 1, needsConfirm: true },
+		});
+		const made = await at("30T00:01:00", batch(work, "--yes", "--json"));
+		expect(made.code).toBe(0);
+		expect(json(made).paragraphs).toMatchObject([
+			{ n: 1, source: "kept", resultId: w.rows[0]?.id },
+			{ n: 2, source: "created" },
+		]);
+		expect(w.created.map(({ request }) => request.settings.model)).toEqual([
+			"s2.1-pro-free",
+			"s2.1-pro",
+		]);
 	});
 
 	it("중간에 실패하면 거기서 멈추고 다시 실행하면 남은 문단만 만든다", async () => {
@@ -854,6 +884,59 @@ describe("파일", { timeout: 60_000 }, () => {
 			1, 2, 3,
 		]);
 		expect(ws.leftovers()).toEqual([]);
+	});
+
+	it("같은 폴더에서 겹친 두 묶음이 서로의 진행 줄을 지키고 다음 실행이 이어진다", async () => {
+		const work = workOf(["하나", "둘", "셋", "넷"]);
+		const held = gate();
+		// 둘 다 폴더를 연 뒤, 뒤 묶음은 앞 묶음이 끝날 때까지 만들지 않는다
+		w.on.studioCreate = async (input, next) => {
+			if (["하나", "둘"].includes(input.request.text))
+				await until(() => count("studioCreate") > 1, "두 묶음");
+			else await held.opened;
+			return next();
+		};
+		const args = batch(work, "--yes", "--json");
+		const a = spawnCli(ws.dir, [...args, "--only", "1,2"]);
+		const b = spawnCli(ws.dir, [...args, "--only", "3,4"]);
+		expect((await a.done).code).toBe(0);
+		held.open();
+		expect((await b.done).code).toBe(0);
+		expect(progress().items.map((item: { n: number }) => item.n)).toEqual([
+			1, 2, 3, 4,
+		]);
+		const again = await run(batch(work, "--json"));
+		expect(again.code).toBe(0);
+		expect(
+			json(again).paragraphs.map((row: { source: string }) => row.source),
+		).toEqual(["kept", "kept", "kept", "kept"]);
+		expect(w.synth).toBe(4);
+	});
+
+	it.each([
+		["stdout", "> >(true)"],
+		["stderr", "2> >(true)"],
+		["둘 다", "> >(true) 2> >(true)"],
+	])("읽는 쪽이 %s를 닫아도 끝까지 만들고 0이다", async (_name, redirect) => {
+		const args = batch(workOf(["하나", "둘", "셋"]), "--yes");
+		const child = spawn(
+			"/bin/bash",
+			["-c", `"$0" "$@" ${redirect}`, process.execPath, cli, ...args],
+			{ env: { ...process.env, OMNI_TTS_CONFIG_DIR: ws.dir } },
+		);
+		let seen = "";
+		for (const stream of [child.stdout, child.stderr])
+			stream.on("data", (chunk) => {
+				seen += chunk;
+			});
+		const code = await new Promise((done) => child.on("close", done));
+		expect([code, seen, w.synth]).toEqual([
+			0,
+			expect.not.stringContaining("EPIPE"),
+			3,
+		]);
+		expect(progress().items).toHaveLength(3);
+		expect(ws.records()).toEqual([]);
 	});
 
 	it("내려받기가 실패하면 7이고, 다시 실행하면 만들지 않고 받는다", async () => {

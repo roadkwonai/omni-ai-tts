@@ -401,6 +401,24 @@ describe("명령 공통", { timeout: 60_000 }, () => {
 		}
 	});
 
+	it("-로 시작하는 값은 =로 붙이는 길을 알리고 2이며, 붙이면 받는다", async () => {
+		const trial = (...text: string[]) => [
+			...["trial", "generate", "--voice", "typecast:v1", ...text],
+			...["--out", ws.path("a.mp3"), "--dry-run"],
+		];
+		for (const [args, word] of [
+			[trial("--text", "-비밀 글"), "--text="],
+			[["voices", "save", "typecast:v1", "--memo", "- 비밀"], "--memo="],
+		] as const) {
+			const result = await run([...args, "--json"]);
+			expect([args, result.code]).toEqual([args, 2]);
+			expect(json(result).message).toContain(word);
+			expect(result.out + result.err).not.toContain("비밀");
+		}
+		expect(w.calls).toEqual([]);
+		expect((await run([...trial("--text=-비밀 글"), "--json"])).code).toBe(0);
+	});
+
 	it("잘못된 --url은 모든 명령에서 2이고 요청하지 않는다", async () => {
 		for (const command of [
 			["auth", "login"],

@@ -725,6 +725,7 @@ function ExampleFill() {
 	// 목록이 비었거나 실패하거나 그 성우가 없으면 성우 없이 둔다. 저장은 브라우저 저장소뿐이고, 평소 편집처럼 저장된 결과 찾기(무료 읽기)만 돈다
 	const voiced = useRef(false);
 	const { setDefaultVoice } = work;
+	// biome-ignore lint/correctness/useExhaustiveDependencies: filled는 ref라 바뀌어도 다시 돌지 않는다. 앞 효과가 문단을 채운 렌더(paragraphs)에서 다시 본다
 	useEffect(() => {
 		if (
 			voiced.current ||

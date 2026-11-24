@@ -16,6 +16,7 @@ import { describe, expect, it } from "vitest";
 
 import {
 	allPrepared,
+	findLines,
 	interrupted,
 	JOIN_KEY,
 	joinPlan,
@@ -380,6 +381,63 @@ describe("readPaid·allPrepared(줄 모음 판정)", () => {
 		);
 		if (!("lines" in same)) throw new Error("막혔다");
 		expect(allPrepared(same.lines, new Set([sig(same.lines[0])]))).toBe(true);
+	});
+});
+
+describe("무료 모델 종료 뒤 같은 성우·글의 무료 줄과 유료 줄", () => {
+	const paidPreset = {
+		...fishPreset,
+		id: "p2",
+		settings: { ...DEFAULT_SETTINGS.fish_audio, model: "s2.1-pro" },
+	} as Preset;
+	const read = readRequests(
+		[
+			sp("민수", "fish_audio", "f1"),
+			sp("지아", "fish_audio", "f1", paidPreset.id),
+		],
+		[ln("a", 0, "안녕"), ln("b", 1, "안녕")],
+		ctx({ now: LATER, presets: [paidPreset] }),
+		"a",
+	);
+	if (!("lines" in read)) throw new Error("막혔다");
+	const { lines } = read;
+	const requests = lines.map((line) => line.request);
+	// 서버가 가진 결과(모델마다 하나)
+	const server = (...models: string[]) =>
+		findLines(lines, async (asked) =>
+			asked.map(({ settings: { model } }) =>
+				models.includes(model)
+					? {
+							id: model,
+							createdAt: "2026-11-29T00:00:00.000Z",
+							usage: { unit: "free", amount: 0 },
+						}
+					: null,
+			),
+		);
+	const none = new Set<string>();
+	it("보낼 요청은 같지만 무료로 찾은 줄의 서명은 무료 요청의 것이라 유료 줄이 무료 소리를 쓰지 않는다", async () => {
+		expect(comboSignature(requests[0])).toBe(comboSignature(requests[1]));
+		const found = await server("s2.1-pro-free");
+		expect(found[0]?.signature).toBe(
+			comboSignature(lines[0].before as TrialRequest),
+		);
+		expect(found[1]).toBeNull();
+		expect(readSummary(requests, found, [], none, none, LATER)).toMatchObject({
+			reuse: 1,
+			make: 1,
+			confirm: true,
+		});
+	});
+	it("유료 줄은 자기 결과를 쓴다", async () => {
+		const found = await server("s2.1-pro-free", "s2.1-pro");
+		expect(found.map((hit) => hit?.id)).toEqual(["s2.1-pro-free", "s2.1-pro"]);
+		expect(found[1]?.signature).toBe(comboSignature(requests[1]));
+	});
+	it("무료 소리를 받은 줄도 준비된 줄이고 유료 줄은 자기 소리가 있어야 한다", () => {
+		const free = comboSignature(lines[0].before as TrialRequest);
+		expect(allPrepared([lines[0]], new Set([free]))).toBe(true);
+		expect(allPrepared(lines, new Set([free]))).toBe(false);
 	});
 });
 

@@ -35,7 +35,6 @@ import {
 	fingerprint,
 	fingerprintOf,
 	kindOf,
-	recordOf,
 	recordsFor,
 	recordsOf,
 	release,
@@ -132,6 +131,82 @@ it("인증 API가 데모 404를 반환하면 로그인 세션을 저장하지 �
 	}
 });
 
+it.each([
+	["302", () => new Response(null, { status: 302 })],
+	[
+		"HTML 200",
+		() => new Response("<h1>", { headers: { "content-type": "text/html" } }),
+	],
+])(
+	"소유자 확인의 응답이 %s이면 5이고 로그인 세션을 저장하지 않는다",
+	async (_name, reply) => {
+		const dir = mkdtempSync(join(tmpdir(), "omni-cli-html-"));
+		process.env.OMNI_TTS_CONFIG_DIR = dir;
+		const fetched = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (request) =>
+				request instanceof Request
+					? reply()
+					: Response.json(
+							{ session: {}, user: { id: "u" } },
+							{ headers: { "set-cookie": "session=new; Path=/" } },
+						),
+			);
+		try {
+			await expect(
+				login("https://example.com", "owner@example.com", "password"),
+			).rejects.toMatchObject({ exitCode: 5 });
+			expect(await change((state) => state)).toEqual({ sessions: {} });
+		} finally {
+			fetched.mockRestore();
+			delete process.env.OMNI_TTS_CONFIG_DIR;
+			rmSync(dir, { recursive: true, force: true });
+		}
+	},
+);
+
+it.each<[string, (dir: string) => void, RegExp[]]>([
+	["폴더 0755", (dir) => chmodSync(dir, 0o755), [/권한/, /0700/]],
+	[
+		"세션 파일 0644",
+		(dir) => chmodSync(join(dir, "sessions.json"), 0o644),
+		[/sessions\.json/, /권한/],
+	],
+	[
+		"깨진 세션 파일",
+		(dir) => writeFileSync(join(dir, "sessions.json"), "session=secret"),
+		[/sessions\.json/, /JSON|형식/],
+	],
+	[
+		"잠금 파일 0644",
+		(dir) => writeFileSync(join(dir, "lock"), "", { mode: 0o644 }),
+		[/lock|잠금/, /권한/],
+	],
+])(
+	"세션 저장소 실패(%s)는 7이고 파일과 이유를 알린다",
+	async (_name, spoil, words) => {
+		const dir = mkdtempSync(join(tmpdir(), "omni-cli-storage-"));
+		process.env.OMNI_TTS_CONFIG_DIR = dir;
+		try {
+			writeFileSync(join(dir, "sessions.json"), '{"sessions":{}}', {
+				mode: 0o600,
+			});
+			spoil(dir);
+			const error = await status("https://example.com").catch(
+				(e: unknown) => e,
+			);
+			expect(error).toMatchObject({ code: "STORAGE_ERROR", exitCode: 7 });
+			const { message } = error as Error;
+			for (const word of words) expect(message).toMatch(word);
+			expect(message).not.toContain("secret");
+		} finally {
+			delete process.env.OMNI_TTS_CONFIG_DIR;
+			rmSync(dir, { recursive: true, force: true });
+		}
+	},
+);
+
+const recordOf = async (key: string) => (await recordsFor([key]))[0];
 describe("요청 기록", () => {
 	const request = (text: string): TrialRequest => ({
 		provider: "airy",

@@ -497,6 +497,34 @@ describe("oneListFound('전체' 탭 한 목록 묶음 = 그 탭의 거르기)", 
 			"a2",
 		]);
 	});
+	it("Airy·Gemini는 성별을 고르지 않으면 성별로 거르지 않는다", () => {
+		expect(
+			ids(oneListFound("airy", airyVoices, state(null, null))).sort(),
+		).toEqual(["a1", "a2"]);
+		expect(
+			ids(oneListFound("gemini", geminiVoices, state(null, null))).sort(),
+		).toEqual(["g1", "g2"]);
+	});
+	it("설명으로 찾는 것은 Gemini뿐이다", () => {
+		const described = { description: "차분한 낭독" };
+		const search = { ...state(null, null), search: "낭독" };
+		expect(
+			ids(
+				oneListFound(
+					"gemini",
+					[voice("g3", { provider: "gemini", ...described })],
+					search,
+				),
+			),
+		).toEqual(["g3"]);
+		expect(
+			oneListFound(
+				"airy",
+				[voice("a3", { provider: "airy", ...described })],
+				search,
+			),
+		).toEqual([]);
+	});
 	it("Typecast는 typecastPeople로 filterVoices와 같다", () => {
 		const found = oneListFound("typecast", all, {
 			search: "민",

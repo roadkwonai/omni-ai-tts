@@ -288,7 +288,10 @@ export const PARAGRAPH_TEXT = {
 	receiveSrtNote: "한 파일과 시각이 맞아요",
 	unmadeLeft: (count: number) => `만들지 않은 문단이 ${n(count)}개 있어요`,
 	nothingToReceive: "받을 문단이 없어요",
-	receiveFree: "받기는 크레딧 0",
+	// 보관 기한은 서버가 정한다(api trial.ts KEEP_MS, 듣거나 받으면 늘어난다)
+	receiveFree:
+		"받기는 크레딧 0 · 마지막으로 듣거나 받은 날부터 30일 동안 보관해요",
+	received: "파일을 받았어요",
 	receivingAt: (at: number, total: number) =>
 		`${n(total)}개 중 ${n(at)}번째 받는 중`,
 	joining: "한 파일로 잇는 중",
@@ -775,7 +778,7 @@ export const NUMBER_TEXT = {
 		product: "제품명·버전은 숫자 규칙으로 바꾸지 않아요",
 		negative: "영하인지 마이너스인지 정해 주세요",
 		unit: "단위를 어떻게 읽을지 정해 주세요",
-		list: "쉼표로 이은 수는 어떻게 읽을지 정해 주세요",
+		list: "이어 쓴 수는 어떻게 읽을지 정해 주세요",
 		time: "시각인지 비율·점수인지 정해 주세요",
 		large: "아주 큰 수나 긴 소수는 직접 정해 주세요",
 		precision: "아주 큰 수나 긴 소수는 직접 정해 주세요",

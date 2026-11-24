@@ -1,6 +1,7 @@
 // packages/api/src/script-rules.ts
 // 대본 보관함(T12 계획 2.2) 상한 규칙. 서버 계약(script-contract.ts)의 검사와 화면 '대본' 메뉴 잠금이 같이 쓴다.
 // zod·서버 모듈을 import하지 않는다(화면 번들에 들어간다, classification-rules.ts와 같다)
+import { isBlank } from "./paragraph-script";
 import { codePoints, PARAGRAPHS_MAX } from "./providers/trial-options";
 
 export const SCRIPT_TITLE_MAX = 100;
@@ -47,15 +48,15 @@ export function scriptWorkProblem(work: WorkLike): ScriptWorkProblem | null {
 	return LONE_SURROGATE_ESCAPE.test(json) ? "encoding" : null;
 }
 
-// 검색 원문(비지 않은 문단 글을 빈 줄로 이은 것)과 목록의 수(비지 않은 문단 수, 코드 포인트 수). 서버가 저장할 때 만든다
+// 검색 원문(비지 않은 문단 글을 빈 줄로 이은 것, 검색어처럼 NFC)과 목록의 수(비지 않은 문단 수, 코드 포인트 수). 서버가 저장할 때 만든다
 export function scriptBody(paragraphs: readonly { text: string }[]): {
 	body: string;
 	paragraphCount: number;
 	charCount: number;
 } {
-	const texts = paragraphs.map((p) => p.text).filter((t) => t.trim() !== "");
+	const texts = paragraphs.map((p) => p.text).filter((t) => !isBlank(t));
 	return {
-		body: texts.join("\n\n"),
+		body: texts.join("\n\n").normalize("NFC"),
 		paragraphCount: texts.length,
 		charCount: texts.reduce((sum, t) => sum + codePoints(t), 0),
 	};

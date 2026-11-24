@@ -1,4 +1,4 @@
-import { CLONE_SAMPLE_RATE } from "./my-voice-contract";
+import { CLONE_SAMPLE_RATE } from "./my-voice-rules";
 
 // 클론 원본·동의 녹음의 서버 바이트 검사(T13 계획 2.3, ADR 0011). 브라우저가 만든 WAV를 믿지 않고 다시 읽는다:
 // RIFF/WAVE, fmt 청크 PCM(1)·24kHz·모노·16비트, data 청크 길이로 초를 센다. 청크는 앞에서부터 차례로 걷는다.

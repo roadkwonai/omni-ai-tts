@@ -375,11 +375,13 @@ export async function runJobs(
 				: undefined;
 			const item = old ?? made.item ?? (await fetch(made.id, n));
 			if (!old) {
-				const others = items.filter((entry) => entry.n !== n);
-				items.splice(0, items.length, ...others, item);
-				items.sort((a, b) => a.n - b.n);
 				try {
-					writeProgress(progress, origin, items);
+					// 같은 폴더의 다른 묶음이 쓴 줄을 지킨다.
+					// shortcut: 잠금이 없어 같은 순간에 읽고 쓰면 한 줄을 잃는다(다시 실행하면 --overwrite가 필요). 실제로 겹치면 잠근다
+					const latest = readProgress(progress, origin);
+					const others = latest.filter((entry) => entry.n !== n);
+					const next = [...others, item].sort((a, b) => a.n - b.n);
+					writeProgress(progress, origin, next);
 				} catch {
 					throw new ClientError(
 						"DOWNLOAD_FAILED",

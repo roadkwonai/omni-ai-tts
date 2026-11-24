@@ -1165,7 +1165,7 @@ describe.skipIf(!url)("드라마 프로시저(T9.5 스펙 3·8절)", () => {
 		let deliver: (audio: SceneAudio) => void = () => {};
 		let slowNext = false;
 		// 실패 기록(settle)의 update 하나만 늦춘다: 실행 직전에 늦은 결과를 먼저 보내고 실제 쓰기는 50ms 뒤.
-		// saveLate를 settle 앞으로 옮기면 늦은 저장이 아직 진행 중인 행을 만나 결과를 잃고 행은 미확인으로 남는다
+		// 늦은 결과와 미확인 기록이 겹쳐도 결과를 잃지 않아야 한다
 		const slow = (builder: object): object =>
 			new Proxy(builder, {
 				get(target, key) {

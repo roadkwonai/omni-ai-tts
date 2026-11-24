@@ -10,6 +10,7 @@ import {
 } from "../drama-script";
 import type { ListInputOf, Voice, VoiceSource } from "./contract";
 import {
+	audioBytes,
 	CLONE_TIMEOUT_MS,
 	type CloneState,
 	fetchJson,
@@ -312,7 +313,7 @@ export function createFishAudio(apiKey: string): ProviderClient {
 						},
 						fishCodes,
 					);
-					return new Uint8Array(await response.arrayBuffer());
+					return audioBytes(await response.arrayBuffer());
 				},
 				// onLate는 넘기지 않는다: 이 공급자는 시간 초과 때 요청을 끊어 늦은 결과가 없다
 				{ timeoutMs: options.timeoutMs, logPrefix: options.logPrefix },
@@ -487,11 +488,11 @@ export function createFishAudio(apiKey: string): ProviderClient {
 			if (!parsed.success) throw trialError("fish_audio", "provider_error");
 			return { voiceId: parsed.data._id, ...fishCloneState(parsed.data) };
 		},
+		// 403은 키·계정 문제일 수 있다. '없음'이면 처리 중인 클론이 실패로 굳는다
 		cloneGet: (voiceId: string) =>
 			runList("fish_audio", async (signal) => {
 				const raw = await nullOnStatus(
 					getJson(`/model/${encodeURIComponent(voiceId)}`, signal),
-					403,
 					404,
 				);
 				return raw === null

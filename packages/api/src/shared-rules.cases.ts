@@ -541,7 +541,10 @@ export async function runRules(f: Rules) {
 				name: "",
 			}),
 		].map((r) =>
-			"problem" in r ? r : r.lines.map((line) => JSON.stringify(line)),
+			// before는 옮긴 뒤 더한 칸이다(무료 모델 종료 뒤 찾기, drama-request.test.ts가 본다)
+			"problem" in r
+				? r
+				: r.lines.map(({ before: _, ...line }) => JSON.stringify(line)),
 		),
 		autoTagInput: [
 			f.dramaTags.autoTagInput(

@@ -1,7 +1,7 @@
 // apps/web/src/lib/clone-audio.ts
 // 녹음·파일을 서버가 받는 24kHz 모노 16비트 WAV로 바꾼다(T13 스펙 5.3). 브라우저에서만 돈다.
 import { wavHeader } from "@tts-pilot-app/api/drama-script";
-import { CLONE_SAMPLE_RATE } from "@tts-pilot-app/api/my-voice-contract";
+import { CLONE_SAMPLE_RATE } from "@tts-pilot-app/api/my-voice-rules";
 import { isSilent } from "@tts-pilot-app/api/sound-join";
 
 import { monoOf, pcm16 } from "./sound-join";

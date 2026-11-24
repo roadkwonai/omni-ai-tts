@@ -3,7 +3,7 @@
 import {
 	CLONE_LIMITS,
 	type CloneProvider,
-} from "@tts-pilot-app/api/my-voice-contract";
+} from "@tts-pilot-app/api/my-voice-rules";
 import { Button } from "@tts-pilot-app/ui/components/button";
 import { Spinner } from "@tts-pilot-app/ui/components/spinner";
 import { cn } from "@tts-pilot-app/ui/lib/utils";
@@ -404,10 +404,11 @@ export function AudioCapture({
 					if (!file) return;
 					setCapped(false);
 					setFocusBack("file");
+					// 푸는 동안 앞 원본으로 '다음'에 가지 않게 먼저 비운다(audit C2)
+					onChange(null);
 					// 디코드는 파일 전체를 메모리에 푼다. 너무 큰 파일은 풀지 않고 돌려보낸다
 					if (file.size > FILE_MAX_BYTES) {
 						setError(T.fileTooBig);
-						onChange(null);
 						return;
 					}
 					setError(null);

@@ -15,6 +15,7 @@ import type {
 import {
 	ClientError,
 	type Connection,
+	connect,
 	currentOrigin,
 	detailOf,
 	type ErrorDetail,
@@ -23,7 +24,7 @@ import {
 	reasonOf,
 	rpcError,
 } from "./client.js";
-import { discardAll } from "./files.js";
+import { checkOut, discardAll, type FileOptions } from "./files.js";
 import {
 	ask,
 	byteText,
@@ -87,18 +88,13 @@ export type Kind<
 	): Promise<void>;
 };
 
-export const unconfirmed = (
-	kind: KindName,
-	requestId: string,
-	message?: string,
-) =>
+export const unconfirmed = (kind: KindName, requestId: string) =>
 	new ClientError(
 		"UNCONFIRMED",
 		6,
-		message ??
-			(kind === "clones"
-				? "처리 여부를 확인하지 못했습니다. clones resume으로 다시 확인하세요. 그래도 모르면 공급자 웹에서 확인하고 clones remove로 줄을 치운 뒤 필요할 때만 --new를 쓰세요(클론이 또 만들어질 수 있습니다)."
-				: `처리 여부를 확인하지 못했습니다. ${kind} resume으로 다시 확인하세요. 새로 만들려면 --new를 쓰세요(요금이 다시 나올 수 있습니다).`),
+		kind === "clones"
+			? "처리 여부를 확인하지 못했습니다. clones resume으로 다시 확인하세요. 그래도 모르면 공급자 웹에서 확인하고 clones remove로 줄을 치운 뒤 필요할 때만 --new를 쓰세요(클론이 또 만들어질 수 있습니다)."
+			: `처리 여부를 확인하지 못했습니다. ${kind} resume으로 다시 확인하세요. 새로 만들려면 --new를 쓰세요(요금이 다시 나올 수 있습니다).`,
 		{ requestId },
 	);
 export const downloadStopped = (
@@ -126,17 +122,20 @@ let interrupted: () => ClientError = canceled;
 export const onInterrupt = (fn: () => ClientError) => {
 	interrupted = fn;
 };
-// 관리 명령의 변경 요청. 보낸 뒤의 Ctrl+C는 취소가 아니라 적용 여부를 모르는 것이다
+// 관리 명령의 변경 요청. 보낸 뒤의 Ctrl+C와 끊긴 응답은 적용 여부를 모르는 것이다
 export function mutate<T>(request: Promise<T>): Promise<T> {
-	onInterrupt(
-		() =>
-			new ClientError(
-				"UNCONFIRMED",
-				6,
-				"적용됐는지 확인하지 못했습니다. 다시 보고 실행해 주세요.",
-			),
-	);
-	return request.catch(manageError);
+	const unsure = () =>
+		new ClientError(
+			"UNCONFIRMED",
+			6,
+			"적용됐는지 확인하지 못했습니다. 다시 보고 실행해 주세요.",
+		);
+	onInterrupt(unsure);
+	return request.catch((error: unknown) => {
+		if (error instanceof ORPCError || error instanceof ClientError)
+			manageError(error);
+		throw unsure();
+	});
 }
 // 묶음이 Ctrl+C의 안내에 문단 번호를 더하는 길
 let decorate = (error: ClientError) => error;
@@ -188,11 +187,6 @@ export async function recover<S extends StatusRow>(
 	throw unconfirmed(kind.name, requestId);
 }
 
-// 요청 상태에서 알릴 결과 정보만
-export const resultOf = (row: StudioResult): StudioResult => {
-	const { id, createdAt, usage, bytes } = row;
-	return { id, createdAt, usage, bytes };
-};
 export type Output = {
 	origin: string;
 	source: Source;
@@ -520,6 +514,29 @@ export async function checkKind(
 			`다른 종류의 요청입니다. ${kindOf(found)} resume으로 확인하세요.`,
 			{ requestId },
 		);
+}
+
+// 요청 ID 하나를 다시 확인하고, 경로를 주면 파일도 받는다. ID가 없으면 남은 요청을 보인다
+export async function resumeRequest<R>(
+	kind: Kind<R>,
+	requestId: string | undefined,
+	{ url, json, out, overwrite }: FileOptions,
+	allowed?: string[],
+) {
+	if (requestId === undefined) return showRecords(kind.name, url, json);
+	if (out !== undefined) checkOut(out, overwrite, allowed);
+	await checkKind(kind.name, url, requestId);
+	const connection = await connect(url);
+	const row = await recover(kind, connection, requestId);
+	if (out !== undefined) return kind.finish(connection, "resumed", row.id);
+	const { id, createdAt, usage, bytes } = row;
+	show(json, {
+		origin: connection.origin,
+		source: "resumed",
+		result: { id, createdAt, usage, bytes },
+		out: null,
+		mime: null,
+	});
 }
 
 // 이 작업실에 남은 요청 목록. 합성도 네트워크 요청도 없다

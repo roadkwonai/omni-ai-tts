@@ -2101,7 +2101,9 @@ describe("드라마 문구(브리프 8절 정본)", () => {
 			unknownUsage: "사용 여부 미확인",
 			unknownExpired:
 				"확인 시간이 지났어요. 크레딧 사용 여부는 Fish Audio 사용 기록에서 확인해 주세요.",
-			takesCap: "최근 20개까지 보여요",
+			takesCap: expect.stringMatching(
+				/최근 20개.*마지막으로 듣거나 받은 날부터 30일/,
+			),
 			remove: "지우기",
 			removeQuestion: "이 테이크를 지울까요?",
 			removeDetail:

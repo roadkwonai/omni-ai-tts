@@ -93,7 +93,7 @@ export function TrialResults({ voice }: { voice: Voice }) {
 			{items.isPending ? (
 				// 받는 중(계획 리뷰 D20)
 				<Skeleton className="h-11 w-full" />
-			) : items.isError ? (
+			) : items.isLoadingError ? (
 				<div className="flex flex-wrap items-center gap-3">
 					<p className="text-muted-foreground text-sm">
 						결과를 불러오지 못했어요

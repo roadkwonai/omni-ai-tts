@@ -16,7 +16,7 @@ import {
 	manageError,
 	REASON_TEXT,
 } from "./client.js";
-import { checkOut, saveBytes } from "./files.js";
+import { checkOut, saveOr7 } from "./files.js";
 import { byteText, clean, note, print, table } from "./output.js";
 import { mutate } from "./paid.js";
 import {
@@ -98,7 +98,7 @@ function pageOf(value: string | undefined, min: number, max: number): number {
 }
 
 // 조건의 값은 서버가 다시 검사한다(BAD_REQUEST → 2)
-export function listInputOf({
+function listInputOf({
 	text,
 	list,
 	flag,
@@ -360,15 +360,7 @@ export async function sample({ json, url, text, flag, extra }: Args) {
 	if (!format) throw sampleFailed();
 	if (extname(out).toLowerCase() !== format)
 		throw input(`이 샘플은 ${format} 파일로 받아야 합니다.`);
-	try {
-		saveBytes(out, overwrite, body);
-	} catch {
-		throw new ClientError(
-			"DOWNLOAD_FAILED",
-			7,
-			"샘플 파일을 저장하지 못했습니다.",
-		);
-	}
+	saveOr7(out, overwrite, body, "샘플 파일을 저장하지 못했습니다.");
 	const bytes = body.byteLength;
 	print(
 		json,

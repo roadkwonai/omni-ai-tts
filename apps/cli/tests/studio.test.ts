@@ -203,6 +203,7 @@ describe("정상", { timeout: 60_000 }, () => {
 			"--dry-run",
 			"종료 코드",
 			"태그",
+			"30일",
 		])
 			expect(out).toContain(word);
 	});
@@ -786,6 +787,19 @@ describe("파일", { timeout: 60_000 }, () => {
 		expect(readFileSync(ws.path("old.mp3"), "utf8")).toBe("old");
 	});
 
+	it("빗금으로 끝나거나 너무 긴 파일 이름은 만들기 전에 이유와 함께 2다", async () => {
+		for (const name of [
+			"a.mp3/",
+			`${"a".repeat(252)}.mp3`,
+			`${"가".repeat(252)}.mp3`,
+		]) {
+			const result = await run(at(ws.path(name)));
+			expect([name, result.code]).toEqual([name, 2]);
+			expect(json(result).message).toContain("--out");
+		}
+		expect(w.calls).toEqual([]);
+	});
+
 	it("Gemini는 .wav로 받는다", async () => {
 		const args = at(ws.path("g.wav"));
 		args[args.indexOf("typecast:v1")] = "gemini:Kore";
@@ -1244,7 +1258,9 @@ describe("오류와 경계", { timeout: 60_000 }, () => {
 		expect(broken.code).toBe(7);
 		expect(json(broken)).toEqual({
 			code: "STORAGE_ERROR",
-			message: "요청 기록(requests.json)에 접근하지 못했습니다.",
+			message: expect.stringMatching(
+				/^요청 기록\(requests\.json\)에 접근하지 못했습니다\. \S+\/requests\.json의 형식이 올바르지 않습니다\.$/,
+			),
 		});
 		writeFileSync(ws.requestsPath, '{"requests":{}}');
 		chmodSync(ws.requestsPath, 0o644);

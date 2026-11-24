@@ -10,6 +10,8 @@ async function credentials(): Promise<{ email: string; password: string }> {
 	return new Promise((resolve, reject) => {
 		let value = "";
 		let email: string | undefined;
+		// 받는 중인 제어 시퀀스(화살표 키 등)의 ESC 뒤 글자. 값에 넣지 않는다
+		let sequence: string | undefined;
 		const cleanup = () => {
 			process.stdin.off("data", onData);
 			process.stdin.off("end", onEnd);
@@ -28,6 +30,16 @@ async function credentials(): Promise<{ email: string; password: string }> {
 		};
 		const onData = (chunk: string) => {
 			for (const ch of chunk) {
+				if (ch === "\u001b") {
+					sequence = "";
+					continue;
+				}
+				if (sequence !== undefined && ch >= " ") {
+					sequence += ch;
+					if (!/^(\[[ -?]*|O)$/.test(sequence)) sequence = undefined;
+					continue;
+				}
+				sequence = undefined;
 				if (ch === "\u0003") {
 					cleanup();
 					reject(new ClientError("INPUT", 2, "입력이 취소됐습니다."));

@@ -25,6 +25,7 @@ import {
 	fingerprintOf,
 	firstSentenceTitle,
 	fromScript,
+	isBlankEnd,
 	nextIdOf,
 	toScriptWork,
 } from "./script-work";
@@ -210,6 +211,20 @@ describe("appendWork", () => {
 		expect(out.paragraphs[1]?.id).not.toBe("a");
 		expect(out.paragraphs[1]?.gap).toBe(2);
 		expect(dropped).toEqual({ paragraphs: 0, speakers: 0 });
+	});
+	it("끝 문단이 보이지 않는 글자뿐이어도 빈 문단이다", () => {
+		const target = work({
+			paragraphs: [
+				{ id: "a", text: "앞" },
+				{ id: "z", text: "​" },
+			],
+		});
+		const source = work({ paragraphs: [{ id: "a", text: "뒤" }] });
+		expect(
+			appendWork(target, source).work.paragraphs.map((p) => p.text),
+		).toEqual(["앞", "뒤"]);
+		expect(isBlankEnd(target.paragraphs)).toBe(true);
+		expect(isBlankEnd(source.paragraphs)).toBe(false);
 	});
 	it("끝 문단이 비어 있지 않으면 그대로 뒤에 붙인다", () => {
 		const { work: out } = appendWork(

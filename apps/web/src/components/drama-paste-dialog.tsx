@@ -49,18 +49,20 @@ const PASTE_ERROR = {
 
 // 창 안(열려 있을 때만 그려져 줄 목록을 읽는다). 빈 글이면 미리 보기 없이 '바꾸기'만 잠근다(쓰기 전부터 오류를 띄우지 않는다)
 function PasteBody({
-	seed,
 	textId,
+	text,
+	onText,
 	onReplaced,
 }: {
-	seed: string;
 	textId: string;
+	// 붙여 넣을 글은 창 밖에 둔다(글이 있는 동안 바깥 누르기로 닫히지 않게)
+	text: string;
+	onText: (text: string) => void;
 	// 바꾼 뒤: 알림 문구, 실행 취소, 되살릴 첫 줄 id
 	onReplaced: (message: string, undo: () => void, first: string | null) => void;
 }) {
 	const drama = useDrama();
 	const { lines, replace } = useLines();
-	const [text, setText] = useState(seed);
 	const errorId = useId();
 	const emptyId = useId();
 	const empty = text.trim() === "";
@@ -102,7 +104,7 @@ function PasteBody({
 					id={textId}
 					autoComplete="off"
 					value={text}
-					onChange={(event) => setText(event.target.value)}
+					onChange={(event) => onText(event.target.value)}
 					placeholder={DRAMA_TEXT.pastePlaceholder}
 					className={cn(fieldClass, "max-h-80 min-h-40")}
 				/>
@@ -193,7 +195,8 @@ function PasteBody({
 }
 
 // 목록 아래 outline '대본 붙여 넣기'와 그 창. opener는 글을 채워 여는 함수를 받는다(대사 칸의 여러 줄 붙여 넣기 알림).
-// 열면 포커스는 글 칸, 닫히면(바꾸기·취소·닫기·Esc) 이 버튼. 실행 취소는 첫 줄 대사 칸으로 간다(브리프 7절)
+// 열면 포커스는 글 칸, 닫히면(바꾸기·취소·닫기·Esc) 이 버튼. 실행 취소는 첫 줄 대사 칸으로 간다(브리프 7절).
+// 글이 있는 동안은 바깥 누르기로 닫히지 않는다(DESIGN.md 입력 창)
 export function DramaPasteDialog({
 	opener,
 	showUndo,
@@ -203,14 +206,13 @@ export function DramaPasteDialog({
 	showUndo: (message: string, undo: () => void, after?: () => void) => void;
 }) {
 	const [open, setOpen] = useState(false);
-	// 열 때 글 칸에 채울 글. 창 안은 열 때마다 새로 그려 이 값으로 시작한다
-	const [seed, setSeed] = useState("");
+	const [text, setText] = useState("");
 	const triggerRef = useRef<HTMLButtonElement>(null);
 	const textId = useId();
 	useImperativeHandle(
 		opener,
 		() => (text: string) => {
-			setSeed(text);
+			setText(text);
 			setOpen(true);
 		},
 		[],
@@ -218,8 +220,9 @@ export function DramaPasteDialog({
 	return (
 		<Dialog
 			open={open}
+			disablePointerDismissal={text !== ""}
 			onOpenChange={(next) => {
-				if (next) setSeed("");
+				if (next) setText("");
 				setOpen(next);
 			}}
 		>
@@ -245,8 +248,9 @@ export function DramaPasteDialog({
 				className="md:flex md:max-w-lg md:flex-col"
 			>
 				<PasteBody
-					seed={seed}
 					textId={textId}
+					text={text}
+					onText={setText}
 					onReplaced={(message, undo, first) => {
 						setOpen(false);
 						showUndo(message, undo, () => {

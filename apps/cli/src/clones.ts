@@ -2,19 +2,23 @@ import { createHash } from "node:crypto";
 import { ORPCError } from "@orpc/client";
 import { wavHeader } from "@tts-pilot-app/api/drama-script";
 import {
-	CLONE_LIMITS,
-	CLONE_PROVIDERS,
-	CLONE_SAMPLE_RATE,
-	type CloneProvider,
-	cloneLengthProblem,
-	GEMINI_CONSENT_SENTENCE,
-	MY_VOICE_NAME_MAX,
 	type MyVoice,
 	type MyVoiceStatus,
 	myVoiceListSchema,
 	myVoiceNameSchema,
 	myVoiceSchema,
 } from "@tts-pilot-app/api/my-voice-contract";
+import {
+	CLONE_LIMITS,
+	CLONE_PROVIDERS,
+	CLONE_SAMPLE_RATE,
+	type CloneProvider,
+	CONSENT_MAX,
+	cloneLengthProblem,
+	GEMINI_CONSENT_SENTENCE,
+	MY_VOICE_NAME_MAX,
+	SOURCE_MAX,
+} from "@tts-pilot-app/api/my-voice-rules";
 import { isSilent } from "@tts-pilot-app/api/sound-join";
 import { readCloneWav } from "@tts-pilot-app/api/wav";
 import type { Args } from "./cli.js";
@@ -55,9 +59,6 @@ import {
 import { fingerprintOf } from "./requests.js";
 import { refOf } from "./voices.js";
 
-// 서버가 받는 파일 상한(packages/api my-voice-contract.ts SOURCE_BYTES_MAX·CONSENT_BYTES_MAX)
-const SOURCE_MAX = 3_000_000;
-const CONSENT_MAX = 1_000_000;
 const LABEL: Record<CloneProvider, string> = {
 	fish_audio: "Fish Audio",
 	gemini: "Gemini",

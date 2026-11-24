@@ -2,7 +2,6 @@
 
 import { Button } from "@tts-pilot-app/ui/components/button";
 import { Input } from "@tts-pilot-app/ui/components/input";
-import { Textarea } from "@tts-pilot-app/ui/components/textarea";
 import { cn } from "@tts-pilot-app/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
 import type * as React from "react";
@@ -111,18 +110,6 @@ function InputGroupButton({
 	);
 }
 
-function InputGroupText({ className, ...props }: React.ComponentProps<"span">) {
-	return (
-		<span
-			className={cn(
-				"flex items-center gap-2 text-muted-foreground text-xs [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none",
-				className,
-			)}
-			{...props}
-		/>
-	);
-}
-
 function InputGroupInput({
 	className,
 	...props
@@ -139,27 +126,4 @@ function InputGroupInput({
 	);
 }
 
-function InputGroupTextarea({
-	className,
-	...props
-}: React.ComponentProps<"textarea">) {
-	return (
-		<Textarea
-			data-slot="input-group-control"
-			className={cn(
-				"flex-1 resize-none rounded-none border-0 bg-transparent py-2 shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent",
-				className,
-			)}
-			{...props}
-		/>
-	);
-}
-
-export {
-	InputGroup,
-	InputGroupAddon,
-	InputGroupButton,
-	InputGroupInput,
-	InputGroupText,
-	InputGroupTextarea,
-};
+export { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput };

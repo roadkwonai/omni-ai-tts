@@ -1,6 +1,6 @@
 // apps/web/src/lib/my-voice-text.ts
 // 내 보이스(T13) 문구. 정본은 docs/briefs/my-voices.md 5절·7절이고 문구는 그대로 옮긴다
-import { GEMINI_CONSENT_SENTENCE } from "@tts-pilot-app/api/my-voice-contract";
+import { GEMINI_CONSENT_SENTENCE } from "@tts-pilot-app/api/my-voice-rules";
 
 export { GEMINI_CONSENT_SENTENCE };
 
@@ -59,6 +59,8 @@ export const MY_VOICE_TEXT = {
 	loading: "내 보이스를 불러오고 있어요",
 	savedToLibrary: "성우 보관함에 담았어요",
 	deletingNow: "지우는 중이에요",
+	// 다른 줄이 잠긴 이유. 휴대폰 320px에서 '만들기' 옆 두 줄에 든다
+	lockedReason: "처리 중인 내 보이스가 끝나면 누를 수 있어요",
 
 	// 만들기 창
 	createTitle: "내 보이스 만들기",
@@ -139,6 +141,8 @@ export const MY_VOICE_TEXT = {
 	deleteKeepsResults: "이미 만든 음성 결과는 그대로 남아요.",
 	dismissDescription: (provider: string) =>
 		`${provider} 계정에 남은 실패한 클론도 지워져요`,
+	dismissUnsure: (provider: string) =>
+		`목록에서만 지워지고 ${provider} 계정에 남았을 수 있어요. ${provider} 웹에서 확인하고 필요하면 지워 주세요.`,
 	cancel: "취소",
 
 	// 알림

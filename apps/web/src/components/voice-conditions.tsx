@@ -443,7 +443,6 @@ export function VoiceConditions({
 	disabled,
 	selectedCount,
 	searchRef,
-	leading,
 	label = "성우 찾기",
 }: {
 	// 조건 줄 영역(search 랜드마크) 이름. 대본 보관함은 '대본 찾기'
@@ -453,8 +452,6 @@ export function VoiceConditions({
 	disabled: boolean;
 	selectedCount: number;
 	searchRef: RefObject<HTMLInputElement | null>;
-	// 조건 묶음 맨 앞(검색 칸 뒤)에 붙는 컨트롤. 767px 이하에서는 조건과 함께 접힌다(성우 보관함의 '보기' 세 칸)
-	leading?: ReactNode;
 }) {
 	const [open, setOpen] = useState(false);
 	// 탭 내용을 숨긴 채 남기므로 조건 줄이 여럿 동시에 있다. id가 겹치지 않게 한다
@@ -502,7 +499,6 @@ export function VoiceConditions({
 						"flex-wrap gap-2 md:contents",
 					)}
 				>
-					{leading}
 					{axes.map((axis) =>
 						axis.kind === "toggle" ? (
 							<ToggleChip key={axis.key} axis={axis} disabled={disabled} />

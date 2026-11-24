@@ -25,23 +25,21 @@ import {
 	checkExtension,
 	checkOut,
 	extensionOf,
+	type FileOptions,
 	MIME,
 	readInput,
 	save,
 } from "./files.js";
 import { clean, note, print } from "./output.js";
 import {
-	checkKind,
 	downloadStopped,
 	type Kind,
 	noteChanged,
 	onInterrupt,
 	type PaidOptions,
-	recover,
-	resultOf,
+	resumeRequest,
 	runPaid,
 	show,
-	showRecords,
 } from "./paid.js";
 import type { KindName } from "./requests.js";
 
@@ -49,13 +47,7 @@ import type { KindName } from "./requests.js";
 export const mimeOf = (provider: string) =>
 	provider === "gemini" ? MIME[".wav"] : MIME[".mp3"];
 
-export type StudioOptions = {
-	url?: string;
-	json: boolean;
-	out?: string;
-	overwrite: boolean;
-};
-export type GenerateOptions = StudioOptions &
+export type GenerateOptions = FileOptions &
 	PaidOptions & {
 		voice?: string;
 		presetId?: string;
@@ -141,7 +133,7 @@ export const studioKind = ({
 	json,
 	out = "",
 	overwrite,
-}: Pick<StudioOptions, "json" | "out" | "overwrite">): Kind => ({
+}: FileOptions): Kind => ({
 	name: "studio",
 	async find({ client }, request) {
 		const found = await client.studioFindMany([request]).catch(rpcError);
@@ -242,35 +234,17 @@ export async function generate(options: GenerateOptions) {
 	);
 }
 
-export async function downloadResult(id: string, options: StudioOptions) {
+export async function downloadResult(id: string, options: FileOptions) {
 	const { out = "", overwrite } = options;
 	checkOut(out, overwrite);
 	const connection = await connect(options.url);
 	await studioKind(options).finish(connection, "saved", id);
 }
 
-export async function resume(
-	requestId: string | undefined,
-	options: StudioOptions,
-) {
-	const { json, out, overwrite } = options;
-	if (requestId === undefined) return showRecords("studio", options.url, json);
-	if (out !== undefined) checkOut(out, overwrite);
-	await checkKind("studio", options.url, requestId);
-	const connection = await connect(options.url);
-	const kind = studioKind(options);
-	const result = resultOf(await recover(kind, connection, requestId));
-	if (out !== undefined) return kind.finish(connection, "resumed", result.id);
-	show(json, {
-		origin: connection.origin,
-		source: "resumed",
-		result,
-		out: null,
-		mime: null,
-	});
-}
+export const resume = (requestId: string | undefined, options: FileOptions) =>
+	resumeRequest(studioKind(options), requestId, options);
 
-export async function presets(options: Pick<StudioOptions, "url" | "json">) {
+export async function presets(options: Pick<FileOptions, "url" | "json">) {
 	const { origin, client } = await connect(options.url);
 	const list = (await client.presetList().catch(rpcError)).map((preset) => ({
 		...preset,

@@ -305,7 +305,7 @@ export function usedSettings(request: TrialRequest): UsedSettings {
 			typeof value === "number" && limits
 				? snap(value, limits)
 				: typeof value === "string"
-					? value.trim()
+					? normalizeText(value)
 					: value;
 	}
 	return used;
@@ -333,7 +333,7 @@ export function sentText(request: TrialRequest): string {
 		request.provider === "gemini"
 	)
 		return text;
-	const tag = request.settings.tag.trim();
+	const tag = normalizeText(request.settings.tag);
 	return tag && fieldsOf(request).includes("tag") ? `[${tag}] ${text}` : text;
 }
 
@@ -383,7 +383,11 @@ export function estimate(
 			: request.provider === "elevenlabs"
 				? (multiplier ?? 1)
 				: 1;
-	return { unit: "credit", amount: Math.ceil(chars * rate) };
+	// 부동소수 끝자리를 지운 뒤 올린다(25 × 0.28 = 7.000000000000001)
+	return {
+		unit: "credit",
+		amount: Math.ceil(Number((chars * rate).toFixed(6))),
+	};
 }
 export const fishUsd = (bytes: number) => bytes * FISH_USD_PER_BYTE;
 

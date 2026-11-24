@@ -295,6 +295,30 @@ describe("drama autotag", { timeout: 60_000 }, () => {
 		expect(w.synth).toBe(0);
 	});
 
+	it("무료 모델이 끝난 뒤에도 무료로 만든 줄을 이미 만든 줄로 센다", async () => {
+		const other = mixed();
+		other.speakers[1] = { name: "피시", voice: "fish_audio:fish" };
+		const { speakers, lines } = draftOf(other);
+		const read = readRequests(
+			...[speakers, lines],
+			{
+				...{ saved: w.voices as never, presets: [], headerModel: "s2.1-pro" },
+				now: Date.parse("2026-11-29T23:59:00+09:00"),
+			},
+			...(["0", 1] as const),
+		);
+		if ("problem" in read) throw new Error("막힌 줄");
+		const request = read.lines[0]?.request;
+		expect(request?.settings.model).toBe("s2.1-pro-free");
+		if (request) w.add(request, { kind: "trial" });
+		const result = await spawnCli(
+			ws.dir,
+			tag(other, "--yes", "--json"),
+			...["", "2026-11-30T00:01:00+09:00"],
+		).done;
+		expect(json(result).remake).toEqual([1]);
+	});
+
 	it("확인 없이 부르지 않고 --dry-run은 수만 보인다", async () => {
 		const refused = await run(tag(scene(), "--json"));
 		expect(refused.code).toBe(2);

@@ -47,6 +47,8 @@ description: >-
 - 공급자 429의 `Retry-After` 시각은 공급자별로 DB에 두고, 그 전에는 다시 부르지 않는다. 서버리스 인스턴스끼리 메모리를 나누지 않기 때문이다. 잔액·인증·입력 오류는 사용자가 조치하기 전에 반복하지 않는다.
 - 생성·클론 호출은 SDK 자동 재시도를 끈다. ElevenLabs SDK는 408·429·5xx에서 기본 2회 다시 보내므로 요청 옵션에 `maxRetries: 0`을 준다. 과금이 없는 조회 호출은 재시도해도 된다. 다만 성우 목록은 아래 "목록 규칙"대로 자동 재시도하지 않는다.
 - 공급자 응답 상태 코드를 받지 못한 실패는 "처리 여부 미확인"이다. SDK가 연결 끊김을 statusCode 없는 오류로 바꿔 던질 수 있으므로 네트워크 오류도 포함한다. 자동으로 다시 생성하지 않는다. 일반 재시도는 먼저 같은 조합의 저장본을 찾아 재생하고, 없으면 확인 후 다시 만든다. 명시적 새로 만들기만 저장본 조회를 건너뛴다. T5는 완료 저장이 실패해도 받은 오디오를 반환하고, 그 기록은 pending으로 남아 뒤에 unknown 처리된다.
+- 오디오가 아닌 200(빈 본문, 앞 공백 뒤 첫 글자가 `{`나 `<`)도 과금됐는지 모르므로 "처리 여부 미확인"이다(`errors.ts`의 `audioBytes`, Gemini는 "오류 매핑" 절). 그 밖의 바이트는 머리말을 모르더라도 쓴다.
+- 늦은 성공(`saveLate`)은 `pending`·`unknown` 행에만 저장한다. 미확인 기록이 실패해 pending으로 남은 행도 받은 유료 결과를 버리지 않는다. done·failed는 그대로다.
 - 예외: 자동 태그 텍스트 호출(`studioAutoTag`·`dramaAutoTag`)은 서버가 한 묶음에 OpenAI를 최대 3번, 실패하면 Gemini를 1번 자동으로 다시 부른다(처리 여부 미확인 포함, 과금이 겹칠 수 있음). 사용자 결정 2026-10-23, ADR 0008. 키·결제·한도·입력 거절은 다시 부르지 않는다. 429(과금되지 않음)는 `Retry-After`를 따르지 않고 기다림 없이 다시 부르며 `provider_cooldown`을 쓰지 않는다. 생성·시험 생성·클론에는 적용하지 않는다.
 
 ## 오류 매핑
@@ -89,7 +91,7 @@ description: >-
 - ElevenLabs 목록·억양은 `fetchJson`(`providers/errors.ts`)으로 부른다. 리다이렉트를 따라가지 않고(`redirect: "error"`), 실패하면 상태 코드·공급자 오류 코드·`Retry-After`만 바꿔 담는다.
 
 ## 성우 한 명 조회 (T7 보관함 이용 가능 확인)
-- `ProviderClient.getVoice(source, voiceId, preferred?)`는 읽기 호출이다. 결과는 `Voice` 또는 `null`(공급자가 "없다"고 답함)이다. 세 공급자 문서 모두 이 조회의 과금 문구가 없고 무료라고 명시하지도 않는다(2026-10-07). 그래서 목록 조회와 같은 읽기 호출로 다루되 `savedVoiceCheck`는 24시간에 한 번, 한 번에 40명, 공급자마다 동시 2건으로 부르고 자동 재시도하지 않는다. 시간 제한은 `runList`의 10초다.
+- `ProviderClient.getVoice(source, voiceId, preferred?)`는 읽기 호출이다. 결과는 `Voice` 또는 `null`(공급자가 "없다"고 답함)이다. 세 공급자 문서 모두 이 조회의 과금 문구가 없고 무료라고 명시하지도 않는다(2026-10-07). 그래서 목록 조회와 같은 읽기 호출로 다루되 `savedVoiceCheck`는 24시간에 한 번, 공급자마다 40명, 공급자마다 동시 2건으로 부르고 자동 재시도하지 않는다. 시간 제한은 `runList`의 10초다.
 - "없음"은 `errors.ts`의 `nullOnStatus`로 판정한다. Typecast·ElevenLabs는 404만이다. Fish Audio는 403·404와, 응답이 왔어도 `fishVoice`가 `null`인 성우(학습 전·삭제 요청·공개 출처인데 비공개)다. 그 밖의 오류는 `runList`의 목록 매핑(401·403 → `provider_auth`·`no_permission`, 429 → `rate_limit`, 5xx → `provider_error`, 시간 초과 → `unknown_outcome`)을 그대로 따른다.
 - ElevenLabs 공개 라이브러리 성우(`source: "public"`)는 한 명 조회 방법이 공식 문서에 없어 확인하지 않는다. 라우터가 확인 대상에서 빼고, 공급자 모듈은 불러도 `provider_error`로 거절한다. 계정에 추가하는 호출(`POST /v1/voices/add/…`)은 계정 상태를 바꾸므로 쓰지 않는다. 계정 성우는 REST `GET /v1/voices/{id}`로 부르고 담을 때 고른 샘플 언어(`preferred`)를 지킨다.
 - 라우터가 이 오류를 다루는 규칙: `rate_limit`이면 대기 시각(`Retry-After`가 없으면 60초. Typecast SDK는 헤더를 주지 않는다)을 `provider_cooldown`에 적고 그 공급자를 멈춘다. `provider_auth`·`no_permission`·`quota`면 기록 없이 그 공급자를 멈춘다. 5xx·시간 초과는 그 행을 그대로 둔다.

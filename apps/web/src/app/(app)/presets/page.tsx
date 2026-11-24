@@ -18,7 +18,7 @@ export default function PresetsPage() {
 						자주 쓰는 성우와 듣기 설정을 이름 붙여 두고{" "}
 						<Link
 							href="/casting"
-							className="text-foreground underline underline-offset-4 hover:text-primary"
+							className="relative whitespace-nowrap text-foreground underline underline-offset-4 after:absolute after:inset-x-0 after:-inset-y-3.5 hover:text-primary"
 						>
 							성우 캐스팅
 						</Link>

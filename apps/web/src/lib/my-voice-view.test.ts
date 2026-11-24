@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
 	badgeOf,
 	dismissNeedsConfirm,
+	dismissText,
 	lengthProblemText,
 	menuOf,
 	primaryActionOf,
@@ -124,6 +125,35 @@ describe("reasonText", () => {
 	});
 	it("객체 기본 속성 이름에 속지 않는다", () => {
 		expect(text("constructor")).toBe(text(null));
+	});
+	// 공급자 5xx는 만들어진 뒤에 왔을 수 있다. CLI(clones)와 뜻이 같다(audit N3)
+	it.each([
+		["fish_audio", "Fish Audio"],
+		["gemini", "Gemini"],
+	] as const)(
+		"%s 공급자 오류는 만들어졌을 수 있다고 알린다(audit N3)",
+		(provider, name) => {
+			const said = reasonText("provider_error", provider);
+			expect(said).toContain("만들어졌을 수 있어요");
+			expect(said).toContain(`${name} 웹에서 확인`);
+			expect(
+				rowNoteOf({ status: "failed", reason: "provider_error", provider }),
+			).toBe(said);
+		},
+	);
+});
+
+describe("dismissText", () => {
+	it("공급자 id가 없을 수 있는 실패를 치울 때는 공급자에 남았을 수 있다고 알린다(audit N3)", () => {
+		const said = dismissText({ reason: "provider_error", provider: "gemini" });
+		expect(said).toContain("남았을 수 있어요");
+		expect(said).toContain("Gemini 웹에서 확인");
+		expect(said).not.toContain("클론도 지워져요");
+	});
+	it("공급자 id가 있는 실패는 공급자 계정에서도 지운다고 알린다", () => {
+		expect(dismissText({ reason: "quality", provider: "fish_audio" })).toBe(
+			"Fish Audio 계정에 남은 실패한 클론도 지워져요",
+		);
 	});
 });
 

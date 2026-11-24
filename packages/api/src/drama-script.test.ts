@@ -128,6 +128,17 @@ describe("mergeChunks", () => {
 		expect(merged?.[2]?.start).toBeCloseTo(9.6, 6);
 		expect(merged?.[2]?.end).toBeCloseTo(9.8, 6);
 	});
+	it("뒤 청크가 먼저 와도 청크 번호 순으로 잇는다", () => {
+		expect(
+			mergeChunks(
+				[
+					{ seq: 1, offset: 9.5, duration: 1, segments: [y] },
+					{ seq: 0, offset: 0, duration: 9.5, segments: [x] },
+				],
+				10.5,
+			)?.map((s) => s.text),
+		).toEqual(["x", "y"]);
+	});
 	it("세그먼트 0개나 빈 배열이면 null", () => {
 		expect(
 			mergeChunks([{ seq: 0, offset: 0, duration: 1, segments: [] }], 1),

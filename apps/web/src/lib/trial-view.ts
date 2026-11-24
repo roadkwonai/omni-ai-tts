@@ -35,7 +35,7 @@ import {
 
 import { creditNumber, PROVIDER_LABEL } from "./connection-view";
 import { languageName } from "./provider-conditions";
-import { problemCopy, retryAtOf } from "./voice-failure";
+import { failureOf, problemCopy, retryAtOf } from "./voice-failure";
 import { labelOf } from "./voice-filter";
 import { agoText, EMOTION_KO, plain, retryTime } from "./voice-view";
 
@@ -374,6 +374,8 @@ export type TrialProblem = {
 	reason: TrialFailure | "unexpected";
 	retryAt: string | null;
 	providerCode: string | null;
+	// 세션이 끝난 401. 사유는 unexpected 그대로다: 작업실·드라마는 처리 전 거절을 그 사유로 나눈다(createFailureOf)
+	signedOut?: true;
 };
 export function trialFailureOf(error: unknown): TrialProblem {
 	const data =
@@ -385,6 +387,7 @@ export function trialFailureOf(error: unknown): TrialProblem {
 		retryAt: retryAtOf(error),
 		providerCode:
 			typeof data?.providerCode === "string" ? data.providerCode : null,
+		...(failureOf(error) === "unauthorized" ? { signedOut: true } : {}),
 	};
 }
 
@@ -407,6 +410,11 @@ export function trialProblemText(
 	problem: TrialProblem,
 ): { text: string; connections: boolean } {
 	const name = PROVIDER_LABEL[provider];
+	if (problem.signedOut)
+		return {
+			text: "로그인이 풀렸어요. 다시 로그인한 뒤 눌러 주세요.",
+			connections: false,
+		};
 	switch (problem.reason) {
 		case "no_key":
 		case "provider_auth":

@@ -232,6 +232,30 @@ export async function fetchAudio(
 	if (blob.size !== bytes) throw new Error("audio size mismatch");
 	return blob;
 }
+// 받은 것을 쓴다. 화면을 떠난 뒤(here가 거짓) 온 결과와 실패는 버린다(알림·blob 주소를 만들지 않는다)
+export async function receiveHere<T>(
+	load: () => Promise<T>,
+	here: () => boolean,
+	use: (value: T) => void,
+	fail: (error: unknown) => void,
+): Promise<void> {
+	try {
+		const value = await load();
+		if (here()) use(value);
+	} catch (error) {
+		if (here()) fail(error);
+	}
+}
+
+// 숫자 검수 창이 보일 항목의 번호. 고른 항목(view)이 목록에 없으면(모두 검수한 뒤, 사라진 항목) 첫 미검수 항목이고 -1이면 모두 검수했다.
+// 모두 검수한 화면에서 '모두 적용'을 되돌리면 미검수가 다시 생긴다
+export function reviewIndexOf(
+	rows: readonly { key: string; decision: unknown }[],
+	view: string,
+): number {
+	const at = rows.findIndex((row) => row.key === view);
+	return at < 0 ? rows.findIndex((row) => !row.decision) : at;
+}
 
 // 서버가 처리 전에 거절한 코드(입력 검사, CSRF, 소유자 없음). 공급자에 닿지 않았다(계획 재리뷰 R4·N3)
 const BEFORE_PROVIDER = new Set(["BAD_REQUEST", "UNAUTHORIZED", "FORBIDDEN"]);

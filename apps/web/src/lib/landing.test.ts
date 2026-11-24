@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { atPageEnd, landingRedirect, splitTagline } from "./landing";
+import { landingRedirect } from "./landing";
 import * as content from "./landing-content";
 import {
 	ACTING,
@@ -32,7 +32,6 @@ import {
 	OTHER_SAMPLE_LABEL,
 	PROVIDERS,
 	sampleName,
-	TAGLINE_LINES,
 	TOUR_TABS,
 	TRY,
 } from "./landing-content";
@@ -50,36 +49,6 @@ describe("landingRedirect", () => {
 	it("공개 데모: 예시 소유자여도 소개 페이지를 그린다", () => {
 		expect(landingRedirect("owner", "demo")).toBeNull();
 		expect(landingRedirect("none", "demo")).toBeNull();
-	});
-});
-
-describe("splitTagline", () => {
-	it("줄은 그대로 두고 줄 안을 어절로 나눈다", () => {
-		expect(splitTagline(["다섯 곳의 목소리를", "한 대본에 담는다."])).toEqual([
-			["다섯", "곳의", "목소리를"],
-			["한", "대본에", "담는다."],
-		]);
-	});
-	it("빈 줄과 겹친 공백은 버린다", () => {
-		expect(splitTagline(["  가   나 ", ""])).toEqual([["가", "나"]]);
-	});
-	it("태그라인은 두 줄 이상이고 브리프 4절 문구다", () => {
-		expect(splitTagline(TAGLINE_LINES).length).toBeGreaterThanOrEqual(2);
-		expect(TAGLINE_LINES).toEqual([
-			"마음에 드는 목소리를 찾을 때까지,",
-			"한 대본으로 계속 들어 봅니다.",
-		]);
-	});
-});
-
-describe("atPageEnd(태그라인이 끝까지 켜지는 기준)", () => {
-	it("맨 아래에 닿으면 참이고, 반올림 오차 2px까지 봐준다", () => {
-		expect(atPageEnd(1000, 900, 1900)).toBe(true);
-		expect(atPageEnd(998.5, 900, 1900)).toBe(true);
-	});
-	it("아직 남았으면 거짓이다", () => {
-		expect(atPageEnd(0, 900, 1900)).toBe(false);
-		expect(atPageEnd(990, 900, 1900)).toBe(false);
 	});
 });
 
@@ -321,6 +290,10 @@ describe("랜딩 내용(브리프 4·6·9절)", () => {
 	it("확인 필요 이유 문구는 11가지 이유를 모두 말한다", () => {
 		expect(Object.keys(CHECK_REASON_TEXT)).toHaveLength(11);
 	});
+	it("이어 쓴 수(list)는 쉼표로 이은 수만이 아니다('3만 5만'도 있다)", () => {
+		expect(CHECK_REASON_TEXT.list).not.toContain("쉼표");
+		expect(CHECK_REASON_TEXT.list).toContain("이어 쓴 수");
+	});
 	it("공개 데모 FAQ는 로그인 없는 데모와 음성 서비스를 부르지 않는 비용을 말한다", () => {
 		const own = FAQ_ITEMS.find((i) => i.question === "직접 써 볼 수 있나요?");
 		const cost = FAQ_ITEMS.find((i) => i.question === "비용은 어떻게 되나요?");
@@ -417,7 +390,6 @@ describe("랜딩 내용(브리프 4·6·9절)", () => {
 			FAQ_ITEMS,
 			HERO_TITLE,
 			HERO_SUBTITLE,
-			TAGLINE_LINES,
 			TRY,
 			ACTING,
 			FLOW,

@@ -171,7 +171,11 @@ export const scriptRouter = {
 					})
 					.from(script)
 					.where(and(...where))
-					.orderBy(desc(script.updatedAt), desc(script.id))
+					// script_owner_list와 같은 정렬 글자다. desc만 쓰면 nulls first라 인덱스를 타지 못하고 모두 정렬한다
+					.orderBy(
+						sql`${script.updatedAt} desc nulls last`,
+						sql`${script.id} desc nulls last`,
+					)
 					.limit(limit);
 				const page = rows.slice(0, saved ? PAGE : RECENT_MAX);
 				const last = page.at(-1);

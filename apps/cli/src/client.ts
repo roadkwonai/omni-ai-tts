@@ -77,7 +77,8 @@ async function stored<T>(run: Promise<T>, message: string): Promise<T> {
 		return await run;
 	} catch (error) {
 		if (error instanceof ClientError) throw error;
-		throw new ClientError("STORAGE_ERROR", 7, message);
+		const reason = error instanceof Error ? ` ${error.message}` : "";
+		throw new ClientError("STORAGE_ERROR", 7, message + reason);
 	}
 }
 const change = <T>(fn: Parameters<typeof changeState<T>>[0]) =>
@@ -154,7 +155,12 @@ export function rpcError(error: unknown, extra: ErrorDetail = {}): never {
 			detail,
 		);
 	const reason = reasonOf(detail.reason);
-	throw serverError(reason && REASON_TEXT[reason], detail);
+	throw serverError(
+		error instanceof ClientError
+			? error.message
+			: reason && REASON_TEXT[reason],
+		detail,
+	);
 }
 // 관리 명령과 과금 전 조회의 오류. 합성 요청의 오류에는 쓰지 않는다
 export function manageError(error: unknown, extra: ErrorDetail = {}): never {
@@ -220,14 +226,25 @@ function cookies(response: Response, current = ""): string {
 	return [...values].map(([name, value]) => `${name}=${value}`).join("; ");
 }
 
+// 앞단이 대신 준 응답(리다이렉트, 점검 화면). oRPC는 이것을 빈 성공으로 읽는다
+function fromWorkspace(response: Response): Response {
+	const html = response.headers.get("content-type")?.startsWith("text/html");
+	if (response.status >= 300 ? response.status < 400 : html)
+		throw serverError(
+			"작업실이 아닌 곳의 응답을 받았습니다. 작업실 주소와 상태를 확인해 주세요.",
+		);
+	return response;
+}
+
 async function auth(
 	origin: string,
 	path: string,
 	cookie: string,
 	body?: object,
 ): Promise<Response> {
+	let response: Response;
 	try {
-		return await fetch(`${origin}/api/auth/${path}`, {
+		response = await fetch(`${origin}/api/auth/${path}`, {
 			method: body ? "POST" : "GET",
 			redirect: "manual",
 			headers: {
@@ -240,6 +257,7 @@ async function auth(
 	} catch {
 		throw new ClientError("NETWORK", 5, "작업실에 연결하지 못했습니다.");
 	}
+	return fromWorkspace(response);
 }
 
 async function selected(
@@ -290,7 +308,8 @@ function rpc(origin: string, session: Session): AppRouterClient {
 		url: `${origin}/api/rpc`,
 		plugins: [new SimpleCsrfProtectionLinkPlugin()],
 		headers: { cookie: session.cookie, origin },
-		fetch: (request) => fetch(request, { redirect: "manual" }),
+		fetch: async (request) =>
+			fromWorkspace(await fetch(request, { redirect: "manual" })),
 	});
 	return createORPCClient(link);
 }
@@ -321,7 +340,21 @@ export async function login(
 	);
 	const response = await auth(origin, "sign-in/email", "", { email, password });
 	if (!response.ok) {
-		if ([400, 401, 403, 404].includes(response.status)) throw unauthorized();
+		const { status } = response;
+		if (status === 429) {
+			// Better Auth는 이 이름으로 남은 초를 준다
+			const wait = response.headers.get("x-retry-after") ?? "";
+			throw serverError(
+				`로그인 시도가 너무 많습니다. ${/^\d+$/.test(wait) ? `${wait}초` : "잠시"} 뒤 다시 실행해 주세요.`,
+			);
+		}
+		if (status === 400 || status === 401)
+			throw new ClientError(
+				"UNAUTHORIZED",
+				3,
+				"이메일이나 비밀번호가 맞지 않습니다.",
+			);
+		if (status === 403 || status === 404) throw unauthorized();
 		throw serverError();
 	}
 	const session = { cookie: cookies(response), version: randomUUID() };

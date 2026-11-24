@@ -9,7 +9,7 @@ import {
 	STUDIO_PART_BYTES,
 } from "@tts-pilot-app/api/providers/trial-options";
 import type { SavedVoice } from "@tts-pilot-app/api/saved-voice-contract";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
 	channelDefaultOf,
@@ -24,6 +24,8 @@ import {
 	pickableVoices,
 	pressedEmotion,
 	readSetup,
+	receiveHere,
+	reviewIndexOf,
 	STUDIO_TEXT,
 	safeName,
 	savedOf,
@@ -471,5 +473,70 @@ describe("작업실 문구(브리프 8절 정본)", () => {
 			"voiceRejected",
 		])
 			expect(STUDIO_TEXT).not.toHaveProperty(key);
+	});
+});
+
+describe("receiveHere(화면을 떠난 뒤 온 결과)", () => {
+	const received = async (load: () => Promise<string>, leave: boolean) => {
+		let here = true;
+		const use = vi.fn();
+		const fail = vi.fn();
+		const done = receiveHere(load, () => here, use, fail);
+		here = !leave;
+		await done;
+		return { use, fail };
+	};
+	const broken = new Error("끊김");
+	const failing = async () => {
+		throw broken;
+	};
+	it("머무는 동안에는 결과를 쓰고 실패를 알린다", async () => {
+		const ok = await received(async () => "소리", false);
+		expect(ok.use).toHaveBeenCalledExactlyOnceWith("소리");
+		expect(ok.fail).not.toHaveBeenCalled();
+		const bad = await received(failing, false);
+		expect(bad.use).not.toHaveBeenCalled();
+		expect(bad.fail).toHaveBeenCalledExactlyOnceWith(broken);
+	});
+	it("떠난 뒤 온 결과도 실패도 쓰지 않는다(알림·blob 주소 없음)", async () => {
+		for (const load of [async () => "소리", failing]) {
+			const late = await received(load, true);
+			expect(late.use).not.toHaveBeenCalled();
+			expect(late.fail).not.toHaveBeenCalled();
+		}
+	});
+	it("받은 것을 쓰다 난 오류도 실패로 알린다(자르지 못한 소리)", async () => {
+		const fail = vi.fn();
+		await receiveHere(
+			async () => "깨진 소리",
+			() => true,
+			() => {
+				throw broken;
+			},
+			fail,
+		);
+		expect(fail).toHaveBeenCalledExactlyOnceWith(broken);
+	});
+});
+
+describe("reviewIndexOf(숫자 검수 창이 보일 항목)", () => {
+	const decision = { start: 0, original: "3개", choice: "keep" } as const;
+	const rows = (...open: boolean[]) =>
+		open.map((isOpen, i) => ({
+			key: `p${i}:0`,
+			decision: isOpen ? null : decision,
+		}));
+	it("고른 항목을 보인다", () => {
+		expect(reviewIndexOf(rows(true, false, true), "p1:0")).toBe(1);
+	});
+	it("모두 검수했으면 -1", () => {
+		expect(reviewIndexOf(rows(false, false), "done")).toBe(-1);
+		expect(reviewIndexOf([], "done")).toBe(-1);
+	});
+	it("‘모두 적용’을 되돌려 미검수가 다시 생기면 첫 미검수 항목을 보인다", () => {
+		expect(reviewIndexOf(rows(false, true, true), "done")).toBe(1);
+	});
+	it("고른 항목이 사라졌으면 첫 미검수 항목을 보인다", () => {
+		expect(reviewIndexOf(rows(false, true), "gone:0")).toBe(1);
 	});
 });

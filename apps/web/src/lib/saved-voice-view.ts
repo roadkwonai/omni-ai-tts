@@ -245,6 +245,13 @@ export const linkedNote = (count: number, group: Group) =>
 		? `. 연결된 성우 ${count}명은 보관함에 그대로 남고, 이 ${GROUP_TEXT[group].label} 연결만 풀려요.`
 		: "";
 
+// 메모 저장 응답 뒤의 초안: 저장하는 동안 이어 썼으면 쓴 글을 남기고, 아니면 서버가 정리한 값이다
+export const memoAfterSave = (
+	now: string,
+	sent: string,
+	saved: string | null,
+) => (now === sent ? (saved ?? "") : now);
+
 // 이름 뒤 조사는 받침을 몰라 붙이지 않는다('성우'를 사이에 둔다)
 export const removeQuestion = (name: string) =>
 	`‘${name}’ 성우를 보관함에서 뺄까요?`;

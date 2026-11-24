@@ -2,13 +2,13 @@
 
 import { ORPCError } from "@orpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { MyVoice } from "@tts-pilot-app/api/my-voice-contract";
 import {
 	CLONE_PROVIDERS,
 	type CloneProvider,
 	cloneLengthProblem,
-	type MyVoice,
-	myVoiceNameSchema,
-} from "@tts-pilot-app/api/my-voice-contract";
+	myVoiceNameProblem,
+} from "@tts-pilot-app/api/my-voice-rules";
 import { Button } from "@tts-pilot-app/ui/components/button";
 import { Checkbox } from "@tts-pilot-app/ui/components/checkbox";
 import {
@@ -180,7 +180,8 @@ export function MyVoiceCreate({
 }) {
 	const firstRef = useRef<HTMLInputElement>(null);
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
+		// 창 밖을 눌러 닫히면 녹음이 사라진다(audit C6). 닫기와 Esc로만 닫는다
+		<Dialog open={open} disablePointerDismissal onOpenChange={onOpenChange}>
 			<DialogContent
 				initialFocus={() => firstRef.current ?? true}
 				// 빈 상태에서 만든 뒤처럼 연 버튼이 사라졌어도 페이지의 '만들기'로 돌아간다
@@ -283,7 +284,7 @@ function CreateFlow({
 	}
 
 	function next() {
-		if (step === "provider" && !myVoiceNameSchema.safeParse(name).success) {
+		if (step === "provider" && myVoiceNameProblem(name)) {
 			setNameBad(true);
 			return;
 		}

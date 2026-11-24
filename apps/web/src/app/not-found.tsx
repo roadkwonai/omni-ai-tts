@@ -20,12 +20,15 @@ export default async function NotFound() {
 				description="주소가 바뀌었거나 아직 없는 화면이에요"
 			/>
 			<div className="flex flex-col items-start gap-6 px-4 pb-10 md:px-11">
+				{/* 첫 화면에서 가장 큰 그림이라 늦게 불러오지 않는다(LCP, 랜딩 hero-stage와 같다) */}
 				<Image
 					src="/brand/mascot-404.png"
 					alt="헤드폰을 쓴 마이크 마스코트가 대본을 들고 길을 잃어 어리둥절해하는 모습"
 					width={658}
 					height={720}
 					sizes="(min-width: 768px) 192px, 160px"
+					loading="eager"
+					fetchPriority="high"
 					className="h-auto w-40 md:w-48"
 				/>
 				<Link href="/studio" className={buttonVariants({ size: "lg" })}>

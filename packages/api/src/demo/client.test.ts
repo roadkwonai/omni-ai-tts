@@ -518,8 +518,8 @@ describe.skipIf(!url)("데모 Context로 모든 프로시저(T15-a2 Task 1b)", (
 	it("보관함·분류·프리셋·대본: DB만 쓰고 공급자를 부르지 않는다", async () => {
 		const voice = voiceOf("typecast");
 		expect(await demo.savedVoiceList()).toHaveLength(PROVIDERS.length);
-		// 데모 클라이언트에 단건 조회가 없어 확인은 공급자를 부르지 않고 목록을 돌려준다
-		expect(await demo.savedVoiceCheck()).toHaveLength(PROVIDERS.length);
+		// 데모 클라이언트에 단건 조회가 없어 확인 대상이 없다(공급자를 부르지 않는다)
+		expect(await demo.savedVoiceCheck()).toBeNull();
 		const ch = await demo.channelCreate({
 			name: "데모 채널",
 			memo: "",

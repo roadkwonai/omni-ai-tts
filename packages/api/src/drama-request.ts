@@ -17,12 +17,13 @@ import {
 	type DramaSettings,
 	type DramaSpeaker,
 } from "./drama-script";
-import { savedOf } from "./paragraph-script";
+import { dropZeroWidth, isBlank, savedOf } from "./paragraph-script";
 import type { Preset, PresetValue } from "./preset-contract";
 import type { ProviderId, Voice } from "./providers/contract";
 import {
 	codePoints,
 	DEFAULT_SETTINGS,
+	FISH_FREE_UNTIL,
 	GEMINI_DIRECTION_MAX,
 	normalizeText,
 	presetsOf,
@@ -203,7 +204,13 @@ export function lineRequest(
 	);
 }
 
-export type ReadLine = { id: string; request: TrialRequest; speaker: string };
+// before는 Fish 무료 모델 종료로 유료로 보정되기 전 요청이다(보정된 줄에만 있다). 찾기에만 쓰고 보내지 않는다
+export type ReadLine = {
+	id: string;
+	request: TrialRequest;
+	speaker: string;
+	before?: TrialRequest;
+};
 export type ReadProblem = {
 	kind: "voice" | "long" | "empty";
 	lineId: string | null;
@@ -258,11 +265,16 @@ export function readRequests(
 			ctx.headerModel,
 			fishOnly,
 		);
+		const requestAt = (now: number) =>
+			lineRequest(voice, value, family, line, now);
+		const request = requestAt(ctx.now);
+		const before = requestAt(FISH_FREE_UNTIL - 1);
 		return [
 			{
 				id: line.id,
 				speaker: speakerNameOf(usable, line.speaker),
-				request: lineRequest(voice, value, family, line, ctx.now),
+				request,
+				...(before.settings.model === request.settings.model ? {} : { before }),
 			},
 		];
 	});
@@ -275,10 +287,27 @@ export function readRequests(
 	);
 	if (long)
 		return { problem: { kind: "long", lineId: long.id, speaker: null } };
-	const empty = read.find(({ request }) => request.text === "");
+	const empty = read.find(({ request }) => isBlank(request.text));
 	if (empty)
 		return { problem: { kind: "empty", lineId: empty.id, speaker: null } };
 	return { lines: read };
+}
+
+// 줄마다 저장된 결과(줄 순서 그대로). 보정되기 전 요청을 먼저 찾고, 없는 줄만 보낼 요청으로 다시 찾는다
+// (한 번에 찾으면 두 배가 되어 trialFindMany 상한 50줄을 넘는다). find는 요청 순서대로 결과를 돌려준다
+export async function findReadLines<T>(
+	lines: readonly ReadLine[],
+	find: (requests: TrialRequest[]) => Promise<(T | null)[]>,
+): Promise<(T | null)[]> {
+	const found = await find(lines.map((line) => line.before ?? line.request));
+	const rest = lines.flatMap((line, i) =>
+		line.before && !found[i] ? [{ i, request: line.request }] : [],
+	);
+	if (rest.length === 0) return found;
+	const again = await find(rest.map(({ request }) => request));
+	const next = [...found];
+	for (const [k, { i }] of rest.entries()) next[i] = again[k] ?? null;
+	return next;
 }
 
 // 줄 해석 '이름: 대사'는 문단 작업실과 공용(script-speaker.ts). 대사 정리(normalizeText)는 여기서만 한다
@@ -297,7 +326,7 @@ export function parsePaste(
 ): PasteResult {
 	const names: string[] = [];
 	const rows: { name: string | null; text: string }[] = [];
-	for (const row of raw.split(/\r\n|\r|\n/)) {
+	for (const row of dropZeroWidth(raw).split(/\r\n|\r|\n/)) {
 		const line = speakerLine(row);
 		const text = normalizeText(line ? line.text : row);
 		if (text === "") continue;

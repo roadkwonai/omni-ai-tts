@@ -1,5 +1,9 @@
 // apps/web/src/lib/drama-read.ts
-import type { DraftLine, ReadLine } from "@tts-pilot-app/api/drama-request";
+import {
+	type DraftLine,
+	findReadLines,
+	type ReadLine,
+} from "@tts-pilot-app/api/drama-request";
 import type { ProviderId } from "@tts-pilot-app/api/providers/contract";
 import type {
 	TrialFound,
@@ -36,16 +40,32 @@ export function readPaid(
 	return lines.some((line) => needsConfirm(line.request, now));
 }
 
-// 모든 줄의 소리를 이미 받았는가(같은 서명은 하나로 충분하다)
+// 모든 줄의 소리를 이미 받았는가(같은 서명은 하나로 충분하다). 무료 결과를 쓴 줄은 보정 전 요청의 서명이다(findLines)
 export function allPrepared(
 	lines: readonly ReadLine[],
 	prepared: ReadonlySet<string>,
 ): boolean {
 	return (
 		lines.length > 0 &&
-		lines.every((line) => prepared.has(comboSignature(line.request)))
+		lines.every(({ before, request }) =>
+			[before, request].some(
+				(each) => each !== undefined && prepared.has(comboSignature(each)),
+			),
+		)
 	);
 }
+
+// 줄마다 저장된 결과와 그것을 찾은 요청의 서명. 무료 모델 종료 뒤 무료로 찾은 줄은 서명이 무료 요청의 것이라,
+// 보낼 요청이 같은 유료 줄이 그 소리를 쓰지 않는다
+export const findLines = (
+	lines: readonly ReadLine[],
+	find: (requests: TrialRequest[]) => Promise<(TrialFound | null)[]>,
+) =>
+	findReadLines(lines, async (requests) =>
+		(await find(requests)).map(
+			(hit, i) => hit && { ...hit, signature: comboSignature(requests[i]) },
+		),
+	);
 
 export type ReadSummary = {
 	reuse: number;
@@ -65,7 +85,7 @@ export type ReadSummary = {
 // 찾은 줄과 ready(이미 받았거나 만드는 중인 서명)는 저장된 소리다. 새로 만들 서명 중 유료이거나 미확인으로 끝났던 것이 있으면 확인한다
 export function readSummary(
 	requests: readonly TrialRequest[],
-	found: readonly (TrialFound | null)[],
+	found: readonly ((TrialFound & { signature?: string }) | null)[],
 	rates: readonly TrialModelRate[],
 	unknown: ReadonlySet<string>,
 	ready: ReadonlySet<string>,
@@ -74,7 +94,7 @@ export function readSummary(
 	const summary: ReadSummary = { reuse: 0, make: 0, paid: [], confirm: false };
 	const seen = new Set<string>();
 	for (const [i, request] of requests.entries()) {
-		const signature = comboSignature(request);
+		const signature = found[i]?.signature ?? comboSignature(request);
 		if (seen.has(signature)) {
 			summary.reuse += 1; // 같은 대사는 앞 줄의 소리를 쓴다
 			continue;

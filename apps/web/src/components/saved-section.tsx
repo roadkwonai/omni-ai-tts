@@ -30,6 +30,7 @@ import {
 	chipGroups,
 	LIBRARY_TEXT,
 	linkMessage,
+	memoAfterSave,
 	removedMessage,
 	removeQuestion,
 	savedKey,
@@ -253,7 +254,7 @@ function SavedFields({ voice }: { voice: Voice }) {
 							{
 								// 서버가 정리한 값으로 초안을 맞춘다(그래야 '메모 저장'이 다시 꺼진다, 계획 리뷰 E13)
 								onSuccess: (saved) => {
-									setMemo(saved.memo ?? "");
+									setMemo((now) => memoAfterSave(now, memo, saved.memo));
 									toast.success(LIBRARY_TEXT.memoSaved);
 								},
 							},

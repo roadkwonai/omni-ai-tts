@@ -41,6 +41,7 @@ import {
 	typecastListOptions,
 } from "./one-list";
 import { SamplePlayerProvider } from "./sample-player";
+import { useSavedList } from "./saved-voices";
 import { ServerVoiceList, serverListOptions } from "./server-voice-list";
 import { sourceItem } from "./setting-fields";
 import { TrialProvider } from "./trial-provider";
@@ -58,6 +59,10 @@ const SERVER_TABS: ServerProvider[] = ["elevenlabs", "fish_audio"];
 const Panel = (props: ComponentProps<typeof TabsContent>) => (
 	<TabsContent keepMounted tabIndex={-1} {...props} />
 );
+
+// 목록 아래쪽에서 눌렀어도 로그인 안내가 보이게 옮긴다
+const showNotice = (node: HTMLElement | null) =>
+	node?.scrollIntoView({ block: "nearest" });
 
 // 내 계정 목록 첫 페이지의 인원. 조건을 바꿔 받는 중(placeholder)이면 앞 조건의 수라 보이지 않는다
 function totalOf(query: {
@@ -130,6 +135,7 @@ export function VoiceCasting() {
 		...serverListOptions(lists["fish_audio:account"]),
 		enabled: false,
 	});
+	const saved = useSavedList();
 	const accountTotals: Record<ServerProvider, string | null> = {
 		elevenlabs: totalOf(elevenlabsAccount),
 		fish_audio: totalOf(fishAccount),
@@ -187,11 +193,20 @@ export function VoiceCasting() {
 		setPendingFocus(listKey);
 	}
 
-	// 세션 만료: 탭과 조건 줄 대신 로그인 안내 하나다(T3). 처음 열리는 '전체' 탭이 늘 받는 Typecast 목록(같은 키)으로 판정한다
+	// 세션 만료: 탭과 조건 줄 대신 로그인 안내 하나다(T3). 처음 열리는 '전체' 탭이 늘 받는 Typecast 목록(같은 키)으로 판정한다.
+	// 쓰던 문장을 든 TrialProvider는 남긴다
 	if (failureOf(typecastList.error) === "unauthorized") {
-		return <SignInNotice />;
+		return (
+			<SamplePlayerProvider>
+				<TrialProvider>
+					<SignInNotice />
+				</TrialProvider>
+			</SamplePlayerProvider>
+		);
 	}
 
+	// 목록 밖 호출(별·담기·내 문장 듣기)의 401은 담은 성우 목록을 다시 받게 한다. 작업실과 같은 판정이고 쓰던 문장은 화면에 남긴다(audit C3)
+	const signedOut = failureOf(saved.error) === "unauthorized";
 	const typecastCount = typecastList.data?.voices.length;
 	const airyCount = airyList.data?.voices.length;
 	const geminiCount = geminiList.data?.voices.length;
@@ -200,6 +215,11 @@ export function VoiceCasting() {
 		// 탭을 바꿔 그 탭의 행이 숨어도 재생은 이어진다. 페이지를 떠나면 멈춘다(T3)
 		<SamplePlayerProvider>
 			<TrialProvider>
+				{signedOut ? (
+					<div role="alert" ref={showNotice} className="mb-4">
+						<SignInNotice />
+					</div>
+				) : null}
 				<Tabs value={tab} onValueChange={changeTab} className="gap-4">
 					{/* 767px 이하는 탭 줄만 가로로 넘긴다(페이지는 넘치지 않는다). 넘쳐서 더 있으면 오른쪽 끝이 흐리다(index.css tabs-overflow-fade). 스크롤바는 숨긴다.
 				    방향키로 옮기고 Enter·Space로 연다(Base UI). 공급자 이름은 번역하지 않는다 */}

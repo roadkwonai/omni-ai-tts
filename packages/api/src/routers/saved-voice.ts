@@ -170,7 +170,7 @@ export async function upsert(
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-// 공급자마다 동시 2건, 한 번에 40명(스펙 3절, 계획 리뷰 E8). 한 건 10초는 runList가 끊는다.
+// 공급자마다 동시 2건, 한 번에 공급자마다 40명(스펙 3절, 계획 리뷰 E8). 전체 40명이면 확인하지 못하는 공급자의 오래된 행이 다른 공급자를 막는다. 한 건 10초는 runList가 끊는다.
 // 최악: 한 공급자에 40명이 모두 시간 초과면 40 ÷ 2 × 10초 = 200초. 화면은 저장한 정보로 먼저 보여 기다리지 않는다
 const CHECK_WORKERS = 2;
 const CHECK_LIMIT = 40;
@@ -194,23 +194,58 @@ function sampleLanguage(voice: Voice): string | null {
 	);
 }
 
-// 한 공급자의 확인. 429면 대기 시각을 적고 멈춘다. 다른 실패는 그 행을 그대로 둔다.
+// 한 공급자의 확인. 확인 대상 수를 돌려준다(키가 없으면 대상이 없다). 429면 대기 시각을 적고 멈춘다. 다른 실패는 그 행을 그대로 둔다.
 // ponytail: 실패한 행은 다음에 화면을 열 때 다시 부른다. 장애가 길어 자주 보이면 실패 때 checked_at을 1시간 뒤로 미룬다(계획 리뷰 E17)
 async function checkProvider(
 	db: Db,
 	ownerId: string,
 	provider: Voice["provider"],
 	client: ProviderClient | undefined,
-	rows: Row[],
-): Promise<void> {
+): Promise<number> {
 	const getVoice = client?.getVoice;
-	if (!getVoice || rows.length === 0) return;
+	if (!getVoice) return 0;
+	const rows = await stored(PREFIX, "확인 대상", () =>
+		db
+			.select()
+			.from(savedVoice)
+			.where(
+				and(
+					eq(savedVoice.ownerId, ownerId),
+					eq(savedVoice.provider, provider),
+					or(
+						isNull(savedVoice.checkedAt),
+						lt(savedVoice.checkedAt, new Date(Date.now() - DAY_MS)),
+					),
+					// ElevenLabs 공개 라이브러리 성우는 한 명 조회 방법이 없다('스펙과 다른 점' 2)
+					or(
+						ne(savedVoice.provider, "elevenlabs"),
+						ne(savedVoice.source, "public"),
+					),
+					// 내 보이스 클론의 이용 가능은 my_voice 상태가 정한다(Gemini getVoice는 클론을 못 찾는다, T13 계획 2.3)
+					notExists(
+						db
+							.select({ id: myVoice.id })
+							.from(myVoice)
+							.where(
+								and(
+									eq(myVoice.ownerId, savedVoice.ownerId),
+									eq(myVoice.provider, savedVoice.provider),
+									eq(myVoice.providerVoiceId, savedVoice.voiceId),
+								),
+							),
+					),
+				),
+			)
+			.orderBy(sql`${savedVoice.checkedAt} asc nulls first`)
+			.limit(CHECK_LIMIT),
+	);
+	if (rows.length === 0) return 0;
 	const blocked = await guard(
 		"대기 확인",
 		() => cooldownOf(db, provider, new Date()),
 		PREFIX,
 	);
-	if (blocked !== null) return;
+	if (blocked !== null) return rows.length;
 	const queue = [...rows];
 	let stopped = false;
 	// 함수 선언이 아니라 화살표다: 위 getVoice 좁히기가 안에서도 남는다(계획 리뷰 E5)
@@ -260,6 +295,7 @@ async function checkProvider(
 		}
 	};
 	await Promise.all(Array.from({ length: CHECK_WORKERS }, worker));
+	return rows.length;
 }
 
 // 성우 보관함(T7). 소유자는 context.ownerId뿐이고 모든 조회·변경과 연결 대상 선택에 owner_id 조건을 건다
@@ -270,54 +306,16 @@ export const savedVoiceRouter = {
 			stored(PREFIX, "목록", () => listOf(db, ownerId)),
 		),
 	savedVoiceCheck: protectedProcedure
-		.output(z.array(savedVoiceSchema))
+		// 확인 대상이 없으면 null이다(목록을 다시 읽어 보내지 않는다)
+		.output(z.array(savedVoiceSchema).nullable())
 		.handler(async ({ context: { db, ownerId, providers } }) => {
-			const rows = await stored(PREFIX, "확인 대상", () =>
-				db
-					.select()
-					.from(savedVoice)
-					.where(
-						and(
-							eq(savedVoice.ownerId, ownerId),
-							or(
-								isNull(savedVoice.checkedAt),
-								lt(savedVoice.checkedAt, new Date(Date.now() - DAY_MS)),
-							),
-							// ElevenLabs 공개 라이브러리 성우는 한 명 조회 방법이 없다('스펙과 다른 점' 2)
-							or(
-								ne(savedVoice.provider, "elevenlabs"),
-								ne(savedVoice.source, "public"),
-							),
-							// 내 보이스 클론의 이용 가능은 my_voice 상태가 정한다(Gemini getVoice는 클론을 못 찾는다, T13 계획 2.3)
-							notExists(
-								db
-									.select({ id: myVoice.id })
-									.from(myVoice)
-									.where(
-										and(
-											eq(myVoice.ownerId, savedVoice.ownerId),
-											eq(myVoice.provider, savedVoice.provider),
-											eq(myVoice.providerVoiceId, savedVoice.voiceId),
-										),
-									),
-							),
-						),
-					)
-					.orderBy(sql`${savedVoice.checkedAt} asc nulls first`)
-					.limit(CHECK_LIMIT),
-			);
 			// 공급자끼리는 서로 기다리지 않는다(한 공급자의 장애가 다른 공급자를 막지 않는다, REQ-02)
-			await Promise.all(
+			const counts = await Promise.all(
 				providerIdSchema.options.map((provider) =>
-					checkProvider(
-						db,
-						ownerId,
-						provider,
-						providers?.[provider],
-						rows.filter((row) => row.provider === provider),
-					),
+					checkProvider(db, ownerId, provider, providers?.[provider]),
 				),
 			);
+			if (counts.every((count) => count === 0)) return null;
 			return stored(PREFIX, "목록", () => listOf(db, ownerId));
 		}),
 	savedVoiceSave: protectedProcedure

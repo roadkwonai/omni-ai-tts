@@ -388,6 +388,36 @@ describe("drama read", { timeout: 60_000 }, () => {
 		expect(w.synth).toBe(1);
 	});
 
+	it("무료 모델이 끝난 뒤에도 무료로 만든 줄을 쓰고 없는 줄만 유료로 만든다", async () => {
+		const value = read(
+			[{ name: "가", voice: "fish_audio:fish" }],
+			[
+				{ speaker: 0, text: "하나" },
+				{ speaker: 0, text: "둘" },
+			],
+		);
+		const at = (time: string, ...extra: string[]) =>
+			run(args(value, ...extra), `2026-11-${time}+09:00`);
+		expect((await at("29T23:59:00", "--only", "1")).code).toBe(0);
+		expect(json(await at("30T00:01:00", "--dry-run"))).toMatchObject({
+			lines: [
+				{ n: 1, status: "saved", resultId: w.rows[0]?.id },
+				{ n: 2, status: "make" },
+			],
+			make: 1,
+		});
+		const made = await at("30T00:01:00", "--yes");
+		expect(made.code).toBe(0);
+		expect(json(made).lines).toMatchObject([
+			{ n: 1, source: "kept", resultId: w.rows[0]?.id },
+			{ n: 2, source: "created" },
+		]);
+		expect(w.created.map(({ request }) => request.settings.model)).toEqual([
+			"s2.1-pro-free",
+			"s2.1-pro",
+		]);
+	});
+
 	it("중간에 실패하면 멈추고 다시 실행하면 남은 줄만 만든다", async () => {
 		const value = one("하나", "둘", "셋");
 		let fail = true;

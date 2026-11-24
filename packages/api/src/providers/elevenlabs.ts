@@ -15,6 +15,7 @@ import {
 	type VoiceSource,
 } from "./contract";
 import {
+	audioBytes,
 	fetchJson,
 	nullOnStatus,
 	type ProviderClient,
@@ -372,7 +373,7 @@ export function createElevenLabs(apiKey: string): ProviderClient {
 							{ maxRetries: 0, abortSignal: signal },
 						)
 						.catch(toHttpError);
-					return new Uint8Array(await new Response(stream).arrayBuffer());
+					return audioBytes(await new Response(stream).arrayBuffer());
 				},
 				// onLate는 넘기지 않는다: 이 공급자는 시간 초과 때 요청을 끊어 늦은 결과가 없다
 				{ timeoutMs: options.timeoutMs, logPrefix: options.logPrefix },

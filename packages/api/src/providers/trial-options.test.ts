@@ -185,6 +185,44 @@ describe("sentText와 예상 사용량", () => {
 			amount: 3,
 		});
 	});
+	it("배율을 곱한 올림은 부동소수 끝자리에 흔들리지 않는다(25자 × 0.28 = 7)", () => {
+		const credits = (chars: number, rate: number) =>
+			estimate(el({}, "가".repeat(chars)), rate).amount;
+		expect(credits(25, 0.28)).toBe(7);
+		expect(credits(100, 0.28)).toBe(28);
+		// 배율 = 백분율 정수 / 100으로 센 정확한 올림과 1~2,000자에서 같다
+		const wrong = [14, 28, 33, 55, 70, 110, 150].flatMap((percent) =>
+			Array.from({ length: 2000 }, (_, i) => i + 1)
+				.filter(
+					(chars) =>
+						credits(chars, percent / 100) !==
+						Math.floor((chars * percent + 99) / 100),
+				)
+				.map((chars) => `${chars}자 × ${percent / 100}`),
+		);
+		expect(wrong).toEqual([]);
+	});
+	it("말투 태그·지시가 분해형 한글(NFD)이어도 같은 조합·같은 문장·같은 사용량이다", () => {
+		const nfd = "속삭임".normalize("NFD");
+		const gemini = (direction: string): TrialRequest => ({
+			provider: "gemini",
+			voiceId: "kore",
+			text: "안녕",
+			settings: { ...DEFAULT_SETTINGS.gemini, direction },
+		});
+		for (const [a, b] of [
+			[el({ tag: "속삭임" }), el({ tag: nfd })],
+			[
+				fish({ model: "s2.1-pro", tag: "속삭임" }),
+				fish({ model: "s2.1-pro", tag: nfd }),
+			],
+			[gemini("속삭임"), gemini(nfd)],
+		] as const) {
+			expect(comboSignature(b)).toBe(comboSignature(a));
+			expect(sentText(b)).toBe(sentText(a));
+			expect(estimate(b)).toEqual(estimate(a));
+		}
+	});
 	it("Fish Audio 유료는 UTF-8 바이트(한글 3바이트), 무료 모델은 0", () => {
 		expect(utf8Bytes("안녕")).toBe(6);
 		expect(estimate(fish({ model: "s2.1-pro" }))).toEqual({

@@ -1,27 +1,20 @@
 import { randomUUID } from "node:crypto";
+import { isBlank, splitBlocks } from "@tts-pilot-app/api/paragraph-script";
 import type { ScriptWorkValue } from "@tts-pilot-app/api/script-contract";
 import { input } from "./client.js";
 
 export type Work = ScriptWorkValue;
 type Paragraph = Work["paragraphs"][number];
 
-const isBlank = ({ text }: Paragraph) => text.trim() === "";
 const hasSetup = ({ gap, voice, speaker, fixes }: Paragraph) =>
 	[gap, voice, speaker, fixes].some((value) => value !== undefined);
 const created = (text: string): Paragraph => ({ id: randomUUID(), text });
 
-// 빈 줄(공백만인 줄 포함)로 나눈다. 웹 붙여 넣기(splitBlocks)와 같다
-export const paragraphsOf = (raw: string) =>
-	raw
-		.replace(/\r\n?/g, "\n")
-		.split(/\n\s*\n/)
-		.map((block) => block.trim())
-		.filter(Boolean);
-// 비지 않은 문단을 빈 줄로 이은 글(서버 검색 원문 scriptBody와 같다)
+// 비지 않은 문단을 빈 줄로 이은 글
 export const workText = ({ paragraphs }: Pick<Work, "paragraphs">) =>
 	paragraphs
-		.filter((paragraph) => !isBlank(paragraph))
 		.map(({ text }) => text)
+		.filter((text) => !isBlank(text))
 		.join("\n\n");
 
 export const newWork = (
@@ -30,7 +23,7 @@ export const newWork = (
 ): Work => ({
 	defaultVoice,
 	gap: 0.5,
-	paragraphs: paragraphsOf(raw).map(created),
+	paragraphs: splitBlocks(raw).map(created),
 });
 
 // 글이 같은 문단을 순서대로 가장 많이 잇고 나머지는 새 문단으로 둔다. lost는 잃는 '설정이 있는 문단' 수다.
@@ -39,7 +32,7 @@ export function mergeText(
 	work: Work,
 	raw: string,
 ): { work: Work; lost: number } {
-	const blocks = paragraphsOf(raw);
+	const blocks = splitBlocks(raw);
 	// 문단은 200개까지다(서버). 빈 줄을 품은 문단을 넉넉히 감안한 표의 상한
 	if (blocks.length > 20_000)
 		throw input("대본이 너무 잘게 나뉩니다. 문단은 200개까지입니다.");
@@ -47,10 +40,10 @@ export function mergeText(
 	// blanks[k]는 k번째 비지 않은 문단 바로 앞의 빈 문단들이다(마지막은 끝의 빈 문단)
 	const blanks: Paragraph[][] = [[]];
 	for (const paragraph of work.paragraphs)
-		if (isBlank(paragraph)) blanks.at(-1)?.push(paragraph);
+		if (isBlank(paragraph.text)) blanks.at(-1)?.push(paragraph);
 		else {
 			// 빈 줄을 품은 문단은 글에서 여러 조각이다
-			kept.push({ paragraph, pieces: paragraphsOf(paragraph.text) });
+			kept.push({ paragraph, pieces: splitBlocks(paragraph.text) });
 			blanks.push([]);
 		}
 	// best[i][j]: i번째 문단부터와 j번째 조각부터를 이을 때 남는 문단 수

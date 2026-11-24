@@ -64,4 +64,17 @@ describe("scriptBody(검색 원문과 수)", () => {
 			charCount: 4,
 		});
 	});
+	it("보이지 않는 글자뿐인 문단은 세지 않고 검색 원문에도 넣지 않는다", () => {
+		const { paragraphs } = work("하나", "\u{200b}", " \u{2060}\u{feff}", "둘");
+		expect(scriptBody(paragraphs)).toEqual({
+			body: "하나\n\n둘",
+			paragraphCount: 2,
+			charCount: 3,
+		});
+	});
+	it("검색 원문은 NFC이고 문단 글은 바꾸지 않는다(D6)", () => {
+		const { paragraphs } = work("커피".normalize("NFD"));
+		expect(scriptBody(paragraphs).body).toBe("커피".normalize("NFC"));
+		expect(paragraphs[0]?.text).toBe("커피".normalize("NFD"));
+	});
 });

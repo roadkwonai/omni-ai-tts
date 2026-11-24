@@ -2,6 +2,7 @@
 import { PARAGRAPHS_MAX } from "@tts-pilot-app/api/providers/trial-options";
 
 import {
+	isBlank,
 	type LinkedScript,
 	type Paragraph,
 	SPEAKERS_MAX,
@@ -83,7 +84,10 @@ export function clipTitle(title: string, max: number) {
 	return chars.length > max ? `${chars.slice(0, max).join("")}…` : title;
 }
 
-const isBlankEnd = (ps: Paragraph[]) => ps.at(-1)?.text.trim() === "";
+export function isBlankEnd(ps: readonly { text: string }[]): boolean {
+	const end = ps.at(-1);
+	return end !== undefined && isBlank(end.text);
+}
 
 const sameVoice = (a: VoiceSetup | null, b: VoiceSetup | null) =>
 	a?.provider === b?.provider && a?.voiceId === b?.voiceId;

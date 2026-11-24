@@ -1,13 +1,7 @@
 import { DEFAULT_SETTINGS } from "@tts-pilot-app/api/providers/trial-options";
 import { scriptWorkSchema } from "@tts-pilot-app/api/script-contract";
 import { describe, expect, it } from "vitest";
-import {
-	mergeText,
-	newWork,
-	paragraphsOf,
-	type Work,
-	workText,
-} from "../src/script-work.js";
+import { mergeText, newWork, type Work, workText } from "../src/script-work.js";
 
 type Paragraph = Work["paragraphs"][number];
 const typecast = (voiceId: string) => ({
@@ -48,8 +42,19 @@ describe("글을 문단으로 나눈다", () => {
 		["\n\n 가 \n \t\n\n  나\n\n", ["가", "나"]],
 		[" \n\n ", []],
 		["", []],
+		["가\n​\n﻿나\n\n⁠", ["가", "나"]],
 	])("%j", (raw, expected) => {
-		expect(paragraphsOf(raw)).toEqual(expected);
+		expect(newWork(raw, null).paragraphs.map(({ text }) => text)).toEqual(
+			expected,
+		);
+	});
+	it("보이지 않는 글자뿐인 문단도 빈 문단으로 잇는다", () => {
+		const before = work(p("a", "가"), p("b", "​"), p("c", "나​"));
+		expect(workText(before)).toBe("가\n\n나​");
+		expect(mergeText(before, workText(before))).toEqual({
+			work: before,
+			lost: 0,
+		});
 	});
 	it("새 대본은 쉼 0.5초, 설정 없는 문단이고 서버 계약에 맞는다", () => {
 		const made = newWork("가\n\n나", null);

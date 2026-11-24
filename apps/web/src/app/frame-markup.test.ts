@@ -133,7 +133,6 @@ test("공개 데모 `/`: 예시 소유자여도 소개 페이지를 그리고 �
 	expect(html).toContain('href="/studio?example=1"');
 	// 빠진 3판 섹션
 	expect(html).not.toContain('id="studio"');
-	expect(html).not.toContain("landing-tagline");
 	expect(html).toContain("같은 문장을 다섯 성우에게 읽혀 보세요");
 	expect(html).not.toContain("다섯 목소리");
 });
@@ -180,6 +179,12 @@ test("없는 주소: 소유자가 아니면 메뉴 없이 main 하나", async ()
 	expect(count(html, /<main[ >]/g)).toBe(1);
 	expect(html).not.toContain('aria-label="주요 메뉴"');
 	expect(html).toContain("페이지를 찾을 수 없어요");
+});
+
+test("없는 주소: 첫 화면의 마스코트는 늦게 불러오지 않는다(LCP)", async () => {
+	const img = (await notFound()).match(/<img[^>]*mascot-404[^>]*>/)?.[0];
+	expect(img).toMatch(/loading="eager"/);
+	expect(img).toMatch(/fetchpriority="high"/i);
 });
 
 test("없는 주소: 소유자에게는 앱 틀 안에서도 main이 하나(이중 main 없음)이고 이메일을 보인다", async () => {

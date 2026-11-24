@@ -44,7 +44,7 @@
 | 메서드 | Fish Audio | Gemini |
 |---|---|---|
 | `cloneCreate({ name, source, consent? }, { signal })` → `{ voiceId, state: "ready" \| "processing" \| "failed", reason? }`. failed여도 공급자가 id를 줬으면 `voiceId`를 돌려준다(공급자 쪽에 남은 클론을 지울 수 있게) | `POST /model` multipart(`FormData`): `type=tts`, `title`, `train_mode=fast`, `visibility=private`, `voices`(Blob `audio/wav`, 1개), `enhance_audio_quality=true`. `references` 없음. `state` trained → ready, created·training → processing, failed → failed. `quality.audios[].quality_passed=false`가 있으면 failed(`quality`) | `POST /v1beta/voices` JSON `{ store: true, voice: { model: "gemini-3.8-flash-tts", type: "replicated", display_name, replicated: { source_audio: { mime_type: "audio/wav", data }, consent_audio: {…} } } }`. 응답 `id`(`voice_…`)를 그대로. 접두어 `voices/`가 오면 떼고 저장(`voiceIdSchema`가 `/`를 막는다). 상태 필드가 없어 성공 응답은 ready |
-| `cloneGet(voiceId)` → `{ state } \| null` | `GET /model/{id}`(403·404 → null) | `GET /v1beta/voices/{id}`(404 → null, 있으면 ready) |
+| `cloneGet(voiceId)` → `{ state } \| null` | `GET /model/{id}`(404 → null. 403은 키·계정 문제일 수 있어 `provider_auth` 같은 오류로 던지고 행은 처리 중으로 남는다) | `GET /v1beta/voices/{id}`(404 → null, 있으면 ready) |
 | `cloneDelete(voiceId)` → `void` | `DELETE /model/{id}`, 404는 성공 | `DELETE /v1beta/voices/{id}`, 404는 성공 |
 
 - 호출 감싸기: 만들기·지우기는 `runTrial`(시험 생성과 같은 사유 매핑, 자동 재시도 없음)에 시간 제한 120초, 조회는 `runList` 10초. 새 헬퍼를 만들지 않는다.

@@ -330,6 +330,20 @@ export function migrateV1(
 	};
 }
 
+// 작업과 그 연결된 대본
+export type LinkedWork = { work: Work; linked: LinkedScript | undefined };
+// '저장하고 바꾸기'에서 저장이 끝난 뒤 화면에 둘 작업. 연 대본이 방금 저장한 그 대본이면 받은 내용은 저장 전 판이라 저장한 작업을 그대로 둔다(제목만 받은 것)
+export const openAfterSave = (
+	opened: LinkedWork,
+	saved: LinkedWork,
+): LinkedWork =>
+	opened.linked && opened.linked.scriptId === saved.linked?.scriptId
+		? {
+				work: saved.work,
+				linked: { ...saved.linked, title: opened.linked.title },
+			}
+		: opened;
+
 // 프리셋의 성우를 기본 성우로 쓸 수 있으면 그 담은 성우(프리셋 공급자로 담았고 이용 가능). 아니면 null(자동 대체 없음)
 export function usableDefaultVoice(
 	preset: Pick<Preset, "provider" | "voice" | "unavailable">,

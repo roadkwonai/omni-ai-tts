@@ -4,6 +4,7 @@ import {
 	comboSignature,
 	DEFAULT_SETTINGS,
 	estimate,
+	FISH_FREE_UNTIL,
 	STUDIO_TEXT_MAX,
 } from "@tts-pilot-app/api/providers/trial-options";
 import type { SavedVoice } from "@tts-pilot-app/api/saved-voice-contract";
@@ -531,6 +532,56 @@ describe("paragraphStatus", () => {
 		expect(
 			of(live({ state: "failed", problem: problem("unknown_outcome") })),
 		).toBe("unknown");
+	});
+});
+
+// 종료 전에 무료로 만든 결과(보관 30일)는 종료 뒤에도 만든 문단이고, 새로 만들 것은 유료 요청이다
+describe("Fish 무료 모델 종료 뒤의 무료 결과", () => {
+	const AFTER = FISH_FREE_UNTIL;
+	const w = work({ defaultVoice: fishFree });
+	const p = para("a", "하나");
+	const sigAt = (now: number) =>
+		comboSignature(paragraphRequest(p, w, VOICES, now) as StudioRequest);
+	const free = sigAt(FISH_FREE_UNTIL - 1);
+	const paid = sigAt(AFTER);
+	const kept: FoundMap = new Map([
+		[free, found("done", "무료")],
+		[paid, null],
+	]);
+	it("무료도 유료도 없다고 찾은 문단은 글자를 고칠 때마다 다시 찾지 않는다", () => {
+		const none: FoundMap = new Map([
+			[free, null],
+			[paid, null],
+		]);
+		expect(pruneFound(none, [p], w, VOICES, AFTER)).toBe(none);
+		expect(findTargets([p], w, VOICES, none, false, AFTER)).toEqual([]);
+	});
+	it("카드·요약·듣기·받기가 무료 결과를 만든 문단으로 본다", () => {
+		expect(paragraphStatus(p, w, VOICES, kept, NO_LIVE, AFTER)).toBe("made");
+		expect(summaryOf([p], w, VOICES, kept, AFTER).made).toBe(1);
+		expect(madeOf(p, w, VOICES, kept, AFTER)?.found.id).toBe("무료");
+		expect(receivePlan([p], w, VOICES, kept, AFTER)).toMatchObject({
+			ok: true,
+		});
+	});
+	it("만드는 동안의 비교는 보낼 유료 요청의 서명이다(무료 결과가 없는 문단)", () => {
+		const plan = makePlan([p], w, VOICES, new Map([[free, null]]), AFTER);
+		expect(plan.make.map((item) => item.signature)).toEqual([paid]);
+		expect(plan.free).toBe(false);
+		const making: LiveMap = new Map([[paid, { state: "making" }]]);
+		expect(
+			paragraphStatus(
+				p,
+				w,
+				VOICES,
+				new Map([
+					[free, null],
+					[paid, null],
+				]),
+				making,
+				AFTER,
+			),
+		).toBe("making");
 	});
 });
 

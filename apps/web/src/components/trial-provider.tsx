@@ -195,6 +195,11 @@ export function TrialProvider({ children }: { children: ReactNode }) {
 	function fail(voice: Voice, request: TrialRequest, error: unknown) {
 		if (!mounted.current) return;
 		const problem = trialFailureOf(error);
+		// 로그인이 풀렸으면 담은 성우 목록을 다시 받아 화면의 다시 로그인 안내가 뜨게 한다(audit C3)
+		if (problem.signedOut)
+			void queryClient.invalidateQueries({
+				queryKey: orpc.savedVoiceList.key(),
+			});
 		if (problem.reason === "rate_limit" && problem.retryAt) {
 			const retryAt = problem.retryAt;
 			setRetryAts((all) => ({ ...all, [request.provider]: retryAt }));

@@ -3,7 +3,7 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { DramaItem } from "@tts-pilot-app/api/drama-contract";
-import { DRAMA_RESULTS_SHOWN, takeKey } from "@tts-pilot-app/api/drama-script";
+import { takeKey } from "@tts-pilot-app/api/drama-script";
 import { normalizeText } from "@tts-pilot-app/api/providers/trial-options";
 import { Badge } from "@tts-pilot-app/ui/components/badge";
 import { Button } from "@tts-pilot-app/ui/components/button";
@@ -174,6 +174,7 @@ function TakeRow({
 // 첫 받기에 실패하면 제목 + 경고 + '다시 불러오기'. 지우기는 확인 창이 client.dramaDelete를 부르고 성공하면 removeTake로 무대·받기 기억을 정리한다(Ruling 15).
 // 지운 뒤 포커스는 다음 줄 → 이전 줄의 첫 버튼 → 무대 제목(구역이 사라진다)
 export function DramaTakes() {
+	const demo = useDemo();
 	const drama = useDrama();
 	// 목록을 받은 시각을 '지금'으로 본다(렌더 중 new Date()는 React Compiler가 첫 값으로 기억한다).
 	// 같은 쿼리의 두 번째 관찰자라 다시 받지 않고(OWNED_LIST 30초), 미확인 15초 다시 받기는 provider 관찰자가 한다
@@ -231,11 +232,12 @@ export function DramaTakes() {
 							/>
 						))}
 					</ul>
-					{takes.length >= DRAMA_RESULTS_SHOWN ? (
+					{/* 공개 데모는 매일 처음 상태로 돌아가 보관 기한이 없다 */}
+					{demo ? null : (
 						<p className="text-muted-foreground text-sm">
 							{DRAMA_TEXT.takesCap}
 						</p>
-					) : null}
+					)}
 				</>
 			) : (
 				<TakesFailed headingId={DRAMA_TAKES_ID} />

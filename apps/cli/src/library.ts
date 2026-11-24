@@ -77,9 +77,9 @@ export async function voicesShow(args: Args) {
 }
 export async function voicesCheck({ json, url }: Args) {
 	const { origin, client, voices: before } = await connect(url);
-	const voices = (await client.savedVoiceCheck().catch(manageError)).map(
-		withRef,
-	);
+	// 확인할 성우가 없으면 null이다
+	const checked = await client.savedVoiceCheck().catch(manageError);
+	const voices = (checked ?? before).map(withRef);
 	const changed = voices.filter((item) =>
 		before.some(
 			({ id, unavailable }) =>

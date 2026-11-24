@@ -1,6 +1,6 @@
 /* 공개 랜딩 모션(docs/briefs/landing.md 6절). 곡선·시간 토큰은 packages/ui의 globals.css(--ease-*, --landing-*).
    transition: all, scale(0), ease-in, 무한 반복은 쓰지 않는다. 움직임 줄이기 설정은 globals.css가 전환을 투명도·색으로만 남기고,
-   이동·확대 키프레임은 아래 @media가 멈춘다(투어·태그라인·reveal은 투명도 크로스페이드로 남는다). hover 모션은 (hover: hover) and (pointer: fine) 안에서만 둔다. */
+   이동·확대 키프레임은 아래 @media가 멈춘다(투어·reveal은 투명도 크로스페이드로 남는다). hover 모션은 (hover: hover) and (pointer: fine) 안에서만 둔다. */
 
 @keyframes landing-in {
 	from {
@@ -75,22 +75,6 @@
 	[data-reveal]:not(.landing-stagger),
 	.landing-stagger[data-reveal] .landing-item {
 		transition: opacity var(--landing-duration-reveal) var(--ease-out);
-	}
-}
-
-/* 태그라인: 어절마다 opacity로 진해진다(color 전환은 단어마다 다시 칠한다). 안 채운 상태는 opacity 0.71 = foreground 알파 0.85 × 0.71 ≈ muted-foreground 0.6, 큰 글자 3:1 이상(투명도 0.3은 1.85:1이었다).
-   Tagline 컴포넌트가 화면 아래일 때만 data-armed를 붙인다(JS가 없으면 처음부터 진하다).
-   휴대폰(767px 이하)·터치(pointer: coarse)·움직임 줄이기에서는 스크롤 연동 모션을 쓰지 않고 처음부터 모두 채운 상태다
-   (tagline.tsx도 같은 조건에서 data-armed를 붙이지 않는다) */
-@media (min-width: 768px) and (pointer: fine) and (
-		prefers-reduced-motion: no-preference
-	) {
-	.landing-tagline[data-armed] .landing-word {
-		opacity: 0.71;
-		transition: opacity 300ms var(--ease-out);
-	}
-	.landing-tagline[data-armed] .landing-word[data-on] {
-		opacity: 1;
 	}
 }
 

@@ -50,10 +50,30 @@ describe("문구", () => {
 		expect(emptyMessage("channel")).toBe("아직 채널이 없어요");
 	});
 	it("채널 삭제 설명은 '채널 주소'라고 쓴다(브리프 B5)", () => {
-		expect(deleteDetail("channel")).toBe(
+		expect(deleteDetail("channel")).toContain(
 			"메모와 채널 주소도 함께 지워지고 되돌릴 수 없어요",
 		);
-		expect(deleteDetail("type")).toBe("메모도 함께 지워지고 되돌릴 수 없어요");
+		expect(deleteDetail("type")).toContain(
+			"메모도 함께 지워지고 되돌릴 수 없어요",
+		);
+	});
+	it("채널을 지우면 프리셋·대본 연결과 기본 프리셋 지정이 풀린다고 알린다(audit S3)", () => {
+		const said = deleteDetail("channel");
+		expect(said).toMatch(/프리셋.*대본.*연결/);
+		expect(said).toContain("기본 프리셋 지정");
+		expect(said).toContain("풀려요");
+	});
+	it.each(["category", "type"] as const)(
+		"%s를 지우면 대본 연결이 풀린다고 알리고 프리셋은 말하지 않는다(audit S3)",
+		(group) => {
+			const said = deleteDetail(group);
+			expect(said).toMatch(/대본.*연결.*풀려요/);
+			expect(said).not.toContain("프리셋");
+		},
+	);
+	it("뒤에 이어지는 성우 안내와 문장이 깨지지 않게 마침표로 끝나지 않는다", () => {
+		for (const group of ["channel", "category", "type"] as const)
+			expect(deleteDetail(group)).not.toMatch(/\.$/);
 	});
 	it("칸 문제마다 이유를 알려 준다(스펙 9절)", () => {
 		expect(fieldMessage("name", "empty")).toBe("이름을 입력해 주세요");

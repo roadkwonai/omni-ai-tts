@@ -1,18 +1,18 @@
 import { resolve } from "node:path";
+import { isBlank } from "@tts-pilot-app/api/paragraph-script";
 import {
 	DEFAULT_SETTINGS,
 	requestOf,
 } from "@tts-pilot-app/api/providers/trial-options";
 import type { Args } from "./cli.js";
 import {
-	ClientError,
 	type Connection,
 	connect,
 	input,
 	manageError,
 	stale,
 } from "./client.js";
-import { checkOut, readInput, readJson, saveBytes } from "./files.js";
+import { checkOut, readInput, readJson, saveOr7 } from "./files.js";
 import { idOf, idsOf, lines, needChange, oneOf } from "./manage.js";
 import {
 	byteText,
@@ -23,13 +23,7 @@ import {
 	table,
 } from "./output.js";
 import { mutate } from "./paid.js";
-import {
-	mergeText,
-	newWork,
-	paragraphsOf,
-	type Work,
-	workText,
-} from "./script-work.js";
+import { mergeText, newWork, type Work, workText } from "./script-work.js";
 import { parseRef, resolveVoice } from "./voices.js";
 
 type Client = Connection["client"];
@@ -122,15 +116,7 @@ export async function scriptShow(args: Args) {
 	const body = Buffer.from(
 		`${out.toLowerCase().endsWith(".json") ? JSON.stringify(work) : workText(work)}\n`,
 	);
-	try {
-		saveBytes(out, overwrite, body);
-	} catch {
-		throw new ClientError(
-			"DOWNLOAD_FAILED",
-			7,
-			"대본 파일을 저장하지 못했습니다.",
-		);
-	}
+	saveOr7(out, overwrite, body, "대본 파일을 저장하지 못했습니다.");
 	const bytes = body.byteLength;
 	print(
 		json,
@@ -148,7 +134,7 @@ async function readSource({ text }: Args): Promise<string | { work: Work }> {
 	if (work !== undefined)
 		return { work: (await readJson(work, WORK_BYTES_MAX)) as Work };
 	const raw = await readInput(file ?? "", WORK_BYTES_MAX);
-	if (!paragraphsOf(raw).length) throw input("대본이 비어 있습니다.");
+	if (isBlank(raw)) throw input("대본이 비어 있습니다.");
 	return raw;
 }
 async function voiceSetup(connection: Connection, ref: string | undefined) {

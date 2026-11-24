@@ -30,6 +30,7 @@ import {
 	decide,
 	decisionsOf,
 	followDefault,
+	followedSpeaker,
 	followOf,
 	idleSpeakerCount,
 	insertAfter,
@@ -153,6 +154,8 @@ describe("splitLong", () => {
 	});
 	it("문장 끝이 없으면 마지막 공백", () => {
 		expect(splitLong("하나 둘 셋 넷", 5)).toEqual(["하나 둘", "셋 넷"]);
+		// 상한이 낱말 가운데면 그 낱말을 가르지 않고 앞 공백에서 나눈다
+		expect(splitLong("하나 둘셋넷다섯", 6)).toEqual(["하나", "둘셋넷다섯"]);
 		// 숫자 속 마침표(공백이 뒤따르지 않음)는 문장 끝이 아니다
 		expect(splitLong("값은 3.14 이다", 8)).toEqual(["값은 3.14", "이다"]);
 	});
@@ -1155,6 +1158,16 @@ describe("화자 성우(T10-b 2.1: followOf·voiceOf)", () => {
 		);
 		expect(followOf(para("a", "x"), work({ defaultVoice: null }))).toBeNull();
 	});
+	it("화자 성우를 따르는 문단만 그 화자 이름을 갖는다(followedSpeaker)", () => {
+		const w = work({ speakers });
+		const nameOf = (speaker?: string) =>
+			followedSpeaker(para("a", "x", speaker ? { speaker } : {}), w);
+		expect(nameOf("민수")).toBe("민수");
+		// 성우 없는 화자와 목록에 없는 이름은 기본 성우를 따른다
+		expect(nameOf("지아")).toBeNull();
+		expect(nameOf("현우")).toBeNull();
+		expect(nameOf()).toBeNull();
+	});
 	it("화자 없는 작업의 문단 요청은 T10-a와 같다(요청 모양·글 불변)", () => {
 		const req = paragraphRequest(para("a", "안녕"), work(), [saved()], NOW);
 		expect(req).toEqual({
@@ -1263,10 +1276,11 @@ describe("화자 목록(speakersAdd·speakerParagraphCount, 계획 2.2)", () => 
 				[
 					{ name: "민수", voice: null },
 					{ name: "지아", voice: null },
+					{ name: "현우", voice: null },
 				],
 				ps,
 			),
-		).toBe(1);
+		).toBe(2);
 	});
 });
 

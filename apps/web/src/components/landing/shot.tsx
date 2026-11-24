@@ -42,22 +42,15 @@ function Pair({
 export function Shot({
 	shot,
 	sizes,
-	className,
 	mobileCrop,
 }: {
 	shot: ShotData;
 	sizes: string;
-	className?: string;
 	// 넓은 화면에서도 휴대폰 판(글자가 읽히게 핵심만 찍은 크롭)을 쓴다. 칸이 좁아 전체 화면 판은 글자가 읽히지 않을 때
 	mobileCrop?: boolean;
 }) {
 	return (
-		<div
-			className={cn(
-				"overflow-hidden rounded-xl bg-card ring-1 ring-border",
-				className,
-			)}
-		>
+		<div className="overflow-hidden rounded-xl bg-card ring-1 ring-border">
 			<div className={cn(!mobileCrop && "md:hidden")}>
 				<Pair
 					file={shot.mobile}

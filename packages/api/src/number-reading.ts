@@ -28,7 +28,7 @@ export type CheckReason =
 	| "large"
 	| "precision"
 	| "leading_zero"
-	// 쉼표로 이은 수 목록(1,2,3)이라 천 단위 쉼표인지 나열인지 알 수 없다
+	// 쉼표로 이은 수 목록(1,2,3)이나 이어 쓴 단위가 작아지지 않는 수(3만 5만, 1억 20000만)라 한 수인지 나열인지 알 수 없다
 	| "list"
 	// 시각처럼 보이지만 비율·점수일 수 있다(16:10)
 	| "time"
@@ -79,6 +79,7 @@ const UNITS = {
 		"통",
 		"번",
 		"달",
+		"배",
 	],
 	sino: [
 		"세기",
@@ -109,7 +110,6 @@ const UNITS = {
 		"쪽",
 		"편",
 		"부",
-		"배",
 		"평",
 		"%",
 	],
@@ -210,6 +210,7 @@ const SMALL_MUL: Record<string, number> = { 천: 1000, 백: 100, 십: 10 };
 const BIG_MUL: Record<string, number> = { 만: 1e4, 억: 1e8, 조: 1e12 };
 const unitText = (unit: string) => UNIT_READ[unit] ?? unit;
 const quantity = (raw: string, unit?: string): string | null => {
+	if (raw === "1" && unit === "번째") return "첫 번째";
 	const text = numberText(raw, unit !== undefined && NATIVE.has(unit));
 	return text === null || unit === undefined
 		? text
@@ -423,21 +424,42 @@ const RULES: { re: RegExp; make: (m: RegExpMatchArray) => Made | null }[] = [
 			const { unit, bad, joined, keep } = afterUnit(m, m[2]);
 			// 단위가 없는데 한글이 붙으면(3만큼) 수량 표기가 아니다
 			if (m[2] === undefined && bad) return null;
-			const sum = [
+			// 천·백·십 조각을 묶음(group)에 모아 만·억·조를 한 번에 곱한다(3천5백만 = 3,500만).
+			// 조각이 여럿인데 단위가 작아지지 않거나(3만 5만, 2천 3천) 묶음이 만 이상이면(1억 20000만) 한 수인지 나열인지 알 수 없다
+			const pieces = [
 				...(m[1] ?? "").matchAll(
 					new RegExp(`(${NUMBER})([천백십]?)([만억조]?)`, "g"),
 				),
-			].reduce(
-				(total, [, n = "", small = "", big = ""]) =>
-					total +
-					Math.round(
-						Number(n.replace(/,/g, "")) *
-							(SMALL_MUL[small] ?? 1) *
-							(BIG_MUL[big] ?? 1),
-					),
-				0,
-			);
+			];
+			let sum = 0;
+			let group = 0;
+			let under = Number.POSITIVE_INFINITY;
+			let above = Number.POSITIVE_INFINITY;
+			let ordered = true;
+			for (const [, n = "", small = "", big] of pieces) {
+				const mul = SMALL_MUL[small] ?? 1;
+				const value = Number(n.replace(/,/g, "")) * mul;
+				group += value;
+				ordered &&= value < under && (group < 1e4 || pieces.length === 1);
+				under = mul;
+				if (!big) continue;
+				const unit = BIG_MUL[big] ?? 1;
+				ordered &&= unit < above;
+				sum += Math.round(group * unit);
+				group = 0;
+				under = Number.POSITIVE_INFINITY;
+				above = unit;
+			}
+			sum += Math.round(group);
 			const safe = Number.isSafeInteger(sum);
+			if (!ordered)
+				return {
+					kind: kindOf(unit, false),
+					readings: [],
+					needsCheck: true,
+					reason: "list",
+					...(keep === undefined ? {} : { keep }),
+				};
 			return {
 				kind: kindOf(unit, false),
 				readings: safe
@@ -515,13 +537,15 @@ const RULES: { re: RegExp; make: (m: RegExpMatchArray) => Made | null }[] = [
 ];
 
 function find(text: string): ReadingItem[] {
+	// 빼기표(U+2212)는 '-'와 같게 본다. 길이가 같아 위치는 그대로다
+	const plain = text.replaceAll("\u{2212}", "-");
 	// 태그(SEND_TAGS: [break 2] 같은 모양)는 먼저 가려 둔다. 전역 식이라 복사해서 matchAll만 쓴다
 	const taken: [number, number][] = [
-		...text.matchAll(new RegExp(SEND_TAGS)),
+		...plain.matchAll(new RegExp(SEND_TAGS)),
 	].map((m) => [m.index ?? 0, (m.index ?? 0) + m[0].length]);
 	const items: ReadingItem[] = [];
 	for (const { re, make } of RULES) {
-		for (const m of text.matchAll(re)) {
+		for (const m of plain.matchAll(re)) {
 			const start = m.index ?? 0;
 			const end = start + m[0].length;
 			if (taken.some(([a, b]) => start < b && a < end)) continue;
@@ -533,8 +557,13 @@ function find(text: string): ReadingItem[] {
 			items.push({
 				start,
 				end: stop,
-				original: m[0].slice(0, stop - start),
+				original: text.slice(start, stop),
 				...rest,
+				// 통화 기호 뒤 수는 기호를 어떻게 읽을지 모른다($5 → '$오'가 되지 않게)
+				...(!rest.needsCheck &&
+				/[$₩€£¥＄￦￡￥]-?$/.test(plain.slice(Math.max(0, start - 2), start))
+					? { needsCheck: true, reason: "unit" as const }
+					: {}),
 			});
 		}
 	}

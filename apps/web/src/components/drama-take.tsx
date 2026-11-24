@@ -54,6 +54,7 @@ import {
 	zipFileName,
 } from "@/lib/drama-view";
 import { joinSounds } from "@/lib/sound-join";
+import { receiveHere } from "@/lib/studio-view";
 import { zipStore } from "@/lib/zip-store";
 
 import { stageOrMain, useDrama } from "./drama-provider";
@@ -227,6 +228,18 @@ export function TakeAudioProvider({ children }: { children: ReactNode }) {
 		if (saveFailure(error) === "not_found") gone(target);
 		else toast.error(DRAMA_TEXT.downloadFailed);
 	}
+	// 장면 바이트를 받아 쓴다. 화면을 떠났으면 저장도 듣기도 알림도 하지 않는다(drama-read 받기와 같다)
+	const receive = (
+		target: DramaItem,
+		action: string,
+		use: (bytes: Uint8Array<ArrayBuffer>) => void,
+	) =>
+		receiveHere(
+			() => drama.sceneAudio(target, action),
+			() => mounted.current,
+			use,
+			(error) => receiveFailed(error, target),
+		);
 
 	// 줄 듣기: 그 줄이 받을 테이크의 조각(cutWav)을 페이지의 플레이어 하나로 재생한다(한 번에 한 오디오).
 	// 그 조각이 재생 중이면 toggle이면 멈추고, 아니면(고름 = 듣기) 그대로 둔다
@@ -240,8 +253,7 @@ export function TakeAudioProvider({ children }: { children: ReactNode }) {
 		const span = target.segments?.[line];
 		if (!span) return;
 		const ticket = ++listenTicket.current;
-		try {
-			const bytes = await drama.sceneAudio(target, `play:${line}`);
+		await receive(target, `play:${line}`, (bytes) => {
 			if (ticket !== listenTicket.current) return;
 			const url = URL.createObjectURL(
 				new Blob(cutWav(bytes, span), { type: WAV }),
@@ -254,9 +266,7 @@ export function TakeAudioProvider({ children }: { children: ReactNode }) {
 			);
 			if (lineUrl.current) URL.revokeObjectURL(lineUrl.current);
 			lineUrl.current = url;
-		} catch (error) {
-			receiveFailed(error, target);
-		}
+		});
 	}
 	// 테이크 모드에서만: 그 줄의 자른 구간 시작부터 장면을 재생한다(사용자가 누른 재생이다, 자동 재생 아님)
 	function seekLine(line: number) {
@@ -270,27 +280,21 @@ export function TakeAudioProvider({ children }: { children: ReactNode }) {
 		const target = picked[line];
 		const span = target?.segments?.[line];
 		if (!target || !span) return;
-		try {
-			const bytes = await drama.sceneAudio(target, `save:${line}`);
+		await receive(target, `save:${line}`, (bytes) =>
 			saveBlob(
 				new Blob(cutWav(bytes, span), { type: WAV }),
 				lineFileName(target.request.sceneName, line, speakerOf(target, line)),
-			);
-		} catch (error) {
-			receiveFailed(error, target);
-		}
+			),
+		);
 	}
 	async function saveScene() {
 		if (!take) return;
-		try {
-			const bytes = await drama.sceneAudio(take, "scene");
+		await receive(take, "scene", (bytes) =>
 			saveBlob(
 				new Blob([bytes], { type: WAV }),
 				sceneFileName(take.request.sceneName, take.createdAt),
-			);
-		} catch (error) {
-			receiveFailed(error, take);
-		}
+			),
+		);
 	}
 	// '대사별 파일'(zip, 장면 + 줄마다 받을 테이크의 대사)·'쉼 넣어 한 파일로'(join, 받을 테이크 조각을 줄 쉼으로 이은 WAV, 스펙 17.2).
 	// 테이크마다 장면 오디오를 차례로 한 번 받는다(로컬 DB, 공급자 호출 없음). 중간에 실패하면 아무것도 저장하지 않는다(브리프 5.10 받기 진행)
@@ -313,6 +317,8 @@ export function TakeAudioProvider({ children }: { children: ReactNode }) {
 				current = target;
 				audio.set(target.id, await drama.sceneAudio(target, kind));
 			}
+			// 화면을 떠났으면 저장도 알림도 하지 않는다(drama-read 받기와 같다)
+			if (!mounted.current) return;
 			const bytesOf = (target: DramaItem) => {
 				const bytes = audio.get(target.id);
 				if (!bytes) throw new Error("missing take audio");
@@ -352,7 +358,6 @@ export function TakeAudioProvider({ children }: { children: ReactNode }) {
 						gap,
 					),
 				);
-				// 화면을 떠났으면 저장도 알림도 하지 않는다(drama-read 받기와 같다)
 				if (!mounted.current) return;
 				saveBlob(
 					blob,

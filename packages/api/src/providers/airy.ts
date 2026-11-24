@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import type { ListInputOf, Voice, VoiceSample, VoiceSource } from "./contract";
 import {
+	audioBytes,
 	fetchJson,
 	fetchOk,
 	logFailure,
@@ -157,7 +158,7 @@ export function createAiry(apiKey: string): ProviderClient {
 						},
 						airyCodes,
 					);
-					return new Uint8Array(await response.arrayBuffer());
+					return audioBytes(await response.arrayBuffer());
 				},
 				// onLate는 넘기지 않는다: 이 공급자는 시간 초과 때 요청을 끊어 늦은 결과가 없다
 				{ timeoutMs: options.timeoutMs, logPrefix: options.logPrefix },

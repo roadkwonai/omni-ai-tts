@@ -24,6 +24,7 @@ import {
 	type DraftLine,
 	type DraftSpeaker,
 	defaultSpeakerName,
+	findReadLines,
 	newSpeaker,
 	parsePaste,
 	readRequests,
@@ -102,12 +103,15 @@ import {
 import {
 	checkFolder,
 	checkOut,
+	type FileOptions,
+	fileOf,
 	fileSize,
 	MIME,
 	readInput,
 	readJson,
 	save,
 	saveBytes,
+	saveOr7,
 } from "./files.js";
 import { decoderOf, joinSounds, saveJoined } from "./join.js";
 import {
@@ -120,19 +124,16 @@ import {
 	usageText,
 } from "./output.js";
 import {
-	checkKind,
 	confirm,
 	create,
 	downloadStopped,
 	type Kind,
 	mutate,
 	onInterrupt,
-	recover,
 	releaseOrWarn,
-	resultOf,
+	resumeRequest,
 	runRequest,
 	show,
-	showRecords,
 	unconfirmed,
 } from "./paid.js";
 import { fingerprint, fingerprintOf, recordsFor } from "./requests.js";
@@ -451,18 +452,12 @@ async function downloadTake(
 	return bytes;
 }
 
-const optionsOf = ({ json, url, text, flag }: Args) => ({
-	json,
-	url,
-	out: text("out") ?? "",
-	overwrite: flag("overwrite"),
-});
 // 장면 만들기의 종류. 응답으로 받은 결과 정보를 알릴 때 쓴다
 function dramaKind({
 	json,
-	out,
+	out = "",
 	overwrite,
-}: ReturnType<typeof optionsOf>): Kind<DramaRequest> {
+}: FileOptions): Kind<DramaRequest> {
 	const known = new Map<string, StudioResult>();
 	const know = <T extends StudioResult>(result: T) => {
 		const { id, createdAt, usage, bytes } = result;
@@ -506,12 +501,12 @@ function dramaKind({
 export async function dramaGenerate(args: Args) {
 	const { text, flag, list } = args;
 	const options = {
-		...optionsOf(args),
+		...fileOf(args),
 		yes: flag("yes"),
 		fresh: flag("new"),
 		dryRun: flag("dry-run"),
 	};
-	checkOut(options.out, options.overwrite, [".wav"]);
+	checkOut(options.out ?? "", options.overwrite, [".wav"]);
 	const picked = text("model");
 	if (picked !== undefined && !isModel(picked))
 		throw input(`--model은 ${DRAMA_MODELS.join(", ")} 중 하나여야 합니다.`);
@@ -591,7 +586,7 @@ export async function dramaList({ json, url }: Args) {
 }
 
 export async function dramaDownload(id: string, args: Args) {
-	const { json, url, out, overwrite } = optionsOf(args);
+	const { json, url, out = "", overwrite } = fileOf(args);
 	checkOut(out, overwrite, [".wav"]);
 	const connection = await connect(url);
 	// 목록은 시각과 사용량을 알리는 데만 쓴다. 최근 20개 밖이거나 받지 못하면 모르는 것으로 둔다
@@ -848,8 +843,10 @@ function readRows(
 					? "프리셋 이용 불가"
 					: undefined;
 		if (reason !== undefined) bad.push({ n, reason });
-		const request = "lines" in result ? result.lines[0]?.request : undefined;
-		return request ? [{ n, request, signature: comboSignature(request) }] : [];
+		const read = "lines" in result ? result.lines[0] : undefined;
+		return read
+			? [{ ...read, n, signature: comboSignature(read.request) }]
+			: [];
 	});
 	if (bad.length) throw badLines(bad);
 	return rows;
@@ -889,32 +886,40 @@ export async function dramaRead(args: Args) {
 	const signatures = [...requests.keys()];
 	// 서버 미확인은 조회되지 않으므로 처리 여부는 로컬 기록으로만 본다
 	const records = await recordsFor([...requests.values()].map(keyOf));
-	const saved = await client
-		.trialFindMany([...requests.values()])
-		.catch(manageError);
-	if (!Array.isArray(saved) || saved.length !== signatures.length)
-		throw serverError();
-	const found = new Map(
-		signatures.map((signature, i): [string, Found | null] => {
+	const found = new Map<string, Found | null>();
+	await findReadLines(asked, async (targets) => {
+		const saved = await client.trialFindMany(targets).catch(manageError);
+		if (!Array.isArray(saved) || saved.length !== targets.length)
+			throw serverError();
+		for (const [i, target] of targets.entries()) {
 			const hit = saved[i];
-			return [signature, hit ? { ...hit, bytes: 0, status: "done" } : null];
-		}),
-	);
+			found.set(
+				comboSignature(target),
+				hit ? { ...hit, bytes: 0, status: "done" } : null,
+			);
+		}
+		return saved;
+	});
 	const { checks, settled } = await judge(
 		(requestId) => client.trialRequest({ requestId }),
 		new Map(signatures.map((signature, i) => [signature, records[i]])),
 		found,
 	);
-	const rows = asked.map(
-		(row): ReadRow => ({
-			...row,
-			state: found.get(row.signature)
+	const rows = asked.map((row): ReadRow => {
+		// 무료 모델이 끝나기 전에 무료로 만든 결과가 있으면 그것을 쓴다
+		const free = row.before && comboSignature(row.before);
+		const signature = free && found.get(free) ? free : row.signature;
+		return {
+			n: row.n,
+			request: row.request,
+			signature,
+			state: found.get(signature)
 				? "saved"
-				: checks.has(row.signature)
+				: checks.has(signature)
 					? "check"
 					: "make",
-		}),
-	);
+		};
+	});
 	const make = signatures.flatMap((signature): MakeItem[] => {
 		const row = rows.find((item) => item.signature === signature);
 		return row && (row.state === "make" || (retry && row.state === "check"))
@@ -1193,21 +1198,14 @@ export async function dramaAutoTag(args: Args) {
 		return feelLabel(voice, value, cast(line.speaker).family, feel);
 	});
 	const next = autoTagApply(lines, changes).lines;
-	try {
-		saveBytes(
-			out,
-			overwrite,
-			Buffer.from(
-				`${JSON.stringify({ ...scene, lines: next.map(({ id: _, ...line }) => line) })}\n`,
-			),
-		);
-	} catch {
-		throw new ClientError(
-			"DOWNLOAD_FAILED",
-			7,
-			"자동 태그 결과를 저장하지 못했습니다.",
-		);
-	}
+	saveOr7(
+		out,
+		overwrite,
+		Buffer.from(
+			`${JSON.stringify({ ...scene, lines: next.map(({ id: _, ...line }) => line) })}\n`,
+		),
+		"자동 태그 결과를 저장하지 못했습니다.",
+	);
 	if (fishOnly) {
 		const chars = sceneChars(next);
 		const limit = sceneLimit({ ...DRAMA_SETTINGS, ...scene.settings }.speed);
@@ -1305,32 +1303,17 @@ async function madeLines(
 	};
 	const requests = lines.flatMap((line, i) => {
 		const result = readRequests(speakers, lines, ctx, line.id, 1);
-		const request = "lines" in result ? result.lines[0]?.request : undefined;
-		return request ? [{ n: i + 1, request }] : [];
+		const read = "lines" in result ? result.lines[0] : undefined;
+		return read ? [{ ...read, n: i + 1 }] : [];
 	});
 	if (!requests.length) return new Set();
-	const found = await client
-		.trialFindMany(requests.map(({ request }) => request))
-		.catch(manageError);
+	const found = await findReadLines(requests, (targets) =>
+		client.trialFindMany(targets).catch(manageError),
+	);
 	return new Set(requests.filter((_, i) => found[i]).map(({ n }) => n));
 }
 
 export async function dramaResume(requestId: string | undefined, args: Args) {
-	const options = optionsOf(args);
-	const { json, url, out, overwrite } = options;
-	if (requestId === undefined) return showRecords("drama", url, json);
-	const wanted = args.text("out") !== undefined;
-	if (wanted) checkOut(out, overwrite, [".wav"]);
-	await checkKind("drama", url, requestId);
-	const connection = await connect(url);
-	const kind = dramaKind(options);
-	const result = resultOf(await recover(kind, connection, requestId));
-	if (wanted) return kind.finish(connection, "resumed", result.id);
-	show(json, {
-		origin: connection.origin,
-		source: "resumed",
-		result,
-		out: null,
-		mime: null,
-	});
+	const options = fileOf(args);
+	await resumeRequest(dramaKind(options), requestId, options, [".wav"]);
 }

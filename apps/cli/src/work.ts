@@ -238,7 +238,7 @@ export async function inspect(
 	const rows = ps.map((p): Row => {
 		const n = nOf(p);
 		if (blankFor(p, work)) return { n, p, state: "blank" };
-		const hit = signatureOf(p, work, voices, now);
+		const hit = signatureOf(p, work, voices, now, found);
 		const signature = hit?.signature;
 		const base = { n, p, signature, provider: hit?.request.provider };
 		if (signature !== undefined && found.get(signature)?.status === "done")

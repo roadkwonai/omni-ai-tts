@@ -568,6 +568,24 @@ describe.skipIf(!url)("내 보이스 목록·상태 확인", () => {
 		});
 	});
 
+	it("확인 403(계정 정지 등)은 provider_auth를 던지고 행은 processing 그대로라 풀린 뒤 다시 확인하면 ready다(P3)", async () => {
+		fetchMock.mockResolvedValueOnce(
+			json(201, fishModel({ state: "training" })),
+		);
+		const made = await me.myVoiceCreate(fishInput());
+		fetchMock.mockResolvedValueOnce(json(403, { message: "suspended" }));
+		await expect(me.myVoiceCheck({ id: made.id })).rejects.toMatchObject({
+			code: "BAD_GATEWAY",
+			data: { provider: "fish_audio", reason: "provider_auth" },
+		});
+		expect(await rowOf(made.id)).toMatchObject({
+			status: "processing",
+			reason: null,
+		});
+		fetchMock.mockResolvedValueOnce(json(200, fishModel()));
+		expect((await me.myVoiceCheck({ id: made.id })).status).toBe("ready");
+	});
+
 	it("대기 중이면 확인은 rate_limit(until), 공급자 0회·행 processing 그대로", async () => {
 		fetchMock.mockResolvedValueOnce(
 			json(201, fishModel({ state: "training" })),

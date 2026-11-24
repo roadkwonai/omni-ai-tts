@@ -32,6 +32,7 @@ import {
 	dramaResume,
 	dramaSplit,
 } from "./drama.js";
+import { fileOf } from "./files.js";
 import { studioJoin } from "./join.js";
 import {
 	voicesCheck,
@@ -155,6 +156,7 @@ const help = `Omni AI TTS CLI
   omni-tts clones resume [REQUEST_ID]
 
   모든 명령은 --url URL과 --json을 받습니다. 공급자 ID는 ${PROVIDERS.join(", ")}입니다.
+  -로 시작하는 값은 --text=-5도처럼 =로 붙입니다.
   REF는 공급자:성우 ID입니다(예: typecast:voice-123).
 
 성우 찾기 (casting, 요금 없음)
@@ -239,6 +241,7 @@ const help = `Omni AI TTS CLI
   clones resume    응답을 받지 못한 만들기를 다시 확인합니다. ID가 없으면 남은 요청을 보입니다
 
 내려받기와 복구 (요금 없음)
+  작업실은 결과를 마지막으로 듣거나 받은 날부터 30일 보관합니다.
   studio download, trial download  결과 ID의 파일을 받습니다
   studio resume, trial resume      응답을 받지 못한 요청을 다시 확인합니다. ID가 없으면 남은 요청을 보입니다
   drama download, drama resume     드라마 테이크의 같은 일입니다
@@ -305,12 +308,6 @@ const OUT = ["out", "overwrite"];
 const WORK = ["work", "script-id"];
 const VOICE = ["favorite", "no-favorite", "frequent", "no-frequent", "memo"];
 const PAID = [...OUT, "input", "yes", "new", "dry-run"];
-const fileOf = ({ url, json, text, flag }: Args) => ({
-	url,
-	json,
-	out: text("out"),
-	overwrite: flag("overwrite"),
-});
 const resultId = ({ extra }: Args) => {
 	const value = id(extra[0]);
 	return need(value, "결과 ID가 필요합니다.");
@@ -597,7 +594,7 @@ function parse(args: string[]) {
 		throw input(
 			(error as NodeJS.ErrnoException).code === "ERR_PARSE_ARGS_UNKNOWN_OPTION"
 				? `모르는 옵션입니다: ${name}`
-				: `옵션의 값을 확인해 주세요: ${name}`,
+				: `옵션의 값을 확인해 주세요: ${name}${FLAGS.includes(name.slice(2)) ? "" : ` (-로 시작하는 값은 ${name}=값처럼 붙입니다)`}`,
 		);
 	}
 }
@@ -654,6 +651,11 @@ async function main() {
 	});
 }
 
+// 읽는 쪽이 먼저 닫아도(| head) 유료 요청 중에 죽지 않는다
+for (const stream of [process.stdout, process.stderr])
+	stream.on("error", (error: NodeJS.ErrnoException) => {
+		if (error.code !== "EPIPE") throw error;
+	});
 main().catch((error: unknown) => {
 	process.exitCode = report(error);
 });

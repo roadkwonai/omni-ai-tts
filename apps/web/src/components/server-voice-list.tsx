@@ -251,6 +251,8 @@ export function ServerVoiceList({
 	const locked = !pages && voices.isFetching;
 
 	function clearAll() {
+		// 조건에 아직 들어가지 않은 검색어가 0.5초 뒤 되살아나지 않게 칸도 비운다(audit C8)
+		search.setDraft("");
 		onListChange(initialList(provider, source));
 		searchRef.current?.focus();
 	}

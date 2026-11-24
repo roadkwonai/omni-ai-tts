@@ -121,10 +121,11 @@ export function deleteQuestion(group: Group, name: string): string {
 	return `‘${name}’ ${GROUP_TEXT[group].object} 지울까요?`;
 }
 
+// 끝에 마침표가 없다: 뒤에 붙는 linkedNote가 앞 마침표를 가지고 온다
 export function deleteDetail(group: Group): string {
 	return group === "channel"
-		? "메모와 채널 주소도 함께 지워지고 되돌릴 수 없어요"
-		: "메모도 함께 지워지고 되돌릴 수 없어요";
+		? "메모와 채널 주소도 함께 지워지고 되돌릴 수 없어요. 프리셋과 대본의 채널 연결, 기본 프리셋 지정도 풀려요"
+		: "메모도 함께 지워지고 되돌릴 수 없어요. 대본에 붙인 연결도 풀려요";
 }
 
 // 양방향 제어문자(U+202A~202E, U+2066~2069)와 U+200B. 서버 규칙은 URL에서 이 글자를 거르지 않는다

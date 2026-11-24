@@ -31,6 +31,7 @@ import {
 	speakerMax,
 	speakersAdd,
 } from "@/lib/paragraph-script";
+import { isBlankEnd } from "@/lib/script-work";
 import { PARAGRAPH_TEXT } from "@/lib/studio-text";
 import { STUDIO_TEXT } from "@/lib/studio-view";
 
@@ -50,7 +51,7 @@ import { lockedButton } from "./voice-problem";
 type Mode = "replace" | "append";
 // '이어 넣기'는 끝 문단이 비었으면 그 자리에 넣는다(목록 가운데 빈 카드가 남지 않게). '전체 바꾸기' 경고도 빈 끝 문단은 세지 않는다
 const withoutBlankEnd = (ps: Paragraph[]) =>
-	ps.at(-1)?.text.trim() === "" ? ps.slice(0, -1) : ps;
+	isBlankEnd(ps) ? ps.slice(0, -1) : ps;
 
 // 창 안(열려 있을 때만 그려져 문단 목록을 읽는다). 빈 글이면 미리 보기 없이 '넣기'만 잠근다(쓰기 전부터 경고를 띄우지 않는다)
 function PasteBody({

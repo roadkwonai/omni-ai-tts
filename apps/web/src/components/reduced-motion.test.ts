@@ -26,11 +26,11 @@ test("전역 움직임 줄이기는 전환을 투명도·색으로 거르고 진
 	expect(css).toContain("animation: none");
 });
 
-test("랜딩 움직임 줄이기는 이동 키프레임을 멈추고 투명도 크로스페이드(태그라인·투어·reveal)를 지우지 않는다", () => {
+test("랜딩 움직임 줄이기는 이동 키프레임을 멈추고 투명도 크로스페이드(투어·reveal)를 지우지 않는다", () => {
 	const css = reduced(read("./landing/landing.css"));
 	expect(css).toContain(".landing-hero-in");
 	expect(css).toContain("animation: none");
-	// 숨김 상태를 풀거나 태그라인 투명도를 1로 고정하지 않는다
+	// 숨김 상태를 풀지 않는다
 	expect(css).not.toMatch(/opacity:\s*1/);
 	expect(css).toContain("transition: opacity");
 });

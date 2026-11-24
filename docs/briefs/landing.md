@@ -88,5 +88,5 @@
 - 구현 결정(2026-11-19): 막대 '데모 써 보기'는 다른 세션 파일(`landing-bar.tsx`)이라 이번에는 `/studio` 그대로다. 히어로와 마지막 행동만 `/studio?example=1`로 간다(백로그). 2026-11-20 UX-13으로 막대도 `/studio?example=1`·'데모 작업실 열기'로 맞췄다. 연기 샘플 4개와 드라마 장면은 Fish Audio `s2.1-pro-free`로 사용자 승인 호출 5회에 만들었다(`public/samples/landing/`).
 - 재생은 장면 1·3·4가 같은 작은 훅 하나를 쓴다(한 번에 하나 재생). 기존 `hero-card`의 오디오 로직이 있으면 그것을 옮겨 쓴다.
 - 비용 재현은 앱의 `ConfirmDialog`와 `Badge`를 쓴다.
-- 새 섹션은 `components/landing/`에, 기존 `Section`·`Reveal`·`Shot`을 쓴다. `landing.css`·`landing-bar.tsx`·`tagline.tsx`는 고치지 않는다.
+- 새 섹션은 `components/landing/`에, 기존 `Section`·`Reveal`·`Shot`을 쓴다. `landing.css`·`landing-bar.tsx`는 고치지 않는다.
 - 예시 대본 채우기는 작업실 쪽 화면 코드만 고친다(서버·DB 변경 없음). 막대 링크는 `NAV_ITEMS`/CTA 상수로.

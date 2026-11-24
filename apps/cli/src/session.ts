@@ -44,7 +44,9 @@ function directory(): string {
 		(stat.mode & 0o077) !== 0 ||
 		stat.uid !== process.getuid?.()
 	)
-		throw new Error("세션 디렉터리 권한이 올바르지 않습니다.");
+		throw new Error(
+			`${path}의 권한이 올바르지 않습니다. 본인 소유의 0700 폴더여야 합니다.`,
+		);
 	return path;
 }
 
@@ -74,14 +76,24 @@ function readState<S extends object>(
 			(stat.mode & 0o077) !== 0 ||
 			stat.uid !== process.getuid?.()
 		)
-			throw new Error("세션 파일 권한이 올바르지 않습니다.");
-		const state = JSON.parse(readFileSync(path, "utf8")) as S;
-		if (!state[name] || typeof state[name] !== "object")
-			throw new Error("세션 파일이 올바르지 않습니다.");
+			throw new Error(
+				`${path}의 권한이 올바르지 않습니다. 본인 소유의 0600 일반 파일이어야 합니다.`,
+			);
+		const state = parsed(readFileSync(path, "utf8")) as S | null;
+		if (!state?.[name] || typeof state[name] !== "object")
+			throw new Error(`${path}의 형식이 올바르지 않습니다.`);
 		return state;
 	} catch (error) {
 		if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
 		return empty;
+	}
+}
+// JSON.parse의 오류 글에는 파일 내용(쿠키)이 들어간다
+function parsed(text: string): unknown {
+	try {
+		return JSON.parse(text);
+	} catch {
+		return null;
 	}
 }
 
@@ -108,7 +120,9 @@ async function changeFile<S extends object, T>(
 		stat.uid !== process.getuid?.()
 	) {
 		closeSync(fd);
-		throw new Error("잠금 파일 권한이 올바르지 않습니다.");
+		throw new Error(
+			`${lock}의 권한이 올바르지 않습니다. 본인 소유의 0600 일반 파일이어야 합니다.`,
+		);
 	}
 	const child = spawn(
 		process.platform === "darwin" ? "/usr/bin/lockf" : "/usr/bin/flock",

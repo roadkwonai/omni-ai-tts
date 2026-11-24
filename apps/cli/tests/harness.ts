@@ -685,6 +685,7 @@ export function studioWorld() {
 			return { deleted: true };
 		}),
 		savedVoiceList: proc("savedVoiceList", () => w.voices),
+		savedVoiceCheck: proc("savedVoiceCheck", () => w.voices),
 		channelList: proc("channelList", () => w.channels),
 		classificationList: proc("classificationList", () => w.classes),
 		presetList: proc("presetList", () => w.presets),
